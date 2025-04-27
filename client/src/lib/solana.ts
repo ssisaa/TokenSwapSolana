@@ -21,6 +21,7 @@ import {
   POOL_AUTHORITY, 
   POOL_SOL_ACCOUNT, 
   YOT_TOKEN_ADDRESS,
+  YOT_TOKEN_ACCOUNT,
   SWAP_FEE
 } from './constants';
 
@@ -265,8 +266,8 @@ export async function swapSolToYot(
     // Since we're completing a simple SOL -> YOT swap manually, we need to 
     // also include instructions for the second part of the swap
     
-    // Get the fixed YOT token account from constants
-    const poolYotAccount = new PublicKey(YOT_TOKEN_ADDRESS);
+    // Get the pool's YOT token account from constants
+    const poolYotAccount = new PublicKey(YOT_TOKEN_ACCOUNT);
     
     // Convert YOT amount to the right number of tokens based on decimals
     const mintInfo = await getMint(connection, yotTokenMint);
@@ -396,11 +397,8 @@ export async function swapYotToSol(
         lastValidBlockHeight
       });
       
-      // Get the pool's YOT token account
-      const poolYotAccount = await getAssociatedTokenAddress(
-        yotTokenMint,
-        new PublicKey(POOL_AUTHORITY)
-      );
+      // Get the pool's YOT token account from constants
+      const poolYotAccount = new PublicKey(YOT_TOKEN_ACCOUNT);
       
       // Add instruction to transfer YOT tokens from user to pool
       transaction.add(

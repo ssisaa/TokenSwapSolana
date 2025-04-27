@@ -47,10 +47,15 @@ export default function SwapSection() {
     } else if (isSuccess) {
       setTransactionState('success');
       toast({
-        title: "Pool Deposit Successful",
-        description: "Your transaction has been confirmed on the blockchain.",
+        title: `${fromToken} → ${toToken} Swap Initiated`,
+        description: "Your transaction has been confirmed on the blockchain. The first part of the swap (deposit) is complete.",
         variant: "default",
       });
+      
+      // Store transaction info for reference
+      if (isSuccess && lastTransaction?.signature) {
+        setLastTransaction(lastTransaction);
+      }
       
       // No need to refresh transaction history manually - TransactionHistory component
       // will refresh on its own after a transaction is confirmed
