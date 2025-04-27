@@ -163,46 +163,53 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // We'd use the program's state to get staking information
     
     // For this sample, we'll simulate by getting data from the server
-    const response = await fetch(`/api/staking/info?wallet=${walletAddressStr}`);
-    
-    if (!response.ok) {
-      // If no staking record is found, return zeros
-      if (response.status === 404) {
+    try {
+      const response = await fetch(`/api/staking/info?wallet=${walletAddressStr}`);
+      
+      // If no staking record is found or there's a server error, return zeros
+      if (!response.ok) {
+        console.log(`No staking record found or server error: ${response.status}`);
         return {
           stakedAmount: 0,
           rewardsEarned: 0,
           startTimestamp: null
         };
       }
-      throw new Error('Failed to get staking info');
+      
+      const data = await response.json();
+      
+      // Calculate current rewards based on staking duration and rate
+      const now = Date.now();
+      const startTime = data.startTimestamp;
+      const stakedAmount = data.stakedAmount;
+      const harvestedRewards = data.harvestedRewards || 0;
+      
+      // Calculate time staked in seconds
+      const timeStakedMs = startTime ? (now - startTime) : 0;
+      const timeStakedSeconds = timeStakedMs / 1000;
+      
+      // Get staking rate
+      const settings = await getAdminSettings();
+      const ratePerSecond = settings.stakeRatePerSecond 
+        ? parseFloat(settings.stakeRatePerSecond) / 100
+        : 0.00125 / 100; // Default rate
+      
+      // Calculate rewards
+      const pendingRewards = calculateRewards(stakedAmount, timeStakedSeconds, ratePerSecond);
+      
+      return {
+        stakedAmount: stakedAmount,
+        rewardsEarned: pendingRewards,
+        startTimestamp: startTime
+      };
+    } catch (apiError) {
+      console.log("API error, using default values:", apiError);
+      return {
+        stakedAmount: 0,
+        rewardsEarned: 0,
+        startTimestamp: null
+      };
     }
-    
-    const data = await response.json();
-    
-    // Calculate current rewards based on staking duration and rate
-    const now = Date.now();
-    const startTime = data.startTimestamp;
-    const stakedAmount = data.stakedAmount;
-    const harvestedRewards = data.harvestedRewards || 0;
-    
-    // Calculate time staked in seconds
-    const timeStakedMs = startTime ? (now - startTime) : 0;
-    const timeStakedSeconds = timeStakedMs / 1000;
-    
-    // Get staking rate
-    const settings = await getAdminSettings();
-    const ratePerSecond = settings.stakeRatePerSecond 
-      ? parseFloat(settings.stakeRatePerSecond) / 100
-      : 0.00125 / 100; // Default rate
-    
-    // Calculate rewards
-    const pendingRewards = calculateRewards(stakedAmount, timeStakedSeconds, ratePerSecond);
-    
-    return {
-      stakedAmount: stakedAmount,
-      rewardsEarned: pendingRewards,
-      startTimestamp: startTime
-    };
   } catch (error) {
     console.error("Error getting staking info:", error);
     return {
