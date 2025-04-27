@@ -1,60 +1,73 @@
-import { PublicKey } from '@solana/web3.js';
-import { connection } from '@/lib/completeSwap';
+import { 
+  PublicKey, 
+  Transaction, 
+  SystemProgram, 
+  Keypair, 
+  sendAndConfirmTransaction,
+  LAMPORTS_PER_SOL
+} from '@solana/web3.js';
+import { 
+  createTransferInstruction,
+  getAccount,
+  getAssociatedTokenAddress,
+  getMint,
+  TOKEN_PROGRAM_ID,
+  createAssociatedTokenAccountInstruction
+} from '@solana/spl-token';
+import { connection, poolAuthorityKeypair } from '@/lib/completeSwap';
+import { 
+  YOT_TOKEN_ADDRESS, 
+  YOT_TOKEN_ACCOUNT, 
+  YOS_TOKEN_ADDRESS, 
+  YOS_TOKEN_ACCOUNT,
+  POOL_AUTHORITY
+} from '@/lib/constants';
 import { toast } from '@/hooks/use-toast';
 
-// Mock staking storage (in a real app, this would be stored on-chain)
-interface StakingRecord {
-  walletAddress: string;
-  stakedAmount: number;
-  startTimestamp: number;
-  rewardsEarned: number;
-  lastCalculatedTime: number;
-}
+// For production, this would be in a Solana program
+// For this demonstration, we'll use the server's database and make blockchain transfers
+// This implements a simple staking protocol where tokens are sent to a staking account
 
-// In-memory storage for demonstration purposes
-// In a real app, this would be implemented with a Solana program
-const stakingRecords: StakingRecord[] = [];
+// Staking program public key (this would be a deployed Solana program in a real implementation)
+const STAKING_PROGRAM_ID = new PublicKey(POOL_AUTHORITY);
 
-export async function stakeYOTTokens(walletAddress: string, amount: number): Promise<boolean> {
+// Create a constant for staking data index
+const STAKING_DATA_SEED = 'staking_account';
+
+// Function to stake YOT tokens
+export async function stakeYOTTokens(walletAddressStr: string, amount: number): Promise<boolean> {
   try {
-    // In a real implementation, this would:
-    // 1. Create a Solana transaction to transfer YOT to a staking account
-    // 2. Sign and send the transaction using the connected wallet
-    // 3. Verify the transaction success
-
-    // Get current staking rate from admin settings
-    const ratePerSecond = await getStakingRate();
+    console.log(`Staking ${amount} YOT tokens from ${walletAddressStr}`);
     
-    // For demonstration, we'll just record the stake
-    const existingStakeIndex = stakingRecords.findIndex(record => 
-      record.walletAddress === walletAddress);
+    // In production, this would create a transaction that calls the staking program
+    // We'd use the program's instructions to stake tokens
     
-    if (existingStakeIndex >= 0) {
-      // If already staking, add to existing stake
-      const currentRecord = stakingRecords[existingStakeIndex];
-      
-      // Calculate rewards up to now before adding more tokens
-      const now = Date.now();
-      const timeSinceLastCalculation = (now - currentRecord.lastCalculatedTime) / 1000; // in seconds
-      const newRewards = calculateRewards(currentRecord.stakedAmount, timeSinceLastCalculation, ratePerSecond);
-      
-      // Update record
-      currentRecord.stakedAmount += amount;
-      currentRecord.rewardsEarned += newRewards;
-      currentRecord.lastCalculatedTime = now;
-      
-      stakingRecords[existingStakeIndex] = currentRecord;
-    } else {
-      // Create new staking record
-      const now = Date.now();
-      stakingRecords.push({
-        walletAddress,
-        stakedAmount: amount,
-        startTimestamp: now,
-        rewardsEarned: 0,
-        lastCalculatedTime: now
-      });
+    // For this sample, we'll simulate a successful staking operation
+    // and update the database via API
+    
+    // Create staking data to be saved in the database
+    const stakingData = {
+      walletAddress: walletAddressStr,
+      stakedAmount: amount,
+      startTimestamp: Date.now(),
+      harvestableRewards: 0
+    };
+    
+    // Send the staking data to the server to be stored
+    const response = await fetch('/api/staking/stake', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(stakingData),
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to save staking data');
     }
+    
+    // In a real implementation, we would now run a blockchain transaction
+    // to transfer the YOT tokens to the staking account
     
     return true;
   } catch (error) {
@@ -63,22 +76,28 @@ export async function stakeYOTTokens(walletAddress: string, amount: number): Pro
   }
 }
 
-export async function unstakeYOTTokens(walletAddress: string): Promise<boolean> {
+// Function to unstake YOT tokens
+export async function unstakeYOTTokens(walletAddressStr: string): Promise<boolean> {
   try {
-    // In a real implementation, this would:
-    // 1. Create a Solana transaction to return YOT from the staking account 
-    // 2. Sign and send the transaction
-    // 3. Verify the transaction success
+    console.log(`Unstaking YOT tokens for ${walletAddressStr}`);
     
-    const stakeIndex = stakingRecords.findIndex(record => 
-      record.walletAddress === walletAddress);
+    // In production, this would create a transaction that calls the staking program
+    // We'd use the program's instructions to unstake tokens
     
-    if (stakeIndex === -1) {
-      return false;
+    // For this sample, we'll simulate a successful unstaking operation
+    // and update the database via API
+    
+    // Send unstake request to the server
+    const response = await fetch(`/api/staking/unstake?wallet=${walletAddressStr}`, {
+      method: 'POST'
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to unstake tokens');
     }
     
-    // Reset the staking record (in reality, the on-chain program would handle this)
-    stakingRecords.splice(stakeIndex, 1);
+    // In a real implementation, we would now run a blockchain transaction
+    // to transfer the YOT tokens back to the user's wallet
     
     return true;
   } catch (error) {
@@ -87,36 +106,42 @@ export async function unstakeYOTTokens(walletAddress: string): Promise<boolean> 
   }
 }
 
-export async function harvestYOSRewards(walletAddress: string): Promise<boolean> {
+// Function to harvest YOS rewards
+export async function harvestYOSRewards(walletAddressStr: string): Promise<boolean> {
   try {
-    // In a real implementation, this would:
-    // 1. Create a Solana transaction to mint YOS rewards to the user's wallet
-    // 2. Sign and send the transaction
-    // 3. Verify the transaction success
+    console.log(`Harvesting YOS rewards for ${walletAddressStr}`);
     
-    // Get current staking rate from admin settings
-    const ratePerSecond = await getStakingRate();
+    // Get current staking info
+    const stakingInfo = await getStakingInfo(walletAddressStr);
     
-    const stakeIndex = stakingRecords.findIndex(record => 
-      record.walletAddress === walletAddress);
+    // Get harvest threshold from settings
+    const settings = await getAdminSettings();
+    const harvestThreshold = settings.harvestThreshold 
+      ? parseFloat(settings.harvestThreshold.toString()) 
+      : 100;
     
-    if (stakeIndex === -1) {
-      return false;
+    // Check if rewards are above threshold
+    if (stakingInfo.rewardsEarned < harvestThreshold) {
+      throw new Error(`Rewards below threshold. Need ${harvestThreshold} YOS.`);
     }
     
-    // Update the rewards earned to zero (in reality, the on-chain program would handle this)
-    const record = stakingRecords[stakeIndex];
+    // In production, this would create a transaction that calls the staking program
+    // We'd use the program's instructions to harvest rewards
     
-    // Calculate most recent rewards
-    const now = Date.now();
-    const timeSinceLastCalculation = (now - record.lastCalculatedTime) / 1000; // in seconds
-    const newRewards = calculateRewards(record.stakedAmount, timeSinceLastCalculation, ratePerSecond);
+    // For this sample, we'll simulate a successful harvest operation
+    // and update the database via API
     
-    // Reset rewards after "transferring" them to the user
-    record.rewardsEarned = 0;
-    record.lastCalculatedTime = now;
+    // Send harvest request to the server
+    const response = await fetch(`/api/staking/harvest?wallet=${walletAddressStr}`, {
+      method: 'POST'
+    });
     
-    stakingRecords[stakeIndex] = record;
+    if (!response.ok) {
+      throw new Error('Failed to harvest rewards');
+    }
+    
+    // In a real implementation, we would now run a blockchain transaction
+    // to transfer the YOS tokens to the user's wallet
     
     return true;
   } catch (error) {
@@ -125,41 +150,58 @@ export async function harvestYOSRewards(walletAddress: string): Promise<boolean>
   }
 }
 
-export async function getStakingInfo(walletAddress: string): Promise<{
+// Function to get staking information
+export async function getStakingInfo(walletAddressStr: string): Promise<{
   stakedAmount: number,
   rewardsEarned: number,
   startTimestamp: number | null
 }> {
   try {
-    // In a real implementation, this would query the Solana blockchain
-    // to get the staking information for the user
+    console.log(`Getting staking info for ${walletAddressStr}`);
     
-    const stakeRecord = stakingRecords.find(record => 
-      record.walletAddress === walletAddress);
+    // In production, this would query the Solana blockchain
+    // We'd use the program's state to get staking information
     
-    if (!stakeRecord) {
-      return {
-        stakedAmount: 0,
-        rewardsEarned: 0,
-        startTimestamp: null
-      };
+    // For this sample, we'll simulate by getting data from the server
+    const response = await fetch(`/api/staking/info?wallet=${walletAddressStr}`);
+    
+    if (!response.ok) {
+      // If no staking record is found, return zeros
+      if (response.status === 404) {
+        return {
+          stakedAmount: 0,
+          rewardsEarned: 0,
+          startTimestamp: null
+        };
+      }
+      throw new Error('Failed to get staking info');
     }
     
-    // Get the current staking rate from admin settings
-    const ratePerSecond = await getStakingRate();
+    const data = await response.json();
     
-    // Calculate the current rewards
+    // Calculate current rewards based on staking duration and rate
     const now = Date.now();
-    const timeSinceLastCalculation = (now - stakeRecord.lastCalculatedTime) / 1000; // in seconds
-    const newRewards = calculateRewards(stakeRecord.stakedAmount, timeSinceLastCalculation, ratePerSecond);
+    const startTime = data.startTimestamp;
+    const stakedAmount = data.stakedAmount;
+    const harvestedRewards = data.harvestedRewards || 0;
     
-    // Update the record with current rewards (but don't commit it yet)
-    const totalRewards = stakeRecord.rewardsEarned + newRewards;
+    // Calculate time staked in seconds
+    const timeStakedMs = startTime ? (now - startTime) : 0;
+    const timeStakedSeconds = timeStakedMs / 1000;
+    
+    // Get staking rate
+    const settings = await getAdminSettings();
+    const ratePerSecond = settings.stakeRatePerSecond 
+      ? parseFloat(settings.stakeRatePerSecond) / 100
+      : 0.00125 / 100; // Default rate
+    
+    // Calculate rewards
+    const pendingRewards = calculateRewards(stakedAmount, timeStakedSeconds, ratePerSecond);
     
     return {
-      stakedAmount: stakeRecord.stakedAmount,
-      rewardsEarned: totalRewards,
-      startTimestamp: stakeRecord.startTimestamp
+      stakedAmount: stakedAmount,
+      rewardsEarned: pendingRewards,
+      startTimestamp: startTime
     };
   } catch (error) {
     console.error("Error getting staking info:", error);
@@ -171,32 +213,26 @@ export async function getStakingInfo(walletAddress: string): Promise<{
   }
 }
 
-// Utility function to calculate rewards based on staked amount and time
-// The actual implementation would use the rate from admin settings
-// Get staking rate from admin settings
-async function getStakingRate(): Promise<number> {
+// Function to get admin settings
+async function getAdminSettings() {
   try {
-    // Fetch the admin settings from the API
     const response = await fetch('/api/admin/settings');
     if (!response.ok) {
       throw new Error('Failed to fetch admin settings');
     }
     
-    const settings = await response.json();
-    
-    // Use the stakeRatePerSecond from settings, or fallback to default
-    const ratePerSecond = settings.stakeRatePerSecond 
-      ? parseFloat(settings.stakeRatePerSecond) / 100
-      : 0.00125 / 100; // 0.00125% per second default, converted to decimal
-      
-    return ratePerSecond;
+    return await response.json();
   } catch (error) {
-    console.error('Error fetching staking rate:', error);
-    // Return default rate if there's an error
-    return 0.00125 / 100;
+    console.error('Error fetching admin settings:', error);
+    // Return default settings
+    return {
+      stakeRatePerSecond: 0.00125, // 0.00125% per second
+      harvestThreshold: 100 // 100 YOS
+    };
   }
 }
 
-function calculateRewards(stakedAmount: number, timeInSeconds: number, ratePerSecond: number = 0.00125 / 100): number {
+// Function to calculate rewards
+function calculateRewards(stakedAmount: number, timeInSeconds: number, ratePerSecond: number): number {
   return stakedAmount * timeInSeconds * ratePerSecond;
 }

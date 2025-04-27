@@ -96,6 +96,24 @@ export const insertAdminSettingsSchema = createInsertSchema(adminSettings).pick(
   updatedBy: true
 });
 
+// Staking records table
+export const stakingRecords = pgTable("staking_records", {
+  id: serial("id").primaryKey(),
+  walletAddress: text("wallet_address").notNull().unique(),
+  stakedAmount: decimal("staked_amount").notNull().default("0"),
+  startTimestamp: timestamp("start_timestamp").defaultNow(),
+  lastHarvestTime: timestamp("last_harvest_time").defaultNow(),
+  harvestedRewards: decimal("harvested_rewards").notNull().default("0"),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+export const insertStakingRecordSchema = createInsertSchema(stakingRecords).pick({
+  walletAddress: true,
+  stakedAmount: true,
+  startTimestamp: true,
+  harvestedRewards: true
+});
+
 // Define types
 export type InsertToken = z.infer<typeof insertTokenSchema>;
 export type Token = typeof tokens.$inferSelect;
@@ -108,3 +126,6 @@ export type AdminUser = typeof adminUsers.$inferSelect;
 
 export type InsertAdminSettings = z.infer<typeof insertAdminSettingsSchema>;
 export type AdminSettings = typeof adminSettings.$inferSelect;
+
+export type InsertStakingRecord = z.infer<typeof insertStakingRecordSchema>;
+export type StakingRecord = typeof stakingRecords.$inferSelect;

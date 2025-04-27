@@ -41,6 +41,12 @@ export interface IStorage {
   getAdminSettings(): Promise<AdminSettings | undefined>;
   updateAdminSettings(settings: Partial<InsertAdminSettings>, adminId: number): Promise<AdminSettings>;
   
+  // Staking functionality
+  saveStakingData(data: { walletAddress: string, stakedAmount: number, startTimestamp: number, harvestableRewards?: number }): Promise<any>;
+  getStakingData(walletAddress: string): Promise<any>;
+  removeStakingData(walletAddress: string): Promise<void>;
+  harvestRewards(walletAddress: string): Promise<void>;
+  
   // Session store
   sessionStore: session.Store;
 }
