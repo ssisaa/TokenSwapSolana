@@ -115,16 +115,34 @@ export function useStaking() {
         throw err;
       }
     },
-    onSuccess: () => {
+    onSuccess: (result, variables) => {
       // Invalidate and refetch staking info
       queryClient.invalidateQueries({ queryKey: ['staking', publicKey?.toString()] });
       
       // Also invalidate token balances
       queryClient.invalidateQueries({ queryKey: ['tokens'] });
       
+      // Simulate the update in the UI
+      // Get the current staking info
+      const currentInfo = queryClient.getQueryData<any>(['staking', publicKey?.toString()]);
+      
+      if (currentInfo && result === "program-deployment-in-progress") {
+        // Extract the stake amount
+        const amountToAdd = variables.amount;
+        
+        // Create a simulated updated staking info
+        const updatedInfo = {
+          ...currentInfo,
+          stakedAmount: currentInfo.stakedAmount + amountToAdd
+        };
+        
+        // Update the cache with simulated data
+        queryClient.setQueryData(['staking', publicKey?.toString()], updatedInfo);
+      }
+      
       toast({
         title: "Staking Simulation",
-        description: "The staking program is currently being finalized. Your request was simulated.",
+        description: "The staking program is currently being finalized. Your request was simulated successfully.",
       });
     },
     onError: (error: Error) => {
@@ -187,16 +205,34 @@ export function useStaking() {
         throw err;
       }
     },
-    onSuccess: () => {
+    onSuccess: (result, variables) => {
       // Invalidate and refetch staking info
       queryClient.invalidateQueries({ queryKey: ['staking', publicKey?.toString()] });
       
       // Also invalidate token balances
       queryClient.invalidateQueries({ queryKey: ['tokens'] });
       
+      // Simulate the update in the UI
+      // Get the current staking info
+      const currentInfo = queryClient.getQueryData<any>(['staking', publicKey?.toString()]);
+      
+      if (currentInfo && result === "program-deployment-in-progress") {
+        // Extract the stake amount
+        const amountToSubtract = variables.amount;
+        
+        // Create a simulated updated staking info
+        const updatedInfo = {
+          ...currentInfo,
+          stakedAmount: Math.max(0, currentInfo.stakedAmount - amountToSubtract)
+        };
+        
+        // Update the cache with simulated data
+        queryClient.setQueryData(['staking', publicKey?.toString()], updatedInfo);
+      }
+      
       toast({
         title: "Unstaking Simulation",
-        description: "The staking program is currently being finalized. Your request was simulated.",
+        description: "The staking program is currently being finalized. Your request was simulated successfully.",
       });
     },
     onError: (error: Error) => {
@@ -259,16 +295,43 @@ export function useStaking() {
         throw err;
       }
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       // Invalidate and refetch staking info
       queryClient.invalidateQueries({ queryKey: ['staking', publicKey?.toString()] });
       
       // Also invalidate token balances
       queryClient.invalidateQueries({ queryKey: ['tokens'] });
       
+      // Simulate the update in the UI
+      // Get the current staking info
+      const currentInfo = queryClient.getQueryData<any>(['staking', publicKey?.toString()]);
+      
+      if (currentInfo && result === "program-deployment-in-progress") {
+        // Simulate harvested rewards - reset earned rewards
+        const updatedInfo = {
+          ...currentInfo,
+          rewardsEarned: 0,
+          totalHarvested: (currentInfo.totalHarvested || 0) + (currentInfo.rewardsEarned || 0),
+          lastHarvestTime: Date.now() / 1000
+        };
+        
+        // Update the cache with simulated data
+        queryClient.setQueryData(['staking', publicKey?.toString()], updatedInfo);
+        
+        // Also update token balances - simulate adding YOS tokens
+        const currentBalances = queryClient.getQueryData<any>(['tokens', publicKey?.toString()]);
+        if (currentBalances) {
+          const updatedBalances = {
+            ...currentBalances,
+            yos: (currentBalances.yos || 0) + (currentInfo.rewardsEarned || 0)
+          };
+          queryClient.setQueryData(['tokens', publicKey?.toString()], updatedBalances);
+        }
+      }
+      
       toast({
         title: "Harvesting Simulation",
-        description: "The staking program is currently being finalized. Your request was simulated.",
+        description: "The staking program is currently being finalized. Your request was simulated successfully.",
       });
     },
     onError: (error: Error) => {
@@ -337,13 +400,42 @@ export function useStaking() {
         throw err;
       }
     },
-    onSuccess: () => {
+    onSuccess: (result, variables) => {
       // Invalidate and refetch staking info for all users
       queryClient.invalidateQueries({ queryKey: ['staking'] });
       
+      // Simulate the update in the UI
+      // Get the current rates info
+      const currentRates = queryClient.getQueryData<any>(['staking-rates']);
+      
+      if (currentRates && result === "program-deployment-in-progress") {
+        // Extract the parameter values
+        const { stakeRatePerSecond, harvestThreshold } = variables;
+        
+        // Calculate corresponding APYs
+        const secondsInDay = 86400;
+        const dailyAPY = parseFloat((stakeRatePerSecond * secondsInDay * 100).toFixed(2));
+        const weeklyAPY = parseFloat((dailyAPY * 7).toFixed(2));
+        const monthlyAPY = parseFloat((dailyAPY * 30).toFixed(2));
+        const yearlyAPY = parseFloat((dailyAPY * 365).toFixed(2));
+        
+        // Create a simulated updated rates
+        const updatedRates = {
+          stakeRatePerSecond,
+          harvestThreshold,
+          dailyAPY,
+          weeklyAPY,
+          monthlyAPY,
+          yearlyAPY
+        };
+        
+        // Update the cache with simulated data
+        queryClient.setQueryData(['staking-rates'], updatedRates);
+      }
+      
       toast({
         title: "Parameter Update Simulation",
-        description: "The staking program is currently being finalized. Your request was simulated.",
+        description: "The staking program is currently being finalized. Your request was simulated successfully.",
       });
     },
     onError: (error: Error) => {
