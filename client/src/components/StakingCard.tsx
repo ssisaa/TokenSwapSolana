@@ -6,12 +6,17 @@ import { Progress } from '@/components/ui/progress';
 import { useStaking } from '@/hooks/useStaking';
 import { useMultiWallet } from '@/context/MultiWalletContext';
 import { formatNumber } from '@/lib/utils';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Wallet } from 'lucide-react';
+import { useTokenBalance } from '@/hooks/useTokenBalance';
+import { YOT_TOKEN_ADDRESS } from '@/lib/constants';
 
 export default function StakingCard() {
   const [stakeAmount, setStakeAmount] = useState<string>('');
   const [unstakeAmount, setUnstakeAmount] = useState<string>('');
   const { connected } = useMultiWallet();
+  
+  // Fetch the user's YOT token balance
+  const { balance: yotBalance, isLoading: isLoadingBalance } = useTokenBalance(YOT_TOKEN_ADDRESS);
   
   const {
     stakingInfo,
@@ -62,9 +67,8 @@ export default function StakingCard() {
 
   // Handle max stake/unstake buttons
   const handleMaxStake = () => {
-    // This would need to get max YOT balance from wallet
-    // For now just showing the concept
-    setStakeAmount('100');
+    // Use the actual YOT balance from wallet
+    setStakeAmount(yotBalance.toString());
   };
 
   const handleMaxUnstake = () => {
@@ -127,7 +131,14 @@ export default function StakingCard() {
               
               {/* Staking Actions */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Stake YOT</h3>
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold">Stake YOT</h3>
+                  <div className="flex items-center text-sm">
+                    <Wallet className="h-4 w-4 mr-1 text-muted-foreground" />
+                    <span className="text-muted-foreground">Available: </span>
+                    <span className="font-medium ml-1">{formatNumber(yotBalance)} YOT</span>
+                  </div>
+                </div>
                 <div className="flex items-center space-x-2">
                   <div className="relative flex-1">
                     <Input
