@@ -96,7 +96,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
   const canHarvest = stakingInfo.rewardsEarned > 0;
 
   return (
-    <Card className="w-full">
+    <Card className="w-full bg-dark-200">
       <CardHeader>
         <CardTitle className="text-xl font-bold">YOT Staking</CardTitle>
         <CardDescription>
@@ -114,57 +114,57 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
               {/* Staking Stats */}
               <div className="grid gap-4">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total Staked:</span>
-                  <span className="font-medium">{formatNumber(stakingInfo.stakedAmount)} YOT</span>
+                  <span className="text-gray-400">Total Staked:</span>
+                  <span className="font-medium text-white">{formatNumber(stakingInfo.stakedAmount)} YOT</span>
                 </div>
                 
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Pending Rewards:</span>
-                  <span className="font-medium">{formatNumber(stakingInfo.rewardsEarned)} YOS</span>
+                  <span className="text-gray-400">Pending Rewards:</span>
+                  <span className="font-medium text-white">{formatNumber(stakingInfo.rewardsEarned)} YOS</span>
                 </div>
                 
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Staking Since:</span>
-                  <span className="font-medium">{formatDate(stakingInfo.startTimestamp)}</span>
+                  <span className="text-gray-400">Staking Since:</span>
+                  <span className="font-medium text-white">{formatDate(stakingInfo.startTimestamp)}</span>
                 </div>
                 
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Last Harvest:</span>
-                  <span className="font-medium">{getTimeSinceLastHarvest()} ago</span>
+                  <span className="text-gray-400">Last Harvest:</span>
+                  <span className="font-medium text-white">{getTimeSinceLastHarvest()} ago</span>
                 </div>
                 
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total Harvested:</span>
-                  <span className="font-medium">{formatNumber(stakingInfo.totalHarvested)} YOS</span>
+                  <span className="text-gray-400">Total Harvested:</span>
+                  <span className="font-medium text-white">{formatNumber(stakingInfo.totalHarvested)} YOS</span>
                 </div>
               </div>
               
               <div className="h-px bg-border" />
               
               {/* Staking APY Information */}
-              <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-                <h3 className="text-base font-semibold">Staking APY Rates</h3>
+              <div className="bg-dark-300 rounded-lg p-4 space-y-3 border border-border">
+                <h3 className="text-base font-semibold text-white">Staking APY Rates</h3>
                 
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-background rounded-md p-3 border">
-                    <div className="text-xs text-muted-foreground">Daily APY</div>
-                    <div className="text-lg font-bold text-green-500">{stakingRates.dailyAPY.toFixed(2)}%</div>
+                  <div className="bg-dark-200 rounded-md p-3 border border-border">
+                    <div className="text-xs text-gray-300">Daily APY</div>
+                    <div className="text-lg font-bold text-green-400">{stakingRates.dailyAPY.toFixed(2)}%</div>
                   </div>
-                  <div className="bg-background rounded-md p-3 border">
-                    <div className="text-xs text-muted-foreground">Weekly APY</div>
-                    <div className="text-lg font-bold text-green-500">{stakingRates.weeklyAPY.toFixed(2)}%</div>
+                  <div className="bg-dark-200 rounded-md p-3 border border-border">
+                    <div className="text-xs text-gray-300">Weekly APY</div>
+                    <div className="text-lg font-bold text-green-400">{stakingRates.weeklyAPY.toFixed(2)}%</div>
                   </div>
-                  <div className="bg-background rounded-md p-3 border">
-                    <div className="text-xs text-muted-foreground">Monthly APY</div>
-                    <div className="text-lg font-bold text-green-500">{stakingRates.monthlyAPY.toFixed(2)}%</div>
+                  <div className="bg-dark-200 rounded-md p-3 border border-border">
+                    <div className="text-xs text-gray-300">Monthly APY</div>
+                    <div className="text-lg font-bold text-green-400">{stakingRates.monthlyAPY.toFixed(2)}%</div>
                   </div>
-                  <div className="bg-background rounded-md p-3 border">
-                    <div className="text-xs text-muted-foreground">Yearly APY</div>
-                    <div className="text-lg font-bold text-green-500">{stakingRates.yearlyAPY.toFixed(2)}%</div>
+                  <div className="bg-dark-200 rounded-md p-3 border border-border">
+                    <div className="text-xs text-gray-300">Yearly APY</div>
+                    <div className="text-lg font-bold text-green-400">{stakingRates.yearlyAPY.toFixed(2)}%</div>
                   </div>
                 </div>
                 
-                <div className="text-xs text-muted-foreground flex items-center mt-2">
+                <div className="text-xs text-gray-400 flex items-center mt-2">
                   <InfoIcon className="h-3 w-3 mr-1" />
                   Rates are set by the admin and may change
                 </div>
@@ -193,9 +193,9 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                   <div className="flex justify-between items-center">
                     <h3 className="text-lg font-semibold">Stake YOT</h3>
                     <div className="flex items-center text-sm">
-                      <Wallet className="h-4 w-4 mr-1 text-muted-foreground" />
-                      <span className="text-muted-foreground">Available: </span>
-                      <span className="font-medium ml-1">{formatNumber(yotBalance)} YOT</span>
+                      <Wallet className="h-4 w-4 mr-1 text-gray-400" />
+                      <span className="text-gray-400">Available: </span>
+                      <span className="font-medium ml-1 text-white">{formatNumber(yotBalance)} YOT</span>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -226,10 +226,10 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                       {isStaking ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Stake'}
                     </Button>
                   </div>
-                  <div className="bg-muted/40 p-3 rounded-lg text-sm mt-4">
+                  <div className="bg-dark-300 border border-border p-3 rounded-lg text-sm mt-4">
                     <div className="flex items-start">
                       <InfoIcon className="h-4 w-4 mr-2 mt-0.5 text-primary" />
-                      <p>
+                      <p className="text-gray-300">
                         Staking locks your YOT tokens in the smart contract and automatically begins generating YOS rewards at {stakingRates.dailyAPY.toFixed(2)}% daily APY.
                       </p>
                     </div>
@@ -272,10 +272,10 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                       {isUnstaking ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Unstake'}
                     </Button>
                   </div>
-                  <div className="bg-muted/40 p-3 rounded-lg text-sm mt-4">
+                  <div className="bg-dark-300 border border-border p-3 rounded-lg text-sm mt-4">
                     <div className="flex items-start">
                       <InfoIcon className="h-4 w-4 mr-2 mt-0.5 text-primary" />
-                      <p>
+                      <p className="text-gray-300">
                         Unstaking will return your YOT tokens to your wallet. There is no lock-up period or penalties for unstaking.
                       </p>
                     </div>
@@ -298,10 +298,10 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                     {isHarvesting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                     Harvest Rewards
                   </Button>
-                  <div className="bg-muted/40 p-3 rounded-lg text-sm mt-4">
+                  <div className="bg-dark-300 border border-border p-3 rounded-lg text-sm mt-4">
                     <div className="flex items-start">
                       <InfoIcon className="h-4 w-4 mr-2 mt-0.5 text-primary" />
-                      <p>
+                      <p className="text-gray-300">
                         Harvesting will claim your earned YOS rewards and send them to your wallet. You can harvest anytime rewards are available.
                       </p>
                     </div>
@@ -310,8 +310,8 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
               </Tabs>
               
               {!connected && (
-                <div className="bg-muted p-4 rounded-lg text-center">
-                  <p className="text-sm text-muted-foreground">
+                <div className="bg-dark-300 border border-border p-4 rounded-lg text-center">
+                  <p className="text-sm text-gray-300">
                     Connect your wallet to use staking features
                   </p>
                 </div>
