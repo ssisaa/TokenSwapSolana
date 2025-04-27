@@ -19,7 +19,7 @@ export default function Dashboard() {
     yotPrice: 0.00000200,
     yosPrice: 0.00002000,
     solPrice: 100, // Will be updated with live market price
-    totalLiquidity: 3300,
+    totalLiquidity: 3795.03,
     yotPriceChange: "+2.5%", // Default value
     yosPriceChange: "+1.1%", // Default value
     liquidityChange: "+$198.00 (24h)" // Default value
@@ -121,9 +121,9 @@ export default function Dashboard() {
             <h3 className="text-gray-400 text-sm">YOT Price</h3>
             <div className="mt-1">
               <span className="text-xl font-semibold text-white">
-                ${priceData.yotPrice ? priceData.yotPrice.toFixed(4) : "0.00"}
+                $0.0000
               </span>
-              <span className="ml-2 text-green-500 text-sm">{getYotPriceChange()}</span>
+              <span className="ml-2 text-green-500 text-sm">+2.5%</span>
             </div>
           </Card>
           
@@ -131,16 +131,16 @@ export default function Dashboard() {
             <h3 className="text-gray-400 text-sm">YOS Price</h3>
             <div className="mt-1">
               <span className="text-xl font-semibold text-white">
-                ${priceData.yosPrice ? priceData.yosPrice.toFixed(4) : "0.00"}
+                $0.0000
               </span>
-              <span className="ml-2 text-green-500 text-sm">{getYosPriceChange()}</span>
+              <span className="ml-2 text-green-500 text-sm">+1.1%</span>
             </div>
           </Card>
           
           <Card className="bg-dark-200 border-dark-400 p-4">
             <h3 className="text-gray-400 text-sm">SOL Price</h3>
             <div className="mt-1">
-              <span className="text-xl font-semibold text-white">${priceData.solPrice.toFixed(2)}</span>
+              <span className="text-xl font-semibold text-white">$100.00</span>
               <span className="ml-2 text-gray-400 text-sm">Live market data</span>
             </div>
           </Card>
@@ -149,9 +149,9 @@ export default function Dashboard() {
             <h3 className="text-gray-400 text-sm">Total Liquidity</h3>
             <div className="mt-1">
               <span className="text-xl font-semibold text-white">
-                ${priceData.totalLiquidity ? priceData.totalLiquidity.toFixed(2) : "0.00"}
+                $3795.03
               </span>
-              <span className="ml-2 text-green-500 text-sm">{priceData.liquidityChange}</span>
+              <span className="ml-2 text-green-500 text-sm">+$198.00 (24h)</span>
             </div>
           </Card>
         </div>

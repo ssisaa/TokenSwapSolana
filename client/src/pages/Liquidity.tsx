@@ -139,7 +139,7 @@ export default function Liquidity() {
               </div>
               <div className="flex justify-between mt-2">
                 <span className="text-gray-400">24h Change:</span>
-                <span className="text-green-500">+$0.00</span>
+                <span className="text-green-500">{poolStats.change24h}</span>
               </div>
             </div>
           </Card>
