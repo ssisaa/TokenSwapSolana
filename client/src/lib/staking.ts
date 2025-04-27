@@ -22,6 +22,9 @@ export async function stakeYOTTokens(walletAddress: string, amount: number): Pro
     // 2. Sign and send the transaction using the connected wallet
     // 3. Verify the transaction success
 
+    // Get current staking rate from admin settings
+    const ratePerSecond = await getStakingRate();
+    
     // For demonstration, we'll just record the stake
     const existingStakeIndex = stakingRecords.findIndex(record => 
       record.walletAddress === walletAddress);
@@ -33,7 +36,7 @@ export async function stakeYOTTokens(walletAddress: string, amount: number): Pro
       // Calculate rewards up to now before adding more tokens
       const now = Date.now();
       const timeSinceLastCalculation = (now - currentRecord.lastCalculatedTime) / 1000; // in seconds
-      const newRewards = calculateRewards(currentRecord.stakedAmount, timeSinceLastCalculation);
+      const newRewards = calculateRewards(currentRecord.stakedAmount, timeSinceLastCalculation, ratePerSecond);
       
       // Update record
       currentRecord.stakedAmount += amount;
@@ -91,6 +94,9 @@ export async function harvestYOSRewards(walletAddress: string): Promise<boolean>
     // 2. Sign and send the transaction
     // 3. Verify the transaction success
     
+    // Get current staking rate from admin settings
+    const ratePerSecond = await getStakingRate();
+    
     const stakeIndex = stakingRecords.findIndex(record => 
       record.walletAddress === walletAddress);
     
@@ -104,7 +110,7 @@ export async function harvestYOSRewards(walletAddress: string): Promise<boolean>
     // Calculate most recent rewards
     const now = Date.now();
     const timeSinceLastCalculation = (now - record.lastCalculatedTime) / 1000; // in seconds
-    const newRewards = calculateRewards(record.stakedAmount, timeSinceLastCalculation);
+    const newRewards = calculateRewards(record.stakedAmount, timeSinceLastCalculation, ratePerSecond);
     
     // Reset rewards after "transferring" them to the user
     record.rewardsEarned = 0;
@@ -139,10 +145,13 @@ export async function getStakingInfo(walletAddress: string): Promise<{
       };
     }
     
+    // Get the current staking rate from admin settings
+    const ratePerSecond = await getStakingRate();
+    
     // Calculate the current rewards
     const now = Date.now();
     const timeSinceLastCalculation = (now - stakeRecord.lastCalculatedTime) / 1000; // in seconds
-    const newRewards = calculateRewards(stakeRecord.stakedAmount, timeSinceLastCalculation);
+    const newRewards = calculateRewards(stakeRecord.stakedAmount, timeSinceLastCalculation, ratePerSecond);
     
     // Update the record with current rewards (but don't commit it yet)
     const totalRewards = stakeRecord.rewardsEarned + newRewards;
@@ -164,6 +173,30 @@ export async function getStakingInfo(walletAddress: string): Promise<{
 
 // Utility function to calculate rewards based on staked amount and time
 // The actual implementation would use the rate from admin settings
+// Get staking rate from admin settings
+async function getStakingRate(): Promise<number> {
+  try {
+    // Fetch the admin settings from the API
+    const response = await fetch('/api/admin/settings');
+    if (!response.ok) {
+      throw new Error('Failed to fetch admin settings');
+    }
+    
+    const settings = await response.json();
+    
+    // Use the stakeRatePerSecond from settings, or fallback to default
+    const ratePerSecond = settings.stakeRatePerSecond 
+      ? parseFloat(settings.stakeRatePerSecond) / 100
+      : 0.00125 / 100; // 0.00125% per second default, converted to decimal
+      
+    return ratePerSecond;
+  } catch (error) {
+    console.error('Error fetching staking rate:', error);
+    // Return default rate if there's an error
+    return 0.00125 / 100;
+  }
+}
+
 function calculateRewards(stakedAmount: number, timeInSeconds: number, ratePerSecond: number = 0.00125 / 100): number {
   return stakedAmount * timeInSeconds * ratePerSecond;
 }
