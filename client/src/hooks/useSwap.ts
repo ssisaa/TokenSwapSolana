@@ -151,8 +151,9 @@ export function useSwap() {
         const rate = await getExchangeRate();
         calculatedAmount = amount / rate.yotToSol / (1 - 0.003); // Accounting for fee
       } else if (toToken === YOT_SYMBOL && fromToken === YOS_SYMBOL) {
-        // If we want X YOT, how much YOS do we need? (1 YOS = 10 YOT)
-        calculatedAmount = amount / 10;
+        // Use the dedicated conversion function - YOT to YOS
+        // If we want X YOT, we need X/10 YOS (since 1 YOS = 10 YOT)
+        calculatedAmount = calculateYotToYos(amount);
       } else {
         throw new Error("Unsupported token pair");
       }
