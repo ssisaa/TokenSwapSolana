@@ -214,15 +214,27 @@ export function calculateYotToYos(yotAmount: number) {
 // Get the latest SOL market price in USD (via simple API call)
 export async function getSolMarketPrice(): Promise<number> {
   try {
-    // In a production app, you'd want to use a proper price oracle or API
-    // For this example, we'll use a simple API
+    // Get real-time SOL price from CoinGecko API
     const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
     const data = await response.json();
+    
+    // Return the actual market price
     return data.solana.usd;
   } catch (error) {
     console.error('Error fetching SOL market price:', error);
-    // Return a default approximate current value in case of error
-    return 151.00;
+    
+    // Try a second API as backup
+    try {
+      const backupResponse = await fetch('https://min-api.cryptocompare.com/data/price?fsym=SOL&tsyms=USD');
+      const backupData = await backupResponse.json();
+      return backupData.USD;
+    } catch (backupError) {
+      console.error('Backup price API also failed:', backupError);
+      
+      // Only if both APIs fail, use a fallback display value
+      // In a production app, you would handle this more gracefully
+      return 0; // Show 0 to indicate there's an error
+    }
   }
 }
 

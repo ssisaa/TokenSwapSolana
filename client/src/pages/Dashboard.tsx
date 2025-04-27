@@ -9,7 +9,7 @@ import { ArrowRight } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import MultiWalletConnect from "@/components/MultiWalletConnect";
 import WalletBalanceBar from "@/components/WalletBalanceBar";
-import { getExchangeRate, getPoolBalances } from "@/lib/solana";
+import { getExchangeRate, getPoolBalances, getSolMarketPrice } from "@/lib/solana";
 
 export default function Dashboard() {
   const { connected, wallet } = useWallet();
@@ -28,6 +28,9 @@ export default function Dashboard() {
   // Fetch live token data
   const fetchPriceData = useCallback(async () => {
     try {
+      // Get the real-time SOL price from CoinGecko
+      const solPrice = await getSolMarketPrice();
+      
       // Get pool balances
       const pool = await getPoolBalances();
       
@@ -36,26 +39,29 @@ export default function Dashboard() {
       
       if (pool.solBalance && pool.yotBalance) {
         // Calculate YOT price in USD (based on SOL price and pool ratio)
-        const yotPrice = (priceData.solPrice * pool.solBalance) / pool.yotBalance;
+        const yotPrice = (solPrice * pool.solBalance) / pool.yotBalance;
         
         // Calculate YOS price (1 YOS = 10 YOT)
         const yosPrice = yotPrice * 10;
         
         // Calculate total liquidity
-        const totalLiquidity = (pool.solBalance * priceData.solPrice) + 
-                             (pool.yotBalance * yotPrice);
+        const totalLiquidity = (pool.solBalance * solPrice) + 
+                              (pool.yotBalance * yotPrice);
         
         setPriceData(prev => ({
           ...prev,
+          solPrice,
           yotPrice,
           yosPrice,
           totalLiquidity
         }));
+        
+        console.log(`Live SOL price from CoinGecko: $${solPrice}`);
       }
     } catch (error) {
       console.error("Error fetching price data:", error);
     }
-  }, [priceData.solPrice]);
+  }, []);
 
   // Initial data loading
   useEffect(() => {
@@ -140,7 +146,9 @@ export default function Dashboard() {
           <Card className="bg-dark-200 border-dark-400 p-4">
             <h3 className="text-gray-400 text-sm">SOL Price</h3>
             <div className="mt-1">
-              <span className="text-xl font-semibold text-white">$151.00</span>
+              <span className="text-xl font-semibold text-white">
+                ${priceData.solPrice.toFixed(2)}
+              </span>
               <span className="ml-2 text-gray-400 text-sm">Live market data</span>
             </div>
           </Card>
