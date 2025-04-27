@@ -338,32 +338,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Missing required staking data' });
       }
       
-      // Ensure timestamp is a number
-      const timestamp = typeof startTimestamp === 'number' 
-        ? startTimestamp 
-        : new Date(startTimestamp).getTime();
-      
-      // Validate and sanitize inputs
-      const sanitizedWalletAddress = walletAddress.trim();
-      const sanitizedAmount = parseFloat(stakedAmount.toString());
-      
-      if (isNaN(sanitizedAmount) || sanitizedAmount <= 0) {
-        return res.status(400).json({ message: 'Invalid amount' });
+      // Security: Validate wallet address format
+      if (walletAddress.length < 32 || walletAddress.length > 44) {
+        return res.status(400).json({
+          message: 'Invalid wallet address format',
+          error: 'Please provide a valid wallet address'
+        });
       }
       
-      // Save staking data to database with proper formatting
-      await storage.saveStakingData({
-        walletAddress: sanitizedWalletAddress,
-        stakedAmount: sanitizedAmount,
-        startTimestamp: timestamp
-      });
+      // Security: Validate and sanitize inputs
+      const sanitizedWalletAddress = walletAddress.trim();
       
-      res.json({ success: true, message: 'Staking data saved successfully' });
+      // Security: Strictly validate amount as a number
+      let sanitizedAmount: number;
+      try {
+        sanitizedAmount = typeof stakedAmount === 'number' 
+          ? stakedAmount 
+          : parseFloat(stakedAmount.toString());
+        
+        if (isNaN(sanitizedAmount) || sanitizedAmount <= 0) {
+          throw new Error('Invalid amount');
+        }
+      } catch (err) {
+        return res.status(400).json({ 
+          message: 'Invalid amount provided',
+          error: 'Please provide a valid number for the staked amount'
+        });
+      }
+      
+      // Security: Convert timestamp to seconds (Unix timestamp) to fit integer range
+      // This converts milliseconds to seconds to work within Postgres INT limits
+      let timestampInSeconds: number;
+      try {
+        const timestampInMs = typeof startTimestamp === 'number' 
+          ? startTimestamp 
+          : new Date(startTimestamp).getTime();
+          
+        // PostgreSQL integer limit issue workaround - store as seconds not milliseconds
+        timestampInSeconds = Math.floor(timestampInMs / 1000);
+        
+        // Validate timestamp is reasonable (not in the future, not too far in the past)
+        const now = Math.floor(Date.now() / 1000);
+        const oneYearAgo = now - (365 * 24 * 60 * 60);
+        
+        if (timestampInSeconds > now + 60) { // Allow 1 minute ahead for clock differences
+          throw new Error('Timestamp cannot be in the future');
+        }
+        
+        if (timestampInSeconds < oneYearAgo) {
+          throw new Error('Timestamp is too far in the past');
+        }
+      } catch (err) {
+        return res.status(400).json({ 
+          message: 'Invalid timestamp',
+          error: 'Please provide a valid timestamp'
+        });
+      }
+      
+      try {
+        // Save staking data to database with proper formatting
+        await storage.saveStakingData({
+          walletAddress: sanitizedWalletAddress,
+          stakedAmount: sanitizedAmount,
+          startTimestamp: timestampInSeconds // Now using seconds instead of milliseconds
+        });
+        
+        res.json({ 
+          success: true, 
+          message: 'Staking data saved successfully',
+          data: {
+            wallet: sanitizedWalletAddress.substring(0, 6) + '...' + sanitizedWalletAddress.substring(sanitizedWalletAddress.length - 4), // Show partial wallet for security
+            amount: sanitizedAmount,
+            timestamp: new Date(timestampInSeconds * 1000).toISOString() // Convert back to ISO for display
+          }
+        });
+      } catch (dbError) {
+        console.error('Database operation failed:', dbError);
+        return res.status(500).json({
+          message: 'Failed to save staking data',
+          error: 'An error occurred while processing your request' // Generic error for security
+        });
+      }
     } catch (error) {
       console.error('Error saving staking data:', error);
       res.status(500).json({
         message: 'Failed to save staking data',
-        error: 'An error occurred while processing your request' // Generic error for security
+        error: 'An unexpected error occurred'
       });
     }
   });

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, decimal } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, decimal, bigint } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -58,7 +58,7 @@ export const transactions = pgTable("transactions", {
   fromAmount: text("from_amount").notNull(),
   toAmount: text("to_amount").notNull(),
   fee: text("fee").notNull(),
-  timestamp: integer("timestamp").notNull(),
+  timestamp: bigint("timestamp", { mode: "number" }).notNull(),
   status: text("status").notNull(),
   isSwap: boolean("is_swap").notNull(),
 });
@@ -101,8 +101,8 @@ export const stakingRecords = pgTable("staking_records", {
   id: serial("id").primaryKey(),
   walletAddress: text("wallet_address").notNull().unique(),
   stakedAmount: decimal("staked_amount").notNull().default("0"),
-  startTimestamp: integer("start_timestamp").notNull(), // Using integer for timestamp milliseconds (Unix timestamp)
-  lastHarvestTime: integer("last_harvest_time"),
+  startTimestamp: bigint("start_timestamp", { mode: "number" }).notNull(), // Using bigint for JS timestamp milliseconds
+  lastHarvestTime: bigint("last_harvest_time", { mode: "number" }),
   harvestedRewards: decimal("harvested_rewards").notNull().default("0"),
   updatedAt: timestamp("updated_at").defaultNow()
 });
