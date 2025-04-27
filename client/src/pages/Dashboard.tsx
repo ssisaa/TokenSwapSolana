@@ -8,13 +8,11 @@ import { Link } from "wouter";
 import { ArrowRight } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import MultiWalletConnect from "@/components/MultiWalletConnect";
-import WalletBalanceBar from "@/components/WalletBalanceBar";
 import { getExchangeRate, getPoolBalances, getSolMarketPrice } from "@/lib/solana";
 
 export default function Dashboard() {
   const { connected, wallet } = useWallet();
   const { tokenData, poolData, balances, loading, fetchTokenInfo } = useTokenData();
-  const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [priceData, setPriceData] = useState({
     yotPrice: 0.00000200,
     yosPrice: 0.00002000,
@@ -79,33 +77,7 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [fetchTokenInfo, fetchPriceData]);
 
-  // Simulate a countdown for the next claim
-  useEffect(() => {
-    const targetDate = new Date();
-    targetDate.setDate(targetDate.getDate() + 20); // 20 days from now
-    targetDate.setHours(targetDate.getHours() + 23); // Plus 23 hours
-    targetDate.setMinutes(targetDate.getMinutes() + 51); // Plus 51 minutes
-
-    const timer = setInterval(() => {
-      const now = new Date();
-      const difference = targetDate.getTime() - now.getTime();
-      
-      const days = Math.floor(difference / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((difference % (1000 * 60)) / 1000);
-      
-      setCountdown({ days, hours, minutes, seconds });
-      
-      if (difference < 0) {
-        clearInterval(timer);
-      }
-    }, 1000);
-    
-    return () => {
-      clearInterval(timer);
-    };
-  }, []);
+  // Removed countdown timer for next claim feature
   
   // Use dynamically calculated price changes
   const getYotPriceChange = () => {
@@ -167,17 +139,7 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Next Claim / Countdown */}
-        <Card className="bg-dark-200 border-dark-400 p-4 mb-8">
-          <h3 className="text-gray-400 text-sm">Next Claim</h3>
-          <div className="flex items-baseline">
-            <span className="text-xl font-semibold text-white">{countdown.days}d {countdown.hours}h {countdown.minutes}m</span>
-            <span className="text-sm text-gray-400 ml-2">Q2 2024</span>
-          </div>
-        </Card>
-
-        {/* Wallet Balance Summary */}
-        {connected && <WalletBalanceBar />}
+        {/* Next Claim and Wallet Balance Bar removed */}
 
         {/* Token Cards Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
