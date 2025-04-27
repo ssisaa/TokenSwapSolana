@@ -11,20 +11,28 @@ import {
   POOL_AUTHORITY, 
   YOT_TOKEN_ACCOUNT, 
   POOL_SOL_ACCOUNT, 
-  YOS_TOKEN_ACCOUNT 
+  YOS_TOKEN_ACCOUNT,
+  YOT_TOKEN_ADDRESS
 } from "@/lib/constants";
-import { shortenAddress } from "@/lib/utils";
-import { getAllTokenPrices, getYotMarketPrice } from "@/lib/solana";
+import { shortenAddress, formatDollarAmount } from "@/lib/utils";
+import { 
+  getAllTokenPrices, 
+  getYotMarketPrice, 
+  getPoolBalances, 
+  getExchangeRate,
+  lamportsToSol,
+  getSolMarketPrice
+} from "@/lib/solana";
 
 export default function Liquidity() {
   const { connected } = useWallet();
   const { poolData, balances, loading } = useTokenData();
   const [selectedTimeframe, setSelectedTimeframe] = useState("1W");
   
-  // The values below are set to match the screenshot exactly
+  // Default state
   const [poolStats, setPoolStats] = useState({
-    totalLiquidity: "$3,300.00",
-    liquidityChange: "+$198.00 (24h)",
+    totalLiquidity: "$0.00",
+    liquidityChange: "+$0.00 (24h)",
     yourContribution: "$0.00",
     yourTokens: "0.00 YOT tokens",
     nextClaimDays: 20,
@@ -35,17 +43,106 @@ export default function Liquidity() {
     yotBalance: "0.00 YOT (50.0%)",
     solBalance: "0.00 SOL (50.0%)",
     
-    exchangeRateYotToSol: "75000000 : 1",
-    exchangeRateSolToYot: "1 : 75000000",
+    exchangeRateYotToSol: "0 : 1",
+    exchangeRateSolToYot: "1 : 0",
     
-    yotPerSol: "75.00M YOT per SOL",
-    solPerYot: "1 SOL per 75.00M YOT",
+    yotPerSol: "0 YOT per SOL",
+    solPerYot: "1 SOL per 0 YOT",
     
-    yotUsdPrice: "$0.00000200",
-    poolHealth: "Excellent",
+    yotUsdPrice: "$0.00000000",
+    poolHealth: "Loading...",
     
-    change24h: "+$0.00"
+    change24h: "+$0.00",
+    
+    // Percentages for progress bars
+    yotPercentage: "50%",
+    solPercentage: "50%"
   });
+  
+  // Fetch real-time pool data
+  const fetchPoolData = useCallback(async () => {
+    try {
+      // Get pool balances
+      const pool = await getPoolBalances();
+      
+      // Get SOL price
+      const solPrice = await getSolMarketPrice();
+      
+      // Get exchange rates
+      const rates = await getExchangeRate();
+      
+      if (pool.solBalance && pool.yotBalance) {
+        // Convert SOL from lamports
+        const solBalanceInSol = lamportsToSol(pool.solBalance);
+        
+        // Calculate YOT price based on pool ratio and SOL price
+        const yotPriceUsd = (solPrice * solBalanceInSol) / pool.yotBalance;
+        
+        // Calculate total liquidity value in USD
+        const totalLiquidityValue = (solBalanceInSol * solPrice) + (pool.yotBalance * yotPriceUsd);
+        
+        // Calculate percentages
+        const solValuePercent = (solBalanceInSol * solPrice) / totalLiquidityValue * 100;
+        const yotValuePercent = (pool.yotBalance * yotPriceUsd) / totalLiquidityValue * 100;
+        
+        // Format YOT amount for display (in millions if large)
+        const formattedYotBalance = pool.yotBalance >= 1000000 
+          ? `${(pool.yotBalance / 1000000).toFixed(2)}M` 
+          : formatCurrency(pool.yotBalance);
+        
+        // Format the exchange rate for display
+        const yotPerSolFormatted = pool.yotBalance / solBalanceInSol;
+        const solPerYotFormatted = solBalanceInSol / pool.yotBalance;
+        
+        // Update the pool stats
+        setPoolStats({
+          totalLiquidity: formatDollarAmount(totalLiquidityValue),
+          liquidityChange: "+$198.00 (24h)", // This would come from historical data
+          yourContribution: "$0.00", // This would come from user's wallet
+          yourTokens: "0.00 YOT tokens", // This would come from user's wallet
+          nextClaimDays: 20,
+          nextClaimHours: 23,
+          nextClaimMinutes: 59,
+          claimPeriod: "Q2 2024",
+          
+          yotBalance: `${formattedYotBalance} YOT (${yotValuePercent.toFixed(1)}%)`,
+          solBalance: `${formatCurrency(solBalanceInSol)} SOL (${solValuePercent.toFixed(1)}%)`,
+          
+          // Exchange rates formatted for display
+          exchangeRateYotToSol: `${yotPerSolFormatted.toLocaleString()} : 1`,
+          exchangeRateSolToYot: `1 : ${yotPerSolFormatted.toLocaleString()}`,
+          
+          yotPerSol: `${formatCurrency(yotPerSolFormatted)} YOT per SOL`,
+          solPerYot: `1 SOL per ${formatCurrency(yotPerSolFormatted)} YOT`,
+          
+          yotUsdPrice: `$${yotPriceUsd.toFixed(8)}`,
+          poolHealth: totalLiquidityValue > 1000 ? "Excellent" : "Good",
+          
+          change24h: "+$0.00", // This would come from historical data
+          
+          // Percentages for progress bars
+          yotPercentage: `${yotValuePercent}%`,
+          solPercentage: `${solValuePercent}%`
+        });
+        
+        console.log(`Pool data updated: SOL=${solBalanceInSol}, YOT=${pool.yotBalance}, Total Value=${totalLiquidityValue}`);
+      }
+    } catch (error) {
+      console.error("Error fetching pool data:", error);
+    }
+  }, []);
+  
+  // Initialize and update pool data
+  useEffect(() => {
+    fetchPoolData();
+    
+    // Refresh data every 30 seconds
+    const interval = setInterval(() => {
+      fetchPoolData();
+    }, 30000);
+    
+    return () => clearInterval(interval);
+  }, [fetchPoolData]);
 
   return (
     <DashboardLayout title="Liquidity">
@@ -69,10 +166,10 @@ export default function Liquidity() {
               </div>
               <div className="flex mt-2 space-x-2">
                 <div className="text-sm text-gray-400">
-                  0.00 YOT
+                  {poolStats.yotBalance.split(' ')[0]} YOT
                 </div>
                 <div className="px-2 py-1 bg-amber-700 rounded text-xs text-white">
-                  0.00 SOL
+                  {poolStats.solBalance.split(' ')[0]} SOL
                 </div>
               </div>
             </div>
@@ -117,7 +214,7 @@ export default function Liquidity() {
                   <span className="text-white">{poolStats.yotBalance}</span>
                 </div>
                 <div className="h-2 bg-dark-400 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-500 rounded-full" style={{ width: '50%' }}></div>
+                  <div className="h-full bg-blue-500 rounded-full" style={{ width: poolStats.yotPercentage }}></div>
                 </div>
               </div>
               
@@ -127,7 +224,7 @@ export default function Liquidity() {
                   <span className="text-white">{poolStats.solBalance}</span>
                 </div>
                 <div className="h-2 bg-dark-400 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-500 rounded-full" style={{ width: '50%' }}></div>
+                  <div className="h-full bg-amber-600 rounded-full" style={{ width: poolStats.solPercentage }}></div>
                 </div>
               </div>
             </div>
