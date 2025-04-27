@@ -53,10 +53,22 @@ export default function TokenInfo() {
 
   return (
     <Card className="mt-8 bg-dark-100 rounded-xl p-6 shadow-lg">
-      <h2 className="text-xl font-semibold mb-4 text-white flex items-center">
-        <InfoIcon className="h-5 w-5 mr-2 text-primary-400" />
-        Token Information
-      </h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold text-white flex items-center">
+          <InfoIcon className="h-5 w-5 mr-2 text-primary-400" />
+          Token Information
+        </h2>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => fetchTokenInfo()}
+          disabled={loading}
+          className="text-primary-400 hover:text-primary-300"
+        >
+          <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
+          {loading ? 'Refreshing...' : 'Refresh Data'}
+        </Button>
+      </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* YOT Token Info */}
@@ -248,8 +260,8 @@ export default function TokenInfo() {
           <h3 className="font-medium text-lg text-gray-300 mb-2">About This Application</h3>
           <div className="text-sm text-gray-400 space-y-2">
             <p>This application provides a Solana token swap interface that connects to real Solana devnet addresses and fetches actual blockchain data. It displays real-time token information and wallet balances from the blockchain.</p>
-            <p>The current implementation demonstrates the first half of a token swap by handling deposits to the liquidity pool. A complete swap would require a deployed token-swap program to atomically handle both sides of the exchange.</p>
-            <p>In a production environment, Solana's token-swap program would be deployed to handle the complete exchange process in a single transaction.</p>
+            <p>The implementation features a complete token swap functionality using two-step transactions, sending tokens to the pool and receiving tokens back. This uses real blockchain transactions on Solana devnet.</p>
+            <p>For production environments, we recommend using the official Solana token-swap program for atomic swaps in a single transaction.</p>
             <p>All addresses shown are real and can be viewed on the <a href="https://explorer.solana.com/?cluster=devnet" target="_blank" rel="noopener noreferrer" className="text-primary-400 hover:underline">Solana Explorer (devnet)</a>.</p>
           </div>
         </div>
