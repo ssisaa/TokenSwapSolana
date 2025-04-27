@@ -49,15 +49,15 @@ export default function Stake() {
             <div>
               <h2 className="text-xl font-bold mb-4">Your Staking Overview</h2>
               <div className="grid gap-4 md:grid-cols-2">
-                <Card className="bg-background/60 backdrop-blur-sm">
+                <Card className="bg-muted">
                   <CardContent className="pt-6">
                     <div className="flex flex-col">
-                      <span className="text-sm text-muted-foreground">Total Staked</span>
+                      <span className="text-sm font-medium">Total Staked</span>
                       <div className="flex items-end mt-1">
                         <span className="text-3xl font-bold">
                           {formatNumber(stakingInfo.stakedAmount)} YOT
                         </span>
-                        <span className="text-sm text-muted-foreground ml-2 mb-1">
+                        <span className="text-sm font-medium text-muted-foreground ml-2 mb-1">
                           ${formatNumber(stakingInfo.stakedAmount * 0.01)}
                         </span>
                       </div>
@@ -65,15 +65,15 @@ export default function Stake() {
                   </CardContent>
                 </Card>
                 
-                <Card className="bg-background/60 backdrop-blur-sm">
+                <Card className="bg-muted">
                   <CardContent className="pt-6">
                     <div className="flex flex-col">
-                      <span className="text-sm text-muted-foreground">Earned Rewards</span>
+                      <span className="text-sm font-medium">Earned Rewards</span>
                       <div className="flex items-end mt-1">
                         <span className="text-3xl font-bold">
                           {formatNumber(stakingInfo.rewardsEarned)} YOS
                         </span>
-                        <span className="text-sm text-muted-foreground ml-2 mb-1">
+                        <span className="text-sm font-medium text-muted-foreground ml-2 mb-1">
                           ${formatNumber(stakingInfo.rewardsEarned * 0.005)}
                         </span>
                       </div>
@@ -84,24 +84,24 @@ export default function Stake() {
               
               <div className="flex flex-wrap gap-3 mt-4">
                 <Button 
-                  variant="outline" 
-                  className="flex gap-2" 
+                  variant="default" 
+                  className="flex gap-2 bg-primary text-primary-foreground hover:bg-primary/90 font-medium" 
                   onClick={() => setActiveTab("stake")}
                   disabled={!connected}
                 >
                   <Download className="h-4 w-4" /> Stake YOT
                 </Button>
                 <Button 
-                  variant="outline" 
-                  className="flex gap-2" 
+                  variant="default" 
+                  className="flex gap-2 bg-secondary text-secondary-foreground hover:bg-secondary/90 font-medium" 
                   onClick={() => setActiveTab("unstake")}
                   disabled={!connected || stakingInfo.stakedAmount <= 0}
                 >
                   <Upload className="h-4 w-4" /> Unstake YOT
                 </Button>
                 <Button 
-                  variant="outline" 
-                  className="flex gap-2" 
+                  variant="default" 
+                  className="flex gap-2 bg-primary/80 text-primary-foreground hover:bg-primary/70 font-medium" 
                   onClick={() => setActiveTab("harvest")}
                   disabled={!connected || stakingInfo.rewardsEarned <= 0}
                 >
@@ -113,10 +113,16 @@ export default function Stake() {
             {/* Staking Actions */}
             <div>
               <Tabs defaultValue="stake" value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid grid-cols-3 mb-4">
-                  <TabsTrigger value="stake">Stake</TabsTrigger>
-                  <TabsTrigger value="unstake">Unstake</TabsTrigger>
-                  <TabsTrigger value="harvest">Harvest</TabsTrigger>
+                <TabsList className="grid grid-cols-3 mb-4 bg-muted/80 border border-border p-1">
+                  <TabsTrigger value="stake" className="font-medium data-[state=active]:bg-background data-[state=active]:text-foreground">
+                    <Download className="h-4 w-4 mr-2" /> Stake
+                  </TabsTrigger>
+                  <TabsTrigger value="unstake" className="font-medium data-[state=active]:bg-background data-[state=active]:text-foreground">
+                    <Upload className="h-4 w-4 mr-2" /> Unstake
+                  </TabsTrigger>
+                  <TabsTrigger value="harvest" className="font-medium data-[state=active]:bg-background data-[state=active]:text-foreground">
+                    <CheckCircle className="h-4 w-4 mr-2" /> Harvest
+                  </TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="stake" className="mt-0">
@@ -189,39 +195,39 @@ export default function Stake() {
                 <div className="space-y-4">
                   <div>
                     <div className="flex justify-between mb-1">
-                      <span className="text-muted-foreground">Current APR</span>
-                      <span className="font-medium">{stakingRates.yearlyAPY.toFixed(2)}%</span>
+                      <span className="font-medium">Current APR</span>
+                      <span className="font-semibold text-green-500">{stakingRates.yearlyAPY.toFixed(2)}%</span>
                     </div>
                   </div>
                   
                   <div>
                     <div className="flex justify-between mb-1">
-                      <span className="text-muted-foreground">Total Stakers</span>
-                      <span className="font-medium">-</span>
+                      <span className="font-medium">Total Stakers</span>
+                      <span className="font-semibold">-</span>
                     </div>
                     <Progress value={50} className="h-2" />
                   </div>
                   
                   <div>
                     <div className="flex justify-between mb-1">
-                      <span className="text-muted-foreground">Total Staked</span>
-                      <span className="font-medium">{formatNumber(stakingInfo.stakedAmount)} YOT</span>
+                      <span className="font-medium">Total Staked</span>
+                      <span className="font-semibold">{formatNumber(stakingInfo.stakedAmount)} YOT</span>
                     </div>
                     <Progress value={totalStakersProgress} className="h-2" />
                   </div>
                   
-                  <div className="pt-2">
+                  <div className="pt-2 space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span>Hourly Rate:</span>
-                      <span className="font-medium">{(stakingRates.stakeRatePerSecond * 3600 * 100).toFixed(6)}%</span>
+                      <span className="font-medium">Hourly Rate:</span>
+                      <span className="font-semibold text-green-500">{(stakingRates.stakeRatePerSecond * 3600 * 100).toFixed(6)}%</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span>Daily Rate:</span>
-                      <span className="font-medium">{stakingRates.dailyAPY.toFixed(2)}%</span>
+                      <span className="font-medium">Daily Rate:</span>
+                      <span className="font-semibold text-green-500">{stakingRates.dailyAPY.toFixed(2)}%</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span>Monthly Rate:</span>
-                      <span className="font-medium">{stakingRates.monthlyAPY.toFixed(2)}%</span>
+                      <span className="font-medium">Monthly Rate:</span>
+                      <span className="font-semibold text-green-500">{stakingRates.monthlyAPY.toFixed(2)}%</span>
                     </div>
                   </div>
                 </div>
