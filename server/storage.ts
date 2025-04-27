@@ -1,7 +1,8 @@
 import { 
-  adminUsers, adminSettings,
+  adminUsers, adminSettings, stakingRecords,
   type AdminUser, type InsertAdminUser,
-  type AdminSettings, type InsertAdminSettings
+  type AdminSettings, type InsertAdminSettings,
+  type StakingRecord, type InsertStakingRecord
 } from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
@@ -143,6 +144,78 @@ export class DatabaseStorage implements IStorage {
       .returning();
       
     return updated;
+  }
+  
+  // Staking functionality
+  async saveStakingData(data: { walletAddress: string, stakedAmount: number, startTimestamp: number, harvestableRewards?: number }): Promise<any> {
+    // Check if staking record already exists for this wallet
+    const existingRecord = await this.getStakingData(data.walletAddress);
+    
+    if (existingRecord) {
+      // Update existing record
+      const [updatedRecord] = await db
+        .update(stakingRecords)
+        .set({
+          stakedAmount: data.stakedAmount.toString(),
+          startTimestamp: new Date(data.startTimestamp),
+          harvestedRewards: data.harvestableRewards ? data.harvestableRewards.toString() : "0",
+          updatedAt: new Date()
+        })
+        .where(eq(stakingRecords.walletAddress, data.walletAddress))
+        .returning();
+      
+      return updatedRecord;
+    } else {
+      // Create new record
+      const [newRecord] = await db
+        .insert(stakingRecords)
+        .values({
+          walletAddress: data.walletAddress,
+          stakedAmount: data.stakedAmount.toString(),
+          startTimestamp: new Date(data.startTimestamp),
+          lastHarvestTime: new Date(data.startTimestamp),
+          harvestedRewards: data.harvestableRewards ? data.harvestableRewards.toString() : "0",
+        })
+        .returning();
+      
+      return newRecord;
+    }
+  }
+  
+  async getStakingData(walletAddress: string): Promise<any> {
+    const [record] = await db
+      .select()
+      .from(stakingRecords)
+      .where(eq(stakingRecords.walletAddress, walletAddress));
+    
+    if (!record) return null;
+    
+    // Get current admin settings for rate calculation
+    const settings = await this.getAdminSettings();
+    
+    return {
+      ...record,
+      // Include admin settings so frontend can calculate rewards
+      currentSettings: settings
+    };
+  }
+  
+  async removeStakingData(walletAddress: string): Promise<void> {
+    await db
+      .delete(stakingRecords)
+      .where(eq(stakingRecords.walletAddress, walletAddress));
+  }
+  
+  async harvestRewards(walletAddress: string): Promise<void> {
+    // Reset harvested rewards and update lastHarvestTime
+    await db
+      .update(stakingRecords)
+      .set({
+        harvestedRewards: "0",
+        lastHarvestTime: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(stakingRecords.walletAddress, walletAddress));
   }
 }
 

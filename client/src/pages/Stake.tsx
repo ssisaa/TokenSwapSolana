@@ -41,10 +41,32 @@ export default function Stake() {
   const [earnedYOS, setEarnedYOS] = useState<number>(0);
   const [stakeStartTime, setStakeStartTime] = useState<number | null>(null);
   
-  // Fetch admin settings from API
+  // Setup a timer to update earned rewards in real-time
+  useEffect(() => {
+    // If not staking, don't bother with the interval
+    if (stakedYOT <= 0 || !stakeStartTime) return;
+    
+    // Update rewards calculation every second
+    const updateInterval = setInterval(() => {
+      // Calculate time staked in seconds
+      const timeStakedMs = Date.now() - stakeStartTime;
+      const timeStakedSeconds = timeStakedMs / 1000;
+      
+      // Calculate rewards based on current rate
+      const rewards = stakedYOT * timeStakedSeconds * stakeRatePerSecond;
+      setEarnedYOS(rewards);
+    }, 1000);
+    
+    // Cleanup the interval on component unmount
+    return () => clearInterval(updateInterval);
+  }, [stakedYOT, stakeStartTime, stakeRatePerSecond]);
+  
+  // Fetch admin settings from API with auto-refresh
   const { data: adminSettings, isLoading: isSettingsLoading } = useQuery<AdminSettings>({
     queryKey: ["/api/admin/settings"],
     queryFn: getQueryFn({ on401: "returnNull" }),
+    refetchInterval: 2000, // Poll every 2 seconds for updates
+    staleTime: 1000, // Consider data stale after 1 second
   });
   
   // Staking rate from admin settings in database
@@ -57,14 +79,14 @@ export default function Stake() {
     ? parseFloat(adminSettings.harvestThreshold.toString()) 
     : 100; // Default threshold of 100 YOS
   
-  // Check current staked amount and rewards on component mount and wallet connection
+  // Check current staked amount and rewards on component mount, wallet connection, and admin settings change
   useEffect(() => {
     if (connected && publicKey) {
       // In a production environment, we would fetch this data from the blockchain
       // using the user's wallet address to get their staked tokens and rewards
       checkStakedBalance(publicKey.toString());
     }
-  }, [connected, publicKey]);
+  }, [connected, publicKey, adminSettings]); // Re-run when admin settings change
   
   // Function to check staked balance from blockchain
   const checkStakedBalance = async (walletAddress: string) => {
