@@ -403,7 +403,7 @@ export async function unstakeYOTTokens(
 }
 
 /**
- * Harvest YOS rewards - Temporary implementation until program is deployed
+ * Harvest YOS rewards using the deployed program
  */
 export async function harvestYOSRewards(wallet: any): Promise<string> {
   try {
@@ -437,26 +437,49 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       );
     }
     
-    // Add a simple SOL transfer instruction (sending to self)
-    transaction.add(
-      SystemProgram.transfer({
-        fromPubkey: userPublicKey,
-        toPubkey: userPublicKey,
-        lamports: 5000 // A small amount (0.000005 SOL)
-      })
+    // Find program state address
+    const [programStateAddress] = PublicKey.findProgramAddressSync(
+      [Buffer.from('program_state')],
+      STAKING_PROGRAM_ID
     );
     
-    // Add a memo instruction to record the harvest intent
-    transaction.add(
-      new TransactionInstruction({
-        keys: [
-          { pubkey: userPublicKey, isSigner: true, isWritable: true },
-          { pubkey: userYosTokenAccount, isSigner: false, isWritable: true }
-        ],
-        programId: new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"),
-        data: Buffer.from(`Harvest YOS rewards - Awaiting program deployment`)
-      })
+    // Find user staking account address
+    const [userStakingAddress] = PublicKey.findProgramAddressSync(
+      [Buffer.from('staking'), userPublicKey.toBuffer()],
+      STAKING_PROGRAM_ID
     );
+    
+    // Find program authority address
+    const [programAuthorityAddress] = PublicKey.findProgramAddressSync(
+      [Buffer.from('authority')],
+      STAKING_PROGRAM_ID
+    );
+    
+    // Get program token account for YOS
+    const programYosTokenAccount = await getAssociatedTokenAddress(
+      yosMintPubkey,
+      programAuthorityAddress,
+      true // allowOwnerOffCurve
+    );
+    
+    // Create the harvest instruction
+    const harvestInstruction = new TransactionInstruction({
+      keys: [
+        { pubkey: userPublicKey, isSigner: true, isWritable: true },
+        { pubkey: userYosTokenAccount, isSigner: false, isWritable: true },
+        { pubkey: programYosTokenAccount, isSigner: false, isWritable: true },
+        { pubkey: userStakingAddress, isSigner: false, isWritable: true },
+        { pubkey: programStateAddress, isSigner: false, isWritable: false },
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false },
+        { pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false }
+      ],
+      programId: STAKING_PROGRAM_ID,
+      data: encodeHarvestInstruction()
+    });
+    
+    // Add harvest instruction to transaction
+    transaction.add(harvestInstruction);
     
     // Set recent blockhash and fee payer
     transaction.feePayer = userPublicKey;
@@ -471,19 +494,25 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     // Confirm transaction
     await connection.confirmTransaction(signature, 'confirmed');
     
-    // Since this is a simulation, we'll return a success signature
-    // This will be displayed in the UI but the real harvesting hasn't occurred
-    // The UI will update based on the simulation in the useStaking hook
+    toast({
+      title: "Harvest Successful",
+      description: "You have harvested your YOS rewards successfully."
+    });
     
     return signature;
   } catch (error) {
     console.error('Error harvesting rewards:', error);
+    toast({
+      title: "Harvest Failed",
+      description: error.message,
+      variant: "destructive"
+    });
     throw error;
   }
 }
 
 /**
- * Update staking parameters (admin only) - Temporary implementation until program is deployed
+ * Update staking parameters (admin only) using deployed program
  */
 export async function updateStakingParameters(
   adminWallet: any,
@@ -498,35 +527,36 @@ export async function updateStakingParameters(
     
     const adminPublicKey = adminWallet.publicKey;
     
-    // Create a temporary transaction that sends a small amount of SOL to themselves
-    // This is just to get a wallet signature while the real program is pending deployment
-    let transaction = new Transaction();
-    
-    // Add a simple SOL transfer instruction (sending to self)
-    transaction.add(
-      SystemProgram.transfer({
-        fromPubkey: adminPublicKey,
-        toPubkey: adminPublicKey,
-        lamports: 5000 // A small amount (0.000005 SOL)
-      })
+    // Find program state address
+    const [programStateAddress] = PublicKey.findProgramAddressSync(
+      [Buffer.from('program_state')],
+      STAKING_PROGRAM_ID
     );
     
-    // Add a memo instruction to record the admin update intent
-    transaction.add(
-      new TransactionInstruction({
-        keys: [
-          { pubkey: adminPublicKey, isSigner: true, isWritable: true }
-        ],
-        programId: new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"),
-        data: Buffer.from(`Update staking parameters - Rate: ${stakeRatePerSecond}, Threshold: ${harvestThreshold} - Awaiting program deployment`)
-      })
-    );
+    // Convert to basis points for on-chain storage
+    // Rate: multiply by 10000 to store as basis points
+    // Threshold: multiply by 1000000 to store as lamports
+    const rateInBasisPoints = Math.floor(stakeRatePerSecond * 10000);
+    const thresholdInLamports = Math.floor(harvestThreshold * 1000000);
+    
+    // Create update parameters instruction
+    const updateInstruction = new TransactionInstruction({
+      keys: [
+        { pubkey: adminPublicKey, isSigner: true, isWritable: true },
+        { pubkey: programStateAddress, isSigner: false, isWritable: true }
+      ],
+      programId: STAKING_PROGRAM_ID,
+      data: encodeUpdateParametersInstruction(rateInBasisPoints, thresholdInLamports)
+    });
+    
+    // Create transaction
+    let transaction = new Transaction().add(updateInstruction);
     
     // Set recent blockhash and fee payer
     transaction.feePayer = adminPublicKey;
     transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
     
-    // Request signature from user (this triggers a wallet signature request)
+    // Request signature from admin (this triggers a wallet signature request)
     const signedTransaction = await adminWallet.signTransaction(transaction);
     
     // Send signed transaction
@@ -534,9 +564,6 @@ export async function updateStakingParameters(
     
     // Confirm transaction
     await connection.confirmTransaction(signature, 'confirmed');
-    
-    // Since this is a simulation, we'll return a success signature but no actual update has occurred
-    // The UI will display the new settings but they're not actually stored on-chain yet
     
     toast({
       title: "Parameters Updated",
@@ -546,6 +573,11 @@ export async function updateStakingParameters(
     return signature;
   } catch (error) {
     console.error('Error updating parameters:', error);
+    toast({
+      title: "Update Failed",
+      description: error.message,
+      variant: "destructive"
+    });
     throw error;
   }
 }
