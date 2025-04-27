@@ -22,6 +22,8 @@ import {
   POOL_SOL_ACCOUNT, 
   YOT_TOKEN_ADDRESS,
   YOT_TOKEN_ACCOUNT,
+  YOS_TOKEN_ADDRESS,
+  YOS_TOKEN_ACCOUNT,
   SWAP_FEE
 } from './constants';
 
@@ -207,6 +209,83 @@ export function calculateYosToYot(yosAmount: number) {
 export function calculateYotToYos(yotAmount: number) {
   // Simple 1:10 fixed ratio conversion
   return yotAmount / 10;
+}
+
+// Get the latest SOL market price in USD (via simple API call)
+export async function getSolMarketPrice(): Promise<number> {
+  try {
+    // In a production app, you'd want to use a proper price oracle or API
+    // For this example, we'll use a simple API
+    const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
+    const data = await response.json();
+    return data.solana.usd;
+  } catch (error) {
+    console.error('Error fetching SOL market price:', error);
+    // Return a default approximate value in case of error
+    return 100.00;
+  }
+}
+
+// Calculate YOT price based on liquidity pool ratio and SOL price
+export async function getYotMarketPrice(): Promise<number> {
+  try {
+    // Get SOL price
+    const solPrice = await getSolMarketPrice();
+    
+    // Get pool data
+    const { solBalance, yotBalance } = await getPoolBalances();
+    
+    if (!solBalance || !yotBalance || solBalance === 0 || yotBalance === 0) {
+      return 0;
+    }
+    
+    // Calculate YOT price based on liquidity fluctuation rate
+    // YOT price = (SOL price * SOL pool balance) / YOT pool balance
+    const yotPrice = (solPrice * solBalance) / yotBalance;
+    
+    return yotPrice;
+  } catch (error) {
+    console.error('Error calculating YOT market price:', error);
+    return 0;
+  }
+}
+
+// Calculate YOS price based on YOT pool against YOS
+export async function getYosMarketPrice(): Promise<number> {
+  try {
+    // Get YOT price first
+    const yotPrice = await getYotMarketPrice();
+    
+    // YOS price is 10x YOT price based on the fixed 1:10 ratio
+    const yosPrice = yotPrice * 10;
+    
+    return yosPrice;
+  } catch (error) {
+    console.error('Error calculating YOS market price:', error);
+    return 0;
+  }
+}
+
+// Get all token prices in one call for efficiency
+export async function getAllTokenPrices(): Promise<{ sol: number, yot: number, yos: number }> {
+  try {
+    const solPrice = await getSolMarketPrice();
+    const yotPrice = await getYotMarketPrice();
+    const yosPrice = await getYosMarketPrice();
+    
+    return {
+      sol: solPrice,
+      yot: yotPrice,
+      yos: yosPrice
+    };
+  } catch (error) {
+    console.error('Error getting all token prices:', error);
+    return {
+      sol: 0,
+      yot: 0,
+      yos: 0
+    };
+  }
 }
 
 // Execute a swap from SOL to YOT

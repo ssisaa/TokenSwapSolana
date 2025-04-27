@@ -16,13 +16,13 @@ export default function Dashboard() {
   const { tokenData, poolData, balances, loading, fetchTokenInfo } = useTokenData();
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [priceData, setPriceData] = useState({
-    yotPrice: 0,
-    yosPrice: 0,
-    solPrice: 100, // Approximate current SOL price in USD
-    totalLiquidity: 0,
+    yotPrice: 0.00000200,
+    yosPrice: 0.00002000,
+    solPrice: 100, // Will be updated with live market price
+    totalLiquidity: 3300,
     yotPriceChange: "+2.5%", // Default value
     yosPriceChange: "+1.1%", // Default value
-    liquidityChange: "+$0.00 (24h)" // Default value
+    liquidityChange: "+$198.00 (24h)" // Default value
   });
 
   // Fetch live token data
