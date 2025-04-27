@@ -8,10 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, AlertCircle, ArrowRight, Clock } from "lucide-react";
+import { Loader2, AlertCircle, ArrowRight, Clock, Info } from "lucide-react";
 import { useTokenData } from "@/hooks/useTokenData";
 import { useToast } from "@/hooks/use-toast";
 import { formatNumber } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { getQueryFn } from "@/lib/queryClient";
+import { AdminSettings } from "@shared/schema";
 
 export default function Stake() {
   const { connected, publicKey } = useMultiWallet();
@@ -37,8 +40,21 @@ export default function Stake() {
   const [earnedYOS, setEarnedYOS] = useState<number>(0);
   const [stakeStartTime, setStakeStartTime] = useState<number | null>(null);
   
+  // Fetch admin settings from API
+  const { data: adminSettings, isLoading: isSettingsLoading } = useQuery<AdminSettings>({
+    queryKey: ["/api/admin/settings"],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+  });
+  
   // Staking rate from admin settings in database
-  const stakeRatePerSecond = 0.00125 / 100; // 0.00125% per second, convert to decimal
+  const stakeRatePerSecond = adminSettings?.stakeRatePerSecond 
+    ? parseFloat(adminSettings.stakeRatePerSecond.toString()) / 100 
+    : 0.00125 / 100; // 0.00125% per second default, convert to decimal
+  
+  // Harvest threshold from admin settings
+  const harvestThreshold = adminSettings?.harvestThreshold 
+    ? parseFloat(adminSettings.harvestThreshold.toString()) 
+    : 100; // Default threshold of 100 YOS
   
   // Check current staked amount and rewards on component mount and wallet connection
   useEffect(() => {
@@ -189,6 +205,16 @@ export default function Stake() {
       toast({
         title: "Nothing to harvest",
         description: "You haven't earned any YOS tokens yet.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Check if earned YOS is above the harvest threshold
+    if (earnedYOS < harvestThreshold) {
+      toast({
+        title: "Below harvest threshold",
+        description: `You need at least ${harvestThreshold} YOS tokens to harvest. You currently have ${formatNumber(earnedYOS)} YOS.`,
         variant: "destructive",
       });
       return;
@@ -348,37 +374,46 @@ export default function Stake() {
                         </AlertDescription>
                       </Alert>
                       
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <Button 
-                          variant="secondary" 
-                          className="flex-1" 
-                          onClick={handleHarvest}
-                          disabled={isHarvesting || earnedYOS <= 0}
-                        >
-                          {isHarvesting ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Harvesting...
-                            </>
-                          ) : (
-                            "Harvest YOS"
-                          )}
-                        </Button>
-                        <Button 
-                          variant="destructive" 
-                          className="flex-1" 
-                          onClick={handleUnstake}
-                          disabled={isUnstaking || stakedYOT <= 0}
-                        >
-                          {isUnstaking ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Unstaking...
-                            </>
-                          ) : (
-                            "Unstake All"
-                          )}
-                        </Button>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Info className="h-4 w-4 text-primary-400" />
+                          <span className="text-xs text-gray-400">
+                            Minimum {harvestThreshold} YOS required to harvest rewards
+                          </span>
+                        </div>
+                        
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Button 
+                            variant="secondary" 
+                            className="flex-1" 
+                            onClick={handleHarvest}
+                            disabled={isHarvesting || earnedYOS <= 0}
+                          >
+                            {isHarvesting ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Harvesting...
+                              </>
+                            ) : (
+                              "Harvest YOS"
+                            )}
+                          </Button>
+                          <Button 
+                            variant="destructive" 
+                            className="flex-1" 
+                            onClick={handleUnstake}
+                            disabled={isUnstaking || stakedYOT <= 0}
+                          >
+                            {isUnstaking ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Unstaking...
+                              </>
+                            ) : (
+                              "Unstake All"
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </TabsContent>
@@ -388,8 +423,9 @@ export default function Stake() {
             
             <CardFooter className="border-t border-dark-400 pt-4">
               <div className="text-xs text-gray-400 w-full">
-                <p>Staking YOT tokens earns you YOS tokens over time at a rate of 0.00125% per second.</p>
+                <p>Staking YOT tokens earns you YOS tokens over time at a rate of {(stakeRatePerSecond * 100).toFixed(6)}% per second.</p>
                 <p className="mt-1">You can unstake at any time, but make sure to harvest your rewards first!</p>
+                <p className="mt-1">Note: You need to accumulate at least <span className="text-primary-400">{harvestThreshold} YOS</span> tokens before you can harvest.</p>
               </div>
             </CardFooter>
           </Card>
@@ -414,8 +450,9 @@ export default function Stake() {
                 <div className="space-y-2 text-sm text-gray-400">
                   <p>1. Stake your YOT tokens to earn YOS rewards</p>
                   <p>2. Rewards accumulate every second at {(stakeRatePerSecond * 100).toFixed(6)}% per second</p>
-                  <p>3. Harvest your YOS rewards anytime</p>
-                  <p>4. Swap YOS back to YOT when desired</p>
+                  <p>3. You'll need at least {harvestThreshold} YOS to harvest</p>
+                  <p>4. Harvest your YOS rewards when ready</p>
+                  <p>5. Swap YOS back to YOT when desired</p>
                 </div>
               </CardContent>
             </Card>
