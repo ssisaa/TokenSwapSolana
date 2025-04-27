@@ -257,6 +257,7 @@ export default function SwapSection() {
             variant="outline"
             className="bg-dark-500 hover:bg-dark-300 p-2 rounded-full transition border border-primary-800 shadow-md"
             onClick={switchTokens}
+            disabled={fromToken === YOS_SYMBOL} // Disable switch when YOS is selected as from token
           >
             <CloudLightning className="h-6 w-6 text-primary-400" />
           </Button>

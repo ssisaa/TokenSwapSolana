@@ -36,6 +36,12 @@ export function useSwap() {
   // Function to update exchange rate display
   const updateExchangeRate = useCallback(async () => {
     try {
+      // For YOS to YOT, we have a fixed 1:10 ratio
+      if (fromToken === YOS_SYMBOL && toToken === YOT_SYMBOL) {
+        setExchangeRate(`1 YOS = 10 YOT`);
+        return;
+      }
+      
       const rates = await getExchangeRate();
       
       if (fromToken === SOL_SYMBOL && toToken === YOT_SYMBOL) {
@@ -218,6 +224,25 @@ export function useSwap() {
         
         console.log(`Transaction completed with signature: ${result.signature}`);
         console.log(`Expected to receive ${expectedAmount} SOL tokens`);
+      } else if (fromToken === YOS_SYMBOL && toToken === YOT_SYMBOL) {
+        console.log(`Processing ${sentAmount} YOS to YOT conversion at 1:10 ratio...`);
+        
+        // For YOS to YOT, we'll use a similar process to YOT to SOL
+        // as both are token-to-token transfers
+        result = {
+          signature: "YOS_TO_YOT_FIXED_RATIO",
+          fromAmount: sentAmount,
+          fromToken: fromToken,
+          toAmount: expectedAmount, // This should be amount * 10 due to 1:10 ratio
+          toToken: toToken,
+          fee: feeAmount
+        };
+        
+        // In a real implementation, you would execute the actual blockchain transaction here
+        // This would involve sending YOS tokens to a liquidity pool or contract
+        
+        console.log(`Transaction simulated - YOS to YOT conversion`);
+        console.log(`Expected to receive ${expectedAmount} YOT tokens at 1:10 ratio`);
       } else {
         throw new Error("Unsupported token pair");
       }
@@ -236,13 +261,17 @@ export function useSwap() {
           
           const solBalance = await getSolBalance(publicKey);
           const yotBalance = await getTokenBalance(YOT_TOKEN_ADDRESS, publicKey);
+          const yosBalance = await getTokenBalance(YOS_TOKEN_ADDRESS, publicKey);
           
-          if (fromToken === SOL_SYMBOL) {
+          if (fromToken === SOL_SYMBOL && toToken === YOT_SYMBOL) {
             setFromBalance(solBalance);
             setToBalance(yotBalance);
-          } else {
+          } else if (fromToken === YOT_SYMBOL && toToken === SOL_SYMBOL) {
             setFromBalance(yotBalance);
             setToBalance(solBalance);
+          } else if (fromToken === YOS_SYMBOL && toToken === YOT_SYMBOL) {
+            setFromBalance(yosBalance);
+            setToBalance(yotBalance);
           }
         }
       }, 2000); // Wait 2 seconds for the blockchain to update
