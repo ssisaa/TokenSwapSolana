@@ -40,14 +40,14 @@ enum StakingInstructionType {
 // Find Program Derived Addresses
 function findProgramStateAddress(): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
-    [Buffer.from('program_state')],
+    [Buffer.from('state')], // Changed to match Rust program seed
     STAKING_PROGRAM_ID
   );
 }
 
 function findStakingAccountAddress(walletAddress: PublicKey): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
-    [Buffer.from('staking_account'), walletAddress.toBuffer()],
+    [Buffer.from('staking'), walletAddress.toBuffer()],
     STAKING_PROGRAM_ID
   );
 }
@@ -231,7 +231,7 @@ export async function stakeYOTTokens(
 
     // Find program state address
     const [programStateAddress] = PublicKey.findProgramAddressSync(
-      [Buffer.from('program_state')],
+      [Buffer.from("state")],
       STAKING_PROGRAM_ID
     );
     
@@ -331,7 +331,7 @@ export async function unstakeYOTTokens(
     
     // Find program state address
     const [programStateAddress] = PublicKey.findProgramAddressSync(
-      [Buffer.from('program_state')],
+      [Buffer.from("state")],
       STAKING_PROGRAM_ID
     );
     
@@ -439,7 +439,7 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     
     // Find program state address
     const [programStateAddress] = PublicKey.findProgramAddressSync(
-      [Buffer.from('program_state')],
+      [Buffer.from("state")],
       STAKING_PROGRAM_ID
     );
     
@@ -529,7 +529,7 @@ export async function updateStakingParameters(
     
     // Find program state address
     const [programStateAddress] = PublicKey.findProgramAddressSync(
-      [Buffer.from('program_state')],
+      [Buffer.from("state")],
       STAKING_PROGRAM_ID
     );
     
