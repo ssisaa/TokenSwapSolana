@@ -37,9 +37,9 @@ export function useSwap() {
       const rates = await getExchangeRate();
       
       if (fromToken === SOL_SYMBOL && toToken === YOT_SYMBOL) {
-        setExchangeRate(`1 SOL = ${formatCurrency(rates.solToYot)} YOT`);
+        setExchangeRate(`1 SOL = ${rates.solToYot.toFixed(8)} YOT`);
       } else if (fromToken === YOT_SYMBOL && toToken === SOL_SYMBOL) {
-        setExchangeRate(`1 YOT = ${formatCurrency(rates.yotToSol)} SOL`);
+        setExchangeRate(`1 YOT = ${rates.yotToSol.toFixed(8)} SOL`);
       }
     } catch (error) {
       console.error("Error updating exchange rate:", error);
@@ -171,6 +171,7 @@ export function useSwap() {
       // Set up our expected amount variables - these will be used for display purposes
       let sentAmount = amount;
       let expectedAmount = parseFloat(toAmount.toString());
+      const feeAmount = sentAmount * 0.003; // 0.3% fee
       
       if (fromToken === SOL_SYMBOL && toToken === YOT_SYMBOL) {
         console.log(`Sending ${sentAmount} SOL to the liquidity pool...`);
@@ -179,6 +180,13 @@ export function useSwap() {
         // (sending SOL to pool) because the second part requires pool authority
         result = await swapSolToYot(wallet, amount);
         
+        // Enhance the result with transaction details for immediate display
+        result.fromAmount = sentAmount;
+        result.fromToken = fromToken;
+        result.toAmount = expectedAmount;
+        result.toToken = toToken;
+        result.fee = feeAmount;
+        
         console.log(`Transaction completed with signature: ${result.signature}`);
         console.log(`Expected to receive ${expectedAmount} YOT tokens`);
       } else if (fromToken === YOT_SYMBOL && toToken === SOL_SYMBOL) {
@@ -186,6 +194,13 @@ export function useSwap() {
         
         // Execute the YOT to SOL swap
         result = await swapYotToSol(wallet, amount);
+        
+        // Enhance the result with transaction details for immediate display
+        result.fromAmount = sentAmount;
+        result.fromToken = fromToken;
+        result.toAmount = expectedAmount;
+        result.toToken = toToken;
+        result.fee = feeAmount;
         
         console.log(`Transaction completed with signature: ${result.signature}`);
         console.log(`Expected to receive ${expectedAmount} SOL tokens`);

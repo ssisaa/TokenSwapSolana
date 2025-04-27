@@ -39,7 +39,14 @@ export default function SwapSection() {
   const [toTokenOptions, setToTokenOptions] = useState(false);
   const [transactionState, setTransactionState] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState("");
-  const [lastTransaction, setLastTransaction] = useState<{signature?: string} | null>(null);
+  const [lastTransaction, setLastTransaction] = useState<{
+    signature?: string;
+    fromAmount?: number;
+    fromToken?: string;
+    toAmount?: number;
+    toToken?: string;
+    fee?: number;
+  } | null>(null);
 
   useEffect(() => {
     if (isPending) {
@@ -181,36 +188,36 @@ export default function SwapSection() {
             <div className="relative">
               <Button
                 variant="outline"
-                className="bg-dark-400 hover:bg-dark-100 rounded-lg py-2 px-3 flex items-center transition"
+                className="bg-dark-500 hover:bg-dark-300 border border-primary-800 rounded-lg py-2 px-3 flex items-center transition shadow-md"
                 onClick={toggleFromTokenSelect}
               >
-                <span className="font-medium mr-2">{fromToken}</span>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <span className="font-medium mr-2 text-white">{fromToken}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                 </svg>
               </Button>
               
               {/* Token Selector Dropdown */}
               {fromTokenOptions && (
-                <div className="absolute right-0 mt-2 w-48 bg-dark-100 rounded-lg shadow-lg z-10">
+                <div className="absolute right-0 mt-2 w-48 bg-dark-300 rounded-lg shadow-xl z-10 border border-primary-800">
                   <div className="p-2">
                     <button
-                      className="w-full text-left px-4 py-2 rounded hover:bg-dark-300 transition flex items-center"
+                      className="w-full text-left px-4 py-2 rounded hover:bg-dark-400 transition flex items-center text-white"
                       onClick={() => selectFromToken(SOL_SYMBOL)}
                     >
                       <svg className="h-5 w-5 mr-2 text-purple-400" viewBox="0 0 32 32">
                         <path fill="currentColor" d="M22.6 12l-4.5-2.6l-4.6-2.7l-4.5-2.6V9l4.5 2.6v5.2l4.6 2.6v-5.2l4.5-2.6V12z M22.6 16.1l-4.5 2.6v5.2l4.5-2.6v-5.2z M27.2 14.8l-4.5 2.6v5.2l4.5-2.6v-5.2z M13.5 23.9l4.5 2.6v-5.2l-4.5-2.6v5.2z M9 21.3l4.5 2.6v-5.2L9 16.1v5.2z"></path>
                       </svg>
-                      SOL
+                      <span className="font-medium">SOL</span>
                     </button>
                     <button
-                      className="w-full text-left px-4 py-2 rounded hover:bg-dark-300 transition flex items-center"
+                      className="w-full text-left px-4 py-2 rounded hover:bg-dark-400 transition flex items-center text-white mt-1"
                       onClick={() => selectFromToken(YOT_SYMBOL)}
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      YOT
+                      <span className="font-medium">YOT</span>
                     </button>
                   </div>
                 </div>
@@ -223,7 +230,7 @@ export default function SwapSection() {
         <div className="flex justify-center">
           <Button
             variant="outline"
-            className="bg-dark-400 hover:bg-dark-300 p-2 rounded-full transition"
+            className="bg-dark-500 hover:bg-dark-300 p-2 rounded-full transition border border-primary-800 shadow-md"
             onClick={switchTokens}
           >
             <CloudLightning className="h-6 w-6 text-primary-400" />
@@ -251,36 +258,36 @@ export default function SwapSection() {
             <div className="relative">
               <Button
                 variant="outline"
-                className="bg-dark-400 hover:bg-dark-100 rounded-lg py-2 px-3 flex items-center transition"
+                className="bg-dark-500 hover:bg-dark-300 border border-primary-800 rounded-lg py-2 px-3 flex items-center transition shadow-md"
                 onClick={toggleToTokenSelect}
               >
-                <span className="font-medium mr-2">{toToken}</span>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <span className="font-medium mr-2 text-white">{toToken}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                 </svg>
               </Button>
               
               {/* Token Selector Dropdown */}
               {toTokenOptions && (
-                <div className="absolute right-0 mt-2 w-48 bg-dark-100 rounded-lg shadow-lg z-10">
+                <div className="absolute right-0 mt-2 w-48 bg-dark-300 rounded-lg shadow-xl z-10 border border-primary-800">
                   <div className="p-2">
                     <button
-                      className="w-full text-left px-4 py-2 rounded hover:bg-dark-300 transition flex items-center"
+                      className="w-full text-left px-4 py-2 rounded hover:bg-dark-400 transition flex items-center text-white"
                       onClick={() => selectToToken(SOL_SYMBOL)}
                     >
                       <svg className="h-5 w-5 mr-2 text-purple-400" viewBox="0 0 32 32">
                         <path fill="currentColor" d="M22.6 12l-4.5-2.6l-4.6-2.7l-4.5-2.6V9l4.5 2.6v5.2l4.6 2.6v-5.2l4.5-2.6V12z M22.6 16.1l-4.5 2.6v5.2l4.5-2.6v-5.2z M27.2 14.8l-4.5 2.6v5.2l4.5-2.6v-5.2z M13.5 23.9l4.5 2.6v-5.2l-4.5-2.6v5.2z M9 21.3l4.5 2.6v-5.2L9 16.1v5.2z"></path>
                       </svg>
-                      SOL
+                      <span className="font-medium">SOL</span>
                     </button>
                     <button
-                      className="w-full text-left px-4 py-2 rounded hover:bg-dark-300 transition flex items-center"
+                      className="w-full text-left px-4 py-2 rounded hover:bg-dark-400 transition flex items-center text-white mt-1"
                       onClick={() => selectToToken(YOT_SYMBOL)}
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      YOT
+                      <span className="font-medium">YOT</span>
                     </button>
                   </div>
                 </div>
