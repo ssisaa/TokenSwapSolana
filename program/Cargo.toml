@@ -1,0 +1,18 @@
+[package]
+name = "yot-staking"
+version = "0.1.0"
+edition = "2021"
+description = "YOT token staking program for Solana blockchain"
+
+[features]
+no-entrypoint = []
+
+[dependencies]
+solana-program = "1.16.0"
+thiserror = "1.0.40"
+spl-token = { version = "3.5.0", features = ["no-entrypoint"] }
+borsh = "0.10.3"
+borsh-derive = "0.10.3"
+
+[lib]
+crate-type = ["cdylib", "lib"]
