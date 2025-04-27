@@ -15,35 +15,55 @@ import { formatNumber } from "@/lib/utils";
 
 export default function Stake() {
   const { connected, publicKey } = useMultiWallet();
-  const { balances, loading: isBalancesLoading } = useTokenData();
+  const { balances, loading: isBalancesLoading, fetchBalances } = useTokenData();
   const { toast } = useToast();
+  
+  // Effect to fetch balances when wallet is connected
+  useEffect(() => {
+    if (connected && publicKey) {
+      fetchBalances(publicKey.toString());
+    }
+  }, [connected, publicKey, fetchBalances]);
   
   // Staking state
   const [stakeAmount, setStakeAmount] = useState<string>("");
   const [stakingTab, setStakingTab] = useState<string>("stake");
   const [isStaking, setIsStaking] = useState<boolean>(false);
   const [isUnstaking, setIsUnstaking] = useState<boolean>(false);
+  const [isHarvesting, setIsHarvesting] = useState<boolean>(false);
   
-  // Simulated staking data
+  // Blockchain staking data
   const [stakedYOT, setStakedYOT] = useState<number>(0);
   const [earnedYOS, setEarnedYOS] = useState<number>(0);
   const [stakeStartTime, setStakeStartTime] = useState<number | null>(null);
   
-  // Staking rate per second (retrieved from admin settings)
+  // Staking rate from admin settings in database
   const stakeRatePerSecond = 0.00125 / 100; // 0.00125% per second, convert to decimal
   
-  // Effect to simulate earning YOS over time when YOT is staked
+  // Check current staked amount and rewards on component mount and wallet connection
   useEffect(() => {
-    if (stakedYOT > 0 && stakeStartTime) {
-      const timer = setInterval(() => {
-        const secondsStaked = Math.floor((Date.now() - stakeStartTime) / 1000);
-        const earned = stakedYOT * stakeRatePerSecond * secondsStaked;
-        setEarnedYOS(earned);
-      }, 1000);
-      
-      return () => clearInterval(timer);
+    if (connected && publicKey) {
+      // In a production environment, we would fetch this data from the blockchain
+      // using the user's wallet address to get their staked tokens and rewards
+      checkStakedBalance(publicKey.toString());
     }
-  }, [stakedYOT, stakeStartTime]);
+  }, [connected, publicKey]);
+  
+  // Function to check staked balance from blockchain
+  const checkStakedBalance = async (walletAddress: string) => {
+    try {
+      // This would be replaced with an actual blockchain query
+      // to retrieve staked token amounts and staking start time
+      
+      // For now, we'll reset the state until the appropriate blockchain
+      // methods are implemented
+      setStakedYOT(0);
+      setEarnedYOS(0);
+      setStakeStartTime(null);
+    } catch (error) {
+      console.error("Error checking staked balance:", error);
+    }
+  };
   
   const handleStakeAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -58,8 +78,8 @@ export default function Stake() {
     }
   };
   
-  const handleStake = () => {
-    if (!connected) {
+  const handleStake = async () => {
+    if (!connected || !publicKey) {
       toast({
         title: "Wallet not connected",
         description: "Please connect your wallet to stake YOT tokens.",
@@ -89,24 +109,41 @@ export default function Stake() {
     
     setIsStaking(true);
     
-    // Simulate staking process
-    setTimeout(() => {
-      setStakedYOT(prev => prev + amount);
-      if (!stakeStartTime) {
-        setStakeStartTime(Date.now());
-      }
-      setStakeAmount("");
-      setIsStaking(false);
+    try {
+      // In a production environment, this would create and send a Solana 
+      // transaction to stake the tokens using the connected wallet
       
       toast({
-        title: "Staking successful",
-        description: `You have staked ${amount} YOT tokens and will start earning YOS.`,
+        title: "Staking not implemented",
+        description: "The staking blockchain functionality needs to be implemented using Solana program calls.",
+        variant: "destructive",
       });
-    }, 2000);
+      
+      // Reset the form
+      setStakeAmount("");
+    } catch (error) {
+      console.error("Error staking tokens:", error);
+      toast({
+        title: "Staking failed",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsStaking(false);
+    }
   };
   
-  const handleUnstake = () => {
-    if (!connected || stakedYOT <= 0) {
+  const handleUnstake = async () => {
+    if (!connected || !publicKey) {
+      toast({
+        title: "Wallet not connected",
+        description: "Please connect your wallet to unstake YOT tokens.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (stakedYOT <= 0) {
       toast({
         title: "Nothing to unstake",
         description: "You don't have any staked YOT tokens.",
@@ -117,21 +154,37 @@ export default function Stake() {
     
     setIsUnstaking(true);
     
-    // Simulate unstaking process
-    setTimeout(() => {
-      setStakedYOT(0);
-      setStakeStartTime(null);
-      setEarnedYOS(0);
-      setIsUnstaking(false);
+    try {
+      // In a production environment, this would create and send a Solana 
+      // transaction to unstake the tokens using the connected wallet
       
       toast({
-        title: "Unstaking successful",
-        description: "You have unstaked all your YOT tokens.",
+        title: "Unstaking not implemented",
+        description: "The unstaking blockchain functionality needs to be implemented using Solana program calls.",
+        variant: "destructive",
       });
-    }, 2000);
+    } catch (error) {
+      console.error("Error unstaking tokens:", error);
+      toast({
+        title: "Unstaking failed",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUnstaking(false);
+    }
   };
   
-  const handleHarvest = () => {
+  const handleHarvest = async () => {
+    if (!connected || !publicKey) {
+      toast({
+        title: "Wallet not connected",
+        description: "Please connect your wallet to harvest YOS rewards.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     if (earnedYOS <= 0) {
       toast({
         title: "Nothing to harvest",
@@ -141,14 +194,27 @@ export default function Stake() {
       return;
     }
     
-    toast({
-      title: "Harvest successful",
-      description: `You have harvested ${formatNumber(earnedYOS)} YOS tokens.`,
-    });
+    setIsHarvesting(true);
     
-    // Reset earned YOS but keep staking
-    setEarnedYOS(0);
-    setStakeStartTime(Date.now());
+    try {
+      // In a production environment, this would create and send a Solana 
+      // transaction to harvest the rewards using the connected wallet
+      
+      toast({
+        title: "Harvesting not implemented",
+        description: "The harvesting blockchain functionality needs to be implemented using Solana program calls.",
+        variant: "destructive",
+      });
+    } catch (error) {
+      console.error("Error harvesting rewards:", error);
+      toast({
+        title: "Harvesting failed",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsHarvesting(false);
+    }
   };
   
   // Calculate APY based on the per-second rate
@@ -257,7 +323,7 @@ export default function Stake() {
                       <Button 
                         className="w-full" 
                         onClick={handleStake}
-                        disabled={!connected || isStaking || !stakeAmount || parseFloat(stakeAmount) <= 0}
+                        disabled={isStaking}
                       >
                         {isStaking ? (
                           <>
@@ -287,15 +353,22 @@ export default function Stake() {
                           variant="secondary" 
                           className="flex-1" 
                           onClick={handleHarvest}
-                          disabled={!connected || earnedYOS <= 0}
+                          disabled={isHarvesting || earnedYOS <= 0}
                         >
-                          Harvest YOS
+                          {isHarvesting ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Harvesting...
+                            </>
+                          ) : (
+                            "Harvest YOS"
+                          )}
                         </Button>
                         <Button 
                           variant="destructive" 
                           className="flex-1" 
                           onClick={handleUnstake}
-                          disabled={!connected || isUnstaking || stakedYOT <= 0}
+                          disabled={isUnstaking || stakedYOT <= 0}
                         >
                           {isUnstaking ? (
                             <>
