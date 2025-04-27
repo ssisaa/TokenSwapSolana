@@ -197,6 +197,18 @@ export async function calculateYotToSol(yotAmount: number) {
   }
 }
 
+// Calculate the conversion between YOS and YOT (fixed 1:10 ratio)
+export function calculateYosToYot(yosAmount: number) {
+  // Simple 1:10 fixed ratio conversion
+  return yosAmount * 10;
+}
+
+// Calculate the conversion between YOT and YOS (fixed 1:10 ratio)
+export function calculateYotToYos(yotAmount: number) {
+  // Simple 1:10 fixed ratio conversion
+  return yotAmount / 10;
+}
+
 // Execute a swap from SOL to YOT
 export async function swapSolToYot(
   wallet: any, // Wallet adapter

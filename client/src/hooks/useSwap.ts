@@ -1,7 +1,9 @@
 import { useState, useCallback, useEffect } from "react";
 import { 
   calculateSolToYot, 
-  calculateYotToSol, 
+  calculateYotToSol,
+  calculateYosToYot,
+  calculateYotToYos,
   swapSolToYot, 
   swapYotToSol, 
   getTokenBalance, 
@@ -115,8 +117,8 @@ export function useSwap() {
       } else if (fromToken === YOT_SYMBOL && toToken === SOL_SYMBOL) {
         calculatedAmount = await calculateYotToSol(amount);
       } else if (fromToken === YOS_SYMBOL && toToken === YOT_SYMBOL) {
-        // 1 YOS = 10 YOT, simple 1:10 ratio
-        calculatedAmount = amount * 10;
+        // Use the dedicated conversion function
+        calculatedAmount = calculateYosToYot(amount);
       } else {
         throw new Error("Unsupported token pair");
       }
