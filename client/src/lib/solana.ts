@@ -303,8 +303,10 @@ export async function getYotMarketPrice(): Promise<number> {
     const solBalanceInSol = lamportsToSol(solBalance);
     
     // Calculate YOT price based on liquidity fluctuation rate
-    // YOT price = (SOL price * SOL pool balance) / YOT pool balance
-    const yotPrice = (solPrice * solBalanceInSol) / yotBalance;
+    // YOT price = (SOL price * SOL pool balance in SOL) / YOT pool balance
+    // This needs adjustment because the numbers are so different in scale
+    const poolValueInUsd = solPrice * solBalanceInSol;
+    const yotPrice = poolValueInUsd / yotBalance;
     
     console.log(`YOT price calculation: (${solPrice} * ${solBalanceInSol}) / ${yotBalance} = ${yotPrice}`);
     

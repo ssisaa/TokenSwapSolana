@@ -38,14 +38,17 @@ export default function Dashboard() {
       const exchangeRate = await getExchangeRate();
       
       if (pool.solBalance && pool.yotBalance) {
+        // Convert SOL balance from lamports to SOL
+        const solBalanceInSol = pool.solBalance / 1e9;
+        
         // Calculate YOT price in USD (based on SOL price and pool ratio)
-        const yotPrice = (solPrice * pool.solBalance) / pool.yotBalance;
+        const yotPrice = (solPrice * solBalanceInSol) / pool.yotBalance;
         
         // Calculate YOS price (1 YOS = 10 YOT)
         const yosPrice = yotPrice * 10;
         
         // Calculate total liquidity
-        const totalLiquidity = (pool.solBalance * solPrice) + 
+        const totalLiquidity = (solBalanceInSol * solPrice) + 
                               (pool.yotBalance * yotPrice);
         
         setPriceData(prev => ({
