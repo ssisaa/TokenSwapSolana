@@ -733,6 +733,7 @@ export async function getRecentTransactions(address: string, limit: number = 10)
     const publicKey = new PublicKey(address);
     const transactions = await connection.getSignaturesForAddress(publicKey, { limit });
     
+    // First pass to process all transactions individually
     const transactionDetails = await Promise.all(
       transactions.map(async (tx) => {
         try {
@@ -860,7 +861,11 @@ export async function getRecentTransactions(address: string, limit: number = 10)
             toToken,
             fromAmount,
             toAmount,
-            fee
+            fee,
+            // Add metadata to help with grouping YOT to SOL transactions
+            meta: {
+              isYotToSolPart: fromToken === 'YOT' && toToken === 'SOL'
+            }
           };
         } catch (error) {
           console.error(`Error fetching transaction ${tx.signature}:`, error);
@@ -869,7 +874,74 @@ export async function getRecentTransactions(address: string, limit: number = 10)
       })
     );
     
-    return transactionDetails.filter(Boolean);
+    // Filter out null values
+    const validTransactions = transactionDetails.filter(Boolean);
+    
+    // Group transactions - handle YOT to SOL swaps that show as multiple transactions
+    // We'll create a map to group transactions by time (within a 10-second window)
+    const timeGroups = new Map();
+    
+    validTransactions.forEach(tx => {
+      if (!tx) return;
+      
+      // Skip transactions that are not YOT to SOL parts (they stay as-is)
+      if (!tx.meta?.isYotToSolPart) {
+        timeGroups.set(tx.signature, [tx]);
+        return;
+      }
+      
+      // For YOT to SOL parts, try to group them by time
+      const txTime = tx.timestamp;
+      let foundGroup = false;
+      
+      // Check if this transaction belongs to an existing group
+      for (const [key, group] of timeGroups.entries()) {
+        const groupTx = group[0];
+        // If another YOT to SOL transaction exists within 10 seconds, group them
+        if (Math.abs(groupTx.timestamp - txTime) < 10 && groupTx.meta?.isYotToSolPart) {
+          group.push(tx);
+          foundGroup = true;
+          break;
+        }
+      }
+      
+      // If no group found, create a new one
+      if (!foundGroup) {
+        timeGroups.set(tx.signature, [tx]);
+      }
+    });
+    
+    // Process the groups to merge YOT to SOL transactions
+    const processedTransactions = [];
+    
+    for (const [, group] of timeGroups.entries()) {
+      if (group.length === 1) {
+        // Single transaction, add as-is
+        processedTransactions.push(group[0]);
+      } else {
+        // Multiple transactions in the group (potential YOT to SOL swap parts)
+        // Use the earliest transaction as the base
+        const baseTransaction = group.reduce((earliest, current) => 
+          current.timestamp < earliest.timestamp ? current : earliest
+        );
+        
+        // Create a merged transaction
+        processedTransactions.push({
+          ...baseTransaction,
+          signature: baseTransaction.signature,
+          isSwap: true, // Force it to display as a swap
+          fromToken: 'YOT',
+          toToken: 'SOL',
+          // Use the values from the earliest transaction
+          fromAmount: baseTransaction.fromAmount,
+          toAmount: baseTransaction.toAmount,
+          fee: baseTransaction.fee
+        });
+      }
+    }
+    
+    // Sort by timestamp (newest first)
+    return processedTransactions.sort((a, b) => b.timestamp - a.timestamp);
   } catch (error) {
     console.error('Error getting recent transactions:', error);
     throw error;
