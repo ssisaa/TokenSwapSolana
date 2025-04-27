@@ -13,6 +13,13 @@ export default function TransactionHistory() {
   useEffect(() => {
     if (connected && wallet?.publicKey) {
       fetchTransactions(wallet.publicKey.toString());
+      
+      // Set up interval to refresh transactions
+      const interval = setInterval(() => {
+        fetchTransactions(wallet.publicKey.toString());
+      }, 20000); // Refresh every 20 seconds
+      
+      return () => clearInterval(interval);
     }
   }, [connected, wallet, fetchTransactions]);
 
@@ -113,20 +120,20 @@ export default function TransactionHistory() {
               <div className="mt-3 pt-3 border-t border-dark-100 grid grid-cols-3 gap-2 text-sm">
                 <div>
                   <div className="text-gray-400">From</div>
-                  <div className="font-medium">
+                  <div className="font-medium text-white">
                     {tx.fromAmount ? `${formatCurrency(tx.fromAmount)} ${tx.fromToken}` : 'Unknown'}
                   </div>
                 </div>
                 <div>
                   <div className="text-gray-400">To</div>
-                  <div className="font-medium">
+                  <div className="font-medium text-white">
                     {tx.toAmount ? `${formatCurrency(tx.toAmount)} ${tx.toToken}` : 'Unknown'}
                   </div>
                 </div>
                 <div>
                   <div className="text-gray-400">Fee</div>
-                  <div className="font-medium">
-                    {tx.fee ? `${formatCurrency(tx.fee, 6)} SOL` : 'Unknown'}
+                  <div className="font-medium text-white">
+                    {tx.fee ? `${formatCurrency(tx.fee)} ${tx.fromToken}` : 'Unknown'}
                   </div>
                 </div>
               </div>

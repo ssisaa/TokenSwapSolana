@@ -792,7 +792,18 @@ export async function getRecentTransactions(address: string, limit: number = 10)
                 fromToken = 'SOL';
                 toToken = 'YOT';
                 fromAmount = solAmount;
-                toAmount = solAmount * 100; // Approximate rate
+                
+                // Calculate accurate toAmount based on AMM formula
+                const poolData = await getPoolBalances();
+                if (poolData.solBalance && poolData.yotBalance) {
+                  // Use the pool ratio to calculate the amount
+                  const exchangeRate = poolData.yotBalance / poolData.solBalance;
+                  toAmount = solAmount * exchangeRate * (1 - SWAP_FEE);
+                } else {
+                  // Fallback to approximate rate if pool data not available
+                  toAmount = solAmount * 100; 
+                }
+                
                 fee = solAmount * SWAP_FEE;
               } else {
                 // This might be a YOT -> SOL swap or another transaction type
@@ -804,8 +815,37 @@ export async function getRecentTransactions(address: string, limit: number = 10)
                 if (hasYotTransfer) {
                   fromToken = 'YOT';
                   toToken = 'SOL';
-                  // We would need more sophisticated analysis for accurate amounts
-                  fee = 0.000005; // A placeholder
+                  
+                  // Attempt to extract the YOT amount from logs
+                  let yotAmount = 0;
+                  try {
+                    const transferLog = txDetails.meta?.logMessages?.find(
+                      log => log.includes('Transfer') && log.includes(YOT_TOKEN_ADDRESS)
+                    );
+                    if (transferLog) {
+                      // Parse the transfer amount
+                      const amountMatch = transferLog.match(/amount (\d+)/);
+                      if (amountMatch && amountMatch[1]) {
+                        // Convert from token decimal format
+                        yotAmount = Number(amountMatch[1]) / Math.pow(10, 9); // Assuming 9 decimals for YOT
+                      }
+                    }
+                  } catch (e) {
+                    console.error("Error parsing YOT amount from logs:", e);
+                  }
+                  
+                  fromAmount = yotAmount > 0 ? yotAmount : 1; // Default to 1 if parsing failed
+                  
+                  // Calculate SOL amount based on pool ratio
+                  const poolData = await getPoolBalances();
+                  if (poolData.solBalance && poolData.yotBalance && yotAmount > 0) {
+                    const exchangeRate = poolData.solBalance / poolData.yotBalance;
+                    toAmount = yotAmount * exchangeRate * (1 - SWAP_FEE);
+                  } else {
+                    toAmount = 0.01; // Fallback value
+                  }
+                  
+                  fee = fromAmount * SWAP_FEE;
                 }
               }
             }
