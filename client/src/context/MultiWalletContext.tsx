@@ -121,18 +121,24 @@ export function MultiWalletProvider({ children, cluster = CLUSTER }: MultiWallet
     };
   }, [wallet, selectedWallet]);
 
-  // Auto-connect to the last connected wallet on page load
+  // Auto-connect to the last connected wallet on page load, but only once
   useEffect(() => {
+    // Only run auto-connect on initial load
+    const shouldAutoConnect = localStorage.getItem('shouldAutoConnect') === 'true';
+    
     const autoConnect = async () => {
-      if (wallet && !connected) {
+      if (wallet && !connected && shouldAutoConnect) {
         try {
           if (wallet.readyState === 'Installed' || wallet.readyState === 'Loadable') {
             setConnecting(true);
             await wallet.connect();
+            // After auto-connecting once, disable auto-connect until user manually connects again
+            localStorage.setItem('shouldAutoConnect', 'false');
           }
         } catch (error) {
           console.error('Auto-connect error:', error);
           setConnecting(false);
+          localStorage.setItem('shouldAutoConnect', 'false');
         }
       }
     };
@@ -140,10 +146,40 @@ export function MultiWalletProvider({ children, cluster = CLUSTER }: MultiWallet
     autoConnect();
   }, [wallet, connected]);
 
-  const connect = useCallback(async (walletName?: string) => {
-    if (connecting || connected) return;
+  // Helper function to handle wallet disconnection - defined outside callbacks to avoid circular dependencies
+  const handleDisconnect = async () => {
+    if (wallet && connected) {
+      try {
+        // First disconnect the wallet
+        await wallet.disconnect();
+        
+        // Clear local storage data
+        localStorage.removeItem('selectedWallet');
+        localStorage.removeItem('shouldAutoConnect');
+        
+        // Reset state
+        setSelectedWallet(null);
+        setPublicKey(null);
+        setConnected(false);
+      } catch (error) {
+        console.error('Disconnection error:', error);
+      }
+    }
+  };
 
+  // Create a standard callback for disconnection
+  const disconnect = useCallback(() => handleDisconnect(), [wallet, connected]);
+
+  const connect = useCallback(async (walletName?: string) => {
     try {
+      // If already connected and trying to switch wallets, disconnect first
+      if (connected && walletName && selectedWallet?.name !== walletName) {
+        await handleDisconnect();
+      } else if (connecting || (connected && !walletName)) {
+        // If already connecting or already connected to the same wallet, do nothing
+        return;
+      }
+      
       setConnecting(true);
 
       if (walletName) {
@@ -156,6 +192,10 @@ export function MultiWalletProvider({ children, cluster = CLUSTER }: MultiWallet
           // Connect to the newly selected wallet
           if (!selectedWallet.adapter.connected) {
             await selectedWallet.adapter.connect();
+            
+            // Set auto-connect flag for future sessions
+            localStorage.setItem('shouldAutoConnect', 'true');
+            localStorage.setItem('selectedWallet', selectedWallet.name);
           }
         } else {
           throw new Error(`Wallet "${walletName}" not found or not installed`);
@@ -163,6 +203,12 @@ export function MultiWalletProvider({ children, cluster = CLUSTER }: MultiWallet
       } else if (wallet) {
         // Use the current wallet adapter
         await wallet.connect();
+        
+        // Set auto-connect flag
+        if (selectedWallet) {
+          localStorage.setItem('shouldAutoConnect', 'true');
+          localStorage.setItem('selectedWallet', selectedWallet.name);
+        }
       } else {
         throw new Error("No wallet adapter available");
       }
@@ -171,17 +217,7 @@ export function MultiWalletProvider({ children, cluster = CLUSTER }: MultiWallet
       setConnecting(false);
       throw error;
     }
-  }, [wallets, wallet, connecting, connected]);
-
-  const disconnect = useCallback(async () => {
-    if (wallet && connected) {
-      try {
-        await wallet.disconnect();
-      } catch (error) {
-        console.error('Disconnection error:', error);
-      }
-    }
-  }, [wallet, connected]);
+  }, [wallets, wallet, connecting, connected, selectedWallet]);
 
   return (
     <MultiWalletContext.Provider
