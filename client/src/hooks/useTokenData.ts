@@ -97,9 +97,11 @@ export function useTokenData() {
       // Fetch YOS balance
       const yosBalance = await getTokenBalance(YOS_TOKEN_ADDRESS, publicKey);
       
-      // Calculate estimated USD value (in a real app, this would use an oracle)
-      // Using a reasonable estimate for SOL price in USD
-      const solPrice = 100; // Current SOL price in USD
+      // Import the getSolMarketPrice function to get the live SOL price
+      const { getSolMarketPrice } = await import("@/lib/solana");
+      
+      // Get the real-time SOL price
+      const solPrice = await getSolMarketPrice();
       const solUsdValue = solBalance * solPrice;
       
       // Fetch pool data for AMM calculation
@@ -109,10 +111,16 @@ export function useTokenData() {
       let yosUsdValue = 0;
       
       if (pool.solBalance && pool.yotBalance) {
+        // Import the lamportsToSol function
+        const { lamportsToSol } = await import("@/lib/solana");
+        
+        // Convert SOL balance from lamports to SOL
+        const solBalanceInSol = lamportsToSol(pool.solBalance);
+        
         // Calculate YOT price based on AMM liquidity pool
         // Using the x * y = k formula, where k is a constant
         // The exchange rate is determined by the ratio of tokens in the pool
-        const yotToSolRate = pool.solBalance / pool.yotBalance; // How much SOL 1 YOT is worth
+        const yotToSolRate = solBalanceInSol / pool.yotBalance; // How much SOL 1 YOT is worth
         yotUsdValue = yotBalance * yotToSolRate * solPrice;
         
         // For YOS, we use the fixed 1:10 ratio with YOT, then calculate USD value
