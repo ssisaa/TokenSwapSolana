@@ -34,8 +34,9 @@ export function lamportsToSol(lamports: number): number {
 }
 
 // Convert SOL to lamports
-export function solToLamports(sol: number): number {
-  return sol * LAMPORTS_PER_SOL;
+export function solToLamports(sol: number): bigint {
+  // Multiply by LAMPORTS_PER_SOL and convert to a BigInt
+  return BigInt(Math.round(sol * LAMPORTS_PER_SOL));
 }
 
 // Get SOL balance for a wallet
@@ -436,19 +437,22 @@ export async function swapYotToSol(
           lastValidBlockHeight: solTransferBlockhash.lastValidBlockHeight
         });
         
-        // Convert SOL amount to lamports
-        const lamports = solToLamports(expectedSolAmount);
-        
-        // Add instruction to transfer SOL from pool to user
-        solTransferTransaction.add(
-          SystemProgram.transfer({
-            fromPubkey: poolAuthorityKeypair.publicKey, 
-            toPubkey: wallet.publicKey,
-            lamports
-          })
-        );
-        
         try {
+          // Convert SOL amount to lamports as BigInt
+          // Round to ensure we have an integer value
+          const lamports = BigInt(Math.round(expectedSolAmount * LAMPORTS_PER_SOL));
+          
+          console.log(`Converting ${expectedSolAmount} SOL to ${lamports} lamports`);
+          
+          // Add instruction to transfer SOL from pool to user
+          solTransferTransaction.add(
+            SystemProgram.transfer({
+              fromPubkey: poolAuthorityKeypair.publicKey, 
+              toPubkey: wallet.publicKey,
+              lamports
+            })
+          );
+          
           // Sign and send transaction with pool authority
           const solTransferSignature = await sendAndConfirmTransaction(
             connection,

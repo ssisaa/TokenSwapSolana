@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
-import { InfoIcon } from "lucide-react";
+import { InfoIcon, RefreshCw } from "lucide-react";
 import { useTokenData } from "@/hooks/useTokenData";
 import { 
   YOT_TOKEN_ADDRESS, 
@@ -12,11 +12,23 @@ import {
 } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { copyToClipboard } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 export default function TokenInfo() {
-  const { tokenData, poolData } = useTokenData();
+  const { tokenData, poolData, fetchTokenInfo, loading } = useTokenData();
   const { toast } = useToast();
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
+  
+  // Fetch token info when component mounts
+  useEffect(() => {
+    fetchTokenInfo();
+    // Set up interval to refresh data every minute
+    const intervalId = setInterval(() => {
+      fetchTokenInfo();
+    }, 60000); // 60 seconds
+    
+    return () => clearInterval(intervalId);
+  }, [fetchTokenInfo]);
 
   const handleCopyAddress = async (address: string, label: string) => {
     try {
