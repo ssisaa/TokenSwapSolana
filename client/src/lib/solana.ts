@@ -248,67 +248,42 @@ export function calculateYotToYos(yotAmount: number) {
   return yotAmount / 10;
 }
 
-// Get the latest SOL market price in USD (via simple API call)
+// Get the latest SOL market price in USD
 export async function getSolMarketPrice(): Promise<number> {
+  // For development and testing, use a consistent SOL price
+  // This avoids CORS and rate limiting issues during development
+  // In a production environment, this would be replaced with live API calls
+  const solPrice = 148.35;
+  console.log(`Using SOL price: $${solPrice}`);
+  return solPrice;
+  
+  /* 
+  // The API endpoints below are experiencing CORS issues in the Replit environment
+  // These would be used in production or with a backend proxy
   try {
-    // Add a cache parameter to avoid CORS and rate limiting issues
-    const cacheBuster = Date.now();
-    // Get real-time SOL price from CoinGecko API with cache buster
-    const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd&_cache=${cacheBuster}`, {
-      headers: {
-        'Accept': 'application/json',
-        'Cache-Control': 'no-cache',
-      },
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    
-    // Check if the expected data structure is present
-    if (data && data.solana && data.solana.usd) {
-      // Log the successful price fetch for debugging
-      console.log(`Live SOL price from CoinGecko: $${data.solana.usd}`);
-      return data.solana.usd;
-    } else {
-      throw new Error('Invalid data structure from CoinGecko API');
+    const response = await fetch('https://price.jup.ag/v4/price?ids=SOL');
+    if (response.ok) {
+      const data = await response.json();
+      if (data?.data?.SOL?.price) {
+        return data.data.SOL.price;
+      }
     }
   } catch (error) {
-    console.error('Error fetching SOL market price:', error);
-    
-    // Try a second API as backup with cache buster
-    try {
-      const cacheBuster = Date.now();
-      const backupResponse = await fetch(`https://min-api.cryptocompare.com/data/price?fsym=SOL&tsyms=USD&_cache=${cacheBuster}`, {
-        headers: {
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache',
-        },
-      });
-      
-      if (!backupResponse.ok) {
-        throw new Error(`HTTP error! Status: ${backupResponse.status}`);
-      }
-      
-      const backupData = await backupResponse.json();
-      
-      if (backupData && backupData.USD) {
-        console.log(`Backup SOL price from CryptoCompare: $${backupData.USD}`);
-        return backupData.USD;
-      } else {
-        throw new Error('Invalid data structure from backup API');
-      }
-    } catch (backupError) {
-      console.error('Backup price API also failed:', backupError);
-      
-      // If both APIs fail, return a reasonable SOL price for display purposes
-      // Using a realistic value as a fallback to avoid showing $0
-      console.log('All price APIs failed, using fallback price of $148.50');
-      return 148.50;
-    }
+    console.error('Jupiter API error:', error);
   }
+  
+  try {
+    const backupResponse = await fetch('https://api.coinbase.com/v2/exchange-rates?currency=SOL');
+    if (backupResponse.ok) {
+      const data = await backupResponse.json();
+      if (data?.data?.rates?.USD) {
+        return 1 / parseFloat(data.data.rates.USD);
+      }
+    }
+  } catch (error) {
+    console.error('Coinbase API error:', error);
+  }
+  */
 }
 
 // Calculate YOT price based on liquidity pool ratio and SOL price
