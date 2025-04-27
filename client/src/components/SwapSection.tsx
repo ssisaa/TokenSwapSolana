@@ -308,13 +308,16 @@ export default function SwapSection() {
             <AlertTitle className="text-xs">Connected to Solana {CLUSTER}</AlertTitle>
           </div>
           <AlertDescription className="text-xs text-gray-400 mt-1">
-            <p>This application connects to real Solana devnet addresses and balances. The current implementation handles token deposits to the liquidity pool but requires a deployed swap program to complete the full exchange.</p>
-            <p className="mt-1">A complete swap integration requires:</p>
-            <ul className="list-disc pl-4 mt-2 space-y-1">
-              <li>Deployed token-swap program on Solana devnet</li>
-              <li>Integrated SPL token-swap program for atomic exchanges</li>
-              <li>Setup of proper pool authority with signing capabilities</li>
-            </ul>
+            <p>This application connects to real Solana devnet addresses and balances.</p>
+            <div className="mt-2 p-2 bg-dark-300 rounded-md">
+              <div className="font-semibold text-white mb-1">How the swap works:</div>
+              <ol className="list-decimal pl-4 space-y-1">
+                <li>Your {fromToken} is sent to the liquidity pool (This is functional)</li>
+                <li>Pool calculates exchange rate and determines {toToken} amount</li>
+                <li>Pool sends {toToken} to your wallet (Requires full token-swap program)</li>
+              </ol>
+            </div>
+            <p className="mt-2">Currently, only step 1 is implemented with real blockchain transactions. Steps 2-3 require a deployed token-swap program with proper authority.</p>
             <div className="mt-3">
               <a href="/integration" className="text-primary-400 hover:text-primary-300 text-xs font-medium underline flex items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">

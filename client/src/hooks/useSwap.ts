@@ -48,40 +48,45 @@ export function useSwap() {
   }, [fromToken, toToken]);
 
   // Update balances when tokens or wallet changes
-  useEffect(() => {
-    const fetchBalances = async () => {
-      if (!connected || !wallet?.publicKey) return;
-      
+  const updateBalances = useCallback(async () => {
+    if (connected && wallet?.publicKey) {
       try {
         const publicKey = wallet.publicKey;
         
-        // Get FROM token balance
-        let fromBal = 0;
-        if (fromToken === SOL_SYMBOL) {
-          fromBal = await getSolBalance(publicKey);
-        } else {
-          fromBal = await getTokenBalance(YOT_TOKEN_ADDRESS, publicKey);
-        }
-        setFromBalance(fromBal);
+        const solBalance = await getSolBalance(publicKey);
+        const yotBalance = await getTokenBalance(YOT_TOKEN_ADDRESS, publicKey);
         
-        // Get TO token balance
-        let toBal = 0;
-        if (toToken === SOL_SYMBOL) {
-          toBal = await getSolBalance(publicKey);
+        if (fromToken === SOL_SYMBOL) {
+          setFromBalance(solBalance);
+          setToBalance(yotBalance);
         } else {
-          toBal = await getTokenBalance(YOT_TOKEN_ADDRESS, publicKey);
+          setFromBalance(yotBalance);
+          setToBalance(solBalance);
         }
-        setToBalance(toBal);
       } catch (error) {
-        console.error("Error fetching swap balances:", error);
+        console.error("Error updating balances:", error);
       }
-    };
-    
-    fetchBalances();
-    updateExchangeRate();
-  }, [fromToken, toToken, wallet, connected, updateExchangeRate]);
+    } else {
+      setFromBalance(0);
+      setToBalance(0);
+    }
+  }, [connected, wallet, fromToken]);
 
-  // Function to update the recipient amount based on the sender amount
+  // Update exchange rate and balances on component mount and when deps change
+  useEffect(() => {
+    updateExchangeRate();
+    updateBalances();
+    
+    // Update periodically
+    const interval = setInterval(() => {
+      updateExchangeRate();
+      updateBalances();
+    }, 30000); // Every 30 seconds
+    
+    return () => clearInterval(interval);
+  }, [updateExchangeRate, updateBalances]);
+
+  // Function to calculate the recipient amount based on the sender amount
   const calculateToAmount = useCallback(async (amount: number) => {
     if (!amount || amount <= 0) {
       setToAmount("");
@@ -163,35 +168,55 @@ export function useSwap() {
       let result;
       const amount = parseFloat(fromAmount.toString());
       
+      // Set up our expected amount variables - these will be used for display purposes
+      let sentAmount = amount;
+      let expectedAmount = parseFloat(toAmount.toString());
+      
       if (fromToken === SOL_SYMBOL && toToken === YOT_SYMBOL) {
+        console.log(`Sending ${sentAmount} SOL to the liquidity pool...`);
+        
+        // Execute the SOL to YOT swap - this will only complete the first part
+        // (sending SOL to pool) because the second part requires pool authority
         result = await swapSolToYot(wallet, amount);
+        
+        console.log(`Transaction completed with signature: ${result.signature}`);
+        console.log(`Expected to receive ${expectedAmount} YOT tokens`);
       } else if (fromToken === YOT_SYMBOL && toToken === SOL_SYMBOL) {
+        console.log(`Sending ${sentAmount} YOT to the liquidity pool...`);
+        
+        // Execute the YOT to SOL swap
         result = await swapYotToSol(wallet, amount);
+        
+        console.log(`Transaction completed with signature: ${result.signature}`);
+        console.log(`Expected to receive ${expectedAmount} SOL tokens`);
       } else {
         throw new Error("Unsupported token pair");
       }
       
+      // After transaction completes, mark success
       setIsSuccess(true);
       
       // Reset form
       setFromAmount("");
       setToAmount("");
       
-      // Refresh balances
-      if (wallet.publicKey) {
-        const publicKey = wallet.publicKey;
-        
-        const solBalance = await getSolBalance(publicKey);
-        const yotBalance = await getTokenBalance(YOT_TOKEN_ADDRESS, publicKey);
-        
-        if (fromToken === SOL_SYMBOL) {
-          setFromBalance(solBalance);
-          setToBalance(yotBalance);
-        } else {
-          setFromBalance(yotBalance);
-          setToBalance(solBalance);
+      // Refresh balances after a short delay to allow blockchain to update
+      setTimeout(async () => {
+        if (wallet.publicKey) {
+          const publicKey = wallet.publicKey;
+          
+          const solBalance = await getSolBalance(publicKey);
+          const yotBalance = await getTokenBalance(YOT_TOKEN_ADDRESS, publicKey);
+          
+          if (fromToken === SOL_SYMBOL) {
+            setFromBalance(solBalance);
+            setToBalance(yotBalance);
+          } else {
+            setFromBalance(yotBalance);
+            setToBalance(solBalance);
+          }
         }
-      }
+      }, 2000); // Wait 2 seconds for the blockchain to update
       
       return result;
     } catch (error) {
@@ -201,7 +226,7 @@ export function useSwap() {
     } finally {
       setIsPending(false);
     }
-  }, [fromToken, toToken, fromAmount, wallet, connected]);
+  }, [fromToken, toToken, fromAmount, toAmount, wallet, connected]);
 
   return {
     fromToken,
