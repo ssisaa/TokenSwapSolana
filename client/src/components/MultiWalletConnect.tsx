@@ -101,17 +101,12 @@ export default function MultiWalletConnect() {
   }
 
   return (
-    <div className="flex items-center space-x-2">
-      <div className="hidden md:flex items-center mr-2">
-        <div className="h-2 w-2 bg-green-500 rounded-full mr-2 pulse"></div>
-        <span className="text-xs text-gray-300">{CLUSTER.charAt(0).toUpperCase() + CLUSTER.slice(1)}</span>
-      </div>
-      
+    <div className="flex items-center">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button className="bg-dark-400 hover:bg-dark-300 text-white border border-dark-500">
+          <Button className="bg-transparent hover:bg-zinc-800 text-white">
             <div className="flex items-center">
-              {selectedWallet && (
+              {selectedWallet && connected && (
                 <img
                   src={selectedWallet.icon}
                   alt={`${selectedWallet.name} icon`}
@@ -121,43 +116,46 @@ export default function MultiWalletConnect() {
                   }}
                 />
               )}
-              {publicKey && shortenAddress(publicKey.toString())}
-              <ChevronDown className="ml-2 h-4 w-4" />
+              {!connected && "Connect Wallet"}
+              {connected && <ChevronDown className="ml-1 h-4 w-4" />}
             </div>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="bg-dark-300 border-dark-500 text-white">
           <DropdownMenuItem 
-            className="flex items-center cursor-pointer hover:bg-dark-400"
-            onClick={handleCopyAddress}
+            onSelect={() => handleCopyAddress()}
           >
-            {isCopied ? (
-              <Check className="mr-2 h-4 w-4 text-green-500" />
-            ) : (
-              <CopyIcon className="mr-2 h-4 w-4" />
-            )}
-            <span>Copy Address</span>
+            <div className="flex items-center">
+              {isCopied ? (
+                <Check className="mr-2 h-4 w-4 text-green-500" />
+              ) : (
+                <CopyIcon className="mr-2 h-4 w-4" />
+              )}
+              <span>Copy Address</span>
+            </div>
           </DropdownMenuItem>
           
           <DropdownMenuItem 
-            className="flex items-center cursor-pointer hover:bg-dark-400"
-            onClick={handleOpenExplorer}
+            onSelect={() => handleOpenExplorer()}
           >
-            <ExternalLink className="mr-2 h-4 w-4" />
-            <span>View on Explorer</span>
+            <div className="flex items-center">
+              <ExternalLink className="mr-2 h-4 w-4" />
+              <span>View on Explorer</span>
+            </div>
           </DropdownMenuItem>
           
           <DropdownMenuItem 
-            className="flex items-center cursor-pointer hover:bg-dark-400"
-            onClick={handleConnectWallet}
+            onSelect={() => setShowWalletSelector(true)}
           >
-            <Wallet className="mr-2 h-4 w-4" />
-            <span>Change Wallet</span>
+            <div className="flex items-center">
+              <Wallet className="mr-2 h-4 w-4" />
+              <span>Change Wallet</span>
+            </div>
           </DropdownMenuItem>
           
           <DropdownMenuItem 
-            className="flex items-center cursor-pointer text-red-400 hover:bg-dark-400 hover:text-red-300"
-            onClick={handleDisconnect}
+            className="text-red-400"
+            onSelect={() => handleDisconnect()}
           >
             <LogOut className="mr-2 h-4 w-4" />
             <span>Disconnect</span>

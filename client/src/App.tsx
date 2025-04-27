@@ -8,14 +8,20 @@ import { MultiWalletProvider } from "@/context/MultiWalletContext";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Integration from "@/pages/Integration";
+import ConnectionStatusBar from "@/components/ConnectionStatusBar";
 
 function Router() {
   return (
-    <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/integration" component={Integration} />
-      <Route component={NotFound} />
-    </Switch>
+    <div className="flex flex-col min-h-screen">
+      <ConnectionStatusBar />
+      <div className="flex-1">
+        <Switch>
+          <Route path="/" component={Home} />
+          <Route path="/integration" component={Integration} />
+          <Route component={NotFound} />
+        </Switch>
+      </div>
+    </div>
   );
 }
 
