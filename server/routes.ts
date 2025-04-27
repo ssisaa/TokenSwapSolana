@@ -304,11 +304,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Missing required staking data' });
       }
       
-      // Save staking data to database
+      // Ensure timestamp is a number
+      const timestamp = typeof startTimestamp === 'number' 
+        ? startTimestamp 
+        : new Date(startTimestamp).getTime();
+      
+      // Validate and sanitize inputs
+      const sanitizedWalletAddress = walletAddress.trim();
+      const sanitizedAmount = parseFloat(stakedAmount.toString());
+      
+      if (isNaN(sanitizedAmount) || sanitizedAmount <= 0) {
+        return res.status(400).json({ message: 'Invalid amount' });
+      }
+      
+      // Save staking data to database with proper formatting
       await storage.saveStakingData({
-        walletAddress,
-        stakedAmount,
-        startTimestamp
+        walletAddress: sanitizedWalletAddress,
+        stakedAmount: sanitizedAmount,
+        startTimestamp: timestamp
       });
       
       res.json({ success: true, message: 'Staking data saved successfully' });
@@ -316,7 +329,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error saving staking data:', error);
       res.status(500).json({
         message: 'Failed to save staking data',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: 'An error occurred while processing your request' // Generic error for security
       });
     }
   });

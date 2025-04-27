@@ -148,74 +148,147 @@ export class DatabaseStorage implements IStorage {
   
   // Staking functionality
   async saveStakingData(data: { walletAddress: string, stakedAmount: number, startTimestamp: number, harvestableRewards?: number }): Promise<any> {
-    // Check if staking record already exists for this wallet
-    const existingRecord = await this.getStakingData(data.walletAddress);
+    // Security enhancements: sanitize inputs
+    const sanitizedWalletAddress = data.walletAddress.trim();
+    const sanitizedAmount = Math.max(0, data.stakedAmount); // Ensure positive numbers only
     
-    if (existingRecord) {
-      // Update existing record
-      const [updatedRecord] = await db
-        .update(stakingRecords)
-        .set({
-          stakedAmount: data.stakedAmount.toString(),
-          startTimestamp: new Date(data.startTimestamp),
-          harvestedRewards: data.harvestableRewards ? data.harvestableRewards.toString() : "0",
-          updatedAt: new Date()
-        })
-        .where(eq(stakingRecords.walletAddress, data.walletAddress))
-        .returning();
-      
-      return updatedRecord;
-    } else {
-      // Create new record
-      const [newRecord] = await db
-        .insert(stakingRecords)
-        .values({
-          walletAddress: data.walletAddress,
-          stakedAmount: data.stakedAmount.toString(),
-          startTimestamp: new Date(data.startTimestamp),
-          lastHarvestTime: new Date(data.startTimestamp),
-          harvestedRewards: data.harvestableRewards ? data.harvestableRewards.toString() : "0",
-        })
-        .returning();
-      
-      return newRecord;
+    // Ensure timestamp is a valid number (UNIX timestamp in milliseconds)
+    let timestampMs = Date.now(); // Default fallback value
+    try {
+      if (typeof data.startTimestamp === 'number') {
+        timestampMs = data.startTimestamp;
+      } else if (typeof data.startTimestamp === 'string') {
+        timestampMs = new Date(data.startTimestamp).getTime();
+      }
+    } catch (e) {
+      console.error("Invalid timestamp format:", e);
+      // Use default timestamp (now) if parsing fails
+    }
+    
+    // Check if staking record already exists for this wallet
+    const existingRecord = await this.getStakingData(sanitizedWalletAddress);
+    
+    try {
+      if (existingRecord) {
+        // Update existing record
+        const [updatedRecord] = await db
+          .update(stakingRecords)
+          .set({
+            stakedAmount: sanitizedAmount.toString(),
+            startTimestamp: timestampMs,
+            harvestedRewards: data.harvestableRewards ? Math.max(0, data.harvestableRewards).toString() : "0",
+            updatedAt: new Date()
+          })
+          .where(eq(stakingRecords.walletAddress, sanitizedWalletAddress))
+          .returning();
+        
+        return updatedRecord;
+      } else {
+        // Create new record
+        const [newRecord] = await db
+          .insert(stakingRecords)
+          .values({
+            walletAddress: sanitizedWalletAddress,
+            stakedAmount: sanitizedAmount.toString(),
+            startTimestamp: timestampMs,
+            lastHarvestTime: timestampMs,
+            harvestedRewards: data.harvestableRewards ? Math.max(0, data.harvestableRewards).toString() : "0",
+          })
+          .returning();
+        
+        return newRecord;
+      }
+    } catch (error) {
+      console.error('Database operation failed:', error);
+      throw new Error('Unable to process staking data. Please try again.');
     }
   }
   
   async getStakingData(walletAddress: string): Promise<any> {
-    const [record] = await db
-      .select()
-      .from(stakingRecords)
-      .where(eq(stakingRecords.walletAddress, walletAddress));
+    // Security: Sanitize wallet address
+    const sanitizedWalletAddress = walletAddress ? walletAddress.trim() : '';
     
-    if (!record) return null;
+    if (!sanitizedWalletAddress) {
+      return null; // Early return for empty wallet addresses
+    }
     
-    // Get current admin settings for rate calculation
-    const settings = await this.getAdminSettings();
-    
-    return {
-      ...record,
-      // Include admin settings so frontend can calculate rewards
-      currentSettings: settings
-    };
+    try {
+      const [record] = await db
+        .select()
+        .from(stakingRecords)
+        .where(eq(stakingRecords.walletAddress, sanitizedWalletAddress));
+      
+      if (!record) return null;
+      
+      // Get current admin settings for rate calculation
+      const settings = await this.getAdminSettings();
+      
+      // Format sensitive data for security
+      return {
+        id: record.id,
+        walletAddress: record.walletAddress,
+        stakedAmount: record.stakedAmount,
+        startTimestamp: record.startTimestamp,
+        lastHarvestTime: record.lastHarvestTime,
+        harvestedRewards: record.harvestedRewards,
+        updatedAt: record.updatedAt,
+        // Include admin settings so frontend can calculate rewards
+        currentSettings: settings ? {
+          id: settings.id,
+          stakeRateDaily: settings.stakeRateDaily,
+          stakeRateHourly: settings.stakeRateHourly,
+          stakeRatePerSecond: settings.stakeRatePerSecond,
+          harvestThreshold: settings.harvestThreshold,
+          updatedAt: settings.updatedAt
+        } : null
+      };
+    } catch (error) {
+      console.error('Error retrieving staking data:', error);
+      throw new Error('Unable to retrieve staking information');
+    }
   }
   
   async removeStakingData(walletAddress: string): Promise<void> {
-    await db
-      .delete(stakingRecords)
-      .where(eq(stakingRecords.walletAddress, walletAddress));
+    // Security: Sanitize wallet address
+    const sanitizedWalletAddress = walletAddress.trim();
+    
+    try {
+      // First verify the wallet exists to avoid data modification errors
+      const existingRecord = await this.getStakingData(sanitizedWalletAddress);
+      if (!existingRecord) {
+        throw new Error('No staking record found for this wallet');
+      }
+      
+      await db
+        .delete(stakingRecords)
+        .where(eq(stakingRecords.walletAddress, sanitizedWalletAddress));
+    } catch (error) {
+      console.error('Error removing staking data:', error);
+      throw new Error('Unable to process unstaking request. Please try again.');
+    }
   }
   
   async harvestRewards(walletAddress: string): Promise<void> {
-    // Reset harvested rewards and update lastHarvestTime
-    await db
-      .update(stakingRecords)
-      .set({
-        harvestedRewards: "0",
-        lastHarvestTime: new Date(),
-        updatedAt: new Date()
-      })
-      .where(eq(stakingRecords.walletAddress, walletAddress));
+    // Security: Sanitize wallet address
+    const sanitizedWalletAddress = walletAddress.trim();
+    
+    // Use current timestamp in milliseconds
+    const currentTimeMs = Date.now();
+    
+    try {
+      // Reset harvested rewards and update lastHarvestTime
+      await db
+        .update(stakingRecords)
+        .set({
+          harvestedRewards: "0",
+          lastHarvestTime: currentTimeMs,
+          updatedAt: new Date()
+        })
+        .where(eq(stakingRecords.walletAddress, sanitizedWalletAddress));
+    } catch (error) {
+      console.error('Error during reward harvest:', error);
+      throw new Error('Unable to harvest rewards. Please try again.');
+    }
   }
 }
 
