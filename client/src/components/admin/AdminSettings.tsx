@@ -53,6 +53,9 @@ export default function AdminSettings() {
   const [stakingRate, setStakingRate] = useState("0.00125");
   const [selectedStakingRateType, setSelectedStakingRateType] = useState("second");
   
+  // Harvest threshold
+  const [harvestThreshold, setHarvestThreshold] = useState("100");
+  
   // Initialize form values when settings load
   React.useEffect(() => {
     if (settings) {

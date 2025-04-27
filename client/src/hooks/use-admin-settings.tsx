@@ -11,6 +11,7 @@ type UpdateSettingsData = Partial<{
   stakeRateDaily: string;
   stakeRateHourly: string;
   stakeRatePerSecond: string;
+  harvestThreshold: string;
 }>;
 
 export function useAdminSettings() {
