@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { setupAuth } from "./auth";
 import { 
   Connection, 
   PublicKey,
@@ -25,6 +26,8 @@ const POOL_SOL_ACCOUNT = '7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS';
 const connection = new Connection(ENDPOINT, 'confirmed');
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup authentication routes
+  const { isAuthenticated } = setupAuth(app);
   // API route to get token information
   app.get('/api/token/:address', async (req, res) => {
     try {

@@ -12,6 +12,7 @@ import Stake from "@/pages/Stake";
 import Liquidity from "@/pages/Liquidity";
 import Memes from "@/pages/Memes";
 import Integration from "@/pages/Integration";
+import AdminPage from "@/pages/AdminPage";
 import Home from "@/pages/Home"; // Keep for compatibility with existing routes
 
 function Router() {
@@ -24,6 +25,9 @@ function Router() {
         <Route path="/stake" component={Stake} />
         <Route path="/liquidity" component={Liquidity} />
         <Route path="/memes" component={Memes} />
+        
+        {/* Admin route */}
+        <Route path="/admin" component={AdminPage} />
         
         {/* Keep original routes for backward compatibility */}
         <Route path="/home" component={Home} />
