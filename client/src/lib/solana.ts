@@ -238,21 +238,23 @@ export async function swapSolToYot(
     
     // Check if the user has a YOT token account, if not create one
     try {
-      await getAccount(connection, userYotAccount);
-    } catch (error) {
-      if (error instanceof TokenAccountNotFoundError) {
-        // Add instruction to create token account
-        transaction.add(
-          createAssociatedTokenAccountInstruction(
-            wallet.publicKey, // payer
-            userYotAccount, // associated token account
-            wallet.publicKey, // owner
-            yotTokenMint // mint
-          )
-        );
-      } else {
-        throw error;
+      try {
+        await getAccount(connection, userYotAccount);
+      } catch (error) {
+        if (error instanceof TokenAccountNotFoundError) {
+          console.log("YOT token account not found, creating it now for SOL->YOT swap");
+          // Create token account in a separate transaction first
+          await createTokenAccount(YOT_TOKEN_ADDRESS, wallet);
+          
+          // Now that we've created the account, we can continue
+          console.log("YOT token account created successfully, continuing with swap");
+        } else {
+          throw error;
+        }
       }
+    } catch (error) {
+      console.error("Error checking or creating YOT token account:", error);
+      throw new Error(`Failed to set up YOT token account: ${error instanceof Error ? error.message : String(error)}`);
     }
     
     // Add instruction to transfer SOL to the pool
@@ -391,6 +393,109 @@ export async function swapSolToYot(
   }
 }
 
+// Create token account for a user
+export async function createTokenAccount(
+  tokenMintAddress: string,
+  wallet: any  // Wallet adapter
+): Promise<PublicKey | null> {
+  try {
+    if (!wallet.publicKey) {
+      console.error('Wallet not connected');
+      return null;
+    }
+
+    const tokenMint = new PublicKey(tokenMintAddress);
+    const associatedTokenAddress = await getAssociatedTokenAddress(
+      tokenMint,
+      wallet.publicKey
+    );
+
+    // Check if the account already exists
+    try {
+      await getAccount(connection, associatedTokenAddress);
+      console.log(`Token account already exists for ${tokenMintAddress}`);
+      return associatedTokenAddress;
+    } catch (error) {
+      if (error instanceof TokenAccountNotFoundError) {
+        // Create a transaction to create the token account
+        const transaction = new Transaction();
+        
+        transaction.add(
+          createAssociatedTokenAccountInstruction(
+            wallet.publicKey, // payer
+            associatedTokenAddress, // associated token account
+            wallet.publicKey, // owner
+            tokenMint // mint
+          )
+        );
+        
+        // Get blockhash
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+        transaction.recentBlockhash = blockhash;
+        transaction.feePayer = wallet.publicKey;
+        
+        // Sign and send the transaction with the wallet
+        try {
+          let signature;
+          
+          if (typeof wallet.sendTransaction === 'function') {
+            // Standard wallet adapter approach (Phantom)
+            signature = await wallet.sendTransaction(transaction, connection);
+            
+            // Handle case where Solflare may return an object instead of a string
+            if (typeof signature === 'object' && signature !== null) {
+              // For Solflare wallet which might return an object with signature property
+              if (signature.signature) {
+                signature = signature.signature;
+              } else {
+                // Try to stringify and clean up the signature
+                const sigStr = JSON.stringify(signature);
+                if (sigStr) {
+                  // Remove quotes and braces if they exist
+                  signature = sigStr.replace(/[{}"]/g, '');
+                }
+              }
+            }
+          } else if (wallet.signAndSendTransaction && typeof wallet.signAndSendTransaction === 'function') {
+            // Some wallet adapters use signAndSendTransaction instead
+            const result = await wallet.signAndSendTransaction(transaction);
+            // Handle various result formats
+            if (typeof result === 'string') {
+              signature = result;
+            } else if (typeof result === 'object' && result !== null) {
+              signature = result.signature || result.toString();
+            }
+          } else if (wallet.signTransaction && typeof wallet.signTransaction === 'function') {
+            // If the wallet can only sign but not send, we sign first then send manually
+            const signedTx = await wallet.signTransaction(transaction);
+            signature = await connection.sendRawTransaction(signedTx.serialize());
+          } else {
+            throw new Error("Wallet doesn't support transaction signing");
+          }
+          
+          // Wait for confirmation
+          await connection.confirmTransaction({
+            signature,
+            blockhash,
+            lastValidBlockHeight
+          });
+          
+          console.log(`Created token account ${associatedTokenAddress.toString()}`);
+          return associatedTokenAddress;
+        } catch (signError) {
+          console.error('Error creating token account:', signError);
+          throw new Error(`Failed to create token account: ${signError instanceof Error ? signError.message : String(signError)}`);
+        }
+      } else {
+        throw error;
+      }
+    }
+  } catch (error) {
+    console.error('Error in createTokenAccount:', error);
+    throw error;
+  }
+}
+
 // Execute a swap from YOT to SOL
 export async function swapYotToSol(
   wallet: any, // Wallet adapter
@@ -429,7 +534,16 @@ export async function swapYotToSol(
       } catch (e) {
         if (e instanceof TokenAccountNotFoundError) {
           userHasTokenAccount = false;
-          console.log("YOT token account not found, will attempt to create it");
+          console.log("YOT token account not found, will create it now");
+          
+          // Create the token account
+          try {
+            await createTokenAccount(YOT_TOKEN_ADDRESS, wallet);
+            throw new Error('YOT token account created. Please fund it with YOT tokens before swapping.');
+          } catch (createError) {
+            console.error('Failed to create YOT token account:', createError);
+            throw new Error(`Failed to create YOT token account: ${createError instanceof Error ? createError.message : String(createError)}`);
+          }
         } else {
           throw e;
         }
@@ -438,11 +552,6 @@ export async function swapYotToSol(
       // Get token mint info for decimals
       const mintInfo = await getMint(connection, yotTokenMint);
       const tokenAmount = BigInt(Math.floor(yotAmount * Math.pow(10, mintInfo.decimals)));
-      
-      // If user doesn't have a token account, create one
-      if (!userHasTokenAccount) {
-        throw new TokenAccountNotFoundError();
-      }
       
       // Check if the user has enough YOT
       if (account.amount < tokenAmount) {
