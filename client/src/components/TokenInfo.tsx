@@ -229,6 +229,18 @@ export default function TokenInfo() {
           </div>
         </div>
       </div>
+      
+      {/* Disclaimer */}
+      <div className="mt-8 border-t border-dark-300 pt-4">
+        <div className="bg-dark-300 p-4 rounded-lg">
+          <h3 className="font-medium text-lg text-gray-300 mb-2">About This Demo</h3>
+          <div className="text-sm text-gray-400 space-y-2">
+            <p>This application demonstrates a Solana token swap interface using real token addresses on the Solana devnet. It connects to the blockchain to fetch accurate token information and balances.</p>
+            <p>The swap functionality is simulated for demonstration purposes. In a production environment, a deployed smart contract (token swap program) would be required to execute actual token exchanges.</p>
+            <p>All addresses shown are real and can be viewed on the <a href="https://explorer.solana.com/?cluster=devnet" target="_blank" rel="noopener noreferrer" className="text-primary-400 hover:underline">Solana Explorer (devnet)</a>.</p>
+          </div>
+        </div>
+      </div>
     </Card>
   );
 }
