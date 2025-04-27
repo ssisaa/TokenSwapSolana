@@ -15,14 +15,24 @@ export function useTokenBalance(tokenMintAddress: string) {
     
     const fetchBalance = async () => {
       if (!publicKey || !connected || !tokenMintAddress) {
-        setBalance(0);
+        if (isMounted) {
+          setBalance(0);
+          setIsLoading(false);
+        }
         return;
       }
       
-      setIsLoading(true);
-      setError(null);
+      if (isMounted) {
+        setIsLoading(true);
+        setError(null);
+      }
       
       try {
+        // Make sure token address is valid
+        if (tokenMintAddress.length < 32) {
+          throw new Error("Invalid token mint address");
+        }
+        
         // Convert the mint address string to a PublicKey
         const mintPublicKey = new PublicKey(tokenMintAddress);
         
@@ -55,10 +65,11 @@ export function useTokenBalance(tokenMintAddress: string) {
       }
     };
     
+    // Initial fetch
     fetchBalance();
     
-    // Set up an interval to refresh the balance every 30 seconds
-    const intervalId = setInterval(fetchBalance, 30000);
+    // Set up an interval to refresh the balance every 15 seconds (reduced from 30)
+    const intervalId = setInterval(fetchBalance, 15000);
     
     return () => {
       isMounted = false;
@@ -66,5 +77,11 @@ export function useTokenBalance(tokenMintAddress: string) {
     };
   }, [publicKey, connected, tokenMintAddress]);
   
-  return { balance, isLoading, error };
+  // If the wallet is connected but the token address is invalid, provide a clear error
+  // Return balance 0 instead of undefined when loading or on error
+  return { 
+    balance: balance || 0, 
+    isLoading, 
+    error 
+  };
 }
