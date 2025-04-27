@@ -41,26 +41,6 @@ export default function Stake() {
   const [earnedYOS, setEarnedYOS] = useState<number>(0);
   const [stakeStartTime, setStakeStartTime] = useState<number | null>(null);
   
-  // Setup a timer to update earned rewards in real-time
-  useEffect(() => {
-    // If not staking, don't bother with the interval
-    if (stakedYOT <= 0 || !stakeStartTime) return;
-    
-    // Update rewards calculation every second
-    const updateInterval = setInterval(() => {
-      // Calculate time staked in seconds
-      const timeStakedMs = Date.now() - stakeStartTime;
-      const timeStakedSeconds = timeStakedMs / 1000;
-      
-      // Calculate rewards based on current rate
-      const rewards = stakedYOT * timeStakedSeconds * stakeRatePerSecond;
-      setEarnedYOS(rewards);
-    }, 1000);
-    
-    // Cleanup the interval on component unmount
-    return () => clearInterval(updateInterval);
-  }, [stakedYOT, stakeStartTime, stakeRatePerSecond]);
-  
   // Fetch admin settings from API with auto-refresh
   const { data: adminSettings, isLoading: isSettingsLoading } = useQuery<AdminSettings>({
     queryKey: ["/api/admin/settings"],
@@ -79,14 +59,42 @@ export default function Stake() {
     ? parseFloat(adminSettings.harvestThreshold.toString()) 
     : 100; // Default threshold of 100 YOS
   
+  // Setup a timer to update earned rewards in real-time
+  useEffect(() => {
+    // If not staking, don't bother with the interval
+    if (stakedYOT <= 0 || !stakeStartTime) return;
+    
+    // Update rewards calculation every second
+    const updateInterval = setInterval(() => {
+      // Calculate time staked in seconds
+      const timeStakedMs = Date.now() - stakeStartTime;
+      const timeStakedSeconds = timeStakedMs / 1000;
+      
+      // Calculate rewards based on current rate
+      const rewards = stakedYOT * timeStakedSeconds * stakeRatePerSecond;
+      setEarnedYOS(rewards);
+    }, 1000);
+    
+    // Log for debugging
+    console.log(`Live staking rate updated: ${stakeRatePerSecond * 100}% per second`);
+    
+    // Cleanup the interval on component unmount
+    return () => clearInterval(updateInterval);
+  }, [stakedYOT, stakeStartTime, stakeRatePerSecond]);
+  
   // Check current staked amount and rewards on component mount, wallet connection, and admin settings change
   useEffect(() => {
     if (connected && publicKey) {
       // In a production environment, we would fetch this data from the blockchain
       // using the user's wallet address to get their staked tokens and rewards
       checkStakedBalance(publicKey.toString());
+      
+      // Log admin settings changes for debugging
+      if (adminSettings) {
+        console.log(`Admin settings detected: Stake Rate = ${stakeRatePerSecond * 100}%, Threshold = ${harvestThreshold} YOS`);
+      }
     }
-  }, [connected, publicKey, adminSettings]); // Re-run when admin settings change
+  }, [connected, publicKey, adminSettings, stakeRatePerSecond, harvestThreshold]); // Re-run when admin settings change
   
   // Function to check staked balance from blockchain
   const checkStakedBalance = async (walletAddress: string) => {
@@ -452,53 +460,47 @@ export default function Stake() {
                         <div className="space-y-1">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                              <Info className="h-4 w-4 text-primary-400" />
-                              <span className="text-xs text-gray-400">
-                                Minimum {harvestThreshold} YOS required to harvest rewards
+                              <Label>Your Staked YOT</Label>
+                              <span className="text-xs px-2 py-0.5 rounded bg-primary-400/20 text-primary-400">
+                                {formatNumber(stakedYOT)} YOT
                               </span>
                             </div>
                             <span className="text-xs text-gray-400">
-                              {Math.min(Math.round((earnedYOS / harvestThreshold) * 100), 100)}%
+                              Value: ${formatNumber(stakedYOT * (balances?.solUsd || 0) / (balances?.sol || 1))}
                             </span>
                           </div>
-                          <Progress 
-                            value={Math.min((earnedYOS / harvestThreshold) * 100, 100)} 
-                            className={`h-1 ${earnedYOS >= harvestThreshold ? "bg-green-500/20" : ""}`}
-                          />
                         </div>
-                        
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <Button 
-                            variant="secondary" 
-                            className="flex-1" 
-                            onClick={handleHarvest}
-                            disabled={isHarvesting || earnedYOS <= 0}
-                          >
-                            {isHarvesting ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Harvesting...
-                              </>
-                            ) : (
-                              "Harvest YOS"
-                            )}
-                          </Button>
-                          <Button 
-                            variant="destructive" 
-                            className="flex-1" 
-                            onClick={handleUnstake}
-                            disabled={isUnstaking || stakedYOT <= 0}
-                          >
-                            {isUnstaking ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Unstaking...
-                              </>
-                            ) : (
-                              "Unstake All"
-                            )}
-                          </Button>
-                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-3">
+                        <Button 
+                          variant="outline" 
+                          onClick={handleHarvest}
+                          disabled={isHarvesting || earnedYOS < harvestThreshold}
+                          className="border-dark-400"
+                        >
+                          {isHarvesting ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Harvesting...
+                            </>
+                          ) : (
+                            "Harvest YOS"
+                          )}
+                        </Button>
+                        <Button 
+                          onClick={handleUnstake}
+                          disabled={isUnstaking || stakedYOT <= 0}
+                        >
+                          {isUnstaking ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Unstaking...
+                            </>
+                          ) : (
+                            "Unstake All"
+                          )}
+                        </Button>
                       </div>
                     </div>
                   </TabsContent>
@@ -507,50 +509,68 @@ export default function Stake() {
             </CardContent>
             
             <CardFooter className="border-t border-dark-400 pt-4">
-              <div className="text-xs text-gray-400 w-full">
-                <p>Staking YOT tokens earns you YOS tokens over time at a rate of {(stakeRatePerSecond * 100).toFixed(6)}% per second.</p>
-                <p className="mt-1">You can unstake at any time, but make sure to harvest your rewards first!</p>
-                <p className="mt-1">Note: You need to accumulate at least <span className="text-primary-400">{harvestThreshold} YOS</span> tokens before you can harvest.</p>
-              </div>
+              <Alert className="bg-dark-300 border-dark-400">
+                <Info className="h-4 w-4" />
+                <AlertTitle>Staking Information</AlertTitle>
+                <AlertDescription className="text-gray-400">
+                  <p>APY: <span className="text-white">{calculateAPY()}%</span></p>
+                  <p>Harvest Threshold: <span className="text-white">{harvestThreshold} YOS</span></p>
+                  <p className="text-xs mt-1">
+                    Stake YOT tokens to earn YOS. YOS will be harvestable once you reach the threshold.
+                  </p>
+                </AlertDescription>
+              </Alert>
             </CardFooter>
           </Card>
           
-          {/* Info Card */}
-          <div className="md:w-1/3 space-y-4">
+          {/* Info Cards */}
+          <div className="flex flex-col gap-4 w-full md:w-96">
             <Card className="bg-dark-200 border-dark-400">
               <CardHeader>
-                <CardTitle className="text-xl font-bold text-white">How Staking Works</CardTitle>
+                <CardTitle className="text-lg font-bold text-white">Staking Rewards</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex-shrink-0 w-16 h-16 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-2xl">
-                    YOT
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="bg-dark-300 p-3 rounded-lg space-y-2">
+                    <h4 className="text-white font-medium">How rewards work</h4>
+                    <p className="text-gray-400 text-sm">
+                      Staking YOT tokens earns you YOS tokens at a rate of {(stakeRatePerSecond * 100).toFixed(6)}% per second.
+                      This equals approximately {(stakeRatePerSecond * 3600 * 100).toFixed(4)}% per hour.
+                    </p>
                   </div>
-                  <ArrowRight className="text-gray-400" />
-                  <div className="flex-shrink-0 w-16 h-16 rounded-lg bg-green-200 flex items-center justify-center text-dark-900 font-bold">
-                    Earn YOS
+                  <div className="bg-dark-300 p-3 rounded-lg space-y-2">
+                    <h4 className="text-white font-medium">Harvest Threshold</h4>
+                    <p className="text-gray-400 text-sm">
+                      You need to accumulate at least {harvestThreshold} YOS tokens before you can harvest your rewards.
+                      Current progress: {earnedYOS > 0 ? `${((earnedYOS / harvestThreshold) * 100).toFixed(1)}%` : '0%'}
+                    </p>
                   </div>
-                </div>
-                
-                <div className="space-y-2 text-sm text-gray-400">
-                  <p>1. Stake your YOT tokens to earn YOS rewards</p>
-                  <p>2. Rewards accumulate every second at {(stakeRatePerSecond * 100).toFixed(6)}% per second</p>
-                  <p>3. You'll need at least {harvestThreshold} YOS to harvest</p>
-                  <p>4. Harvest your YOS rewards when ready</p>
-                  <p>5. Swap YOS back to YOT when desired</p>
                 </div>
               </CardContent>
             </Card>
             
             <Card className="bg-dark-200 border-dark-400">
               <CardHeader>
-                <CardTitle className="text-xl font-bold text-white">Staking Benefits</CardTitle>
+                <CardTitle className="text-lg font-bold text-white">YOT Utility</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3 text-sm text-gray-400">
-                <p>• Earn passive income through YOS rewards</p>
-                <p>• Support the YOT ecosystem</p>
-                <p>• No lockup period - unstake anytime</p>
-                <p>• Competitive APY of {calculateAPY()}%</p>
+              <CardContent>
+                <p className="text-gray-400 text-sm">
+                  YOT tokens can be staked to earn YOS rewards. You can also use YOT tokens for swapping, providing liquidity, and more.
+                </p>
+                <div className="mt-4 bg-dark-300 p-3 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <ArrowRight className="h-4 w-4 text-primary-400" />
+                    <span className="text-sm text-white">Swap YOT and SOL with low fees</span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <ArrowRight className="h-4 w-4 text-primary-400" />
+                    <span className="text-sm text-white">Stake YOT to earn YOS rewards</span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <ArrowRight className="h-4 w-4 text-primary-400" />
+                    <span className="text-sm text-white">Provide liquidity to earn additional rewards</span>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
