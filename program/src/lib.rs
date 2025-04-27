@@ -305,7 +305,7 @@ fn process_stake(
         
         // Update staked amount
         staking_data.staked_amount = staking_data.staked_amount.checked_add(amount)
-            .ok_or(ProgramError::ArithmeticOverflow)?;
+            .ok_or(ProgramError::InvalidArgument)?; // Use InvalidArgument instead of ArithmeticOverflow
         
         staking_data.serialize(&mut *user_staking_account.try_borrow_mut_data()?)?;
     }
@@ -376,7 +376,7 @@ fn process_unstake(
     
     // Update staking account
     staking_data.staked_amount = staking_data.staked_amount.checked_sub(amount)
-        .ok_or(ProgramError::ArithmeticOverflow)?;
+        .ok_or(ProgramError::InvalidArgument)?; // Use InvalidArgument instead of ArithmeticOverflow
     
     staking_data.serialize(&mut *user_staking_account.try_borrow_mut_data()?)?;
     
@@ -449,7 +449,7 @@ fn process_harvest(
     
     // Calculate rewards
     let time_staked_seconds = current_time.checked_sub(staking_data.last_harvest_time)
-        .ok_or(ProgramError::ArithmeticOverflow)?;
+        .ok_or(ProgramError::InvalidArgument)?; // Use InvalidArgument instead of ArithmeticOverflow
     
     // Convert staking rate from basis points to decimal
     let rate_decimal = (program_state.stake_rate_per_second as f64) / 10000.0;
@@ -465,7 +465,7 @@ fn process_harvest(
     // Update staking data
     staking_data.last_harvest_time = current_time;
     staking_data.total_harvested = staking_data.total_harvested.checked_add(rewards)
-        .ok_or(ProgramError::ArithmeticOverflow)?;
+        .ok_or(ProgramError::InvalidArgument)?; // Use InvalidArgument instead of ArithmeticOverflow
     
     staking_data.serialize(&mut *user_staking_account.try_borrow_mut_data()?)?;
     
