@@ -31,6 +31,6 @@ export const YOS_SYMBOL = 'YOS';
 export const CONFIRMATION_COUNT = 1;
 
 // Staking Program ID
-// Real program ID generated for YOT staking program
-// Generated on: April 27, 2025
-export const STAKING_PROGRAM_ID = '5rQzEXhDTYdyDftPmu4DiaLpZz4GePd2XumXYPHBSj6T';
+// Real program ID for YOT staking program
+// Updated on: April 27, 2025
+export const STAKING_PROGRAM_ID = '6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6';
