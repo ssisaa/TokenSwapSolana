@@ -163,9 +163,9 @@ export default function SwapSection() {
         {/* From Token Input */}
         <div className="bg-dark-300 rounded-lg p-4">
           <div className="flex justify-between mb-2">
-            <label className="text-sm text-gray-400">From</label>
-            <span className="text-sm text-gray-400">
-              Balance: <span>{formatCurrency(fromBalance)}</span>
+            <label className="text-sm text-white font-medium">From</label>
+            <span className="text-sm text-white">
+              Balance: <span className="font-medium">{formatCurrency(fromBalance)}</span>
             </span>
           </div>
           
@@ -233,9 +233,9 @@ export default function SwapSection() {
         {/* To Token Input */}
         <div className="bg-dark-300 rounded-lg p-4">
           <div className="flex justify-between mb-2">
-            <label className="text-sm text-gray-400">To</label>
-            <span className="text-sm text-gray-400">
-              Balance: <span>{formatCurrency(toBalance)}</span>
+            <label className="text-sm text-white font-medium">To</label>
+            <span className="text-sm text-white">
+              Balance: <span className="font-medium">{formatCurrency(toBalance)}</span>
             </span>
           </div>
           
@@ -290,14 +290,14 @@ export default function SwapSection() {
         </div>
         
         {/* Exchange Rate Info */}
-        <div className="bg-dark-400 rounded-lg p-3 text-sm">
-          <div className="flex justify-between text-gray-400">
-            <span>Exchange Rate</span>
-            <span>{exchangeRate}</span>
+        <div className="bg-dark-400 rounded-lg p-3 text-sm border border-dark-500">
+          <div className="flex justify-between text-white">
+            <span className="font-medium text-blue-400">Exchange Rate</span>
+            <span className="font-medium text-white">{exchangeRate}</span>
           </div>
-          <div className="flex justify-between text-gray-400 mt-1">
-            <span>Pool Fee</span>
-            <span>0.30%</span>
+          <div className="flex justify-between text-white mt-1">
+            <span className="font-medium text-blue-400">Pool Fee</span>
+            <span className="font-medium text-white">0.30%</span>
           </div>
         </div>
         
