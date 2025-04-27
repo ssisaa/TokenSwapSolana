@@ -204,7 +204,7 @@ export async function initializeStakingProgram(
 }
 
 /**
- * Stake YOT tokens - Temporary implementation until program is deployed
+ * Stake YOT tokens using the deployed program
  */
 export async function stakeYOTTokens(
   wallet: any,
@@ -228,31 +228,50 @@ export async function stakeYOTTokens(
       yotMintPubkey,
       userPublicKey
     );
-    
-    // Create a temporary transaction that sends a small amount of SOL to themselves
-    // This is just to get a wallet signature while the real program is pending deployment
-    let transaction = new Transaction();
-    
-    // Add a simple SOL transfer instruction (sending to self)
-    transaction.add(
-      SystemProgram.transfer({
-        fromPubkey: userPublicKey,
-        toPubkey: userPublicKey,
-        lamports: 5000 // A small amount (0.000005 SOL)
-      })
+
+    // Find program state address
+    const [programStateAddress] = PublicKey.findProgramAddressSync(
+      [Buffer.from('program_state')],
+      STAKING_PROGRAM_ID
     );
     
-    // Add a memo instruction to record the stake intent
-    transaction.add(
-      new TransactionInstruction({
-        keys: [
-          { pubkey: userPublicKey, isSigner: true, isWritable: true },
-          { pubkey: userYotTokenAccount, isSigner: false, isWritable: true }
-        ],
-        programId: new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"),
-        data: Buffer.from(`Stake ${amount} YOT tokens - Awaiting program deployment`)
-      })
+    // Find user staking account address
+    const [userStakingAddress] = PublicKey.findProgramAddressSync(
+      [Buffer.from('staking'), userPublicKey.toBuffer()],
+      STAKING_PROGRAM_ID
     );
+    
+    // Find program authority address
+    const [programAuthorityAddress] = PublicKey.findProgramAddressSync(
+      [Buffer.from('authority')],
+      STAKING_PROGRAM_ID
+    );
+    
+    // Get program token account
+    const programYotTokenAccount = await getAssociatedTokenAddress(
+      yotMintPubkey,
+      programAuthorityAddress,
+      true // allowOwnerOffCurve
+    );
+    
+    // Create the stake instruction
+    const stakeInstruction = new TransactionInstruction({
+      keys: [
+        { pubkey: userPublicKey, isSigner: true, isWritable: true },
+        { pubkey: userYotTokenAccount, isSigner: false, isWritable: true },
+        { pubkey: programYotTokenAccount, isSigner: false, isWritable: true },
+        { pubkey: userStakingAddress, isSigner: false, isWritable: true },
+        { pubkey: programStateAddress, isSigner: false, isWritable: false },
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }
+      ],
+      programId: STAKING_PROGRAM_ID,
+      data: encodeStakeInstruction(amount)
+    });
+    
+    // Create transaction
+    let transaction = new Transaction().add(stakeInstruction);
     
     // Set recent blockhash and fee payer
     transaction.feePayer = userPublicKey;
@@ -267,19 +286,25 @@ export async function stakeYOTTokens(
     // Confirm transaction
     await connection.confirmTransaction(signature, 'confirmed');
     
-    // Since this is a simulation, we'll return a success signature
-    // This will be displayed in the UI but the real staking hasn't occurred
-    // The UI will update based on the simulation in the useStaking hook
+    toast({
+      title: "Staking Successful",
+      description: `You have staked ${amount} YOT tokens successfully.`
+    });
     
     return signature;
   } catch (error) {
     console.error('Error staking tokens:', error);
+    toast({
+      title: "Staking Failed",
+      description: error.message,
+      variant: "destructive"
+    });
     throw error;
   }
 }
 
 /**
- * Unstake YOT tokens - Temporary implementation until program is deployed
+ * Unstake YOT tokens using the deployed program
  */
 export async function unstakeYOTTokens(
   wallet: any,
@@ -304,30 +329,48 @@ export async function unstakeYOTTokens(
       userPublicKey
     );
     
-    // Create a temporary transaction that sends a small amount of SOL to themselves
-    // This is just to get a wallet signature while the real program is pending deployment
-    let transaction = new Transaction();
-    
-    // Add a simple SOL transfer instruction (sending to self)
-    transaction.add(
-      SystemProgram.transfer({
-        fromPubkey: userPublicKey,
-        toPubkey: userPublicKey,
-        lamports: 5000 // A small amount (0.000005 SOL)
-      })
+    // Find program state address
+    const [programStateAddress] = PublicKey.findProgramAddressSync(
+      [Buffer.from('program_state')],
+      STAKING_PROGRAM_ID
     );
     
-    // Add a memo instruction to record the unstake intent
-    transaction.add(
-      new TransactionInstruction({
-        keys: [
-          { pubkey: userPublicKey, isSigner: true, isWritable: true },
-          { pubkey: userYotTokenAccount, isSigner: false, isWritable: true }
-        ],
-        programId: new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"),
-        data: Buffer.from(`Unstake ${amount} YOT tokens - Awaiting program deployment`)
-      })
+    // Find user staking account address
+    const [userStakingAddress] = PublicKey.findProgramAddressSync(
+      [Buffer.from('staking'), userPublicKey.toBuffer()],
+      STAKING_PROGRAM_ID
     );
+    
+    // Find program authority address
+    const [programAuthorityAddress] = PublicKey.findProgramAddressSync(
+      [Buffer.from('authority')],
+      STAKING_PROGRAM_ID
+    );
+    
+    // Get program token account
+    const programYotTokenAccount = await getAssociatedTokenAddress(
+      yotMintPubkey,
+      programAuthorityAddress,
+      true // allowOwnerOffCurve
+    );
+    
+    // Create the unstake instruction
+    const unstakeInstruction = new TransactionInstruction({
+      keys: [
+        { pubkey: userPublicKey, isSigner: true, isWritable: true },
+        { pubkey: userYotTokenAccount, isSigner: false, isWritable: true },
+        { pubkey: programYotTokenAccount, isSigner: false, isWritable: true },
+        { pubkey: userStakingAddress, isSigner: false, isWritable: true },
+        { pubkey: programStateAddress, isSigner: false, isWritable: false },
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }
+      ],
+      programId: STAKING_PROGRAM_ID,
+      data: encodeUnstakeInstruction(amount)
+    });
+    
+    // Create transaction
+    let transaction = new Transaction().add(unstakeInstruction);
     
     // Set recent blockhash and fee payer
     transaction.feePayer = userPublicKey;
@@ -342,13 +385,19 @@ export async function unstakeYOTTokens(
     // Confirm transaction
     await connection.confirmTransaction(signature, 'confirmed');
     
-    // Since this is a simulation, we'll return a success signature
-    // This will be displayed in the UI but the real unstaking hasn't occurred
-    // The UI will update based on the simulation in the useStaking hook
+    toast({
+      title: "Unstaking Successful",
+      description: `You have unstaked ${amount} YOT tokens successfully.`
+    });
     
     return signature;
   } catch (error) {
     console.error('Error unstaking tokens:', error);
+    toast({
+      title: "Unstaking Failed",
+      description: error.message,
+      variant: "destructive"
+    });
     throw error;
   }
 }
