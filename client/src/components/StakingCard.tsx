@@ -98,8 +98,8 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
   return (
     <Card className="w-full bg-dark-200">
       <CardHeader>
-        <CardTitle className="text-xl font-bold">YOT Staking</CardTitle>
-        <CardDescription>
+        <CardTitle className="text-xl font-bold text-white">YOT Staking</CardTitle>
+        <CardDescription className="text-gray-300">
           Stake YOT tokens to earn YOS rewards. All actions require wallet signature.
         </CardDescription>
       </CardHeader>
@@ -191,7 +191,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                 
                 <TabsContent value="stake" className="mt-0 space-y-4">
                   <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-semibold">Stake YOT</h3>
+                    <h3 className="text-lg font-semibold text-white">Stake YOT</h3>
                     <div className="flex items-center text-sm">
                       <Wallet className="h-4 w-4 mr-1 text-gray-400" />
                       <span className="text-gray-400">Available: </span>
@@ -238,10 +238,10 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                 
                 <TabsContent value="unstake" className="mt-0 space-y-4">
                   <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-semibold">Unstake YOT</h3>
+                    <h3 className="text-lg font-semibold text-white">Unstake YOT</h3>
                     <div className="flex items-center text-sm">
-                      <span className="text-muted-foreground">Staked: </span>
-                      <span className="font-medium ml-1">{formatNumber(stakingInfo.stakedAmount)} YOT</span>
+                      <span className="text-gray-400">Staked: </span>
+                      <span className="font-medium ml-1 text-white">{formatNumber(stakingInfo.stakedAmount)} YOT</span>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -284,9 +284,9 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                 
                 <TabsContent value="harvest" className="mt-0 space-y-4">
                   <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-semibold">Harvest Rewards</h3>
-                    <span className="text-sm text-muted-foreground">
-                      {formatNumber(stakingInfo.rewardsEarned)} YOS available
+                    <h3 className="text-lg font-semibold text-white">Harvest Rewards</h3>
+                    <span className="text-sm text-gray-400">
+                      <span className="font-medium text-white">{formatNumber(stakingInfo.rewardsEarned)}</span> YOS available
                     </span>
                   </div>
                   <Progress value={(stakingInfo.rewardsEarned / (stakingInfo.rewardsEarned + 100)) * 100} className="h-2" />
