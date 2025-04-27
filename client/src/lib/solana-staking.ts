@@ -22,9 +22,11 @@ import {
   YOS_TOKEN_ADDRESS
 } from '@/lib/constants';
 
-// This should be replaced with the actual deployed program ID
-// Using a placeholder devnet program ID for now
-const STAKING_PROGRAM_ID = new PublicKey('3EFRnJGe71mcRoaKFwTHzGxvbJ6xjgqJ5nYSTGSHNNNB');
+// Import the staking program ID from constants
+import { STAKING_PROGRAM_ID as PROGRAM_ID_STRING } from '@/lib/constants';
+
+// Convert the program ID string to a PublicKey object
+const STAKING_PROGRAM_ID = new PublicKey(PROGRAM_ID_STRING);
 
 // Instructions enum matching our Rust program
 enum StakingInstructionType {

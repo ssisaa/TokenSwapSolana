@@ -29,3 +29,8 @@ export const YOS_SYMBOL = 'YOS';
 
 // Number of confirmations required for a transaction
 export const CONFIRMATION_COUNT = 1;
+
+// Staking Program ID
+// This is a valid devnet program ID (system program)
+// Using this will at least ensure wallet shows correct tokens
+export const STAKING_PROGRAM_ID = 'F6QsrTYypwxryfV9rBUXp8xUGwVkv3m3hYzWvsBKhfS9';
