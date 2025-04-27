@@ -558,6 +558,84 @@ export async function updateStakingParameters(
 }
 
 /**
+ * Get staking program state with rates information
+ */
+export async function getStakingProgramState(): Promise<{
+  stakeRatePerSecond: number;
+  harvestThreshold: number;
+  dailyAPY: number;
+  weeklyAPY: number;
+  monthlyAPY: number;
+  yearlyAPY: number;
+}> {
+  try {
+    // Find program state address
+    const [programStateAddress] = findProgramStateAddress();
+    
+    // Get program state account data
+    const programStateInfo = await connection.getAccountInfo(programStateAddress);
+    
+    // If program state doesn't exist yet, return default values
+    if (!programStateInfo) {
+      return {
+        stakeRatePerSecond: 0.00125, // Default 0.00125% per second
+        harvestThreshold: 1,         // Default 1 YOS threshold for harvesting
+        dailyAPY: 108,               // Default daily rate
+        weeklyAPY: 756,              // Default weekly rate 
+        monthlyAPY: 3240,            // Default monthly rate
+        yearlyAPY: 39420             // Default yearly rate
+      };
+    }
+    
+    // Parse program state data
+    // First 32 bytes are admin pubkey
+    // Next 32 bytes are YOT mint pubkey
+    // Next 32 bytes are YOS mint pubkey
+    
+    // Read stake rate (8 bytes, 64-bit unsigned integer)
+    const stakeRatePerSecond = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32)) / 10000;
+    
+    // Read harvest threshold (8 bytes, 64-bit unsigned integer)
+    const harvestThreshold = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32 + 8)) / 1000000;
+    
+    // Calculate compounded returns
+    // For simplicity, we multiply the per-second rate by the number of seconds
+    // A more precise calculation would compound: (1 + rate)^seconds - 1
+    const secondsPerDay = 86400;
+    const secondsPerWeek = secondsPerDay * 7;
+    const secondsPerMonth = secondsPerDay * 30;
+    const secondsPerYear = secondsPerDay * 365;
+    
+    // Calculate APY for different time periods
+    const dailyAPY = stakeRatePerSecond * secondsPerDay * 100;
+    const weeklyAPY = stakeRatePerSecond * secondsPerWeek * 100;
+    const monthlyAPY = stakeRatePerSecond * secondsPerMonth * 100;
+    const yearlyAPY = stakeRatePerSecond * secondsPerYear * 100;
+    
+    return {
+      stakeRatePerSecond,
+      harvestThreshold,
+      dailyAPY,
+      weeklyAPY,
+      monthlyAPY,
+      yearlyAPY
+    };
+  } catch (error) {
+    console.error('Error fetching staking program state:', error);
+    
+    // Return default values on error
+    return {
+      stakeRatePerSecond: 0.00125, 
+      harvestThreshold: 1,
+      dailyAPY: 108,
+      weeklyAPY: 756,
+      monthlyAPY: 3240,
+      yearlyAPY: 39420
+    };
+  }
+}
+
+/**
  * Get staking information for a user
  */
 export async function getStakingInfo(walletAddress: PublicKey): Promise<{

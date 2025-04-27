@@ -8,7 +8,8 @@ import {
   unstakeYOTTokens, 
   harvestYOSRewards, 
   getStakingInfo,
-  updateStakingParameters
+  updateStakingParameters,
+  getStakingProgramState
 } from '@/lib/solana-staking';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -20,6 +21,15 @@ interface StakingInfo {
   rewardsEarned: number;
 }
 
+interface StakingRates {
+  stakeRatePerSecond: number;
+  harvestThreshold: number;
+  dailyAPY: number;
+  weeklyAPY: number;
+  monthlyAPY: number;
+  yearlyAPY: number;
+}
+
 export function useStaking() {
   const { publicKey, wallet, connected } = useMultiWallet();
   const queryClient = useQueryClient();
@@ -27,9 +37,9 @@ export function useStaking() {
   // Query to fetch staking info
   const { 
     data: stakingInfo,
-    isLoading,
-    error,
-    refetch
+    isLoading: isLoadingStakingInfo,
+    error: stakingError,
+    refetch: refetchStakingInfo
   } = useQuery<StakingInfo>({
     queryKey: ['staking', publicKey?.toString()],
     queryFn: async () => {
@@ -46,6 +56,20 @@ export function useStaking() {
     },
     enabled: !!publicKey && connected,
     refetchInterval: 30000, // Refetch every 30 seconds to update rewards
+  });
+  
+  // Query to fetch program rates
+  const {
+    data: stakingRates,
+    isLoading: isLoadingRates,
+    error: ratesError,
+    refetch: refetchRates
+  } = useQuery<StakingRates>({
+    queryKey: ['staking', 'rates'],
+    queryFn: async () => {
+      return await getStakingProgramState();
+    },
+    refetchInterval: 60000, // Refetch every minute
   });
   
   // Mutation for staking tokens
@@ -152,6 +176,8 @@ export function useStaking() {
     }
   });
 
+  const isLoading = isLoadingStakingInfo || isLoadingRates;
+  
   return {
     stakingInfo: stakingInfo || {
       stakedAmount: 0,
@@ -160,9 +186,20 @@ export function useStaking() {
       totalHarvested: 0,
       rewardsEarned: 0
     },
+    stakingRates: stakingRates || {
+      stakeRatePerSecond: 0.00125,
+      harvestThreshold: 1,
+      dailyAPY: 108,
+      weeklyAPY: 756,
+      monthlyAPY: 3240,
+      yearlyAPY: 39420
+    },
     isLoading,
-    error,
-    refetch,
+    error: stakingError || ratesError,
+    refetch: () => {
+      refetchStakingInfo();
+      refetchRates();
+    },
     stakeTokens: stakeMutation.mutate,
     unstakeTokens: unstakeMutation.mutate,
     harvestRewards: harvestMutation.mutate,

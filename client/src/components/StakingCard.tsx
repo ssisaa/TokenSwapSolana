@@ -6,7 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { useStaking } from '@/hooks/useStaking';
 import { useMultiWallet } from '@/context/MultiWalletContext';
 import { formatNumber } from '@/lib/utils';
-import { Loader2, Wallet } from 'lucide-react';
+import { Loader2, Wallet, Info as InfoIcon } from 'lucide-react';
 import { useTokenBalance } from '@/hooks/useTokenBalance';
 import { YOT_TOKEN_ADDRESS } from '@/lib/constants';
 
@@ -20,6 +20,7 @@ export default function StakingCard() {
   
   const {
     stakingInfo,
+    stakingRates,
     isLoading,
     stakeTokens,
     unstakeTokens,
@@ -124,6 +125,37 @@ export default function StakingCard() {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Total Harvested:</span>
                   <span className="font-medium">{formatNumber(stakingInfo.totalHarvested)} YOS</span>
+                </div>
+              </div>
+              
+              <div className="h-px bg-border" />
+              
+              {/* Staking APY Information */}
+              <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                <h3 className="text-base font-semibold">Staking APY Rates</h3>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-background rounded-md p-3 border">
+                    <div className="text-xs text-muted-foreground">Daily APY</div>
+                    <div className="text-lg font-bold text-green-500">{stakingRates.dailyAPY.toFixed(2)}%</div>
+                  </div>
+                  <div className="bg-background rounded-md p-3 border">
+                    <div className="text-xs text-muted-foreground">Weekly APY</div>
+                    <div className="text-lg font-bold text-green-500">{stakingRates.weeklyAPY.toFixed(2)}%</div>
+                  </div>
+                  <div className="bg-background rounded-md p-3 border">
+                    <div className="text-xs text-muted-foreground">Monthly APY</div>
+                    <div className="text-lg font-bold text-green-500">{stakingRates.monthlyAPY.toFixed(2)}%</div>
+                  </div>
+                  <div className="bg-background rounded-md p-3 border">
+                    <div className="text-xs text-muted-foreground">Yearly APY</div>
+                    <div className="text-lg font-bold text-green-500">{stakingRates.yearlyAPY.toFixed(2)}%</div>
+                  </div>
+                </div>
+                
+                <div className="text-xs text-muted-foreground flex items-center mt-2">
+                  <InfoIcon className="h-3 w-3 mr-1" />
+                  Rates are set by the admin and may change
                 </div>
               </div>
               
