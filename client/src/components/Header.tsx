@@ -1,4 +1,4 @@
-import WalletConnect from "@/components/WalletConnect";
+import MultiWalletConnect from "@/components/MultiWalletConnect";
 
 export default function Header() {
   return (
@@ -12,7 +12,7 @@ export default function Header() {
         <h1 className="text-3xl font-bold text-white">YOT Swap</h1>
       </div>
       
-      <WalletConnect />
+      <MultiWalletConnect />
     </header>
   );
 }
