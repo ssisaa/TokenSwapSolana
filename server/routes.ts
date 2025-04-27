@@ -274,24 +274,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Wallet address is required' });
       }
       
-      // Get staking data from database
-      const stakingData = await storage.getStakingData(wallet);
-      
-      if (!stakingData) {
-        return res.json({
-          stakedAmount: 0,
-          rewardsEarned: 0,
-          startTimestamp: null,
-          harvestedRewards: 0
+      // Security: Validate wallet address format (basic check)
+      if (wallet.length < 32 || wallet.length > 44) {
+        return res.status(400).json({
+          message: 'Invalid wallet address format',
+          error: 'Please provide a valid wallet address'
         });
       }
       
-      res.json(stakingData);
+      // Security: Sanitize the wallet address input
+      const sanitizedWallet = wallet.trim();
+      
+      try {
+        // Get staking data from database with security measures
+        const stakingData = await storage.getStakingData(sanitizedWallet);
+        
+        if (!stakingData) {
+          return res.json({
+            stakedAmount: 0,
+            rewardsEarned: 0,
+            startTimestamp: null,
+            harvestedRewards: 0
+          });
+        }
+        
+        // Security: Only return necessary data (avoid information leakage)
+        const safeResponse = {
+          stakedAmount: stakingData.stakedAmount || 0,
+          rewardsEarned: stakingData.rewardsEarned || 0,
+          startTimestamp: stakingData.startTimestamp || null,
+          harvestedRewards: stakingData.harvestedRewards || 0,
+          // Include only the admin settings needed for calculations
+          currentSettings: stakingData.currentSettings ? {
+            stakeRatePerSecond: stakingData.currentSettings.stakeRatePerSecond,
+            harvestThreshold: stakingData.currentSettings.harvestThreshold
+          } : null
+        };
+        
+        res.json(safeResponse);
+      } catch (dbError) {
+        console.error('Database error fetching staking data:', dbError);
+        // Security: Don't expose internal error details to client
+        return res.status(500).json({
+          message: 'Unable to retrieve staking information',
+          error: 'Please try again later'
+        });
+      }
     } catch (error) {
       console.error('Error fetching staking info:', error);
+      // Security: Return generic error message
       res.status(500).json({
         message: 'Failed to fetch staking information',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: 'An unexpected error occurred'
       });
     }
   });
@@ -342,15 +376,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Wallet address is required' });
       }
       
-      // Remove staking data from database
-      await storage.removeStakingData(wallet);
+      // Security: Validate wallet address format
+      if (wallet.length < 32 || wallet.length > 44) {
+        return res.status(400).json({
+          message: 'Invalid wallet address format',
+          error: 'Please provide a valid wallet address'
+        });
+      }
       
-      res.json({ success: true, message: 'Successfully unstaked' });
+      // Security: Sanitize the wallet address input
+      const sanitizedWallet = wallet.trim();
+      
+      try {
+        // Security: Verify wallet exists before allowing unstake
+        const stakingData = await storage.getStakingData(sanitizedWallet);
+        if (!stakingData || stakingData.stakedAmount <= 0) {
+          return res.status(400).json({
+            message: 'No staked tokens found',
+            error: 'You do not have any tokens staked from this wallet'
+          });
+        }
+        
+        // Remove staking data from database
+        await storage.removeStakingData(sanitizedWallet);
+        
+        res.json({ 
+          success: true, 
+          message: 'Successfully unstaked',
+          // Provide some data to confirm what was unstaked
+          unstaked: {
+            amount: stakingData.stakedAmount,
+            wallet: sanitizedWallet.substring(0, 6) + '...' + sanitizedWallet.substring(sanitizedWallet.length - 4) // Show partial wallet for security
+          }
+        });
+      } catch (dbError) {
+        console.error('Database error during unstaking:', dbError);
+        // Security: Don't expose internal error details to client
+        return res.status(500).json({
+          message: 'Unable to process unstaking request',
+          error: 'Please try again later'
+        });
+      }
     } catch (error) {
       console.error('Error unstaking:', error);
+      // Security: Return generic error message
       res.status(500).json({
         message: 'Failed to unstake',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: 'An unexpected error occurred'
       });
     }
   });
@@ -363,15 +435,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Wallet address is required' });
       }
       
-      // Update harvest data in database
-      await storage.harvestRewards(wallet);
+      // Security: Validate wallet address format
+      if (wallet.length < 32 || wallet.length > 44) {
+        return res.status(400).json({
+          message: 'Invalid wallet address format',
+          error: 'Please provide a valid wallet address'
+        });
+      }
       
-      res.json({ success: true, message: 'Successfully harvested rewards' });
+      // Security: Sanitize the wallet address input
+      const sanitizedWallet = wallet.trim();
+      
+      try {
+        // Security: Verify wallet exists and has rewards before harvesting
+        const stakingData = await storage.getStakingData(sanitizedWallet);
+        if (!stakingData || stakingData.stakedAmount <= 0) {
+          return res.status(400).json({
+            message: 'No staked tokens found',
+            error: 'You do not have any tokens staked from this wallet'
+          });
+        }
+        
+        // Get admin settings for harvest threshold check
+        const adminSettings = await storage.getAdminSettings();
+        const harvestThreshold = adminSettings?.harvestThreshold 
+          ? parseFloat(adminSettings.harvestThreshold.toString()) 
+          : 100;
+        
+        // Check if rewards are above threshold
+        if (stakingData.rewardsEarned < harvestThreshold) {
+          return res.status(400).json({
+            message: 'Below harvest threshold',
+            error: `You need at least ${harvestThreshold} YOS tokens to harvest. You currently have ${stakingData.rewardsEarned} YOS.`
+          });
+        }
+        
+        // Update harvest data in database
+        await storage.harvestRewards(sanitizedWallet);
+        
+        res.json({ 
+          success: true, 
+          message: 'Successfully harvested rewards',
+          // Provide some data to confirm what was harvested
+          harvested: {
+            amount: stakingData.rewardsEarned,
+            wallet: sanitizedWallet.substring(0, 6) + '...' + sanitizedWallet.substring(sanitizedWallet.length - 4) // Show partial wallet for security
+          }
+        });
+      } catch (dbError) {
+        console.error('Database error during harvesting:', dbError);
+        // Security: Don't expose internal error details to client
+        return res.status(500).json({
+          message: 'Unable to process harvesting request',
+          error: 'Please try again later'
+        });
+      }
     } catch (error) {
       console.error('Error harvesting rewards:', error);
+      // Security: Return generic error message
       res.status(500).json({
         message: 'Failed to harvest rewards',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: 'An unexpected error occurred'
       });
     }
   });
