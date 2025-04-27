@@ -143,7 +143,7 @@ export function MultiWalletProvider({ children, cluster = CLUSTER }: MultiWallet
     }
   }, [wallet, connected]);
 
-  // Connect function with improved wallet switching
+  // Connect function with improved wallet switching and validation
   const connect = useCallback(async (walletName?: string) => {
     try {
       // Early return if already connecting
@@ -169,22 +169,55 @@ export function MultiWalletProvider({ children, cluster = CLUSTER }: MultiWallet
           setSelectedWallet(targetWallet);
           setWallet(targetWallet.adapter);
           
-          // Connect to wallet
-          await targetWallet.adapter.connect();
-          
-          // Save preference
-          localStorage.setItem('selectedWallet', targetWallet.name);
-          localStorage.setItem('shouldAutoConnect', 'true');
+          try {
+            // Connect to wallet
+            await targetWallet.adapter.connect();
+            
+            // Verify we have a Solana wallet by checking properties
+            if (!targetWallet.adapter.publicKey || 
+                typeof targetWallet.adapter.publicKey.toBase58 !== 'function') {
+              throw new Error("Connected wallet does not appear to be Solana-compatible");
+            }
+            
+            // Save preference
+            localStorage.setItem('selectedWallet', targetWallet.name);
+            localStorage.setItem('shouldAutoConnect', 'true');
+          } catch (err) {
+            // Check if this is a non-Solana wallet error
+            if (err instanceof Error && 
+                (err.message.includes('not Solana') || 
+                 err.message.includes('wrong network') ||
+                 !targetWallet.adapter.publicKey)) {
+              throw new Error("Please connect to a Solana-compatible wallet");
+            }
+            throw err; // Re-throw all other errors
+          }
         } else {
           throw new Error(`Wallet ${walletName} not found or not installed`);
         }
       } else if (wallet) {
         // Connect to default wallet if no specific wallet requested
-        await wallet.connect();
-        
-        if (selectedWallet) {
-          localStorage.setItem('selectedWallet', selectedWallet.name);
-          localStorage.setItem('shouldAutoConnect', 'true');
+        try {
+          await wallet.connect();
+          
+          // Verify we have a Solana wallet
+          if (!wallet.publicKey || typeof wallet.publicKey.toBase58 !== 'function') {
+            throw new Error("Connected wallet does not appear to be Solana-compatible");
+          }
+          
+          if (selectedWallet) {
+            localStorage.setItem('selectedWallet', selectedWallet.name);
+            localStorage.setItem('shouldAutoConnect', 'true');
+          }
+        } catch (err) {
+          // Check if this is a non-Solana wallet error
+          if (err instanceof Error && 
+              (err.message.includes('not Solana') || 
+               err.message.includes('wrong network') ||
+               !wallet.publicKey)) {
+            throw new Error("Please connect to a Solana-compatible wallet");
+          }
+          throw err; // Re-throw all other errors
         }
       } else {
         throw new Error("No wallet adapter available");

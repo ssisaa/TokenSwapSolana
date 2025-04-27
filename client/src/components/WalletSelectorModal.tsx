@@ -3,6 +3,7 @@ import { useMultiWallet } from '@/context/MultiWalletContext';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { ChevronRight } from 'lucide-react';
 import { X } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast.ts';
 
 export default function WalletSelectorModal() {
   const {
@@ -13,12 +14,39 @@ export default function WalletSelectorModal() {
     connecting
   } = useMultiWallet();
 
+  const { toast } = useToast();
+  
   const handleConnect = async (walletName: string) => {
     try {
       await connect(walletName);
       setShowWalletSelector(false);
     } catch (error) {
       console.error('Failed to connect:', error);
+      
+      // Show user-friendly error message
+      if (error instanceof Error) {
+        // Check for specific non-Solana wallet errors
+        if (error.message.includes('Solana-compatible') || 
+            error.message.includes('wrong network')) {
+          toast({
+            variant: "destructive",
+            title: "Wallet Connection Error",
+            description: "Please connect to a Solana-compatible wallet on the correct network",
+          });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Wallet Connection Error",
+            description: error.message,
+          });
+        }
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Wallet Connection Error",
+          description: "Failed to connect to wallet. Please try again.",
+        });
+      }
     }
   };
 
