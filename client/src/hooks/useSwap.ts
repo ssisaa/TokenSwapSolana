@@ -45,13 +45,13 @@ export function useSwap() {
           const poolData = await getPoolBalances();
           
           if (poolData.yotBalance && poolData.yosBalance && poolData.yosBalance > 0) {
-            // For correct display, we need to show 10 YOS = 1 YOT (YOS is more valuable)
+            // YOS is 10 times LESS valuable than YOT (10 YOS = 1 YOT)
             // Using actual pool data to calculate the ratio
             const yosPerYot = poolData.yosBalance / poolData.yotBalance;
             
             // If the pool data makes sense, use it; otherwise use the fixed 10:1 ratio
             if (yosPerYot > 0 && yosPerYot < 100) { // Sanity check on pool ratio
-              setExchangeRate(`10 YOS = ${(10 / yosPerYot).toFixed(4)} YOT`);
+              setExchangeRate(`10 YOS = 1 YOT`);
               console.log(`YOS to YOT pool ratio: ${yosPerYot} YOS per YOT (${poolData.yosBalance} YOS / ${poolData.yotBalance} YOT)`);
             } else {
               // Fallback to fixed ratio if pool data produces an unreasonable result
