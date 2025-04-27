@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useAdminSettings } from "@/hooks/use-admin-settings";
+import { useMultiWallet } from "@/context/MultiWalletContext";
 import {
   Card,
   CardContent,
@@ -34,6 +35,7 @@ import { Loader2, InfoIcon } from "lucide-react";
 
 export default function AdminSettings() {
   const { settings, isLoading, updateSettingsMutation } = useAdminSettings();
+  const { wallet, connected } = useMultiWallet();
   
   const [formValues, setFormValues] = useState({
     liquidityContributionPercentage: "",
@@ -365,13 +367,13 @@ export default function AdminSettings() {
                 // Show confirmation dialog here
                 if (window.confirm("Are you sure you want to initialize the staking program? This will reset all staking data.")) {
                   import("@/lib/solana-staking").then(({ initializeStakingProgram }) => {
-                    // We need to get the wallet from somewhere
-                    // For now we assume we have access to window.solana
-                    const wallet = window.solana;
-                    if (!wallet) {
-                      alert("Please connect your wallet first");
+                    // Use the connected wallet from MultiWalletContext
+                    if (!wallet || !connected) {
+                      alert("Please connect your wallet first. Go to a page with the wallet connect button, connect your wallet, then return to admin settings.");
                       return;
                     }
+                    
+                    console.log("Using connected wallet for program initialization:", wallet);
                     
                     // Use the current staking rate values
                     const stakeRatePerSecond = parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).second);
@@ -380,12 +382,19 @@ export default function AdminSettings() {
                     // Convert to basis points for the program (since we're working with percentages)
                     const stakeRateInBasisPoints = Math.floor(stakeRatePerSecond * 10000);
                     
+                    console.log("Initializing program with parameters:", {
+                      stakeRatePerSecond,
+                      stakeRateInBasisPoints,
+                      harvestThresholdValue
+                    });
+                    
                     // Call the initialization function
                     initializeStakingProgram(
                       wallet, 
                       stakeRateInBasisPoints,
                       harvestThresholdValue
                     ).then(signature => {
+                      console.log("Program initialized successfully with signature:", signature);
                       alert(`Program initialized successfully! Transaction: ${signature}`);
                     }).catch(error => {
                       console.error("Error initializing program:", error);
