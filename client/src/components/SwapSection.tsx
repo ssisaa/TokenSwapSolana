@@ -9,7 +9,6 @@ import { SOL_SYMBOL, YOT_SYMBOL, CLUSTER } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Link } from "wouter";
 
 export default function SwapSection() {
   const { wallet, connected } = useWallet();
@@ -312,14 +311,12 @@ export default function SwapSection() {
               <li>Setup of proper pool authority with signing capabilities</li>
             </ul>
             <div className="mt-3">
-              <Link href="/integration">
-                <button className="text-primary-400 hover:text-primary-300 text-xs font-medium underline flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  View Integration Roadmap
-                </button>
-              </Link>
+              <a href="/integration" className="text-primary-400 hover:text-primary-300 text-xs font-medium underline flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                View Integration Roadmap
+              </a>
             </div>
           </AlertDescription>
         </Alert>
