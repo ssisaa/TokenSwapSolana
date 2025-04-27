@@ -640,7 +640,7 @@ export async function getStakingProgramState(): Promise<{
 /**
  * Get staking information for a user
  */
-export async function getStakingInfo(walletAddress: PublicKey): Promise<{
+export async function getStakingInfo(walletAddressStr: string): Promise<{
   stakedAmount: number;
   startTimestamp: number;
   lastHarvestTime: number;
@@ -648,8 +648,11 @@ export async function getStakingInfo(walletAddress: PublicKey): Promise<{
   rewardsEarned: number;
 }> {
   try {
+    // Convert string to PublicKey
+    const walletPublicKey = new PublicKey(walletAddressStr);
+    
     // Find staking account address
-    const [stakingAccountAddress] = findStakingAccountAddress(walletAddress);
+    const [stakingAccountAddress] = findStakingAccountAddress(walletPublicKey);
     
     // Get staking account data
     const accountInfo = await connection.getAccountInfo(stakingAccountAddress);

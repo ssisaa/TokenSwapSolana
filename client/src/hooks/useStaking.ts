@@ -3,24 +3,15 @@ import { PublicKey } from '@solana/web3.js';
 import { useMultiWallet } from '@/context/MultiWalletContext';
 import { connection } from '@/lib/completeSwap';
 import { toast } from '@/hooks/use-toast';
-// Use test implementation until production program is deployed
+// Import all staking functions from the blockchain implementation
 import { 
   stakeYOTTokens, 
   unstakeYOTTokens, 
   harvestYOSRewards, 
   getStakingInfo,
+  updateStakingParameters,
   getStakingProgramState
-} from '@/lib/solana-staking-test';
-
-// Re-enable these imports when the production program is deployed
-// import { 
-//   stakeYOTTokens, 
-//   unstakeYOTTokens, 
-//   harvestYOSRewards, 
-//   getStakingInfo,
-//   updateStakingParameters,
-//   getStakingProgramState
-// } from '@/lib/solana-staking';
+} from '@/lib/solana-staking';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface StakingInfo {
@@ -166,9 +157,7 @@ export function useStaking() {
       if (!wallet || !connected) {
         throw new Error('Wallet not connected');
       }
-      // This function is not in the test implementation
-      // Return a placeholder promise since we can't call the actual function
-      return Promise.resolve("test-signature-for-parameters-update");
+      return await updateStakingParameters(wallet, stakeRatePerSecond, harvestThreshold);
     },
     onSuccess: () => {
       // Invalidate and refetch staking info for all users
