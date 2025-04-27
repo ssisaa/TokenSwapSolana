@@ -235,8 +235,9 @@ export default function TokenInfo() {
         <div className="bg-dark-300 p-4 rounded-lg">
           <h3 className="font-medium text-lg text-gray-300 mb-2">About This Application</h3>
           <div className="text-sm text-gray-400 space-y-2">
-            <p>This application provides a Solana token swap interface for exchanging SOL and YOT tokens on the Solana devnet. It connects directly to the blockchain to fetch real-time token information and balances.</p>
-            <p>All transactions are executed on-chain using actual devnet addresses. The application facilitates real token exchanges between your wallet and the liquidity pool.</p>
+            <p>This application provides a Solana token swap interface that connects to real Solana devnet addresses and fetches actual blockchain data. It displays real-time token information and wallet balances from the blockchain.</p>
+            <p>The current implementation demonstrates the first half of a token swap by handling deposits to the liquidity pool. A complete swap would require a deployed token-swap program to atomically handle both sides of the exchange.</p>
+            <p>In a production environment, Solana's token-swap program would be deployed to handle the complete exchange process in a single transaction.</p>
             <p>All addresses shown are real and can be viewed on the <a href="https://explorer.solana.com/?cluster=devnet" target="_blank" rel="noopener noreferrer" className="text-primary-400 hover:underline">Solana Explorer (devnet)</a>.</p>
           </div>
         </div>

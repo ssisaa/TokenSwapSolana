@@ -299,7 +299,8 @@ export default function SwapSection() {
             <AlertTitle className="text-xs">Connected to Solana {CLUSTER}</AlertTitle>
           </div>
           <AlertDescription className="text-xs text-gray-400 mt-1">
-            <p>This application facilitates real token swaps using Solana devnet. All transactions are executed on-chain with real addresses and balances.</p>
+            <p>This application connects to real Solana devnet addresses and balances. The current implementation handles token deposits to the liquidity pool but requires a deployed swap program to complete the full exchange.</p>
+            <p className="mt-1">A production deployment would use Solana's token-swap program to handle atomic swaps between tokens.</p>
           </AlertDescription>
         </Alert>
 
@@ -331,7 +332,8 @@ export default function SwapSection() {
             <CheckCircle2 className="h-4 w-4 mr-2" />
             <AlertTitle>Transaction Processed</AlertTitle>
             <AlertDescription>
-              <p>Transaction completed successfully! Your tokens will be transferred to your wallet shortly.</p>
+              <p>Transaction completed successfully! Your deposit to the pool has been recorded on the blockchain.</p>
+              <p className="mt-2 text-xs font-medium">Note: To complete the swap, a deployed token-swap program would be required to handle the token transfer back to your wallet.</p>
               <p className="mt-1 text-xs">Transaction signature: {lastTransaction?.signature?.substring(0, 12)}...</p>
             </AlertDescription>
           </Alert>
