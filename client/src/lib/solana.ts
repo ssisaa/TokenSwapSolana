@@ -299,43 +299,32 @@ export async function swapSolToYot(
     // In a real token-swap program, this would be part of the same atomic transaction
     console.log(`Simulating YOT transfer of ${expectedYotAmount} YOT tokens to ${wallet.publicKey.toString()}...`);
     
-    // IMPORTANT: In a real implementation, this would be handled by a deployed token-swap program
-    // The code below demonstrates what WOULD happen in a full implementation, but simulates the
-    // second part since we don't have the authority's private key
+    // Now we'll complete the swap by sending YOT tokens from pool to user
+    // Using the pool authority key that was provided
     
-    console.log("Preparing to simulate YOT token receipt...");
+    console.log("Preparing to execute YOT token transfer from pool to user...");
     
-    // Let's check if we already have a YOT token account
-    let hasYotTokenAccount = false;
+    // Import the function that will handle the token transfer
+    const { completeSwapWithYotTransfer } = await import('./completeSwap');
+    
     try {
-      await getAccount(connection, userYotAccount);
-      hasYotTokenAccount = true;
+      // Execute the second part of the swap - transferring YOT tokens from pool to user
+      console.log(`Now sending ${expectedYotAmount} YOT tokens to ${wallet.publicKey.toString()}`);
+      
+      // This will create a second transaction signed by the pool authority
+      const tokenTransferResult = await completeSwapWithYotTransfer(
+        wallet.publicKey,     // User's public key to receive tokens
+        expectedYotAmount     // Amount of YOT tokens to send
+      );
+      
+      console.log(`YOT tokens sent successfully! Transaction signature: ${tokenTransferResult.signature}`);
+      console.log(`YOT sent to user's account: ${tokenTransferResult.userTokenAccount}`);
     } catch (error) {
-      if (error instanceof TokenAccountNotFoundError) {
-        console.log("User doesn't have a YOT token account yet");
-      } else {
-        throw error;
-      }
+      console.error("Error sending YOT tokens from pool:", error);
+      throw new Error(`First part of swap completed (SOL deposit), but error in second part (YOT transfer): ${error instanceof Error ? error.message : String(error)}`);
     }
     
-    // In a real implementation with a token-swap program, the following would happen atomically:
-    // 1. The instruction to transfer tokens would be created
-    const transferInstruction = createTransferInstruction(
-      poolYotAccount,         // Source account (pool's YOT token account)
-      userYotAccount,         // Destination account (user's YOT token account)
-      poolAuthority,          // Owner of the source account
-      yotTokenAmount          // Amount to transfer
-    );
-    
-    // 2. A transaction would be created and signed by the pool authority
-    // 3. The tokens would be transferred to the user's account
-    
-    // For simulation purposes, we'll log what would happen
-    console.log(`In a full implementation, ${expectedYotAmount} YOT tokens would be transferred to ${wallet.publicKey.toString()}`);
-    console.log(`From pool account: ${poolYotAccount.toString()}`);
-    console.log(`To user account: ${userYotAccount.toString()}`);
-    
-    // For the demo, we'll return the SOL transaction signature and additional simulation info
+    // For the demo, we'll return the SOL transaction signature
     console.log("Transaction confirmed with signature:", solSignature);
     
     // Return actual swap details
@@ -431,14 +420,47 @@ export async function swapYotToSol(
         
         console.log("Transaction confirmed:", confirmation);
         
-        // Simulate the SOL transfer from pool to user (second part of swap)
-        // In a real implementation, this would be part of the atomic swap
-        console.log(`Simulating SOL transfer of ${expectedSolAmount} SOL to ${wallet.publicKey.toString()}...`);
+        // Now we'll complete the second part of the swap by sending SOL back to the user
+        console.log(`Executing SOL transfer of ${expectedSolAmount} SOL to ${wallet.publicKey.toString()}...`);
         
-        // In a complete token-swap program implementation, the pool would send SOL to the user
-        // This would happen in the same transaction as the YOT transfer to the pool
-        console.log(`In a full implementation, ${expectedSolAmount} SOL would be transferred to ${wallet.publicKey.toString()}`);
-        console.log(`From pool SOL account: ${POOL_SOL_ACCOUNT}`);
+        // Import the pool authority keypair from completeSwap
+        const { poolAuthorityKeypair } = await import('./completeSwap');
+        
+        // Get recent blockhash for the second transaction
+        const solTransferBlockhash = await connection.getLatestBlockhash();
+        
+        // Create a second transaction to transfer SOL from pool to user
+        const solTransferTransaction = new Transaction({
+          feePayer: poolAuthorityKeypair.publicKey,
+          blockhash: solTransferBlockhash.blockhash,
+          lastValidBlockHeight: solTransferBlockhash.lastValidBlockHeight
+        });
+        
+        // Convert SOL amount to lamports
+        const lamports = solToLamports(expectedSolAmount);
+        
+        // Add instruction to transfer SOL from pool to user
+        solTransferTransaction.add(
+          SystemProgram.transfer({
+            fromPubkey: poolAuthorityKeypair.publicKey, 
+            toPubkey: wallet.publicKey,
+            lamports
+          })
+        );
+        
+        try {
+          // Sign and send transaction with pool authority
+          const solTransferSignature = await sendAndConfirmTransaction(
+            connection,
+            solTransferTransaction,
+            [poolAuthorityKeypair]
+          );
+          
+          console.log(`SOL transfer complete! Signature: ${solTransferSignature}`);
+        } catch (error) {
+          console.error('Error sending SOL from pool to user:', error);
+          throw new Error(`First part of swap completed (YOT deposit), but error in second part (SOL transfer): ${error instanceof Error ? error.message : String(error)}`);
+        }
         
         // Return actual swap details
         return {
