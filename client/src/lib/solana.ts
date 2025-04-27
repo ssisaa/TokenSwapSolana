@@ -879,7 +879,7 @@ export async function getRecentTransactions(address: string, limit: number = 10)
     
     // Group transactions - handle YOT to SOL swaps that show as multiple transactions
     // We'll create a map to group transactions by time (within a 10-second window)
-    const timeGroups = new Map();
+    const timeGroups = new Map<string, any[]>();
     
     validTransactions.forEach(tx => {
       if (!tx) return;
@@ -895,15 +895,15 @@ export async function getRecentTransactions(address: string, limit: number = 10)
       let foundGroup = false;
       
       // Check if this transaction belongs to an existing group
-      for (const [key, group] of timeGroups.entries()) {
+      // Use Array.from to convert the entries iterator to an array to avoid LSP issues
+      Array.from(timeGroups.entries()).forEach(([key, group]) => {
         const groupTx = group[0];
         // If another YOT to SOL transaction exists within 10 seconds, group them
         if (Math.abs(groupTx.timestamp - txTime) < 10 && groupTx.meta?.isYotToSolPart) {
-          group.push(tx);
+          timeGroups.get(key)?.push(tx);
           foundGroup = true;
-          break;
         }
-      }
+      });
       
       // If no group found, create a new one
       if (!foundGroup) {
@@ -912,16 +912,17 @@ export async function getRecentTransactions(address: string, limit: number = 10)
     });
     
     // Process the groups to merge YOT to SOL transactions
-    const processedTransactions = [];
+    const processedTransactions: any[] = [];
     
-    for (const [, group] of timeGroups.entries()) {
+    // Use Array.from to convert the values iterator to an array to avoid LSP issues
+    Array.from(timeGroups.values()).forEach(group => {
       if (group.length === 1) {
         // Single transaction, add as-is
         processedTransactions.push(group[0]);
       } else {
         // Multiple transactions in the group (potential YOT to SOL swap parts)
         // Use the earliest transaction as the base
-        const baseTransaction = group.reduce((earliest, current) => 
+        const baseTransaction = group.reduce((earliest: any, current: any) => 
           current.timestamp < earliest.timestamp ? current : earliest
         );
         
@@ -938,7 +939,7 @@ export async function getRecentTransactions(address: string, limit: number = 10)
           fee: baseTransaction.fee
         });
       }
-    }
+    });
     
     // Sort by timestamp (newest first)
     return processedTransactions.sort((a, b) => b.timestamp - a.timestamp);

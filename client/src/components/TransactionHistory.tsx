@@ -1,10 +1,24 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { ClipboardIcon } from "lucide-react";
 import { useTransactions } from "@/hooks/useTransactions";
 import { useWallet } from "@/hooks/useSolanaWallet";
 import { formatCurrency, formatTransactionTime } from "@/lib/utils";
 import { EXPLORER_URL, CLUSTER } from "@/lib/constants";
+
+interface ProcessedTransaction {
+  signature: string;
+  timestamp: number;
+  status: string;
+  isSwap: boolean;
+  fromToken: string;
+  toToken: string;
+  fromAmount: number;
+  toAmount: number;
+  fee: number;
+  relatedSignatures?: string[];
+  isGroup?: boolean;
+}
 
 export default function TransactionHistory() {
   const { connected, wallet } = useWallet();
@@ -22,6 +36,73 @@ export default function TransactionHistory() {
       return () => clearInterval(interval);
     }
   }, [connected, wallet, fetchTransactions]);
+  
+  // Process transactions to group YOT to SOL swaps
+  const processedTransactions = useMemo(() => {
+    if (!transactions.length) return [];
+
+    // First pass to find YOT to SOL transactions and group them by time
+    const yotToSolGroups = new Map<number, string[]>();
+    const txMap = new Map<string, any>();
+    
+    // Map all transactions for easy lookup
+    transactions.forEach(tx => {
+      txMap.set(tx.signature, tx);
+      
+      // Find YOT to SOL transactions 
+      if (tx.fromToken === 'YOT' && tx.toToken === 'SOL') {
+        // Group by rounding to closest 2 seconds to catch related txs
+        const timeGroup = Math.floor(tx.timestamp / 2) * 2;
+        if (!yotToSolGroups.has(timeGroup)) {
+          yotToSolGroups.set(timeGroup, []);
+        }
+        yotToSolGroups.get(timeGroup)?.push(tx.signature);
+      }
+    });
+    
+    // Create filtered transaction list
+    const filteredTransactions: ProcessedTransaction[] = [];
+    const processedSignatures = new Set<string>();
+    
+    // Process all transactions
+    transactions.forEach(tx => {
+      // Skip if already processed
+      if (processedSignatures.has(tx.signature)) return;
+      
+      // Check if this is a YOT to SOL transaction
+      if (tx.fromToken === 'YOT' && tx.toToken === 'SOL') {
+        // Find which time group it belongs to
+        const timeGroup = Math.floor(tx.timestamp / 2) * 2;
+        const signatures = yotToSolGroups.get(timeGroup) || [];
+        
+        // If this is part of a multi-transaction group (2+ transactions)
+        if (signatures.length > 1) {
+          // Mark all signatures in this group as processed
+          signatures.forEach(sig => processedSignatures.add(sig));
+          
+          // Add a combined transaction
+          filteredTransactions.push({
+            ...tx,
+            signature: signatures[0], // Use first signature for the ID
+            isSwap: true,
+            relatedSignatures: signatures,
+            isGroup: true
+          });
+        } else {
+          // Single transaction, add normally
+          processedSignatures.add(tx.signature);
+          filteredTransactions.push(tx);
+        }
+      } else {
+        // Regular transaction, add normally
+        processedSignatures.add(tx.signature);
+        filteredTransactions.push(tx);
+      }
+    });
+    
+    // Sort by timestamp (newest first)
+    return filteredTransactions.sort((a, b) => b.timestamp - a.timestamp);
+  }, [transactions]);
 
   return (
     <Card className="bg-dark-100 rounded-xl p-6 shadow-lg">
@@ -49,7 +130,7 @@ export default function TransactionHistory() {
         )}
         
         {/* Show no transactions message */}
-        {!loading && !error && transactions.length === 0 && (
+        {!loading && !error && processedTransactions.length === 0 && (
           <div className="text-center py-6 text-gray-500">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto mb-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -80,7 +161,7 @@ export default function TransactionHistory() {
         )}
         
         {/* Show transactions */}
-        {!loading && !error && transactions.map((tx) => (
+        {!loading && !error && processedTransactions.map((tx) => (
           <div key={tx.signature} className="bg-dark-300 rounded-lg p-4">
             <div className="flex justify-between items-start">
               <div>
