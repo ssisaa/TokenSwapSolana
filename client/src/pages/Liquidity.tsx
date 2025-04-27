@@ -90,9 +90,20 @@ export default function Liquidity() {
           ? `${(pool.yotBalance / 1000000).toFixed(2)}M` 
           : formatCurrency(pool.yotBalance);
         
-        // Format the exchange rate for display
-        const yotPerSolFormatted = pool.yotBalance / solBalanceInSol;
-        const solPerYotFormatted = solBalanceInSol / pool.yotBalance;
+        // Get exchange rates from the API instead of direct calculation
+        // This ensures we're using the same rates across the app
+        const yotPerSolFormatted = rates.yotPerSol || rates.solToYot || (pool.yotBalance / solBalanceInSol);
+        const solPerYotFormatted = rates.solPerYot || rates.yotToSol || (solBalanceInSol / pool.yotBalance);
+        
+        // Format the exchange rates with sensible numbers
+        // If the YOT token supply is extremely large compared to SOL, we need to format it specially
+        const normalizedYotPerSol = yotPerSolFormatted > 10000
+          ? Number(yotPerSolFormatted.toFixed(2))  // Round to 2 decimal places for large numbers
+          : yotPerSolFormatted;
+          
+        const normalizedSolPerYot = solPerYotFormatted > 10000 
+          ? Number(solPerYotFormatted.toFixed(8))  // More precision for SOL (as it's more valuable)
+          : solPerYotFormatted;
         
         // Update the pool stats
         setPoolStats({
@@ -108,12 +119,12 @@ export default function Liquidity() {
           yotBalance: `${formattedYotBalance} YOT (${yotValuePercent.toFixed(1)}%)`,
           solBalance: `${formatCurrency(solBalanceInSol)} SOL (${solValuePercent.toFixed(1)}%)`,
           
-          // Exchange rates formatted for display
-          exchangeRateYotToSol: `${yotPerSolFormatted.toLocaleString()} : 1`,
-          exchangeRateSolToYot: `1 : ${yotPerSolFormatted.toLocaleString()}`,
+          // Exchange rates formatted for display - using fixed decimal formatting
+          exchangeRateYotToSol: `${normalizedYotPerSol.toFixed(2)} : 1`,
+          exchangeRateSolToYot: `1 : ${normalizedYotPerSol.toFixed(2)}`,
           
-          yotPerSol: `${formatCurrency(yotPerSolFormatted)} YOT per SOL`,
-          solPerYot: `1 SOL per ${formatCurrency(yotPerSolFormatted)} YOT`,
+          yotPerSol: `${normalizedYotPerSol.toFixed(2)} YOT per SOL`,
+          solPerYot: `1 SOL per ${normalizedYotPerSol.toFixed(2)} YOT`,
           
           yotUsdPrice: `$${yotPriceUsd.toFixed(8)}`,
           poolHealth: totalLiquidityValue > 1000 ? "Excellent" : "Good",
