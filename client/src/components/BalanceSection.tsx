@@ -56,6 +56,7 @@ export default function BalanceSection() {
           symbol={YOT_SYMBOL}
           name="YOT Token"
           balance={balances.yot}
+          additionalInfo={balances.yotUsd ? formatDollarAmount(balances.yotUsd) : ""}
           address={YOT_TOKEN_ADDRESS}
           gradient="bg-gradient-to-br from-blue-900 to-blue-800"
           icon={
@@ -70,6 +71,7 @@ export default function BalanceSection() {
           symbol={YOS_SYMBOL}
           name="YOS Staking Token"
           balance={balances.yos}
+          additionalInfo={balances.yosUsd ? formatDollarAmount(balances.yosUsd) : ""}
           address={YOS_TOKEN_ADDRESS}
           gradient="bg-gradient-to-br from-green-900 to-green-800"
           icon={

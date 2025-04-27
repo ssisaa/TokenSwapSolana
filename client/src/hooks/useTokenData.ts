@@ -35,13 +35,15 @@ interface Balances {
   sol: number;
   solUsd: number;
   yot: number;
+  yotUsd: number;
   yos: number;
+  yosUsd: number;
 }
 
 export function useTokenData() {
   const [tokenData, setTokenData] = useState<TokenData>({ yot: null, yos: null });
   const [poolData, setPoolData] = useState<PoolData>({ solBalance: null, yotBalance: null });
-  const [balances, setBalances] = useState<Balances>({ sol: 0, solUsd: 0, yot: 0, yos: 0 });
+  const [balances, setBalances] = useState<Balances>({ sol: 0, solUsd: 0, yot: 0, yotUsd: 0, yos: 0, yosUsd: 0 });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -100,11 +102,22 @@ export function useTokenData() {
       const solPrice = 100; // Mock price in USD
       const solUsdValue = solBalance * solPrice;
       
+      // Calculate YOT and YOS USD values based on their exchange rate with SOL
+      // In a real app, we would fetch prices from an oracle
+      // Here we use a simple calculation relative to SOL
+      const yotExchangeRate = 0.00001; // YOT to SOL rate
+      const yosExchangeRate = 0.005;   // YOS to SOL rate
+      
+      const yotUsdValue = yotBalance * yotExchangeRate * solPrice;
+      const yosUsdValue = yosBalance * yosExchangeRate * solPrice;
+      
       setBalances({
         sol: solBalance,
         solUsd: solUsdValue,
         yot: yotBalance,
-        yos: yosBalance
+        yotUsd: yotUsdValue,
+        yos: yosBalance,
+        yosUsd: yosUsdValue
       });
     } catch (error) {
       console.error("Error fetching balances:", error);
