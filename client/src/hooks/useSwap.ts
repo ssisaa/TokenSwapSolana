@@ -38,9 +38,24 @@ export function useSwap() {
   // Function to update exchange rate display
   const updateExchangeRate = useCallback(async () => {
     try {
-      // For YOS to YOT, we have a fixed 1:10 ratio
+      // For YOS to YOT, we use actual pool data now instead of fixed 1:10 ratio
       if (fromToken === YOS_SYMBOL && toToken === YOT_SYMBOL) {
-        setExchangeRate(`1 YOS = 10 YOT`);
+        const { getPoolBalances } = await import("@/lib/solana");
+        try {
+          const poolData = await getPoolBalances();
+          
+          if (poolData.yotBalance && poolData.yosBalance && poolData.yosBalance > 0) {
+            const ratio = poolData.yotBalance / poolData.yosBalance;
+            setExchangeRate(`1 YOS = ${ratio.toFixed(4)} YOT`);
+            console.log(`YOS to YOT ratio from pools: ${ratio} (${poolData.yotBalance} YOT / ${poolData.yosBalance} YOS)`);
+          } else {
+            // Fallback to a message if we can't get pool data
+            setExchangeRate(`YOS:YOT rate unavailable`);
+          }
+        } catch (error) {
+          console.error("Error fetching YOS:YOT pool data:", error);
+          setExchangeRate(`YOS:YOT rate unavailable`);
+        }
         return;
       }
       
@@ -76,8 +91,9 @@ export function useSwap() {
         } else if (fromToken === YOS_SYMBOL && toToken === YOT_SYMBOL) {
           setFromBalance(yosBalance);
           setToBalance(yotBalance);
-          // Set exchange rate for YOS to YOT (1 YOS = 10 YOT)
-          setExchangeRate(`1 YOS = 10 YOT`);
+          // Exchange rate for YOS to YOT is set in updateExchangeRate function
+          // Let's call it here to ensure the rate is displayed
+          updateExchangeRate();
         }
       } catch (error) {
         console.error("Error updating balances:", error);
@@ -110,20 +126,22 @@ export function useSwap() {
     }
     
     try {
-      let calculatedAmount;
+      let result: number;
       
       if (fromToken === SOL_SYMBOL && toToken === YOT_SYMBOL) {
-        calculatedAmount = await calculateSolToYot(amount);
+        result = await calculateSolToYot(amount);
       } else if (fromToken === YOT_SYMBOL && toToken === SOL_SYMBOL) {
-        calculatedAmount = await calculateYotToSol(amount);
+        result = await calculateYotToSol(amount);
       } else if (fromToken === YOS_SYMBOL && toToken === YOT_SYMBOL) {
-        // Use the dedicated conversion function
-        calculatedAmount = calculateYosToYot(amount);
+        // Use the dedicated conversion function which is now async
+        result = await calculateYosToYot(amount);
       } else {
         throw new Error("Unsupported token pair");
       }
       
-      setToAmount(calculatedAmount);
+      // Convert result to a number and set it as the toAmount
+      const numericResult = typeof result === 'number' ? result : 0;
+      setToAmount(numericResult);
     } catch (error) {
       console.error("Error calculating swap amount:", error);
       setToAmount("");
@@ -138,27 +156,29 @@ export function useSwap() {
     }
     
     try {
-      let calculatedAmount;
+      let result: number;
       
       // This is a simplification - in a real app you'd need a more accurate calculation
       // that accounts for the swap fee in both directions
       if (toToken === YOT_SYMBOL && fromToken === SOL_SYMBOL) {
         // If we want X YOT, how much SOL do we need?
         const rate = await getExchangeRate();
-        calculatedAmount = amount / rate.solToYot / (1 - 0.003); // Accounting for fee
+        result = amount / rate.solToYot / (1 - 0.003); // Accounting for fee
       } else if (toToken === SOL_SYMBOL && fromToken === YOT_SYMBOL) {
         // If we want X SOL, how much YOT do we need?
         const rate = await getExchangeRate();
-        calculatedAmount = amount / rate.yotToSol / (1 - 0.003); // Accounting for fee
+        result = amount / rate.yotToSol / (1 - 0.003); // Accounting for fee
       } else if (toToken === YOT_SYMBOL && fromToken === YOS_SYMBOL) {
-        // Use the dedicated conversion function - YOT to YOS
-        // If we want X YOT, we need X/10 YOS (since 1 YOS = 10 YOT)
-        calculatedAmount = calculateYotToYos(amount);
+        // Use the dedicated conversion function - YOT to YOS (now async)
+        // If we want X YOT tokens, we need to calculate how many YOS based on pool ratio
+        result = await calculateYotToYos(amount);
       } else {
         throw new Error("Unsupported token pair");
       }
       
-      setFromAmount(calculatedAmount);
+      // Convert result to a number and set it as the fromAmount
+      const numericResult = typeof result === 'number' ? result : 0;
+      setFromAmount(numericResult);
     } catch (error) {
       console.error("Error calculating swap amount:", error);
       setFromAmount("");
@@ -228,15 +248,15 @@ export function useSwap() {
         console.log(`Transaction completed with signature: ${result.signature}`);
         console.log(`Expected to receive ${expectedAmount} SOL tokens`);
       } else if (fromToken === YOS_SYMBOL && toToken === YOT_SYMBOL) {
-        console.log(`Processing ${sentAmount} YOS to YOT conversion at 1:10 ratio...`);
+        console.log(`Processing ${sentAmount} YOS to YOT conversion based on pool ratio...`);
         
         // For YOS to YOT, we'll use a similar process to YOT to SOL
         // as both are token-to-token transfers
         result = {
-          signature: "YOS_TO_YOT_FIXED_RATIO",
+          signature: "YOS_TO_YOT_POOL_RATIO",
           fromAmount: sentAmount,
           fromToken: fromToken,
-          toAmount: expectedAmount, // This should be amount * 10 due to 1:10 ratio
+          toAmount: expectedAmount, // Calculated from pool ratio
           toToken: toToken,
           fee: feeAmount
         };
@@ -245,7 +265,7 @@ export function useSwap() {
         // This would involve sending YOS tokens to a liquidity pool or contract
         
         console.log(`Transaction simulated - YOS to YOT conversion`);
-        console.log(`Expected to receive ${expectedAmount} YOT tokens at 1:10 ratio`);
+        console.log(`Expected to receive ${expectedAmount} YOT tokens based on pool ratio`);
       } else {
         throw new Error("Unsupported token pair");
       }
