@@ -127,7 +127,7 @@ export default function Dashboard() {
             <h3 className="text-gray-400 text-sm">YOT Price</h3>
             <div className="mt-1">
               <span className="text-xl font-semibold text-white">
-                $0.0000
+                ${priceData.yotPrice.toFixed(8)}
               </span>
               <span className="ml-2 text-green-500 text-sm">+2.5%</span>
             </div>
@@ -137,7 +137,7 @@ export default function Dashboard() {
             <h3 className="text-gray-400 text-sm">YOS Price</h3>
             <div className="mt-1">
               <span className="text-xl font-semibold text-white">
-                $0.0000
+                ${priceData.yosPrice.toFixed(8)}
               </span>
               <span className="ml-2 text-green-500 text-sm">+1.1%</span>
             </div>
@@ -157,9 +157,9 @@ export default function Dashboard() {
             <h3 className="text-gray-400 text-sm">Total Liquidity</h3>
             <div className="mt-1">
               <span className="text-xl font-semibold text-white">
-                $3795.03
+                ${formatCurrency(priceData.totalLiquidity)}
               </span>
-              <span className="ml-2 text-green-500 text-sm">+$198.00 (24h)</span>
+              <span className="ml-2 text-green-500 text-sm">{priceData.liquidityChange}</span>
             </div>
           </Card>
         </div>

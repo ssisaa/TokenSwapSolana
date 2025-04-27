@@ -214,7 +214,10 @@ export default function Liquidity() {
                   <span className="text-white">{poolStats.yotBalance}</span>
                 </div>
                 <div className="h-2 bg-dark-400 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-500 rounded-full" style={{ width: poolStats.yotPercentage }}></div>
+                  <div className="h-full bg-blue-500 rounded-full" 
+                      style={{ width: poolStats.yotPercentage }}
+                      title={`YOT makes up ${poolStats.yotPercentage} of the pool's value`}>
+                  </div>
                 </div>
               </div>
               
@@ -224,7 +227,10 @@ export default function Liquidity() {
                   <span className="text-white">{poolStats.solBalance}</span>
                 </div>
                 <div className="h-2 bg-dark-400 rounded-full overflow-hidden">
-                  <div className="h-full bg-amber-600 rounded-full" style={{ width: poolStats.solPercentage }}></div>
+                  <div className="h-full bg-amber-600 rounded-full" 
+                      style={{ width: poolStats.solPercentage }}
+                      title={`SOL makes up ${poolStats.solPercentage} of the pool's value`}>
+                  </div>
                 </div>
               </div>
             </div>

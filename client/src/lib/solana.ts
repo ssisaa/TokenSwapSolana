@@ -147,7 +147,7 @@ export async function getPoolBalances() {
   }
 }
 
-// Calculate the exchange rate between SOL and YOT
+// Calculate the exchange rate between SOL and YOT using AMM formula
 export async function getExchangeRate() {
   try {
     const { solBalance, yotBalance } = await getPoolBalances();
@@ -156,30 +156,50 @@ export async function getExchangeRate() {
     if (solBalance === 0 || yotBalance === 0) {
       return {
         solToYot: 0,
-        yotToSol: 0
+        yotToSol: 0,
+        yotPerSol: 0,
+        solPerYot: 0,
+        rate: 0
       };
     }
     
+    // Calculate exchange rates using AMM formula (x * y = k)
     const solToYot = yotBalance / solBalance;
     const yotToSol = solBalance / yotBalance;
     
+    // Format for display
+    const yotPerSol = solToYot;
+    const solPerYot = yotToSol;
+    
     return {
-      solToYot,
-      yotToSol
+      solToYot,       // Used by swap functions
+      yotToSol,       // Used by swap functions
+      yotPerSol,      // For UI display
+      solPerYot,      // For UI display
+      rate: solToYot  // General rate
     };
   } catch (error) {
     console.error('Error calculating exchange rate:', error);
-    throw error;
+    return {
+      solToYot: 0,
+      yotToSol: 0,
+      yotPerSol: 0,
+      solPerYot: 0,
+      rate: 0
+    };
   }
 }
 
 // Calculate the amount of YOT received for a given SOL amount
 export async function calculateSolToYot(solAmount: number) {
   try {
-    const { solToYot } = await getExchangeRate();
+    const { solToYot, yotPerSol } = await getExchangeRate();
+    // Use solToYot for consistency with existing code
+    const rate = solToYot !== 0 ? solToYot : yotPerSol;
+    
     const fee = solAmount * SWAP_FEE;
     const solAmountAfterFee = solAmount - fee;
-    return solAmountAfterFee * solToYot;
+    return solAmountAfterFee * rate;
   } catch (error) {
     console.error('Error calculating SOL to YOT:', error);
     throw error;
@@ -189,8 +209,11 @@ export async function calculateSolToYot(solAmount: number) {
 // Calculate the amount of SOL received for a given YOT amount
 export async function calculateYotToSol(yotAmount: number) {
   try {
-    const { yotToSol } = await getExchangeRate();
-    const solBeforeFee = yotAmount * yotToSol;
+    const { yotToSol, solPerYot } = await getExchangeRate();
+    // Use yotToSol for consistency with existing code
+    const rate = yotToSol !== 0 ? yotToSol : solPerYot;
+    
+    const solBeforeFee = yotAmount * rate;
     const fee = solBeforeFee * SWAP_FEE;
     return solBeforeFee - fee;
   } catch (error) {
