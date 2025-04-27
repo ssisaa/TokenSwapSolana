@@ -422,9 +422,22 @@ export async function getRecentTransactions(address: string, limit: number = 10)
             // Check if transaction involved the pool SOL account
             const poolSolAccountStr = POOL_SOL_ACCOUNT;
             // Get account keys based on transaction version
-            const accountKeys = txDetails.transaction.message.getAccountKeys 
-              ? txDetails.transaction.message.getAccountKeys().map((key: PublicKey) => key.toBase58()) 
-              : [];
+            let accountKeys: string[] = [];
+            if (txDetails.transaction.message) {
+              const keys = txDetails.transaction.message.getAccountKeys 
+                ? txDetails.transaction.message.getAccountKeys() 
+                : null;
+              
+              if (keys) {
+                // Convert to string array safely
+                for (let i = 0; i < keys.length; i++) {
+                  const pubkey = keys.get(i);
+                  if (pubkey) {
+                    accountKeys.push(pubkey.toBase58());
+                  }
+                }
+              }
+            }
             
             isSwap = accountKeys.includes(poolSolAccountStr);
             

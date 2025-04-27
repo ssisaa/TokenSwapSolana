@@ -297,7 +297,8 @@ export default function SwapSection() {
             <AlertTitle className="text-xs">Connected to Solana {CLUSTER}</AlertTitle>
           </div>
           <AlertDescription className="text-xs text-gray-400 mt-1">
-            This is a demo application using real token addresses.
+            <p>DEMO MODE: Transactions are simulated. In a real application, the swap would be handled by a deployed smart contract with token swap instructions.</p>
+            <p className="mt-1">The interface is connecting to real Solana addresses and showing accurate balances and rates.</p>
           </AlertDescription>
         </Alert>
 
@@ -327,9 +328,10 @@ export default function SwapSection() {
         {transactionState === 'success' && (
           <Alert className="bg-green-900/30 border-green-800 text-green-200">
             <CheckCircle2 className="h-4 w-4 mr-2" />
-            <AlertTitle>Transaction Successful</AlertTitle>
+            <AlertTitle>Demo Transaction Processed</AlertTitle>
             <AlertDescription>
-              Your swap has been completed! The tokens will appear in your wallet shortly.
+              <p>Transaction simulation completed. In this demo, we've created a successful transaction on Solana but no actual token swap has occurred.</p>
+              <p className="mt-1 text-xs">In a production app with a deployed swap program, real tokens would be exchanged.</p>
             </AlertDescription>
           </Alert>
         )}

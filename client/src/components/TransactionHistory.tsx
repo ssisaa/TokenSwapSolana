@@ -48,7 +48,16 @@ export default function TransactionHistory() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             <p>No transactions found</p>
-            <p className="text-sm">Your recent transactions will appear here</p>
+            <p className="text-sm">Recent transactions made with your wallet will appear here</p>
+            
+            <div className="mt-4 py-2 px-3 bg-dark-300 rounded-lg text-xs">
+              <p className="font-medium text-primary-400">Demo Mode</p>
+              <p className="mt-1 text-gray-400">
+                In this demo, simulated swaps don't appear in your transaction history. 
+                In a real application with a deployed smart contract, real swaps would 
+                be recorded on-chain and would appear here.
+              </p>
+            </div>
           </div>
         )}
         

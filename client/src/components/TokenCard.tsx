@@ -22,22 +22,39 @@ export default function TokenCard({
   gradient
 }: TokenCardProps) {
   return (
-    <Card className={`${gradient} rounded-xl p-5 shadow-lg`}>
-      <div className="flex items-center mb-3">
-        <div className="bg-white/10 rounded-full p-2 mr-3">
+    <Card className={`${gradient} rounded-xl p-6 shadow-lg relative overflow-hidden group transition-all duration-300 hover:shadow-xl hover:scale-[1.02]`}>
+      {/* Animated gradient overlay */}
+      <div className="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity duration-300">
+        <div className="absolute -inset-[100%] bg-gradient-to-r from-transparent via-white/5 to-transparent animate-[shimmer_4s_infinite]"></div>
+      </div>
+      
+      <div className="flex items-center mb-4 relative z-10">
+        <div className="bg-white/10 backdrop-blur-sm rounded-full p-3 mr-4 shadow-inner">
           {icon}
         </div>
         <div>
-          <h3 className="font-bold text-white">{symbol}</h3>
-          <span className="text-xs text-gray-300">
-            {address ? address.substring(0, 8) + '...' : name}
-          </span>
+          <h3 className="font-bold text-xl text-white">{symbol}</h3>
+          <div className="flex items-center text-xs text-gray-300">
+            {address ? (
+              <>
+                <span className="font-mono">{address.substring(0, 8)}...</span>
+                <div className="w-1 h-1 bg-gray-500 rounded-full mx-2"></div>
+                <span>{name}</span>
+              </>
+            ) : (
+              <span>{name}</span>
+            )}
+          </div>
         </div>
       </div>
-      <div className="mt-2">
-        <span className="text-2xl font-bold text-white">{formatCurrency(balance)}</span>
+      
+      <div className="mt-3 relative z-10">
+        <div className="flex items-baseline">
+          <span className="text-3xl font-bold text-white">{formatCurrency(balance)}</span>
+          <span className="text-sm ml-2 text-gray-300 opacity-80">{symbol}</span>
+        </div>
         {additionalInfo && (
-          <span className="text-xs ml-1 text-gray-300">{additionalInfo}</span>
+          <div className="text-xs mt-1 text-gray-300 opacity-80">{additionalInfo}</div>
         )}
       </div>
     </Card>
