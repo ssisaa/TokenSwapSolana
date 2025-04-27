@@ -249,22 +249,43 @@ export async function stakeYOTTokens(
     );
 
     // Find program state address
-    const [programStateAddress] = PublicKey.findProgramAddressSync(
+    const [programStateAddress, programStateBump] = PublicKey.findProgramAddressSync(
       [Buffer.from("state")],
       STAKING_PROGRAM_ID
     );
     
     // Find user staking account address
-    const [userStakingAddress] = PublicKey.findProgramAddressSync(
+    const [userStakingAddress, userStakingBump] = PublicKey.findProgramAddressSync(
       [Buffer.from('staking'), userPublicKey.toBuffer()],
       STAKING_PROGRAM_ID
     );
     
     // Find program authority address
-    const [programAuthorityAddress] = PublicKey.findProgramAddressSync(
+    const [programAuthorityAddress, programAuthorityBump] = PublicKey.findProgramAddressSync(
       [Buffer.from('authority')],
       STAKING_PROGRAM_ID
     );
+    
+    // Debug logging
+    console.log('=== DEBUG INFO ===');
+    console.log('Program ID:', STAKING_PROGRAM_ID.toBase58());
+    console.log('User pubkey:', userPublicKey.toBase58());
+    console.log('YOT mint address:', YOT_TOKEN_ADDRESS);
+    console.log('User YOT account:', userYotTokenAccount.toBase58());
+    console.log('Program state address:', programStateAddress.toBase58(), 'bump:', programStateBump);
+    console.log('User staking address:', userStakingAddress.toBase58(), 'bump:', userStakingBump);
+    console.log('Program authority address:', programAuthorityAddress.toBase58(), 'bump:', programAuthorityBump);
+    
+    // Check if program state exists first
+    const programStateInfo = await connection.getAccountInfo(programStateAddress);
+    if (!programStateInfo) {
+      console.log('Program state account does not exist. Program may not be initialized.');
+      toast({
+        title: "Program Not Initialized",
+        description: "The staking program has not been initialized yet. Please contact an admin."
+      });
+      throw new Error('Program state account does not exist');
+    }
     
     // Get program token account
     const programYotTokenAccount = await getAssociatedTokenAddress(
@@ -272,18 +293,31 @@ export async function stakeYOTTokens(
       programAuthorityAddress,
       true // allowOwnerOffCurve
     );
+    console.log('Program YOT account:', programYotTokenAccount.toBase58());
     
-    // Create the stake instruction
+    // Check if the program token account exists
+    const programTokenAccountInfo = await connection.getAccountInfo(programYotTokenAccount);
+    if (!programTokenAccountInfo) {
+      console.log('Program token account does not exist. It may need to be created.');
+    }
+
+    // Create the stake instruction with more careful key order
     const stakeInstruction = new TransactionInstruction({
       keys: [
-        { pubkey: userPublicKey, isSigner: true, isWritable: true },
-        { pubkey: userYotTokenAccount, isSigner: false, isWritable: true },
-        { pubkey: programYotTokenAccount, isSigner: false, isWritable: true },
-        { pubkey: userStakingAddress, isSigner: false, isWritable: true },
-        { pubkey: programStateAddress, isSigner: false, isWritable: false },
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }
+        // User accounts
+        { pubkey: userPublicKey, isSigner: true, isWritable: true }, // User wallet, paying for transaction
+        { pubkey: userYotTokenAccount, isSigner: false, isWritable: true }, // User's YOT token account
+        { pubkey: userStakingAddress, isSigner: false, isWritable: true }, // PDA to track user staking info
+        
+        // Program accounts
+        { pubkey: programStateAddress, isSigner: false, isWritable: false }, // Program state PDA 
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }, // Program authority PDA
+        { pubkey: programYotTokenAccount, isSigner: false, isWritable: true }, // Program's YOT token account
+        
+        // System accounts
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // System program for account creation 
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // Token program for transfers
+        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false } // Rent
       ],
       programId: STAKING_PROGRAM_ID,
       data: encodeStakeInstruction(amount)
@@ -299,8 +333,11 @@ export async function stakeYOTTokens(
     // Request signature from user (this triggers a wallet signature request)
     const signedTransaction = await wallet.signTransaction(transaction);
     
+    console.log('Transaction serialized and ready to send');
+    
     // Send signed transaction
     const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+    console.log('Transaction sent with signature:', signature);
     
     // Confirm transaction
     await connection.confirmTransaction(signature, 'confirmed');
@@ -313,11 +350,33 @@ export async function stakeYOTTokens(
     return signature;
   } catch (error) {
     console.error('Error staking tokens:', error);
-    toast({
-      title: "Staking Failed",
-      description: error.message,
-      variant: "destructive"
-    });
+    
+    // More detailed error handling
+    if (error instanceof Error) {
+      let errorMessage = error.message;
+      
+      // Check for specific error patterns
+      if (errorMessage.includes('Failed to serialize or deserialize account data')) {
+        errorMessage = 'Account data format mismatch. The program may need to be redeployed or initialized.';
+      } else if (errorMessage.includes('Invalid param: could not find account')) {
+        errorMessage = 'One of the required accounts does not exist. Program may need initialization.';
+      } else if (errorMessage.includes('Insufficient funds')) {
+        errorMessage = 'Insufficient SOL to pay for transaction fees or account creation.';
+      }
+      
+      toast({
+        title: "Staking Failed",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Staking Failed",
+        description: "Unknown error occurred",
+        variant: "destructive"
+      });
+    }
+    
     throw error;
   }
 }

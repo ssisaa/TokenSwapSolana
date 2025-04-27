@@ -330,7 +330,7 @@ export default function AdminSettings() {
             </AccordionItem>
           </Accordion>
           
-          <div className="mt-6">
+          <div className="mt-6 space-y-4">
             <Button 
               type="submit" 
               className="w-full"
@@ -344,6 +344,58 @@ export default function AdminSettings() {
               ) : (
                 "Save Changes"
               )}
+            </Button>
+            
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">
+                  Advanced Actions
+                </span>
+              </div>
+            </div>
+            
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => {
+                // Show confirmation dialog here
+                if (window.confirm("Are you sure you want to initialize the staking program? This will reset all staking data.")) {
+                  import("@/lib/solana-staking").then(({ initializeStakingProgram }) => {
+                    // We need to get the wallet from somewhere
+                    // For now we assume we have access to window.solana
+                    const wallet = window.solana;
+                    if (!wallet) {
+                      alert("Please connect your wallet first");
+                      return;
+                    }
+                    
+                    // Use the current staking rate values
+                    const stakeRatePerSecond = parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).second);
+                    const harvestThresholdValue = parseInt(harvestThreshold);
+                    
+                    // Convert to basis points for the program (since we're working with percentages)
+                    const stakeRateInBasisPoints = Math.floor(stakeRatePerSecond * 10000);
+                    
+                    // Call the initialization function
+                    initializeStakingProgram(
+                      wallet, 
+                      stakeRateInBasisPoints,
+                      harvestThresholdValue
+                    ).then(signature => {
+                      alert(`Program initialized successfully! Transaction: ${signature}`);
+                    }).catch(error => {
+                      console.error("Error initializing program:", error);
+                      alert(`Failed to initialize program: ${error.message}`);
+                    });
+                  });
+                }
+              }}
+            >
+              Initialize Staking Program
             </Button>
           </div>
         </form>
