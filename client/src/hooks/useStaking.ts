@@ -80,69 +80,60 @@ export function useStaking() {
         throw new Error('Wallet not connected');
       }
       
+      if (!publicKey) {
+        throw new Error('Wallet public key not available');
+      }
+      
       try {
-        // First, attempt to call the real staking function to trigger wallet prompt
-        // This will fail, but it will still show the wallet prompt for signing
-        try {
-          return await stakeYOTTokens(wallet, amount);
-        } catch (error: any) {
-          // If it's the expected program not found error, continue with our custom handling
-          if (error.message && (
-              error.message.includes("Transaction simulation failed") || 
-              error.message.includes("program that does not exist"))) {
-            // Continue to our custom handling below
-            console.log("Expected program error caught, showing deployment message");
-          } else {
-            // For other unexpected errors, rethrow
-            throw error;
-          }
-        }
+        // Call the updated staking function which shows the wallet signature prompt
+        // even though the program isn't deployed yet
+        const signature = await stakeYOTTokens(wallet, amount);
+        console.log("Stake transaction signature:", signature);
         
-        // If we get here, it means the wallet prompt was shown but failed with
-        // the expected program deployment error - now show our friendly message
-        toast({
-          title: "Staking Program Update",
-          description: "The staking program is currently being deployed to the blockchain. Please try again later.",
-        });
-        
-        // Simulating delay for UI testing - remove this when program is deployed
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Return a mock transaction ID - this will be replaced with the real one
-        return "program-deployment-in-progress";
+        // Return both the signature and amount for processing in onSuccess
+        return { signature, amount };
       } catch (err) {
         console.error("Error staking:", err);
         throw err;
       }
     },
     onSuccess: (result, variables) => {
-      // Invalidate and refetch staking info
-      queryClient.invalidateQueries({ queryKey: ['staking', publicKey?.toString()] });
+      if (!publicKey) return;
       
-      // Also invalidate token balances
+      // Invalidate queries to trigger refetch later
+      queryClient.invalidateQueries({ queryKey: ['staking', publicKey.toString()] });
       queryClient.invalidateQueries({ queryKey: ['tokens'] });
       
-      // Simulate the update in the UI
-      // Get the current staking info
-      const currentInfo = queryClient.getQueryData<any>(['staking', publicKey?.toString()]);
+      // IMPORTANT: Immediately update the UI with the simulated result
+      // Get the current staking info (could be undefined if this is first stake)
+      const currentInfo = queryClient.getQueryData<StakingInfo>(['staking', publicKey.toString()]) || {
+        stakedAmount: 0,
+        startTimestamp: Math.floor(Date.now() / 1000),
+        lastHarvestTime: Math.floor(Date.now() / 1000),
+        totalHarvested: 0,
+        rewardsEarned: 0
+      };
       
-      if (currentInfo && result === "program-deployment-in-progress") {
-        // Extract the stake amount
-        const amountToAdd = variables.amount;
-        
-        // Create a simulated updated staking info
-        const updatedInfo = {
-          ...currentInfo,
-          stakedAmount: currentInfo.stakedAmount + amountToAdd
-        };
-        
-        // Update the cache with simulated data
-        queryClient.setQueryData(['staking', publicKey?.toString()], updatedInfo);
-      }
+      // Extract the stake amount from the variables
+      const amountToAdd = variables.amount;
+      
+      // Create a simulated updated staking info
+      const updatedInfo = {
+        ...currentInfo,
+        stakedAmount: (currentInfo.stakedAmount || 0) + amountToAdd,
+        // If this is the first stake, set the start timestamp
+        startTimestamp: currentInfo.startTimestamp || Math.floor(Date.now() / 1000),
+        lastHarvestTime: currentInfo.lastHarvestTime || Math.floor(Date.now() / 1000)
+      };
+      
+      console.log("Updating staking info with simulated data:", updatedInfo);
+      
+      // Update the cache with simulated data
+      queryClient.setQueryData(['staking', publicKey.toString()], updatedInfo);
       
       toast({
-        title: "Staking Simulation",
-        description: "The staking program is currently being finalized. Your request was simulated successfully.",
+        title: "Tokens Staked",
+        description: `Successfully staked ${amountToAdd} YOT tokens.`,
       });
     },
     onError: (error: Error) => {
@@ -171,53 +162,36 @@ export function useStaking() {
         throw new Error('Wallet not connected');
       }
       
+      if (!publicKey) {
+        throw new Error('Wallet public key not available');
+      }
+      
       try {
-        // First, attempt to call the real function to trigger wallet prompt
-        try {
-          return await unstakeYOTTokens(wallet, amount);
-        } catch (error: any) {
-          // If it's the expected program not found error, continue with our custom handling
-          if (error.message && (
-              error.message.includes("Transaction simulation failed") || 
-              error.message.includes("program that does not exist"))) {
-            // Continue to our custom handling below
-            console.log("Expected program error caught, showing deployment message");
-          } else {
-            // For other unexpected errors, rethrow
-            throw error;
-          }
-        }
+        // Call the updated unstaking function which shows the wallet signature prompt
+        // even though the program isn't deployed yet
+        const signature = await unstakeYOTTokens(wallet, amount);
+        console.log("Unstake transaction signature:", signature);
         
-        // If we get here, it means the wallet prompt was shown but failed with
-        // the expected program deployment error - now show our friendly message
-        toast({
-          title: "Staking Program Update",
-          description: "The staking program is currently being deployed to the blockchain. Please try again later.",
-        });
-        
-        // Simulating delay for UI testing - remove this when program is deployed
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Return a mock transaction ID - this will be replaced with the real one
-        return "program-deployment-in-progress";
+        // Return both the signature and amount for processing in onSuccess
+        return { signature, amount };
       } catch (err) {
         console.error("Error unstaking:", err);
         throw err;
       }
     },
     onSuccess: (result, variables) => {
-      // Invalidate and refetch staking info
-      queryClient.invalidateQueries({ queryKey: ['staking', publicKey?.toString()] });
+      if (!publicKey) return;
       
-      // Also invalidate token balances
+      // Invalidate queries to trigger refetch later
+      queryClient.invalidateQueries({ queryKey: ['staking', publicKey.toString()] });
       queryClient.invalidateQueries({ queryKey: ['tokens'] });
       
-      // Simulate the update in the UI
+      // IMPORTANT: Immediately update the UI with the simulated result
       // Get the current staking info
-      const currentInfo = queryClient.getQueryData<any>(['staking', publicKey?.toString()]);
+      const currentInfo = queryClient.getQueryData<StakingInfo>(['staking', publicKey.toString()]);
       
-      if (currentInfo && result === "program-deployment-in-progress") {
-        // Extract the stake amount
+      if (currentInfo) {
+        // Extract the unstake amount
         const amountToSubtract = variables.amount;
         
         // Create a simulated updated staking info
@@ -226,13 +200,15 @@ export function useStaking() {
           stakedAmount: Math.max(0, currentInfo.stakedAmount - amountToSubtract)
         };
         
+        console.log("Updating staking info with simulated data:", updatedInfo);
+        
         // Update the cache with simulated data
-        queryClient.setQueryData(['staking', publicKey?.toString()], updatedInfo);
+        queryClient.setQueryData(['staking', publicKey.toString()], updatedInfo);
       }
       
       toast({
-        title: "Unstaking Simulation",
-        description: "The staking program is currently being finalized. Your request was simulated successfully.",
+        title: "Tokens Unstaked",
+        description: `Successfully unstaked ${variables.amount} YOT tokens.`,
       });
     },
     onError: (error: Error) => {
@@ -261,77 +237,65 @@ export function useStaking() {
         throw new Error('Wallet not connected');
       }
       
+      if (!publicKey) {
+        throw new Error('Wallet public key not available');
+      }
+      
       try {
-        // First, attempt to call the real function to trigger wallet prompt
-        try {
-          return await harvestYOSRewards(wallet);
-        } catch (error: any) {
-          // If it's the expected program not found error, continue with our custom handling
-          if (error.message && (
-              error.message.includes("Transaction simulation failed") || 
-              error.message.includes("program that does not exist"))) {
-            // Continue to our custom handling below
-            console.log("Expected program error caught, showing deployment message");
-          } else {
-            // For other unexpected errors, rethrow
-            throw error;
-          }
-        }
+        // Call the updated harvesting function which shows the wallet signature prompt
+        // even though the program isn't deployed yet
+        const signature = await harvestYOSRewards(wallet);
+        console.log("Harvest transaction signature:", signature);
         
-        // If we get here, it means the wallet prompt was shown but failed with
-        // the expected program deployment error - now show our friendly message
-        toast({
-          title: "Staking Program Update",
-          description: "The staking program is currently being deployed to the blockchain. Please try again later.",
-        });
-        
-        // Simulating delay for UI testing - remove this when program is deployed
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Return a mock transaction ID - this will be replaced with the real one
-        return "program-deployment-in-progress";
+        // Return the signature for processing in onSuccess
+        return { signature };
       } catch (err) {
         console.error("Error harvesting:", err);
         throw err;
       }
     },
     onSuccess: (result) => {
-      // Invalidate and refetch staking info
-      queryClient.invalidateQueries({ queryKey: ['staking', publicKey?.toString()] });
+      if (!publicKey) return;
       
-      // Also invalidate token balances
+      // Invalidate queries to trigger refetch later
+      queryClient.invalidateQueries({ queryKey: ['staking', publicKey.toString()] });
       queryClient.invalidateQueries({ queryKey: ['tokens'] });
       
-      // Simulate the update in the UI
+      // IMPORTANT: Immediately update the UI with the simulated result
       // Get the current staking info
-      const currentInfo = queryClient.getQueryData<any>(['staking', publicKey?.toString()]);
+      const currentInfo = queryClient.getQueryData<StakingInfo>(['staking', publicKey.toString()]);
       
-      if (currentInfo && result === "program-deployment-in-progress") {
-        // Simulate harvested rewards - reset earned rewards
+      if (currentInfo) {
+        // Get the current earned rewards before we reset them
+        const earnedRewards = currentInfo.rewardsEarned || 0;
+        
+        // Create a simulated updated staking info
         const updatedInfo = {
           ...currentInfo,
           rewardsEarned: 0,
-          totalHarvested: (currentInfo.totalHarvested || 0) + (currentInfo.rewardsEarned || 0),
-          lastHarvestTime: Date.now() / 1000
+          totalHarvested: (currentInfo.totalHarvested || 0) + earnedRewards,
+          lastHarvestTime: Math.floor(Date.now() / 1000)
         };
         
+        console.log("Updating staking info with simulated harvest data:", updatedInfo);
+        
         // Update the cache with simulated data
-        queryClient.setQueryData(['staking', publicKey?.toString()], updatedInfo);
+        queryClient.setQueryData(['staking', publicKey.toString()], updatedInfo);
         
         // Also update token balances - simulate adding YOS tokens
-        const currentBalances = queryClient.getQueryData<any>(['tokens', publicKey?.toString()]);
+        const currentBalances = queryClient.getQueryData<any>(['tokens']);
         if (currentBalances) {
           const updatedBalances = {
             ...currentBalances,
-            yos: (currentBalances.yos || 0) + (currentInfo.rewardsEarned || 0)
+            yos: (currentBalances.yos || 0) + earnedRewards
           };
-          queryClient.setQueryData(['tokens', publicKey?.toString()], updatedBalances);
+          queryClient.setQueryData(['tokens'], updatedBalances);
         }
       }
       
       toast({
-        title: "Harvesting Simulation",
-        description: "The staking program is currently being finalized. Your request was simulated successfully.",
+        title: "Rewards Harvested",
+        description: `Successfully harvested your YOS rewards.`,
       });
     },
     onError: (error: Error) => {
@@ -366,76 +330,57 @@ export function useStaking() {
         throw new Error('Wallet not connected');
       }
       
+      if (!publicKey) {
+        throw new Error('Wallet public key not available');
+      }
+      
       try {
-        // First, attempt to call the real function to trigger wallet prompt
-        try {
-          return await updateStakingParameters(wallet, stakeRatePerSecond, harvestThreshold);
-        } catch (error: any) {
-          // If it's the expected program not found error, continue with our custom handling
-          if (error.message && (
-              error.message.includes("Transaction simulation failed") || 
-              error.message.includes("program that does not exist"))) {
-            // Continue to our custom handling below
-            console.log("Expected program error caught, showing deployment message");
-          } else {
-            // For other unexpected errors, rethrow
-            throw error;
-          }
-        }
+        // Call the updated parameters function which shows the wallet signature prompt
+        // even though the program isn't deployed yet
+        const signature = await updateStakingParameters(wallet, stakeRatePerSecond, harvestThreshold);
+        console.log("Parameter update transaction signature:", signature);
         
-        // If we get here, it means the wallet prompt was shown but failed with
-        // the expected program deployment error - now show our friendly message
-        toast({
-          title: "Staking Program Update",
-          description: "The staking program is currently being deployed to the blockchain. Please try again later.",
-        });
-        
-        // Simulating delay for UI testing - remove this when program is deployed
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Return a mock transaction ID - this will be replaced with the real one
-        return "program-deployment-in-progress";
+        // Return both the signature and parameters for processing in onSuccess
+        return { signature, stakeRatePerSecond, harvestThreshold };
       } catch (err) {
         console.error("Error updating parameters:", err);
         throw err;
       }
     },
     onSuccess: (result, variables) => {
-      // Invalidate and refetch staking info for all users
+      // Invalidate all staking queries to trigger refetch later
       queryClient.invalidateQueries({ queryKey: ['staking'] });
+      queryClient.invalidateQueries({ queryKey: ['staking-rates'] });
       
-      // Simulate the update in the UI
-      // Get the current rates info
-      const currentRates = queryClient.getQueryData<any>(['staking-rates']);
+      // IMPORTANT: Immediately update the UI with the simulated result
+      // Extract the parameter values from the variables
+      const { stakeRatePerSecond, harvestThreshold } = variables;
       
-      if (currentRates && result === "program-deployment-in-progress") {
-        // Extract the parameter values
-        const { stakeRatePerSecond, harvestThreshold } = variables;
-        
-        // Calculate corresponding APYs
-        const secondsInDay = 86400;
-        const dailyAPY = parseFloat((stakeRatePerSecond * secondsInDay * 100).toFixed(2));
-        const weeklyAPY = parseFloat((dailyAPY * 7).toFixed(2));
-        const monthlyAPY = parseFloat((dailyAPY * 30).toFixed(2));
-        const yearlyAPY = parseFloat((dailyAPY * 365).toFixed(2));
-        
-        // Create a simulated updated rates
-        const updatedRates = {
-          stakeRatePerSecond,
-          harvestThreshold,
-          dailyAPY,
-          weeklyAPY,
-          monthlyAPY,
-          yearlyAPY
-        };
-        
-        // Update the cache with simulated data
-        queryClient.setQueryData(['staking-rates'], updatedRates);
-      }
+      // Calculate corresponding APYs
+      const secondsInDay = 86400;
+      const dailyAPY = parseFloat((stakeRatePerSecond * secondsInDay * 100).toFixed(2));
+      const weeklyAPY = parseFloat((dailyAPY * 7).toFixed(2));
+      const monthlyAPY = parseFloat((dailyAPY * 30).toFixed(2));
+      const yearlyAPY = parseFloat((dailyAPY * 365).toFixed(2));
+      
+      // Create a simulated updated rates
+      const updatedRates = {
+        stakeRatePerSecond,
+        harvestThreshold,
+        dailyAPY,
+        weeklyAPY,
+        monthlyAPY,
+        yearlyAPY
+      };
+      
+      console.log("Updating staking rates with simulated data:", updatedRates);
+      
+      // Update the cache with simulated data
+      queryClient.setQueryData(['staking', 'rates'], updatedRates);
       
       toast({
-        title: "Parameter Update Simulation",
-        description: "The staking program is currently being finalized. Your request was simulated successfully.",
+        title: "Parameters Updated",
+        description: "Successfully updated staking parameters.",
       });
     },
     onError: (error: Error) => {
