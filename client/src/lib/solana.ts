@@ -221,8 +221,8 @@ export async function getSolMarketPrice(): Promise<number> {
     return data.solana.usd;
   } catch (error) {
     console.error('Error fetching SOL market price:', error);
-    // Return a default approximate value in case of error
-    return 100.00;
+    // Return a default approximate current value in case of error
+    return 151.00;
   }
 }
 

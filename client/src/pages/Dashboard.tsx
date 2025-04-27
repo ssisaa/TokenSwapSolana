@@ -18,7 +18,7 @@ export default function Dashboard() {
   const [priceData, setPriceData] = useState({
     yotPrice: 0.00000200,
     yosPrice: 0.00002000,
-    solPrice: 100, // Will be updated with live market price
+    solPrice: 151, // Will be updated with live market price
     totalLiquidity: 3795.03,
     yotPriceChange: "+2.5%", // Default value
     yosPriceChange: "+1.1%", // Default value
@@ -140,7 +140,7 @@ export default function Dashboard() {
           <Card className="bg-dark-200 border-dark-400 p-4">
             <h3 className="text-gray-400 text-sm">SOL Price</h3>
             <div className="mt-1">
-              <span className="text-xl font-semibold text-white">$100.00</span>
+              <span className="text-xl font-semibold text-white">$151.00</span>
               <span className="ml-2 text-gray-400 text-sm">Live market data</span>
             </div>
           </Card>

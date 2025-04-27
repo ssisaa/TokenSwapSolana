@@ -1,6 +1,8 @@
 import { ReactNode } from "react";
 import Sidebar from "./Sidebar";
 import MultiWalletConnect from "@/components/MultiWalletConnect";
+import HeaderWalletDisplay from "@/components/HeaderWalletDisplay";
+import { useMultiWallet } from "@/context/MultiWalletContext";
 
 type DashboardLayoutProps = {
   children: ReactNode;
@@ -8,6 +10,8 @@ type DashboardLayoutProps = {
 };
 
 export default function DashboardLayout({ children, title }: DashboardLayoutProps) {
+  const { connected } = useMultiWallet();
+
   return (
     <div className="flex h-screen bg-dark-100">
       {/* Sidebar */}
@@ -15,6 +19,9 @@ export default function DashboardLayout({ children, title }: DashboardLayoutProp
       
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Wallet Balance Bar */}
+        {connected && <HeaderWalletDisplay />}
+        
         {/* Top Bar */}
         <header className="bg-dark-200 border-b border-dark-400 py-3 px-6 flex items-center justify-between">
           {title && (
