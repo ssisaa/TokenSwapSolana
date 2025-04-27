@@ -204,8 +204,7 @@ export default function StakingCard() {
                   <Button 
                     onClick={handleHarvest} 
                     disabled={!canHarvest || isHarvesting || !connected}
-                    className="w-full"
-                    variant="gradient"
+                    className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
                   >
                     {isHarvesting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                     Harvest Rewards

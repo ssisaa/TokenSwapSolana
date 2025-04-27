@@ -23,7 +23,8 @@ import {
 } from '@/lib/constants';
 
 // This should be replaced with the actual deployed program ID
-const STAKING_PROGRAM_ID = new PublicKey('StakingProgramAddressToBeDeployed111111111111');
+// Using a placeholder devnet program ID for now
+const STAKING_PROGRAM_ID = new PublicKey('3EFRnJGe71mcRoaKFwTHzGxvbJ6xjgqJ5nYSTGSHNNNB');
 
 // Instructions enum matching our Rust program
 enum StakingInstructionType {
@@ -65,51 +66,66 @@ function encodeInitializeInstruction(
   stakeRatePerSecond: number,
   harvestThreshold: number
 ): Buffer {
-  const layout = new Uint8Array([
-    StakingInstructionType.Initialize,
-    ...yotMint.toBytes(),
-    ...yosMint.toBytes(),
-    ...new Uint8Array(new BigUint64Array([BigInt(stakeRatePerSecond)]).buffer),
-    ...new Uint8Array(new BigUint64Array([BigInt(harvestThreshold)]).buffer)
-  ]);
+  // Create instruction type byte
+  const instructionBuffer = Buffer.from([StakingInstructionType.Initialize]);
   
-  return Buffer.from(layout);
+  // Create pubkey bytes
+  const yotMintBuffer = Buffer.from(yotMint.toBytes());
+  const yosMintBuffer = Buffer.from(yosMint.toBytes());
+  
+  // Create rate and threshold bytes
+  const rateBuffer = Buffer.from(new BigUint64Array([BigInt(stakeRatePerSecond)]).buffer);
+  const thresholdBuffer = Buffer.from(new BigUint64Array([BigInt(harvestThreshold)]).buffer);
+  
+  // Concatenate all buffers
+  return Buffer.concat([
+    instructionBuffer,
+    yotMintBuffer,
+    yosMintBuffer,
+    rateBuffer,
+    thresholdBuffer
+  ]);
 }
 
 function encodeStakeInstruction(amount: number): Buffer {
-  const layout = new Uint8Array([
-    StakingInstructionType.Stake,
-    ...new Uint8Array(new BigUint64Array([BigInt(amount)]).buffer)
-  ]);
+  // Create instruction type byte
+  const instructionBuffer = Buffer.from([StakingInstructionType.Stake]);
   
-  return Buffer.from(layout);
+  // Create amount bytes
+  const amountBuffer = Buffer.from(new BigUint64Array([BigInt(amount)]).buffer);
+  
+  // Concatenate buffers
+  return Buffer.concat([instructionBuffer, amountBuffer]);
 }
 
 function encodeUnstakeInstruction(amount: number): Buffer {
-  const layout = new Uint8Array([
-    StakingInstructionType.Unstake,
-    ...new Uint8Array(new BigUint64Array([BigInt(amount)]).buffer)
-  ]);
+  // Create instruction type byte
+  const instructionBuffer = Buffer.from([StakingInstructionType.Unstake]);
   
-  return Buffer.from(layout);
+  // Create amount bytes
+  const amountBuffer = Buffer.from(new BigUint64Array([BigInt(amount)]).buffer);
+  
+  // Concatenate buffers
+  return Buffer.concat([instructionBuffer, amountBuffer]);
 }
 
 function encodeHarvestInstruction(): Buffer {
-  const layout = new Uint8Array([StakingInstructionType.Harvest]);
-  return Buffer.from(layout);
+  return Buffer.from([StakingInstructionType.Harvest]);
 }
 
 function encodeUpdateParametersInstruction(
   stakeRatePerSecond: number,
   harvestThreshold: number
 ): Buffer {
-  const layout = new Uint8Array([
-    StakingInstructionType.UpdateParameters,
-    ...new Uint8Array(new BigUint64Array([BigInt(stakeRatePerSecond)]).buffer),
-    ...new Uint8Array(new BigUint64Array([BigInt(harvestThreshold)]).buffer)
-  ]);
+  // Create instruction type byte
+  const instructionBuffer = Buffer.from([StakingInstructionType.UpdateParameters]);
   
-  return Buffer.from(layout);
+  // Create rate and threshold bytes
+  const rateBuffer = Buffer.from(new BigUint64Array([BigInt(stakeRatePerSecond)]).buffer);
+  const thresholdBuffer = Buffer.from(new BigUint64Array([BigInt(harvestThreshold)]).buffer);
+  
+  // Concatenate buffers
+  return Buffer.concat([instructionBuffer, rateBuffer, thresholdBuffer]);
 }
 
 // Client functions that interface with our Solana program
