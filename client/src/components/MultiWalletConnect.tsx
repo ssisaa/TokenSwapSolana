@@ -49,7 +49,8 @@ export default function MultiWalletConnect() {
     }
   };
 
-  const handleConnectWallet = () => {
+  const handleConnectWallet = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
     setShowWalletSelector(true);
   };
 
