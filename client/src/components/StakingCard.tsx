@@ -3,14 +3,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useStaking } from '@/hooks/useStaking';
 import { useMultiWallet } from '@/context/MultiWalletContext';
 import { formatNumber } from '@/lib/utils';
-import { Loader2, Wallet, Info as InfoIcon } from 'lucide-react';
+import { Loader2, Wallet, Info as InfoIcon, Download, Upload, CheckCircle } from 'lucide-react';
 import { useTokenBalance } from '@/hooks/useTokenBalance';
 import { YOT_TOKEN_ADDRESS } from '@/lib/constants';
 
-export default function StakingCard() {
+interface StakingCardProps {
+  defaultTab?: 'stake' | 'unstake' | 'harvest';
+}
+
+export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) {
+  const [activeTab, setActiveTab] = useState<string>(defaultTab);
   const [stakeAmount, setStakeAmount] = useState<string>('');
   const [unstakeAmount, setUnstakeAmount] = useState<string>('');
   const { connected } = useMultiWallet();
@@ -29,6 +35,11 @@ export default function StakingCard() {
     isUnstaking,
     isHarvesting
   } = useStaking();
+  
+  // Update activeTab when defaultTab prop changes
+  useEffect(() => {
+    setActiveTab(defaultTab);
+  }, [defaultTab]);
   
   // Format the timestamp to a readable date
   const formatDate = (timestamp: number): string => {
@@ -161,49 +172,78 @@ export default function StakingCard() {
               
               <div className="h-px bg-border" />
               
-              {/* Staking Actions */}
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-semibold">Stake YOT</h3>
-                  <div className="flex items-center text-sm">
-                    <Wallet className="h-4 w-4 mr-1 text-muted-foreground" />
-                    <span className="text-muted-foreground">Available: </span>
-                    <span className="font-medium ml-1">{formatNumber(yotBalance)} YOT</span>
+              {/* Staking Actions with Tabs */}
+              <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid grid-cols-3 mb-4">
+                  <TabsTrigger value="stake" disabled={!connected}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Stake
+                  </TabsTrigger>
+                  <TabsTrigger value="unstake" disabled={!connected || stakingInfo.stakedAmount <= 0}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Unstake
+                  </TabsTrigger>
+                  <TabsTrigger value="harvest" disabled={!connected || stakingInfo.rewardsEarned <= 0}>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Harvest
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="stake" className="mt-0 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-semibold">Stake YOT</h3>
+                    <div className="flex items-center text-sm">
+                      <Wallet className="h-4 w-4 mr-1 text-muted-foreground" />
+                      <span className="text-muted-foreground">Available: </span>
+                      <span className="font-medium ml-1">{formatNumber(yotBalance)} YOT</span>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="relative flex-1">
-                    <Input
-                      type="number"
-                      placeholder="Amount to stake"
-                      value={stakeAmount}
-                      onChange={(e) => setStakeAmount(e.target.value)}
-                      className="pr-16"
-                      disabled={isStaking || !connected}
-                    />
+                  <div className="flex items-center space-x-2">
+                    <div className="relative flex-1">
+                      <Input
+                        type="number"
+                        placeholder="Amount to stake"
+                        value={stakeAmount}
+                        onChange={(e) => setStakeAmount(e.target.value)}
+                        className="pr-16"
+                        disabled={isStaking || !connected}
+                      />
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="absolute right-0 top-0 h-full"
+                        onClick={handleMaxStake}
+                        disabled={isStaking || !connected}
+                      >
+                        MAX
+                      </Button>
+                    </div>
                     <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="absolute right-0 top-0 h-full"
-                      onClick={handleMaxStake}
-                      disabled={isStaking || !connected}
+                      onClick={handleStake} 
+                      disabled={!stakeAmount || isStaking || !connected}
+                      className="min-w-[80px]"
                     >
-                      MAX
+                      {isStaking ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Stake'}
                     </Button>
                   </div>
-                  <Button 
-                    onClick={handleStake} 
-                    disabled={!stakeAmount || isStaking || !connected}
-                    className="min-w-[80px]"
-                  >
-                    {isStaking ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Stake'}
-                  </Button>
-                </div>
-              </div>
-              
-              {stakingInfo.stakedAmount > 0 && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Unstake YOT</h3>
+                  <div className="bg-muted/40 p-3 rounded-lg text-sm mt-4">
+                    <div className="flex items-start">
+                      <InfoIcon className="h-4 w-4 mr-2 mt-0.5 text-primary" />
+                      <p>
+                        Staking locks your YOT tokens in the smart contract and automatically begins generating YOS rewards at {stakingRates.dailyAPY.toFixed(2)}% daily APY.
+                      </p>
+                    </div>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="unstake" className="mt-0 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-semibold">Unstake YOT</h3>
+                    <div className="flex items-center text-sm">
+                      <span className="text-muted-foreground">Staked: </span>
+                      <span className="font-medium ml-1">{formatNumber(stakingInfo.stakedAmount)} YOT</span>
+                    </div>
+                  </div>
                   <div className="flex items-center space-x-2">
                     <div className="relative flex-1">
                       <Input
@@ -232,11 +272,17 @@ export default function StakingCard() {
                       {isUnstaking ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Unstake'}
                     </Button>
                   </div>
-                </div>
-              )}
-              
-              {stakingInfo.rewardsEarned > 0 && (
-                <div className="space-y-4">
+                  <div className="bg-muted/40 p-3 rounded-lg text-sm mt-4">
+                    <div className="flex items-start">
+                      <InfoIcon className="h-4 w-4 mr-2 mt-0.5 text-primary" />
+                      <p>
+                        Unstaking will return your YOT tokens to your wallet. There is no lock-up period or penalties for unstaking.
+                      </p>
+                    </div>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="harvest" className="mt-0 space-y-4">
                   <div className="flex justify-between items-center">
                     <h3 className="text-lg font-semibold">Harvest Rewards</h3>
                     <span className="text-sm text-muted-foreground">
@@ -252,8 +298,16 @@ export default function StakingCard() {
                     {isHarvesting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                     Harvest Rewards
                   </Button>
-                </div>
-              )}
+                  <div className="bg-muted/40 p-3 rounded-lg text-sm mt-4">
+                    <div className="flex items-start">
+                      <InfoIcon className="h-4 w-4 mr-2 mt-0.5 text-primary" />
+                      <p>
+                        Harvesting will claim your earned YOS rewards and send them to your wallet. You can harvest anytime rewards are available.
+                      </p>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
               
               {!connected && (
                 <div className="bg-muted p-4 rounded-lg text-center">

@@ -1,103 +1,314 @@
-import React from 'react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
-import StakingCard from '@/components/StakingCard';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Wallet, Coins, ArrowRight, Shield } from 'lucide-react';
-import { useMultiWallet } from '@/context/MultiWalletContext';
+import { useState } from "react";
+import StakingCard from "@/components/StakingCard";
+import DashboardLayout from "@/components/layout/DashboardLayout";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  Loader2, 
+  ArrowDown, 
+  Clock, 
+  Shield, 
+  HelpCircle, 
+  Download, 
+  Upload, 
+  CheckCircle,
+  Info as InfoIcon
+} from "lucide-react";
+import { formatNumber } from "@/lib/utils";
+import { useStaking } from "@/hooks/useStaking";
+import { useTokenBalance } from "@/hooks/useTokenBalance";
+import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS } from "@/lib/constants";
+import { useMultiWallet } from "@/context/MultiWalletContext";
 
 export default function Stake() {
+  const [activeTab, setActiveTab] = useState("stake");
   const { connected } = useMultiWallet();
-
-  // Benefits of staking - these would typically come from your protocol documentation
-  const stakingBenefits = [
-    {
-      title: "Earn YOS Rewards",
-      description: "Stake YOT tokens to earn YOS rewards automatically calculated on-chain.",
-      icon: <Coins className="h-6 w-6 text-primary" />
-    },
-    {
-      title: "Blockchain Security",
-      description: "All staking operations are secured by Solana blockchain with mandatory wallet signatures.",
-      icon: <Shield className="h-6 w-6 text-primary" />
-    },
-    {
-      title: "Flexible Staking",
-      description: "Stake and unstake your tokens anytime with no minimum lock period.",
-      icon: <ArrowRight className="h-6 w-6 text-primary" />
-    },
-    {
-      title: "Transparent Rewards",
-      description: "Rewards calculation is transparent and verifiable on the blockchain.",
-      icon: <Wallet className="h-6 w-6 text-primary" />
-    }
-  ];
-
+  const { balance: yotBalance } = useTokenBalance(YOT_TOKEN_ADDRESS);
+  const { balance: yosBalance } = useTokenBalance(YOS_TOKEN_ADDRESS);
+  
+  const {
+    stakingInfo,
+    stakingRates,
+    isLoading
+  } = useStaking();
+  
+  // Calculate what percentage of the progress bar to fill for stakers
+  const totalStakersProgress = Math.min(100, (stakingInfo.stakedAmount / 10000000) * 100);
+  
   return (
     <DashboardLayout>
-      <div className="container py-6 space-y-8">
-        <div className="flex flex-col space-y-4 md:flex-row md:justify-between md:space-y-0">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Staking</h1>
-            <p className="text-muted-foreground">
-              Stake your YOT tokens to earn YOS rewards
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* Staking Card in first column (takes 1/3 of space) */}
-          <div className="md:col-span-1">
-            <StakingCard />
-          </div>
-
-          {/* Info cards in second column (takes 2/3 of space) */}
-          <div className="md:col-span-2 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>How Staking Works</CardTitle>
-                <CardDescription>
-                  Earn rewards by staking your YOT tokens in our secure Solana program
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <p>
-                    Staking allows you to earn YOS tokens by locking your YOT tokens in our staking program. 
-                    All operations are performed on-chain with your wallet signature for maximum security.
-                  </p>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                    {stakingBenefits.map((benefit, index) => (
-                      <div key={index} className="flex items-start space-x-3 p-3 rounded-lg border">
-                        <div className="mt-0.5">{benefit.icon}</div>
-                        <div>
-                          <h3 className="font-medium">{benefit.title}</h3>
-                          <p className="text-sm text-muted-foreground">{benefit.description}</p>
-                        </div>
+      <div className="container mx-auto py-6">
+        <h1 className="text-3xl font-bold tracking-tight">Staking Dashboard</h1>
+        
+        <div className="grid gap-6 mt-8 lg:grid-cols-[2fr_1fr]">
+          {/* Left Column */}
+          <div className="space-y-6">
+            {/* Staking Overview */}
+            <div>
+              <h2 className="text-xl font-bold mb-4">Your Staking Overview</h2>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Card className="bg-background/60 backdrop-blur-sm">
+                  <CardContent className="pt-6">
+                    <div className="flex flex-col">
+                      <span className="text-sm text-muted-foreground">Total Staked</span>
+                      <div className="flex items-end mt-1">
+                        <span className="text-3xl font-bold">
+                          {formatNumber(stakingInfo.stakedAmount)} YOT
+                        </span>
+                        <span className="text-sm text-muted-foreground ml-2 mb-1">
+                          ${formatNumber(stakingInfo.stakedAmount * 0.01)}
+                        </span>
                       </div>
-                    ))}
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card className="bg-background/60 backdrop-blur-sm">
+                  <CardContent className="pt-6">
+                    <div className="flex flex-col">
+                      <span className="text-sm text-muted-foreground">Earned Rewards</span>
+                      <div className="flex items-end mt-1">
+                        <span className="text-3xl font-bold">
+                          {formatNumber(stakingInfo.rewardsEarned)} YOS
+                        </span>
+                        <span className="text-sm text-muted-foreground ml-2 mb-1">
+                          ${formatNumber(stakingInfo.rewardsEarned * 0.005)}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              <div className="flex flex-wrap gap-3 mt-4">
+                <Button 
+                  variant="outline" 
+                  className="flex gap-2" 
+                  onClick={() => setActiveTab("stake")}
+                  disabled={!connected}
+                >
+                  <Download className="h-4 w-4" /> Stake YOT
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="flex gap-2" 
+                  onClick={() => setActiveTab("unstake")}
+                  disabled={!connected || stakingInfo.stakedAmount <= 0}
+                >
+                  <Upload className="h-4 w-4" /> Unstake YOT
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="flex gap-2" 
+                  onClick={() => setActiveTab("harvest")}
+                  disabled={!connected || stakingInfo.rewardsEarned <= 0}
+                >
+                  <CheckCircle className="h-4 w-4" /> Claim Rewards
+                </Button>
+              </div>
+            </div>
+            
+            {/* Staking Actions */}
+            <div>
+              <Tabs defaultValue="stake" value={activeTab} onValueChange={setActiveTab}>
+                <TabsList className="grid grid-cols-3 mb-4">
+                  <TabsTrigger value="stake">Stake</TabsTrigger>
+                  <TabsTrigger value="unstake">Unstake</TabsTrigger>
+                  <TabsTrigger value="harvest">Harvest</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="stake" className="mt-0">
+                  <StakingCard defaultTab="stake" />
+                </TabsContent>
+                
+                <TabsContent value="unstake" className="mt-0">
+                  <StakingCard defaultTab="unstake" />
+                </TabsContent>
+                
+                <TabsContent value="harvest" className="mt-0">
+                  <StakingCard defaultTab="harvest" />
+                </TabsContent>
+              </Tabs>
+            </div>
+            
+            {/* FAQ Section */}
+            <div className="mt-8">
+              <h2 className="text-xl font-bold mb-4">Staking FAQ</h2>
+              
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold">What is YOT staking?</h3>
+                  <p className="mt-2 text-muted-foreground">
+                    Staking YOT allows you to earn YOS rewards while supporting the network. When you stake your YOT tokens, 
+                    they are locked up, and you earn YOS rewards at a rate of {stakingRates.stakeRatePerSecond.toFixed(6)}% per second.
+                  </p>
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-semibold">How are rewards calculated?</h3>
+                  <p className="mt-2 text-muted-foreground">
+                    Rewards accrue at a rate of {stakingRates.stakeRatePerSecond.toFixed(6)}% per second on your staked YOT tokens. 
+                    This equals approximately {stakingRates.monthlyAPY.toFixed(2)}% per month or {stakingRates.yearlyAPY.toFixed(2)}% annually.
+                  </p>
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-semibold">What can I do with YOS rewards?</h3>
+                  <p className="mt-2 text-muted-foreground">
+                    YOS tokens can be swapped 1:1 for YOT tokens, allowing you to stake more, trade, or contribute to liquidity pools.
+                  </p>
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-semibold">Is there a lock-up period?</h3>
+                  <p className="mt-2 text-muted-foreground">
+                    No, you can unstake your YOT at any time. However, the longer you stake, the more rewards you'll accumulate.
+                  </p>
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-semibold">How is staking security ensured?</h3>
+                  <p className="mt-2 text-muted-foreground">
+                    All staking operations are performed on-chain using secure Solana smart contracts. Every transaction requires 
+                    your explicit wallet signature for authorization, and no private keys or sensitive data are ever stored outside your wallet.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Right Column */}
+          <div className="space-y-6">
+            {/* Staking Information */}
+            <Card>
+              <CardContent className="pt-6">
+                <h3 className="text-lg font-bold mb-4">Staking Information</h3>
+                
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-muted-foreground">Current APR</span>
+                      <span className="font-medium">{stakingRates.yearlyAPY.toFixed(2)}%</span>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-muted-foreground">Total Stakers</span>
+                      <span className="font-medium">-</span>
+                    </div>
+                    <Progress value={50} className="h-2" />
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-muted-foreground">Total Staked</span>
+                      <span className="font-medium">{formatNumber(stakingInfo.stakedAmount)} YOT</span>
+                    </div>
+                    <Progress value={totalStakersProgress} className="h-2" />
+                  </div>
+                  
+                  <div className="pt-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Hourly Rate:</span>
+                      <span className="font-medium">{(stakingRates.stakeRatePerSecond * 3600 * 100).toFixed(6)}%</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Daily Rate:</span>
+                      <span className="font-medium">{stakingRates.dailyAPY.toFixed(2)}%</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Monthly Rate:</span>
+                      <span className="font-medium">{stakingRates.monthlyAPY.toFixed(2)}%</span>
+                    </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
-
+            
+            {/* How Staking Works */}
             <Card>
-              <CardHeader>
-                <CardTitle>Staking Security</CardTitle>
-                <CardDescription>
-                  Our staking program is built with security as the highest priority
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
+                <h3 className="text-lg font-bold mb-4">How Staking Works</h3>
+                
                 <div className="space-y-4">
-                  <p>
+                  <div className="flex gap-3">
+                    <div className="mt-1">
+                      <div className="bg-primary/20 p-2 rounded-full">
+                        <Download className="h-4 w-4 text-primary" />
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="font-medium">Stake YOT</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Lock your YOT tokens in the staking contract to start earning rewards.
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <div className="mt-1">
+                      <div className="bg-primary/20 p-2 rounded-full">
+                        <Clock className="h-4 w-4 text-primary" />
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="font-medium">Earn Rewards</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Earn YOS rewards continuously based on your staked amount and the current APR.
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <div className="mt-1">
+                      <div className="bg-primary/20 p-2 rounded-full">
+                        <CheckCircle className="h-4 w-4 text-primary" />
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="font-medium">Harvest Anytime</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Claim your YOS rewards whenever you want. No lock-up period or vesting.
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <div className="mt-1">
+                      <div className="bg-primary/20 p-2 rounded-full">
+                        <Shield className="h-4 w-4 text-primary" />
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="font-medium">Staking Security</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        All operations require your explicit wallet signature. Your funds remain secure through Solana's smart contracts.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Staking Security */}
+            <Card>
+              <CardContent className="pt-6">
+                <h3 className="text-lg font-bold mb-4">Staking Security</h3>
+                
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
                     Security is paramount in our staking protocol. All staking operations require your explicit wallet 
                     signature, ensuring that only you can control your staked tokens.
                   </p>
                   
                   <div className="bg-primary/10 p-4 rounded-lg">
-                    <h3 className="font-medium text-primary">💡 Key Security Features</h3>
+                    <h4 className="font-medium text-primary flex items-center">
+                      <InfoIcon className="h-4 w-4 mr-2" />
+                      Key Security Features
+                    </h4>
                     <ul className="mt-2 space-y-2 text-sm">
                       <li className="flex items-start">
                         <span className="font-bold mr-2">•</span>
@@ -117,15 +328,6 @@ export default function Stake() {
                       </li>
                     </ul>
                   </div>
-                  
-                  {!connected && (
-                    <div className="mt-4">
-                      <Button variant="outline" className="w-full" onClick={() => {}}>
-                        <Wallet className="mr-2 h-4 w-4" />
-                        Connect Wallet to Start Staking
-                      </Button>
-                    </div>
-                  )}
                 </div>
               </CardContent>
             </Card>
