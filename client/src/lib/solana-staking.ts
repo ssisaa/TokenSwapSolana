@@ -68,25 +68,26 @@ function encodeInitializeInstruction(
   stakeRatePerSecond: number,
   harvestThreshold: number
 ): Buffer {
-  // Create instruction type byte
-  const instructionBuffer = Buffer.from([StakingInstructionType.Initialize]);
+  // Create a buffer to hold all data
+  // 1 byte for instruction type + 32 bytes for yotMint + 32 bytes for yosMint + 8 bytes for rate + 8 bytes for threshold
+  const buffer = Buffer.alloc(1 + 32 + 32 + 8 + 8);
   
-  // Create pubkey bytes
-  const yotMintBuffer = Buffer.from(yotMint.toBytes());
-  const yosMintBuffer = Buffer.from(yosMint.toBytes());
+  // Write instruction type to the first byte
+  buffer.writeUInt8(StakingInstructionType.Initialize, 0);
   
-  // Create rate and threshold bytes
-  const rateBuffer = Buffer.from(new BigUint64Array([BigInt(stakeRatePerSecond)]).buffer);
-  const thresholdBuffer = Buffer.from(new BigUint64Array([BigInt(harvestThreshold)]).buffer);
+  // Write YOT mint pubkey bytes (32 bytes)
+  buffer.set(yotMint.toBytes(), 1);
   
-  // Concatenate all buffers
-  return Buffer.concat([
-    instructionBuffer,
-    yotMintBuffer,
-    yosMintBuffer,
-    rateBuffer,
-    thresholdBuffer
-  ]);
+  // Write YOS mint pubkey bytes (32 bytes)
+  buffer.set(yosMint.toBytes(), 33);
+  
+  // Write rate as little-endian u64 (8 bytes)
+  buffer.writeBigUInt64LE(BigInt(stakeRatePerSecond), 65);
+  
+  // Write threshold as little-endian u64 (8 bytes)
+  buffer.writeBigUInt64LE(BigInt(harvestThreshold), 73);
+  
+  return buffer;
 }
 
 function encodeStakeInstruction(amount: number): Buffer {
