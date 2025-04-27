@@ -264,12 +264,12 @@ export async function calculateYosToYot(yosAmount: number) {
     const { yotBalance, yosBalance } = await getPoolBalances();
     
     if (!yotBalance || !yosBalance || yotBalance === 0 || yosBalance === 0) {
-      // Fallback to fixed ratio if pool data is unavailable
-      console.log("Using fallback 1:10 ratio for YOS to YOT conversion");
-      return yosAmount * 0.1; // 1 YOT = 10 YOS, so 1 YOS = 0.1 YOT
+      // Fallback to fixed ratio: 10 YOS = 1 YOT (YOS is more valuable)
+      console.log("Using fallback 10:1 ratio for YOS to YOT conversion");
+      return yosAmount * 10; // 10 YOS = 1 YOT, so 1 YOS = 10 YOT
     }
     
-    // Calculate the actual ratio from pool balances (note: this should be smaller than 1 as YOT is worth less than YOS)
+    // Calculate the actual ratio from pool balances (YOS is more valuable than YOT)
     const yosToYotRatio = yotBalance / yosBalance;
     console.log(`YOS to YOT ratio from pools: ${yosToYotRatio} (${yotBalance} YOT / ${yosBalance} YOS)`);
     
@@ -278,7 +278,7 @@ export async function calculateYosToYot(yosAmount: number) {
   } catch (error) {
     console.error('Error calculating YOS to YOT conversion:', error);
     // Fallback to fixed ratio
-    return yosAmount * 0.1; // 1 YOT = 10 YOS, so 1 YOS = 0.1 YOT
+    return yosAmount * 10; // 10 YOS = 1 YOT, so 1 YOS = 10 YOT
   }
 }
 
@@ -289,12 +289,12 @@ export async function calculateYotToYos(yotAmount: number) {
     const { yotBalance, yosBalance } = await getPoolBalances();
     
     if (!yotBalance || !yosBalance || yotBalance === 0 || yosBalance === 0) {
-      // Fallback to fixed ratio if pool data is unavailable
-      console.log("Using fallback 1:10 ratio for YOT to YOS conversion");
-      return yotAmount * 10; // 1 YOT = 10 YOS
+      // Fallback to fixed ratio: 10 YOS = 1 YOT (YOS is more valuable)
+      console.log("Using fallback 10:1 ratio for YOT to YOS conversion");
+      return yotAmount * 0.1; // 10 YOS = 1 YOT, so 1 YOT = 0.1 YOS
     }
     
-    // Calculate the actual ratio from pool balances (note: this should be larger than 1 as YOT is worth less than YOS)
+    // Calculate the actual ratio from pool balances (YOS is more valuable than YOT)
     const yotToYosRatio = yosBalance / yotBalance;
     console.log(`YOT to YOS ratio from pools: ${yotToYosRatio} (${yosBalance} YOS / ${yotBalance} YOT)`);
     
@@ -303,7 +303,7 @@ export async function calculateYotToYos(yotAmount: number) {
   } catch (error) {
     console.error('Error calculating YOT to YOS conversion:', error);
     // Fallback to fixed ratio
-    return yotAmount * 10; // 1 YOT = 10 YOS
+    return yotAmount * 0.1; // 10 YOS = 1 YOT, so 1 YOT = 0.1 YOS
   }
 }
 

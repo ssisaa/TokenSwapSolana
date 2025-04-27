@@ -45,17 +45,26 @@ export function useSwap() {
           const poolData = await getPoolBalances();
           
           if (poolData.yotBalance && poolData.yosBalance && poolData.yosBalance > 0) {
-            // For correct display, we need to show it as 1 YOT = X YOS (not 1 YOS = X YOT)
-            const ratio = poolData.yosBalance / poolData.yotBalance;
-            setExchangeRate(`1 YOT = ${ratio.toFixed(4)} YOS`);
-            console.log(`YOT to YOS ratio from pools: ${ratio} (${poolData.yosBalance} YOS / ${poolData.yotBalance} YOT)`);
+            // For correct display, we need to show 10 YOS = 1 YOT (YOS is more valuable)
+            // Using actual pool data to calculate the ratio
+            const yosPerYot = poolData.yosBalance / poolData.yotBalance;
+            
+            // If the pool data makes sense, use it; otherwise use the fixed 10:1 ratio
+            if (yosPerYot > 0 && yosPerYot < 100) { // Sanity check on pool ratio
+              setExchangeRate(`10 YOS = ${(10 / yosPerYot).toFixed(4)} YOT`);
+              console.log(`YOS to YOT pool ratio: ${yosPerYot} YOS per YOT (${poolData.yosBalance} YOS / ${poolData.yotBalance} YOT)`);
+            } else {
+              // Fallback to fixed ratio if pool data produces an unreasonable result
+              setExchangeRate(`10 YOS = 1 YOT`);
+              console.log(`Using fixed ratio: 10 YOS = 1 YOT (pool data unreasonable: ${yosPerYot})`);
+            }
           } else {
-            // Fallback to a message if we can't get pool data
-            setExchangeRate(`YOT:YOS rate unavailable`);
+            // Fallback to a fixed ratio if we can't get pool data
+            setExchangeRate(`10 YOS = 1 YOT`);
           }
         } catch (error) {
-          console.error("Error fetching YOT:YOS pool data:", error);
-          setExchangeRate(`YOT:YOS rate unavailable`);
+          console.error("Error fetching YOS:YOT pool data:", error);
+          setExchangeRate(`10 YOS = 1 YOT (fallback)`);
         }
         return;
       }
