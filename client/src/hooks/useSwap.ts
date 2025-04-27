@@ -11,7 +11,9 @@ import {
 import { 
   SOL_SYMBOL, 
   YOT_SYMBOL, 
-  YOT_TOKEN_ADDRESS 
+  YOS_SYMBOL,
+  YOT_TOKEN_ADDRESS,
+  YOS_TOKEN_ADDRESS
 } from "@/lib/constants";
 import { PublicKey } from "@solana/web3.js";
 import { useWallet } from "@/hooks/useSolanaWallet";
@@ -55,13 +57,19 @@ export function useSwap() {
         
         const solBalance = await getSolBalance(publicKey);
         const yotBalance = await getTokenBalance(YOT_TOKEN_ADDRESS, publicKey);
+        const yosBalance = await getTokenBalance(YOS_TOKEN_ADDRESS, publicKey);
         
-        if (fromToken === SOL_SYMBOL) {
+        if (fromToken === SOL_SYMBOL && toToken === YOT_SYMBOL) {
           setFromBalance(solBalance);
           setToBalance(yotBalance);
-        } else {
+        } else if (fromToken === YOT_SYMBOL && toToken === SOL_SYMBOL) {
           setFromBalance(yotBalance);
           setToBalance(solBalance);
+        } else if (fromToken === YOS_SYMBOL && toToken === YOT_SYMBOL) {
+          setFromBalance(yosBalance);
+          setToBalance(yotBalance);
+          // Set exchange rate for YOS to YOT (1 YOS = 10 YOT)
+          setExchangeRate(`1 YOS = 10 YOT`);
         }
       } catch (error) {
         console.error("Error updating balances:", error);
@@ -70,7 +78,7 @@ export function useSwap() {
       setFromBalance(0);
       setToBalance(0);
     }
-  }, [connected, wallet, fromToken]);
+  }, [connected, wallet, fromToken, toToken]);
 
   // Update exchange rate and balances on component mount and when deps change
   useEffect(() => {
@@ -100,6 +108,9 @@ export function useSwap() {
         calculatedAmount = await calculateSolToYot(amount);
       } else if (fromToken === YOT_SYMBOL && toToken === SOL_SYMBOL) {
         calculatedAmount = await calculateYotToSol(amount);
+      } else if (fromToken === YOS_SYMBOL && toToken === YOT_SYMBOL) {
+        // 1 YOS = 10 YOT, simple 1:10 ratio
+        calculatedAmount = amount * 10;
       } else {
         throw new Error("Unsupported token pair");
       }
@@ -131,6 +142,9 @@ export function useSwap() {
         // If we want X SOL, how much YOT do we need?
         const rate = await getExchangeRate();
         calculatedAmount = amount / rate.yotToSol / (1 - 0.003); // Accounting for fee
+      } else if (toToken === YOT_SYMBOL && fromToken === YOS_SYMBOL) {
+        // If we want X YOT, how much YOS do we need? (1 YOS = 10 YOT)
+        calculatedAmount = amount / 10;
       } else {
         throw new Error("Unsupported token pair");
       }

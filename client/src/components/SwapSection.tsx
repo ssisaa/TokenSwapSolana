@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { CloudLightning, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useWallet } from "@/hooks/useSolanaWallet";
 import { useSwap } from "@/hooks/useSwap";
-import { SOL_SYMBOL, YOT_SYMBOL, CLUSTER } from "@/lib/constants";
+import { SOL_SYMBOL, YOT_SYMBOL, YOS_SYMBOL, CLUSTER } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -112,9 +112,18 @@ export default function SwapSection() {
 
   const selectFromToken = (token: string) => {
     if (token !== fromToken) {
-      setFromToken(token);
-      if (token === toToken) {
-        setToToken(token === SOL_SYMBOL ? YOT_SYMBOL : SOL_SYMBOL);
+      // If the user selects YOS as the "from" token, automatically set "to" token to YOT
+      if (token === YOS_SYMBOL) {
+        setFromToken(token);
+        setToToken(YOT_SYMBOL);
+      } else {
+        // For all other "from" tokens, show an error message
+        toast({
+          title: "Unsupported Swap Pair",
+          description: "Only YOS to YOT swaps are supported at this time.",
+          variant: "destructive",
+        });
+        // Keep the current selection
       }
     }
     setFromTokenOptions(false);
@@ -122,9 +131,16 @@ export default function SwapSection() {
 
   const selectToToken = (token: string) => {
     if (token !== toToken) {
-      setToToken(token);
-      if (token === fromToken) {
-        setFromToken(token === SOL_SYMBOL ? YOT_SYMBOL : SOL_SYMBOL);
+      // Only allow setting YOT as the "to" token when YOS is the "from" token
+      if (fromToken === YOS_SYMBOL && token === YOT_SYMBOL) {
+        setToToken(token);
+      } else {
+        toast({
+          title: "Unsupported Swap Pair",
+          description: "Only YOS to YOT swaps are supported at this time.",
+          variant: "destructive",
+        });
+        // Keep the current selection
       }
     }
     setToTokenOptions(false);
@@ -219,6 +235,15 @@ export default function SwapSection() {
                       </svg>
                       <span className="font-medium">YOT</span>
                     </button>
+                    <button
+                      className="w-full text-left px-4 py-2 rounded hover:bg-dark-400 transition flex items-center text-white mt-1"
+                      onClick={() => selectFromToken(YOS_SYMBOL)}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                      </svg>
+                      <span className="font-medium">YOS</span>
+                    </button>
                   </div>
                 </div>
               )}
@@ -288,6 +313,15 @@ export default function SwapSection() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       <span className="font-medium">YOT</span>
+                    </button>
+                    <button
+                      className="w-full text-left px-4 py-2 rounded hover:bg-dark-400 transition flex items-center text-white mt-1"
+                      onClick={() => selectToToken(YOS_SYMBOL)}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                      </svg>
+                      <span className="font-medium">YOS</span>
                     </button>
                   </div>
                 </div>
