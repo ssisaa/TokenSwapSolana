@@ -257,53 +257,79 @@ export async function calculateYotToSol(yotAmount: number) {
   }
 }
 
-// Calculate the conversion between YOS and YOT based on pool balances
+// Calculate the conversion between YOS and YOT based on AMM pool balances
 export async function calculateYosToYot(yosAmount: number) {
   try {
     // Get the pool data for actual YOT and YOS balances
     const { yotBalance, yosBalance } = await getPoolBalances();
     
     if (!yotBalance || !yosBalance || yotBalance === 0 || yosBalance === 0) {
-      // Fallback to fixed ratio: 10 YOS = 1 YOT (YOS is less valuable)
-      console.log("Using fallback 10:1 ratio for YOS to YOT conversion");
-      return yosAmount * 0.1; // 10 YOS = 1 YOT, so 1 YOS = 0.1 YOT
+      // Fallback to approximate ratio if pool data is unavailable
+      console.log("Using fallback ratio for YOS to YOT conversion");
+      return yosAmount * 0.1; // Fallback: 1 YOS = 0.1 YOT
     }
     
-    // Calculate the actual ratio from pool balances (YOS is less valuable than YOT)
-    const yosToYotRatio = yotBalance / yosBalance;
-    console.log(`YOS to YOT ratio from pools: ${yosToYotRatio} (${yotBalance} YOT / ${yosBalance} YOS)`);
+    // Calculate the actual ratio from AMM pool balances
+    // Using the constant product formula: x * y = k
+    // When removing dy amount of YOS from the pool, we get dx amount of YOT
+    // So (yosBalance + dy) * (yotBalance - dx) = yosBalance * yotBalance
+    
+    // Calculate how much YOT we get for the given YOS amount
+    // Using formula: dx = (x * dy) / (y + dy)
+    // Where x = yotBalance, y = yosBalance, dy = yosAmount, dx = YOT amount to receive
+    
+    const yotAmount = (yotBalance * yosAmount) / (yosBalance + yosAmount);
+    
+    // Apply swap fee (0.3%)
+    const yotAmountAfterFee = yotAmount * (1 - 0.003);
+    
+    console.log(`YOS to YOT conversion via AMM pool: ${yosAmount} YOS = ${yotAmountAfterFee} YOT`);
+    console.log(`Pool state: ${yotBalance} YOT / ${yosBalance} YOS`);
     
     // Return the conversion result
-    return yosAmount * yosToYotRatio;
+    return yotAmountAfterFee;
   } catch (error) {
     console.error('Error calculating YOS to YOT conversion:', error);
-    // Fallback to fixed ratio
-    return yosAmount * 0.1; // 10 YOS = 1 YOT, so 1 YOS = 0.1 YOT
+    // Fallback to approximate ratio
+    return yosAmount * 0.1; // Fallback: 1 YOS = 0.1 YOT
   }
 }
 
-// Calculate the conversion between YOT and YOS based on pool balances
+// Calculate the conversion between YOT and YOS based on AMM pool balances
 export async function calculateYotToYos(yotAmount: number) {
   try {
     // Get the pool data for actual YOT and YOS balances
     const { yotBalance, yosBalance } = await getPoolBalances();
     
     if (!yotBalance || !yosBalance || yotBalance === 0 || yosBalance === 0) {
-      // Fallback to fixed ratio: 10 YOS = 1 YOT (YOS is less valuable)
-      console.log("Using fallback 10:1 ratio for YOT to YOS conversion");
-      return yotAmount * 10; // 10 YOS = 1 YOT, so 1 YOT = 10 YOS
+      // Fallback to approximate ratio if pool data is unavailable
+      console.log("Using fallback ratio for YOT to YOS conversion");
+      return yotAmount * 10; // Fallback: 1 YOT = 10 YOS
     }
     
-    // Calculate the actual ratio from pool balances (YOS is less valuable than YOT)
-    const yotToYosRatio = yosBalance / yotBalance;
-    console.log(`YOT to YOS ratio from pools: ${yotToYosRatio} (${yosBalance} YOS / ${yotBalance} YOT)`);
+    // Calculate the actual ratio from AMM pool balances
+    // Using the constant product formula: x * y = k
+    // When removing dx amount of YOT from the pool, we get dy amount of YOS
+    // So (yotBalance + dx) * (yosBalance - dy) = yotBalance * yosBalance
+    
+    // Calculate how much YOS we get for the given YOT amount
+    // Using formula: dy = (y * dx) / (x + dx)
+    // Where y = yosBalance, x = yotBalance, dx = yotAmount, dy = YOS amount to receive
+    
+    const yosAmount = (yosBalance * yotAmount) / (yotBalance + yotAmount);
+    
+    // Apply swap fee (0.3%)
+    const yosAmountAfterFee = yosAmount * (1 - 0.003);
+    
+    console.log(`YOT to YOS conversion via AMM pool: ${yotAmount} YOT = ${yosAmountAfterFee} YOS`);
+    console.log(`Pool state: ${yotBalance} YOT / ${yosBalance} YOS`);
     
     // Return the conversion result
-    return yotAmount * yotToYosRatio;
+    return yosAmountAfterFee;
   } catch (error) {
     console.error('Error calculating YOT to YOS conversion:', error);
-    // Fallback to fixed ratio
-    return yotAmount * 10; // 10 YOS = 1 YOT, so 1 YOT = 10 YOS
+    // Fallback to approximate ratio
+    return yotAmount * 10; // Fallback: 1 YOT = 10 YOS
   }
 }
 
@@ -376,29 +402,30 @@ export async function getYotMarketPrice(): Promise<number> {
   }
 }
 
-// Calculate YOS price based on YOT and YOS pool balances
+// Calculate YOS price based on YOT and YOS pool balances using AMM ratio
 export async function getYosMarketPrice(): Promise<number> {
   try {
     // Get the pool data
     const { yotBalance, yosBalance } = await getPoolBalances();
     
     if (!yotBalance || !yosBalance || yotBalance === 0 || yosBalance === 0) {
-      // Fallback to the fixed 1:10 ratio if pool data is incomplete (YOS is 10x less valuable than YOT)
+      // Fallback to approximate ratio if pool data is incomplete
       const yotPrice = await getYotMarketPrice();
-      return yotPrice / 10; // YOS is 10x less valuable than YOT
+      return yotPrice * 0.1; // Fallback approximation
     }
     
-    // Calculate YOS price based on pool ratio
-    // YOS is less valuable than YOT, so ratio = yotBalance / yosBalance
-    const yotToYosRatio = yotBalance / yosBalance;
+    // Calculate YOS price based on AMM pool ratio
+    // In an AMM, the ratio of token prices is inverse to the ratio of token amounts
+    const actualRatio = yotBalance / yosBalance;
     
     // Get YOT price first
     const yotPrice = await getYotMarketPrice();
     
-    // YOS price = YOT price * (1/ratio) since YOS is less valuable
-    const yosPrice = yotPrice / 10; // Fixed ratio: YOS is 10x less valuable than YOT
+    // YOS price = YOT price * (1/ratio)
+    const yosPrice = yotPrice * actualRatio;
     
-    console.log(`YOS price calculation: ${yotPrice} / 10 = ${yosPrice} (YOS is 10x less valuable than YOT)`);
+    console.log(`YOS price calculation using AMM ratio: ${yotPrice} * ${actualRatio} = ${yosPrice}`);
+    console.log(`AMM pool balances: ${yotBalance} YOT / ${yosBalance} YOS`);
     
     return yosPrice;
   } catch (error) {

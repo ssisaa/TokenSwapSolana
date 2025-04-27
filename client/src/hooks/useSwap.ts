@@ -38,33 +38,36 @@ export function useSwap() {
   // Function to update exchange rate display
   const updateExchangeRate = useCallback(async () => {
     try {
-      // For YOS to YOT, we use actual pool data now instead of using a fixed ratio
+      // For YOS to YOT, we use actual pool data for the exact exchange rate calculation
       if (fromToken === YOS_SYMBOL && toToken === YOT_SYMBOL) {
         const { getPoolBalances } = await import("@/lib/solana");
         try {
           const poolData = await getPoolBalances();
           
           if (poolData.yotBalance && poolData.yosBalance && poolData.yosBalance > 0) {
-            // YOS is 10 times LESS valuable than YOT (10 YOS = 1 YOT)
-            // Using actual pool data to calculate the ratio
+            // Calculate the actual YOS to YOT ratio based on pool balances
             const yosPerYot = poolData.yosBalance / poolData.yotBalance;
             
-            // If the pool data makes sense, use it; otherwise use the fixed 10:1 ratio
-            if (yosPerYot > 0 && yosPerYot < 100) { // Sanity check on pool ratio
-              setExchangeRate(`10 YOS = 1 YOT`);
-              console.log(`YOS to YOT pool ratio: ${yosPerYot} YOS per YOT (${poolData.yosBalance} YOS / ${poolData.yotBalance} YOT)`);
+            // If the pool data makes sense, use it for display
+            if (yosPerYot > 0) { 
+              // Calculate how many YOS tokens are needed for 1 YOT based on current AMM pool
+              const yosNeededForOneYot = poolData.yosBalance / poolData.yotBalance;
+              
+              // Format with reasonable precision for display
+              setExchangeRate(`${yosNeededForOneYot.toFixed(4)} YOS = 1 YOT`);
+              console.log(`AMM pool ratio: ${yosNeededForOneYot.toFixed(4)} YOS per YOT (${poolData.yosBalance} YOS / ${poolData.yotBalance} YOT)`);
             } else {
-              // Fallback to fixed ratio if pool data produces an unreasonable result
-              setExchangeRate(`10 YOS = 1 YOT`);
-              console.log(`Using fixed ratio: 10 YOS = 1 YOT (pool data unreasonable: ${yosPerYot})`);
+              // Fallback if pool data seems invalid
+              setExchangeRate(`1 YOS = ${(0.1).toFixed(4)} YOT`);
+              console.log(`Using fallback ratio: 1 YOS = 0.1 YOT (pool data invalid)`);
             }
           } else {
-            // Fallback to a fixed ratio if we can't get pool data
-            setExchangeRate(`10 YOS = 1 YOT`);
+            // Fallback to a default ratio if we can't get pool data
+            setExchangeRate(`1 YOS = ${(0.1).toFixed(4)} YOT (fallback)`);
           }
         } catch (error) {
           console.error("Error fetching YOS:YOT pool data:", error);
-          setExchangeRate(`10 YOS = 1 YOT (fallback)`);
+          setExchangeRate(`1 YOS = ${(0.1).toFixed(4)} YOT (fallback)`);
         }
         return;
       }
