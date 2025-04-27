@@ -39,7 +39,7 @@ export default function Stake() {
   
   return (
     <DashboardLayout>
-      <div className="container mx-auto py-6">
+      <div className="container mx-auto py-6 bg-dark-100">
         <h1 className="text-3xl font-bold tracking-tight">Staking Dashboard</h1>
         
         <div className="grid gap-6 mt-8 lg:grid-cols-[2fr_1fr]">
