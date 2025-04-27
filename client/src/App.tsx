@@ -6,11 +6,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { WalletProvider } from "@/context/WalletContext";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
+import Integration from "@/pages/Integration";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/integration" component={Integration} />
       <Route component={NotFound} />
     </Switch>
   );
