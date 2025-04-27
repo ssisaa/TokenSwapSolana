@@ -465,24 +465,44 @@ export async function getRecentTransactions(address: string, limit: number = 10)
               }
             }
             
+            // This is a pool deposit if the transaction includes the pool SOL account
             isSwap = accountKeys.includes(poolSolAccountStr);
             
             if (isSwap) {
-              // Further analyze to determine swap details
-              // This is a simplified approach and may need refinement
-              const hasYotTransfer = txDetails.meta?.logMessages?.some(
-                log => log.includes('Transfer') && log.includes(YOT_TOKEN_ADDRESS)
-              );
-              
-              if (hasYotTransfer) {
-                // SOL -> YOT or YOT -> SOL
-                // Would need more sophisticated analysis for accurate amounts
-                fromToken = accountKeys.indexOf(poolSolAccountStr) < accountKeys.indexOf(publicKey.toBase58()) 
-                  ? 'YOT' : 'SOL';
-                toToken = fromToken === 'SOL' ? 'YOT' : 'SOL';
+              // Find the amount of SOL transferred (if any)
+              let solAmount = 0;
+              if (txDetails.meta && txDetails.meta.preBalances && txDetails.meta.postBalances) {
+                // Find the index of the pool account in the transaction
+                const poolIndex = accountKeys.indexOf(poolSolAccountStr);
+                if (poolIndex >= 0 && poolIndex < txDetails.meta.preBalances.length) {
+                  // Calculate the difference in balance
+                  const preBal = txDetails.meta.preBalances[poolIndex];
+                  const postBal = txDetails.meta.postBalances[poolIndex];
+                  solAmount = lamportsToSol(postBal - preBal);
+                }
+              }
+
+              // Determine direction based on whether SOL was sent to the pool
+              if (solAmount > 0) {
+                // This was a SOL -> YOT swap (deposit)
+                fromToken = 'SOL';
+                toToken = 'YOT';
+                fromAmount = solAmount;
+                toAmount = solAmount * 100; // Approximate rate
+                fee = solAmount * SWAP_FEE;
+              } else {
+                // This might be a YOT -> SOL swap or another transaction type
+                // Try to detect YOT transfer
+                const hasYotTransfer = txDetails.meta?.logMessages?.some(
+                  log => log.includes('Transfer') && log.includes(YOT_TOKEN_ADDRESS)
+                );
                 
-                // Simplified fee calculation
-                fee = 0.000005; // A placeholder
+                if (hasYotTransfer) {
+                  fromToken = 'YOT';
+                  toToken = 'SOL';
+                  // We would need more sophisticated analysis for accurate amounts
+                  fee = 0.000005; // A placeholder
+                }
               }
             }
           }

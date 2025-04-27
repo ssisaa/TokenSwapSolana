@@ -47,16 +47,20 @@ export default function SwapSection() {
     } else if (isSuccess) {
       setTransactionState('success');
       toast({
-        title: "Swap Successful",
-        description: "Your tokens have been swapped successfully.",
+        title: "Pool Deposit Successful",
+        description: "Your transaction has been confirmed on the blockchain.",
         variant: "default",
       });
-      setTimeout(() => setTransactionState('idle'), 3000);
+      
+      // No need to refresh transaction history manually - TransactionHistory component
+      // will refresh on its own after a transaction is confirmed
+      
+      setTimeout(() => setTransactionState('idle'), 5000);
     } else if (error) {
       setTransactionState('error');
       setErrorMessage(error instanceof Error ? error.message : "Transaction failed");
       toast({
-        title: "Swap Failed",
+        title: "Transaction Failed",
         description: error instanceof Error ? error.message : "Transaction failed",
         variant: "destructive",
       });

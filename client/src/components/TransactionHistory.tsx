@@ -51,11 +51,22 @@ export default function TransactionHistory() {
             <p className="text-sm">Recent transactions made with your wallet will appear here</p>
             
             <div className="mt-4 py-2 px-3 bg-dark-300 rounded-lg text-xs">
-              <p className="font-medium text-primary-400">Demo Mode</p>
+              <p className="font-medium text-primary-400">Transaction Info</p>
               <p className="mt-1 text-gray-400">
-                In this demo, simulated swaps don't appear in your transaction history. 
-                In a real application with a deployed smart contract, real swaps would 
-                be recorded on-chain and would appear here.
+                Your transactions to the pool may take a moment to appear here. The application 
+                performs real transfers on the Solana devnet blockchain, but a complete swap 
+                would require a deployed token-swap program to handle both sides of the exchange.
+              </p>
+              <p className="mt-1 text-gray-400">
+                You can view your recent transactions directly on 
+                <a 
+                  href={`${EXPLORER_URL}/address/${wallet?.publicKey?.toString()}?cluster=${CLUSTER}`} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-primary-400 hover:underline ml-1"
+                >
+                  Solana Explorer
+                </a>.
               </p>
             </div>
           </div>
