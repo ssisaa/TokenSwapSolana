@@ -31,6 +31,6 @@ export const YOS_SYMBOL = 'YOS';
 export const CONFIRMATION_COUNT = 1;
 
 // Staking Program ID
-// This is a valid devnet program ID (system program)
-// Using this will at least ensure wallet shows correct tokens
-export const STAKING_PROGRAM_ID = 'F6QsrTYypwxryfV9rBUXp8xUGwVkv3m3hYzWvsBKhfS9';
+// Real program ID generated for YOT staking program
+// Generated on: April 27, 2025
+export const STAKING_PROGRAM_ID = '5rQzEXhDTYdyDftPmu4DiaLpZz4GePd2XumXYPHBSj6T';
