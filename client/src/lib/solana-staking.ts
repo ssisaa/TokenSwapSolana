@@ -90,44 +90,62 @@ function encodeInitializeInstruction(
 }
 
 function encodeStakeInstruction(amount: number): Buffer {
-  // Create instruction type byte
-  const instructionBuffer = Buffer.from([StakingInstructionType.Stake]);
+  // Create a buffer to hold all data
+  // 1 byte for instruction type + 8 bytes for amount (u64)
+  const buffer = Buffer.alloc(1 + 8);
   
-  // Create amount bytes
-  const amountBuffer = Buffer.from(new BigUint64Array([BigInt(amount)]).buffer);
+  // Write instruction type to the first byte
+  buffer.writeUInt8(StakingInstructionType.Stake, 0);
   
-  // Concatenate buffers
-  return Buffer.concat([instructionBuffer, amountBuffer]);
+  // Write amount as little-endian u64 (8 bytes)
+  // JavaScript can only handle 53 bits safely, so we're using writeBigUInt64LE
+  buffer.writeBigUInt64LE(BigInt(amount), 1);
+  
+  return buffer;
 }
 
 function encodeUnstakeInstruction(amount: number): Buffer {
-  // Create instruction type byte
-  const instructionBuffer = Buffer.from([StakingInstructionType.Unstake]);
+  // Create a buffer to hold all data
+  // 1 byte for instruction type + 8 bytes for amount (u64)
+  const buffer = Buffer.alloc(1 + 8);
   
-  // Create amount bytes
-  const amountBuffer = Buffer.from(new BigUint64Array([BigInt(amount)]).buffer);
+  // Write instruction type to the first byte
+  buffer.writeUInt8(StakingInstructionType.Unstake, 0);
   
-  // Concatenate buffers
-  return Buffer.concat([instructionBuffer, amountBuffer]);
+  // Write amount as little-endian u64 (8 bytes)
+  buffer.writeBigUInt64LE(BigInt(amount), 1);
+  
+  return buffer;
 }
 
 function encodeHarvestInstruction(): Buffer {
-  return Buffer.from([StakingInstructionType.Harvest]);
+  // Create a buffer with just the instruction type
+  const buffer = Buffer.alloc(1);
+  
+  // Write instruction type to the buffer
+  buffer.writeUInt8(StakingInstructionType.Harvest, 0);
+  
+  return buffer;
 }
 
 function encodeUpdateParametersInstruction(
   stakeRatePerSecond: number,
   harvestThreshold: number
 ): Buffer {
-  // Create instruction type byte
-  const instructionBuffer = Buffer.from([StakingInstructionType.UpdateParameters]);
+  // Create a buffer to hold all data
+  // 1 byte for instruction type + 8 bytes for rate + 8 bytes for threshold
+  const buffer = Buffer.alloc(1 + 8 + 8);
   
-  // Create rate and threshold bytes
-  const rateBuffer = Buffer.from(new BigUint64Array([BigInt(stakeRatePerSecond)]).buffer);
-  const thresholdBuffer = Buffer.from(new BigUint64Array([BigInt(harvestThreshold)]).buffer);
+  // Write instruction type to the first byte
+  buffer.writeUInt8(StakingInstructionType.UpdateParameters, 0);
   
-  // Concatenate buffers
-  return Buffer.concat([instructionBuffer, rateBuffer, thresholdBuffer]);
+  // Write rate as little-endian u64 (8 bytes)
+  buffer.writeBigUInt64LE(BigInt(stakeRatePerSecond), 1);
+  
+  // Write threshold as little-endian u64 (8 bytes)
+  buffer.writeBigUInt64LE(BigInt(harvestThreshold), 9);
+  
+  return buffer;
 }
 
 // Client functions that interface with our Solana program
