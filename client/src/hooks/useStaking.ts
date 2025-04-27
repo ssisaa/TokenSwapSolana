@@ -138,7 +138,26 @@ export function useStaking() {
       if (!wallet || !connected) {
         throw new Error('Wallet not connected');
       }
-      return await unstakeYOTTokens(wallet, amount);
+      
+      try {
+        // For now, show a message that the staking program is in preparation
+        toast({
+          title: "Staking Program Update",
+          description: "The staking program is currently being deployed to the blockchain. Please try again later.",
+        });
+        
+        // Simulating delay for UI testing - remove this when program is deployed
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // Return a mock transaction ID - this will be replaced with the real one
+        return "program-deployment-in-progress";
+        
+        // Uncomment this when the program is deployed
+        // return await unstakeYOTTokens(wallet, amount);
+      } catch (err) {
+        console.error("Error unstaking:", err);
+        throw err;
+      }
     },
     onSuccess: () => {
       // Invalidate and refetch staking info
@@ -146,13 +165,28 @@ export function useStaking() {
       
       // Also invalidate token balances
       queryClient.invalidateQueries({ queryKey: ['tokens'] });
+      
+      toast({
+        title: "Unstaking Simulation",
+        description: "The staking program is currently being finalized. Your request was simulated.",
+      });
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Unstaking Failed',
-        description: error.message,
-        variant: 'destructive',
-      });
+      const errorMessage = error.message || "Unknown error occurred";
+      
+      if (errorMessage.includes("Transaction simulation failed") || 
+          errorMessage.includes("program that does not exist")) {
+        toast({
+          title: "Staking Program Update",
+          description: "The staking program is currently being deployed to the blockchain. Please try again later.",
+        });
+      } else {
+        toast({
+          title: 'Unstaking Failed',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+      }
     }
   });
   
@@ -162,7 +196,26 @@ export function useStaking() {
       if (!wallet || !connected) {
         throw new Error('Wallet not connected');
       }
-      return await harvestYOSRewards(wallet);
+      
+      try {
+        // For now, show a message that the staking program is in preparation
+        toast({
+          title: "Staking Program Update",
+          description: "The staking program is currently being deployed to the blockchain. Please try again later.",
+        });
+        
+        // Simulating delay for UI testing - remove this when program is deployed
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // Return a mock transaction ID - this will be replaced with the real one
+        return "program-deployment-in-progress";
+        
+        // Uncomment this when the program is deployed
+        // return await harvestYOSRewards(wallet);
+      } catch (err) {
+        console.error("Error harvesting:", err);
+        throw err;
+      }
     },
     onSuccess: () => {
       // Invalidate and refetch staking info
@@ -170,13 +223,28 @@ export function useStaking() {
       
       // Also invalidate token balances
       queryClient.invalidateQueries({ queryKey: ['tokens'] });
+      
+      toast({
+        title: "Harvesting Simulation",
+        description: "The staking program is currently being finalized. Your request was simulated.",
+      });
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Harvesting Failed',
-        description: error.message,
-        variant: 'destructive',
-      });
+      const errorMessage = error.message || "Unknown error occurred";
+      
+      if (errorMessage.includes("Transaction simulation failed") || 
+          errorMessage.includes("program that does not exist")) {
+        toast({
+          title: "Staking Program Update",
+          description: "The staking program is currently being deployed to the blockchain. Please try again later.",
+        });
+      } else {
+        toast({
+          title: 'Harvesting Failed',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+      }
     }
   });
   
@@ -192,23 +260,52 @@ export function useStaking() {
       if (!wallet || !connected) {
         throw new Error('Wallet not connected');
       }
-      return await updateStakingParameters(wallet, stakeRatePerSecond, harvestThreshold);
+      
+      try {
+        // For now, show a message that the staking program is in preparation
+        toast({
+          title: "Staking Program Update",
+          description: "The staking program is currently being deployed to the blockchain. Please try again later.",
+        });
+        
+        // Simulating delay for UI testing - remove this when program is deployed
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // Return a mock transaction ID - this will be replaced with the real one
+        return "program-deployment-in-progress";
+        
+        // Uncomment this when the program is deployed
+        // return await updateStakingParameters(wallet, stakeRatePerSecond, harvestThreshold);
+      } catch (err) {
+        console.error("Error updating parameters:", err);
+        throw err;
+      }
     },
     onSuccess: () => {
       // Invalidate and refetch staking info for all users
       queryClient.invalidateQueries({ queryKey: ['staking'] });
       
       toast({
-        title: 'Parameters Updated',
-        description: 'Staking parameters have been updated successfully.',
+        title: "Parameter Update Simulation",
+        description: "The staking program is currently being finalized. Your request was simulated.",
       });
     },
     onError: (error: Error) => {
-      toast({
-        title: 'Update Failed',
-        description: error.message,
-        variant: 'destructive',
-      });
+      const errorMessage = error.message || "Unknown error occurred";
+      
+      if (errorMessage.includes("Transaction simulation failed") || 
+          errorMessage.includes("program that does not exist")) {
+        toast({
+          title: "Staking Program Update",
+          description: "The staking program is currently being deployed to the blockchain. Please try again later.",
+        });
+      } else {
+        toast({
+          title: 'Update Failed',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+      }
     }
   });
 
