@@ -279,7 +279,24 @@ export async function swapSolToYot(
     // since we don't have the pool authority private key
     
     // First, send the SOL to the pool
-    const solSignature = await wallet.sendTransaction(transaction, connection);
+    // Handle different wallet implementations (Phantom, Solflare, etc.)
+    let solSignature;
+    
+    // Different wallets have different implementations of sendTransaction
+    if (typeof wallet.sendTransaction === 'function') {
+      // Standard wallet adapter approach (Phantom)
+      solSignature = await wallet.sendTransaction(transaction, connection);
+    } else if (wallet.signAndSendTransaction && typeof wallet.signAndSendTransaction === 'function') {
+      // Some wallet adapters use signAndSendTransaction instead
+      solSignature = await wallet.signAndSendTransaction(transaction);
+    } else if (wallet.signTransaction && typeof wallet.signTransaction === 'function') {
+      // If the wallet can only sign but not send, we sign first then send manually
+      const signedTx = await wallet.signTransaction(transaction);
+      solSignature = await connection.sendRawTransaction(signedTx.serialize());
+    } else {
+      throw new Error("Wallet doesn't support transaction signing");
+    }
+    
     console.log("SOL transfer transaction sent with signature:", solSignature);
     
     // Confirm the transaction
@@ -408,8 +425,23 @@ export async function swapYotToSol(
           
       // Sign and send the transaction
       try {
-        // Send the transaction using the wallet adapter
-        const signature = await wallet.sendTransaction(transaction, connection);
+        // Handle different wallet implementations (Phantom, Solflare, etc.)
+        let signature;
+        
+        if (typeof wallet.sendTransaction === 'function') {
+          // Standard wallet adapter approach (Phantom)
+          signature = await wallet.sendTransaction(transaction, connection);
+        } else if (wallet.signAndSendTransaction && typeof wallet.signAndSendTransaction === 'function') {
+          // Some wallet adapters use signAndSendTransaction instead
+          signature = await wallet.signAndSendTransaction(transaction);
+        } else if (wallet.signTransaction && typeof wallet.signTransaction === 'function') {
+          // If the wallet can only sign but not send, we sign first then send manually
+          const signedTx = await wallet.signTransaction(transaction);
+          signature = await connection.sendRawTransaction(signedTx.serialize());
+        } else {
+          throw new Error("Wallet doesn't support transaction signing");
+        }
+        
         console.log("Transaction sent with signature:", signature);
         
         // Confirm transaction
