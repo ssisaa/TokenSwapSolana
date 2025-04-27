@@ -265,6 +265,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Staking API Routes
+  app.get('/api/staking/info', async (req, res) => {
+    try {
+      const { wallet } = req.query;
+      
+      if (!wallet || typeof wallet !== 'string') {
+        return res.status(400).json({ message: 'Wallet address is required' });
+      }
+      
+      // Get staking data from database
+      const stakingData = await storage.getStakingData(wallet);
+      
+      if (!stakingData) {
+        return res.json({
+          stakedAmount: 0,
+          rewardsEarned: 0,
+          startTimestamp: null,
+          harvestedRewards: 0
+        });
+      }
+      
+      res.json(stakingData);
+    } catch (error) {
+      console.error('Error fetching staking info:', error);
+      res.status(500).json({
+        message: 'Failed to fetch staking information',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+  
+  app.post('/api/staking/stake', async (req, res) => {
+    try {
+      const { walletAddress, stakedAmount, startTimestamp } = req.body;
+      
+      if (!walletAddress || !stakedAmount || !startTimestamp) {
+        return res.status(400).json({ message: 'Missing required staking data' });
+      }
+      
+      // Save staking data to database
+      await storage.saveStakingData({
+        walletAddress,
+        stakedAmount,
+        startTimestamp
+      });
+      
+      res.json({ success: true, message: 'Staking data saved successfully' });
+    } catch (error) {
+      console.error('Error saving staking data:', error);
+      res.status(500).json({
+        message: 'Failed to save staking data',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+  
+  app.post('/api/staking/unstake', async (req, res) => {
+    try {
+      const { wallet } = req.query;
+      
+      if (!wallet || typeof wallet !== 'string') {
+        return res.status(400).json({ message: 'Wallet address is required' });
+      }
+      
+      // Remove staking data from database
+      await storage.removeStakingData(wallet);
+      
+      res.json({ success: true, message: 'Successfully unstaked' });
+    } catch (error) {
+      console.error('Error unstaking:', error);
+      res.status(500).json({
+        message: 'Failed to unstake',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+  
+  app.post('/api/staking/harvest', async (req, res) => {
+    try {
+      const { wallet } = req.query;
+      
+      if (!wallet || typeof wallet !== 'string') {
+        return res.status(400).json({ message: 'Wallet address is required' });
+      }
+      
+      // Update harvest data in database
+      await storage.harvestRewards(wallet);
+      
+      res.json({ success: true, message: 'Successfully harvested rewards' });
+    } catch (error) {
+      console.error('Error harvesting rewards:', error);
+      res.status(500).json({
+        message: 'Failed to harvest rewards',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
