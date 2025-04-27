@@ -291,8 +291,22 @@ export default function Stake() {
                     <p className="text-white text-2xl font-bold">{formatNumber(stakedYOT)} YOT</p>
                   </div>
                   <div className="bg-dark-300 p-4 rounded-lg">
-                    <p className="text-gray-400 text-sm">YOS Earned</p>
-                    <p className="text-primary-400 text-2xl font-bold">{formatNumber(earnedYOS)} YOS</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-gray-400 text-sm">YOS Earned</p>
+                      {earnedYOS >= harvestThreshold && (
+                        <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded">
+                          Ready to Harvest
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <p className="text-primary-400 text-2xl font-bold">{formatNumber(earnedYOS)} YOS</p>
+                      {earnedYOS > 0 && earnedYOS < harvestThreshold && (
+                        <span className="text-xs text-gray-400">
+                          ({((earnedYOS / harvestThreshold) * 100).toFixed(0)}% of threshold)
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 
@@ -375,11 +389,23 @@ export default function Stake() {
                       </Alert>
                       
                       <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Info className="h-4 w-4 text-primary-400" />
-                          <span className="text-xs text-gray-400">
-                            Minimum {harvestThreshold} YOS required to harvest rewards
-                          </span>
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Info className="h-4 w-4 text-primary-400" />
+                              <span className="text-xs text-gray-400">
+                                Minimum {harvestThreshold} YOS required to harvest rewards
+                              </span>
+                            </div>
+                            <span className="text-xs text-gray-400">
+                              {Math.min(Math.round((earnedYOS / harvestThreshold) * 100), 100)}%
+                            </span>
+                          </div>
+                          <Progress 
+                            value={Math.min((earnedYOS / harvestThreshold) * 100, 100)} 
+                            className="h-1" 
+                            indicatorClassName={earnedYOS >= harvestThreshold ? "bg-green-500" : ""}
+                          />
                         </div>
                         
                         <div className="flex flex-col sm:flex-row gap-2">
