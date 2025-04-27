@@ -18,7 +18,7 @@ export default function Home() {
   }, [fetchTokenInfo]);
 
   return (
-    <div className="bg-dark-200 text-gray-200 min-h-screen">
+    <div style={{ backgroundColor: "var(--dark-200)" }} className="text-white min-h-screen">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <Header />
         

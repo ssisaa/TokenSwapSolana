@@ -86,8 +86,14 @@
   }
 }
 
-/* Force dark mode */
+/* Force dark mode and set background */
 html {
   color-scheme: dark;
+  background-color: var(--dark-200);
+}
+
+body {
+  background-color: var(--dark-200);
+  color: #ffffff;
 }
 
