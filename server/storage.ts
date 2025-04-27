@@ -70,7 +70,8 @@ export class DatabaseStorage implements IStorage {
         liquidityRewardsRateMonthly: "1.5",
         stakeRateDaily: "0.1",
         stakeRateHourly: "0.004",
-        stakeRatePerSecond: "0.000001"
+        stakeRatePerSecond: "0.000001",
+        harvestThreshold: "100"
       });
     }
   }

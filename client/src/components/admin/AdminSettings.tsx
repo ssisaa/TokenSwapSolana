@@ -73,6 +73,11 @@ export default function AdminSettings() {
       setBuyLiquidityRate(settings.liquidityContributionPercentage.toString());
       setSellLiquidityRate(settings.liquidityContributionPercentage.toString());
       setStakingRate(settings.stakeRatePerSecond.toString());
+      
+      // Initialize harvest threshold
+      if (settings.harvestThreshold) {
+        setHarvestThreshold(settings.harvestThreshold.toString());
+      }
     }
   }, [settings]);
   
@@ -124,7 +129,8 @@ export default function AdminSettings() {
       liquidityContributionPercentage: buyLiquidityRate, // Using buy rate for now
       stakeRateDaily: stakingRates.daily,
       stakeRateHourly: stakingRates.hourly,
-      stakeRatePerSecond: stakingRates.second
+      stakeRatePerSecond: stakingRates.second,
+      harvestThreshold: harvestThreshold
     };
     
     // Update if there are changes
@@ -225,7 +231,8 @@ export default function AdminSettings() {
                 Staking Settings
               </AccordionTrigger>
               <AccordionContent>
-                <div className="space-y-4 mt-2">
+                <div className="space-y-6 mt-2">
+                  {/* Staking Rate Section */}
                   <div className="grid gap-2">
                     <div className="flex items-center justify-between">
                       <Label htmlFor="stakingRate">
@@ -283,6 +290,40 @@ export default function AdminSettings() {
                         }
                       </p>
                     </div>
+                  </div>
+                  
+                  {/* Harvest Threshold Section */}
+                  <div className="grid gap-2 border-t pt-4">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="harvestThreshold">
+                        Harvest Threshold
+                      </Label>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <InfoIcon className="h-4 w-4 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="max-w-xs">Minimum amount of YOS rewards required before users can claim</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="harvestThreshold"
+                        type="number"
+                        step="1"
+                        placeholder="Enter threshold amount"
+                        value={harvestThreshold}
+                        onChange={(e) => setHarvestThreshold(e.target.value)}
+                        className="flex-1"
+                      />
+                      <span className="ml-2">YOS</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Users must earn at least {harvestThreshold} YOS tokens before they can harvest rewards
+                    </p>
                   </div>
                 </div>
               </AccordionContent>

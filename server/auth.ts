@@ -169,7 +169,8 @@ export function setupAuth(app: Express) {
         liquidityRewardsRateMonthly,
         stakeRateDaily,
         stakeRateHourly,
-        stakeRatePerSecond
+        stakeRatePerSecond,
+        harvestThreshold
       } = req.body;
       
       const adminId = (req.user as AdminUser).id;
@@ -182,6 +183,7 @@ export function setupAuth(app: Express) {
         stakeRateDaily,
         stakeRateHourly,
         stakeRatePerSecond,
+        harvestThreshold,
         updatedBy: adminId
       }, adminId);
       
