@@ -139,11 +139,42 @@ export function useStaking() {
     onError: (error: Error) => {
       const errorMessage = error.message || "Unknown error occurred";
       
-      if (errorMessage.includes("Transaction simulation failed") || 
-          errorMessage.includes("program that does not exist")) {
+      // Handle specific error messages with user-friendly explanations
+      if (errorMessage.includes("Failed to serialize or deserialize account data")) {
         toast({
-          title: "Staking Program Update",
-          description: "The staking program is currently being deployed to the blockchain. Please try again later.",
+          title: "Staking Program Not Initialized",
+          description: "The staking program needs to be initialized by an admin. Please check admin settings.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("program that does not exist")) {
+        toast({
+          title: "Staking Program Not Deployed",
+          description: "The staking program is not deployed or not accessible. Please check program ID.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("invalid program id")) {
+        toast({
+          title: "Invalid Program ID",
+          description: "The staking program ID is invalid. Check configuration.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("Transaction simulation failed")) {
+        toast({
+          title: "Transaction Failed",
+          description: "The transaction simulation failed. The program may not be properly initialized or has invalid data.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("Insufficient funds")) {
+        toast({
+          title: "Insufficient Funds",
+          description: "You don't have enough SOL to pay for transaction fees.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("Program state account does not exist")) {
+        toast({
+          title: "Program Not Initialized",
+          description: "The staking program state has not been created. An admin needs to initialize it first.",
+          variant: 'destructive',
         });
       } else {
         toast({
@@ -152,6 +183,8 @@ export function useStaking() {
           variant: 'destructive',
         });
       }
+      
+      console.error("Detailed staking error:", error);
     }
   });
   
@@ -214,11 +247,42 @@ export function useStaking() {
     onError: (error: Error) => {
       const errorMessage = error.message || "Unknown error occurred";
       
-      if (errorMessage.includes("Transaction simulation failed") || 
-          errorMessage.includes("program that does not exist")) {
+      // Handle specific error messages with user-friendly explanations
+      if (errorMessage.includes("Failed to serialize or deserialize account data")) {
         toast({
-          title: "Staking Program Update",
-          description: "The staking program is currently being deployed to the blockchain. Please try again later.",
+          title: "Staking Program Not Initialized",
+          description: "The staking program needs to be initialized by an admin. Please check admin settings.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("program that does not exist")) {
+        toast({
+          title: "Staking Program Not Deployed",
+          description: "The staking program is not deployed or not accessible. Please check program ID.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("invalid program id")) {
+        toast({
+          title: "Invalid Program ID",
+          description: "The staking program ID is invalid. Check configuration.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("Transaction simulation failed")) {
+        toast({
+          title: "Transaction Failed",
+          description: "The transaction simulation failed. The program may not be properly initialized or has invalid data.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("Insufficient funds")) {
+        toast({
+          title: "Insufficient Funds",
+          description: "You don't have enough SOL to pay for transaction fees.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("Program state account does not exist")) {
+        toast({
+          title: "Program Not Initialized",
+          description: "The staking program state has not been created. An admin needs to initialize it first.",
+          variant: 'destructive',
         });
       } else {
         toast({
@@ -227,6 +291,8 @@ export function useStaking() {
           variant: 'destructive',
         });
       }
+      
+      console.error("Detailed unstaking error:", error);
     }
   });
   
@@ -301,11 +367,48 @@ export function useStaking() {
     onError: (error: Error) => {
       const errorMessage = error.message || "Unknown error occurred";
       
-      if (errorMessage.includes("Transaction simulation failed") || 
-          errorMessage.includes("program that does not exist")) {
+      // Handle specific error messages with user-friendly explanations
+      if (errorMessage.includes("Failed to serialize or deserialize account data")) {
         toast({
-          title: "Staking Program Update",
-          description: "The staking program is currently being deployed to the blockchain. Please try again later.",
+          title: "Staking Program Not Initialized",
+          description: "The staking program needs to be initialized by an admin. Please check admin settings.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("program that does not exist")) {
+        toast({
+          title: "Staking Program Not Deployed",
+          description: "The staking program is not deployed or not accessible. Please check program ID.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("invalid program id")) {
+        toast({
+          title: "Invalid Program ID",
+          description: "The staking program ID is invalid. Check configuration.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("Transaction simulation failed")) {
+        toast({
+          title: "Transaction Failed",
+          description: "The transaction simulation failed. The program may not be properly initialized or has invalid data.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("Insufficient funds")) {
+        toast({
+          title: "Insufficient Funds",
+          description: "You don't have enough SOL to pay for transaction fees.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("Program state account does not exist")) {
+        toast({
+          title: "Program Not Initialized",
+          description: "The staking program state has not been created. An admin needs to initialize it first.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("Account not found")) {
+        toast({
+          title: "Account Not Found",
+          description: "One of the required token accounts doesn't exist. You may need to create it first.",
+          variant: 'destructive',
         });
       } else {
         toast({
@@ -314,6 +417,8 @@ export function useStaking() {
           variant: 'destructive',
         });
       }
+      
+      console.error("Detailed harvesting error:", error);
     }
   });
   
@@ -386,11 +491,48 @@ export function useStaking() {
     onError: (error: Error) => {
       const errorMessage = error.message || "Unknown error occurred";
       
-      if (errorMessage.includes("Transaction simulation failed") || 
-          errorMessage.includes("program that does not exist")) {
+      // Handle specific error messages with user-friendly explanations
+      if (errorMessage.includes("Failed to serialize or deserialize account data")) {
         toast({
-          title: "Staking Program Update",
-          description: "The staking program is currently being deployed to the blockchain. Please try again later.",
+          title: "Staking Program Not Initialized",
+          description: "The staking program needs to be initialized by an admin. Please check admin settings.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("program that does not exist")) {
+        toast({
+          title: "Staking Program Not Deployed",
+          description: "The staking program is not deployed or not accessible. Please check program ID.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("invalid program id")) {
+        toast({
+          title: "Invalid Program ID",
+          description: "The staking program ID is invalid. Check configuration.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("Transaction simulation failed")) {
+        toast({
+          title: "Transaction Failed",
+          description: "The transaction simulation failed. The program may not be properly initialized or has invalid data.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("Insufficient funds")) {
+        toast({
+          title: "Insufficient Funds",
+          description: "You don't have enough SOL to pay for transaction fees.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("Program state account does not exist")) {
+        toast({
+          title: "Program Not Initialized",
+          description: "The staking program state has not been created. An admin needs to initialize it first.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("missing required signature for instruction")) {
+        toast({
+          title: "Not Authorized",
+          description: "You don't have permission to update staking parameters. Admin wallet required.",
+          variant: 'destructive',
         });
       } else {
         toast({
@@ -399,6 +541,8 @@ export function useStaking() {
           variant: 'destructive',
         });
       }
+      
+      console.error("Detailed parameter update error:", error);
     }
   });
 
