@@ -118,6 +118,10 @@ export default function SwapSection() {
       // If the user selects YOS as the "from" token, automatically set "to" token to YOT
       if (token === YOS_SYMBOL) {
         setToToken(YOT_SYMBOL);
+      } 
+      // Prevent the same token in both fields
+      else if (token === toToken) {
+        setToToken(token === SOL_SYMBOL ? YOT_SYMBOL : SOL_SYMBOL);
       }
     }
     setFromTokenOptions(false);
@@ -137,8 +141,16 @@ export default function SwapSection() {
           });
         }
       } else {
+        // Prevent selecting the same token for both From and To
+        if (token === fromToken) {
+          toast({
+            title: "Invalid Selection",
+            description: "From and To tokens cannot be the same.",
+            variant: "destructive",
+          });
+        } 
         // For non-YOS from tokens, allow SOL and YOT selections
-        if (token === SOL_SYMBOL || token === YOT_SYMBOL) {
+        else if (token === SOL_SYMBOL || token === YOT_SYMBOL) {
           setToToken(token);
         }
       }

@@ -12,6 +12,19 @@ export function formatCurrency(amount: number | string, decimals: number = 6): s
   
   if (isNaN(amount)) return '0.00';
   
+  // Use abbreviated format for large numbers
+  const absAmount = Math.abs(amount);
+  if (absAmount >= 1_000_000_000_000) { // >= 1 trillion
+    return (amount / 1_000_000_000_000).toFixed(2) + 'T';
+  } else if (absAmount >= 1_000_000_000) { // >= 1 billion
+    return (amount / 1_000_000_000).toFixed(2) + 'B';
+  } else if (absAmount >= 1_000_000) { // >= 1 million
+    return (amount / 1_000_000).toFixed(2) + 'M';
+  } else if (absAmount >= 1_000) { // >= 1 thousand
+    return (amount / 1_000).toFixed(2) + 'K';
+  }
+  
+  // Use standard formatting for smaller numbers
   const formatter = new Intl.NumberFormat('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: decimals,
@@ -21,6 +34,19 @@ export function formatCurrency(amount: number | string, decimals: number = 6): s
 }
 
 export function formatDollarAmount(amount: number): string {
+  // Use abbreviated format for large numbers
+  const absAmount = Math.abs(amount);
+  if (absAmount >= 1_000_000_000_000) { // >= 1 trillion
+    return '$' + (amount / 1_000_000_000_000).toFixed(2) + 'T';
+  } else if (absAmount >= 1_000_000_000) { // >= 1 billion
+    return '$' + (amount / 1_000_000_000).toFixed(2) + 'B';
+  } else if (absAmount >= 1_000_000) { // >= 1 million
+    return '$' + (amount / 1_000_000).toFixed(2) + 'M';
+  } else if (absAmount >= 1_000) { // >= 1 thousand
+    return '$' + (amount / 1_000).toFixed(2) + 'K';
+  }
+  
+  // Use standard formatting for smaller numbers
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
