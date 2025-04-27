@@ -44,8 +44,8 @@ export default function Dashboard() {
         // Calculate YOT price in USD (based on SOL price and pool ratio)
         const yotPrice = (solPrice * solBalanceInSol) / pool.yotBalance;
         
-        // Calculate YOS price (1 YOS = 10 YOT)
-        const yosPrice = yotPrice * 10;
+        // Calculate YOS price (YOS is 10x less valuable than YOT)
+        const yosPrice = yotPrice / 10;
         
         // Calculate total liquidity
         const totalLiquidity = (solBalanceInSol * solPrice) + 
