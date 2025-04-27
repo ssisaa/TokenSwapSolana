@@ -38,23 +38,24 @@ export function useSwap() {
   // Function to update exchange rate display
   const updateExchangeRate = useCallback(async () => {
     try {
-      // For YOS to YOT, we use actual pool data now instead of fixed 1:10 ratio
+      // For YOS to YOT, we use actual pool data now instead of using a fixed ratio
       if (fromToken === YOS_SYMBOL && toToken === YOT_SYMBOL) {
         const { getPoolBalances } = await import("@/lib/solana");
         try {
           const poolData = await getPoolBalances();
           
           if (poolData.yotBalance && poolData.yosBalance && poolData.yosBalance > 0) {
-            const ratio = poolData.yotBalance / poolData.yosBalance;
-            setExchangeRate(`1 YOS = ${ratio.toFixed(4)} YOT`);
-            console.log(`YOS to YOT ratio from pools: ${ratio} (${poolData.yotBalance} YOT / ${poolData.yosBalance} YOS)`);
+            // For correct display, we need to show it as 1 YOT = X YOS (not 1 YOS = X YOT)
+            const ratio = poolData.yosBalance / poolData.yotBalance;
+            setExchangeRate(`1 YOT = ${ratio.toFixed(4)} YOS`);
+            console.log(`YOT to YOS ratio from pools: ${ratio} (${poolData.yosBalance} YOS / ${poolData.yotBalance} YOT)`);
           } else {
             // Fallback to a message if we can't get pool data
-            setExchangeRate(`YOS:YOT rate unavailable`);
+            setExchangeRate(`YOT:YOS rate unavailable`);
           }
         } catch (error) {
-          console.error("Error fetching YOS:YOT pool data:", error);
-          setExchangeRate(`YOS:YOT rate unavailable`);
+          console.error("Error fetching YOT:YOS pool data:", error);
+          setExchangeRate(`YOT:YOS rate unavailable`);
         }
         return;
       }

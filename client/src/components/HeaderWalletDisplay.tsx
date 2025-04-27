@@ -76,17 +76,17 @@ export default function HeaderWalletDisplay() {
       
       <div className="flex items-center space-x-4">
         <div className="font-mono text-sm text-right">
-          <span className="text-purple-300">111.39</span>
+          <span className="text-purple-300">{formatCurrency(balances.yot, 2)}</span>
           <span className="text-gray-400 ml-1 text-xs">YOT</span>
         </div>
         
         <div className="font-mono text-sm text-right">
-          <span className="text-green-300">0.00</span>
+          <span className="text-green-300">{formatCurrency(balances.yos, 2)}</span>
           <span className="text-gray-400 ml-1 text-xs">YOS</span>
         </div>
         
         <div className="font-mono text-sm text-right">
-          <span className="text-amber-300">10.535305</span>
+          <span className="text-amber-300">{formatCurrency(balances.sol, 6)}</span>
           <span className="text-gray-400 ml-1 text-xs">SOL</span>
         </div>
         

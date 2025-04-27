@@ -266,10 +266,10 @@ export async function calculateYosToYot(yosAmount: number) {
     if (!yotBalance || !yosBalance || yotBalance === 0 || yosBalance === 0) {
       // Fallback to fixed ratio if pool data is unavailable
       console.log("Using fallback 1:10 ratio for YOS to YOT conversion");
-      return yosAmount * 10;
+      return yosAmount * 0.1; // 1 YOT = 10 YOS, so 1 YOS = 0.1 YOT
     }
     
-    // Calculate the actual ratio from pool balances
+    // Calculate the actual ratio from pool balances (note: this should be smaller than 1 as YOT is worth less than YOS)
     const yosToYotRatio = yotBalance / yosBalance;
     console.log(`YOS to YOT ratio from pools: ${yosToYotRatio} (${yotBalance} YOT / ${yosBalance} YOS)`);
     
@@ -278,7 +278,7 @@ export async function calculateYosToYot(yosAmount: number) {
   } catch (error) {
     console.error('Error calculating YOS to YOT conversion:', error);
     // Fallback to fixed ratio
-    return yosAmount * 10;
+    return yosAmount * 0.1; // 1 YOT = 10 YOS, so 1 YOS = 0.1 YOT
   }
 }
 
@@ -291,10 +291,10 @@ export async function calculateYotToYos(yotAmount: number) {
     if (!yotBalance || !yosBalance || yotBalance === 0 || yosBalance === 0) {
       // Fallback to fixed ratio if pool data is unavailable
       console.log("Using fallback 1:10 ratio for YOT to YOS conversion");
-      return yotAmount / 10;
+      return yotAmount * 10; // 1 YOT = 10 YOS
     }
     
-    // Calculate the actual ratio from pool balances
+    // Calculate the actual ratio from pool balances (note: this should be larger than 1 as YOT is worth less than YOS)
     const yotToYosRatio = yosBalance / yotBalance;
     console.log(`YOT to YOS ratio from pools: ${yotToYosRatio} (${yosBalance} YOS / ${yotBalance} YOT)`);
     
@@ -303,7 +303,7 @@ export async function calculateYotToYos(yotAmount: number) {
   } catch (error) {
     console.error('Error calculating YOT to YOS conversion:', error);
     // Fallback to fixed ratio
-    return yotAmount / 10;
+    return yotAmount * 10; // 1 YOT = 10 YOS
   }
 }
 
