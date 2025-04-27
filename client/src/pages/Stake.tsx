@@ -49,7 +49,7 @@ export default function Stake() {
             <div>
               <h2 className="text-xl font-bold mb-4">Your Staking Overview</h2>
               <div className="grid gap-4 md:grid-cols-2">
-                <Card className="bg-muted">
+                <Card className="bg-dark-200">
                   <CardContent className="pt-6">
                     <div className="flex flex-col">
                       <span className="text-sm font-medium">Total Staked</span>
@@ -65,7 +65,7 @@ export default function Stake() {
                   </CardContent>
                 </Card>
                 
-                <Card className="bg-muted">
+                <Card className="bg-dark-200">
                   <CardContent className="pt-6">
                     <div className="flex flex-col">
                       <span className="text-sm font-medium">Earned Rewards</span>
@@ -188,7 +188,7 @@ export default function Stake() {
           {/* Right Column */}
           <div className="space-y-6">
             {/* Staking Information */}
-            <Card>
+            <Card className="bg-dark-200">
               <CardContent className="pt-6">
                 <h3 className="text-lg font-bold mb-4">Staking Information</h3>
                 
@@ -235,7 +235,7 @@ export default function Stake() {
             </Card>
             
             {/* How Staking Works */}
-            <Card>
+            <Card className="bg-dark-200">
               <CardContent className="pt-6">
                 <h3 className="text-lg font-bold mb-4">How Staking Works</h3>
                 
@@ -300,7 +300,7 @@ export default function Stake() {
             </Card>
             
             {/* Staking Security */}
-            <Card>
+            <Card className="bg-dark-200">
               <CardContent className="pt-6">
                 <h3 className="text-lg font-bold mb-4">Staking Security</h3>
                 
