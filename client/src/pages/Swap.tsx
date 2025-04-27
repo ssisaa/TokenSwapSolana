@@ -1,6 +1,5 @@
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import SwapSection from "@/components/SwapSection";
-import TokenBalanceDisplay from "@/components/TokenBalanceDisplay";
 import TokenInfo from "@/components/TokenInfo";
 import TransactionHistory from "@/components/TransactionHistory";
 
@@ -14,7 +13,6 @@ export default function Swap() {
             <TransactionHistory />
           </div>
           <div className="space-y-6">
-            <TokenBalanceDisplay />
             <TokenInfo />
           </div>
         </div>

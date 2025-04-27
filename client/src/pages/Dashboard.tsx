@@ -8,6 +8,7 @@ import { Link } from "wouter";
 import { ArrowRight } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import MultiWalletConnect from "@/components/MultiWalletConnect";
+import WalletBalanceBar from "@/components/WalletBalanceBar";
 import { getExchangeRate, getPoolBalances } from "@/lib/solana";
 
 export default function Dashboard() {
@@ -163,6 +164,9 @@ export default function Dashboard() {
             <span className="text-sm text-gray-400 ml-2">Q2 2024</span>
           </div>
         </Card>
+
+        {/* Wallet Balance Summary */}
+        {connected && <WalletBalanceBar />}
 
         {/* Token Cards Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
