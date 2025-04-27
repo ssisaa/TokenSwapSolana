@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CloudLightning, AlertCircle, CheckCircle2 } from "lucide-react";
+import { CloudLightning, AlertCircle, CheckCircle2, Info } from "lucide-react";
 import { useWallet } from "@/hooks/useSolanaWallet";
 import { useSwap } from "@/hooks/useSwap";
 import { SOL_SYMBOL, YOT_SYMBOL, YOS_SYMBOL, CLUSTER } from "@/lib/constants";
@@ -112,18 +112,12 @@ export default function SwapSection() {
 
   const selectFromToken = (token: string) => {
     if (token !== fromToken) {
+      // Set the from token
+      setFromToken(token);
+      
       // If the user selects YOS as the "from" token, automatically set "to" token to YOT
       if (token === YOS_SYMBOL) {
-        setFromToken(token);
         setToToken(YOT_SYMBOL);
-      } else {
-        // For all other "from" tokens, show an error message
-        toast({
-          title: "Unsupported Swap Pair",
-          description: "Only YOS to YOT swaps are supported at this time.",
-          variant: "destructive",
-        });
-        // Keep the current selection
       }
     }
     setFromTokenOptions(false);
@@ -131,16 +125,22 @@ export default function SwapSection() {
 
   const selectToToken = (token: string) => {
     if (token !== toToken) {
-      // Only allow setting YOT as the "to" token when YOS is the "from" token
-      if (fromToken === YOS_SYMBOL && token === YOT_SYMBOL) {
-        setToToken(token);
+      // When YOS is selected as "from", only YOT can be selected as "to"
+      if (fromToken === YOS_SYMBOL) {
+        if (token === YOT_SYMBOL) {
+          setToToken(token);
+        } else {
+          toast({
+            title: "Unsupported Swap Pair",
+            description: "Only YOS to YOT swaps are supported at this time.",
+            variant: "destructive",
+          });
+        }
       } else {
-        toast({
-          title: "Unsupported Swap Pair",
-          description: "Only YOS to YOT swaps are supported at this time.",
-          variant: "destructive",
-        });
-        // Keep the current selection
+        // For non-YOS from tokens, allow SOL and YOT selections
+        if (token === SOL_SYMBOL || token === YOT_SYMBOL) {
+          setToToken(token);
+        }
       }
     }
     setToTokenOptions(false);
@@ -315,21 +315,24 @@ export default function SwapSection() {
                       </svg>
                       <span className="font-medium">YOT</span>
                     </button>
-                    <button
-                      className="w-full text-left px-4 py-2 rounded hover:bg-dark-400 transition flex items-center text-white mt-1"
-                      onClick={() => selectToToken(YOS_SYMBOL)}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                      </svg>
-                      <span className="font-medium">YOS</span>
-                    </button>
+                    {/* YOS is intentionally removed from destination token options */}
                   </div>
                 </div>
               )}
             </div>
           </div>
         </div>
+        
+        {/* Unsupported Pair Warning */}
+        {fromToken === YOS_SYMBOL && toToken !== YOT_SYMBOL && (
+          <Alert className="bg-red-900/30 border-red-800 text-red-200">
+            <Info className="h-4 w-4 mr-2" />
+            <AlertTitle>Unsupported Swap Pair</AlertTitle>
+            <AlertDescription>
+              Only YOS to YOT swaps are supported at this time.
+            </AlertDescription>
+          </Alert>
+        )}
         
         {/* Exchange Rate Info */}
         <div className="bg-dark-400 rounded-lg p-3 text-sm border border-dark-500">
@@ -377,7 +380,7 @@ export default function SwapSection() {
           ${isPending 
             ? 'bg-yellow-600' 
             : 'bg-gradient-to-r from-primary-600 to-blue-700 hover:from-primary-700 hover:to-blue-800'}`}
-          disabled={!connected || isPending}
+          disabled={!connected || isPending || (fromToken === YOS_SYMBOL && toToken !== YOT_SYMBOL)}
           onClick={handleExecuteSwap}
         >
           {!connected && "Connect Wallet to Swap"}
