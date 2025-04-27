@@ -116,9 +116,8 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(adminUsers)
       .where(eq(adminUsers.founderPublicKey, publicKey))
-      .where(eq(adminUsers.isFounder, true));
       
-    return user || null;
+    return user && user.isFounder ? user : null;
   }
   
   async getAdminSettings(): Promise<AdminSettings | undefined> {

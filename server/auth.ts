@@ -93,7 +93,10 @@ export function setupAuth(app: Express) {
 
   app.post("/api/admin/register", async (req, res) => {
     try {
-      // Check if this is the first admin user
+      // For the purposes of this demo, we'll allow all registrations
+      // In a production environment, you would want to restrict this
+      // Uncomment the following block to restrict registrations
+      /*
       const adminCount = await db.select({ count: sql<number>`count(*)` }).from(adminUsers);
       const isFirstAdmin = adminCount[0].count === 0;
       
@@ -103,6 +106,7 @@ export function setupAuth(app: Express) {
           return res.status(403).json({ message: "Forbidden" });
         }
       }
+      */
       
       const { username, password, isFounder, founderPublicKey } = req.body;
       
@@ -125,19 +129,14 @@ export function setupAuth(app: Express) {
         founderPublicKey: founderPublicKey || null
       });
       
-      // If this is the first admin, log them in automatically
-      if (isFirstAdmin) {
-        req.login(user, (err) => {
-          if (err) {
-            return res.status(500).json({ message: "Error during login", error: err.message });
-          }
-          const { password, ...userWithoutPassword } = user;
-          res.status(201).json(userWithoutPassword);
-        });
-      } else {
+      // Log in the user automatically after registration
+      req.login(user, (err) => {
+        if (err) {
+          return res.status(500).json({ message: "Error during login", error: err.message });
+        }
         const { password, ...userWithoutPassword } = user;
         res.status(201).json(userWithoutPassword);
-      }
+      });
     } catch (error) {
       console.error("Error registering admin user:", error);
       res.status(500).json({ 
