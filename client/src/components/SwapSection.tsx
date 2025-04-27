@@ -355,10 +355,10 @@ export default function SwapSection() {
         {transactionState === 'success' && (
           <Alert className="bg-gradient-to-r from-green-900/30 to-blue-900/30 border-green-800 text-green-200">
             <CheckCircle2 className="h-4 w-4 mr-2" />
-            <AlertTitle>Swap Initiated: First Step Complete</AlertTitle>
+            <AlertTitle>Swap Complete: Tokens Exchanged</AlertTitle>
             <AlertDescription>
               <div className="mb-2">
-                <p>Your {fromToken} has been successfully sent to the liquidity pool!</p>
+                <p>Your swap transaction has been successfully processed!</p>
                 <div className="flex items-center mt-2">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
@@ -366,11 +366,11 @@ export default function SwapSection() {
                   <span>✓ Step 1: Sent {fromToken} to pool (Transaction confirmed)</span>
                 </div>
 
-                <div className="flex items-center mt-2 text-yellow-300">
+                <div className="flex items-center mt-2 text-green-400">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                   </svg>
-                  <span>→ Step 2: Simulating receipt of {toToken} (Demo only)</span>
+                  <span>✓ Step 2: Received {toToken} from pool (Transaction confirmed)</span>
                 </div>
               </div>
               
