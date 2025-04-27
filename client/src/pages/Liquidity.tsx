@@ -114,7 +114,7 @@ export default function Liquidity() {
               <div>
                 <div className="flex justify-between mb-1">
                   <span className="text-gray-400">YOT Tokens</span>
-                  <span className="text-white">{formatCurrency(poolData?.yotBalance || 0)} YOT (50.0%)</span>
+                  <span className="text-white">{poolStats.yotBalance}</span>
                 </div>
                 <div className="h-2 bg-dark-400 rounded-full overflow-hidden">
                   <div className="h-full bg-blue-500 rounded-full" style={{ width: '50%' }}></div>
@@ -124,7 +124,7 @@ export default function Liquidity() {
               <div>
                 <div className="flex justify-between mb-1">
                   <span className="text-gray-400">SOL</span>
-                  <span className="text-white">{formatCurrency(poolData?.solBalance || 0)} SOL (50.0%)</span>
+                  <span className="text-white">{poolStats.solBalance}</span>
                 </div>
                 <div className="h-2 bg-dark-400 rounded-full overflow-hidden">
                   <div className="h-full bg-blue-500 rounded-full" style={{ width: '50%' }}></div>
@@ -152,24 +152,20 @@ export default function Liquidity() {
               <div className="bg-dark-300 p-4 rounded-lg">
                 <div className="text-center mb-2 text-gray-400">YOT → SOL</div>
                 <div className="text-center text-white text-xl font-semibold">
-                  {poolData?.solBalance && poolData?.yotBalance ? 
-                    `${formatCurrency(poolData.yotBalance / poolData.solBalance)} : 1` : 
-                    "75000000 : 1"}
+                  {poolStats.exchangeRateYotToSol}
                 </div>
                 <div className="text-center text-sm text-gray-400 mt-1">
-                  {formatCurrency(poolData?.yotBalance || 75000000)} YOT per SOL
+                  {poolStats.yotPerSol}
                 </div>
               </div>
               
               <div className="bg-dark-300 p-4 rounded-lg">
                 <div className="text-center mb-2 text-gray-400">SOL → YOT</div>
                 <div className="text-center text-white text-xl font-semibold">
-                  1 : {poolData?.solBalance && poolData?.yotBalance ? 
-                    formatCurrency(poolData.yotBalance / poolData.solBalance) : 
-                    "75000000"}
+                  {poolStats.exchangeRateSolToYot}
                 </div>
                 <div className="text-center text-sm text-gray-400 mt-1">
-                  1 SOL per {formatCurrency(poolData?.yotBalance || 75000000)} YOT
+                  {poolStats.solPerYot}
                 </div>
               </div>
             </div>
@@ -179,9 +175,7 @@ export default function Liquidity() {
               <div className="flex justify-between mb-2">
                 <span className="text-gray-400">YOT Price (USD)</span>
                 <div className="flex items-center">
-                  <span className="text-white font-mono">${poolData?.solBalance && balances?.solUsd ? 
-                    (balances.solUsd / balances.sol * poolData.solBalance / poolData.yotBalance).toFixed(8) : 
-                    "0.00000200"}</span>
+                  <span className="text-white font-mono">{poolStats.yotUsdPrice}</span>
                 </div>
               </div>
               <div className="flex justify-between">
