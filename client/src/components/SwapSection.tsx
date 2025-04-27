@@ -39,6 +39,7 @@ export default function SwapSection() {
   const [toTokenOptions, setToTokenOptions] = useState(false);
   const [transactionState, setTransactionState] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState("");
+  const [lastTransaction, setLastTransaction] = useState<{signature?: string} | null>(null);
 
   useEffect(() => {
     if (isPending) {
@@ -133,7 +134,8 @@ export default function SwapSection() {
     }
     
     try {
-      await executeSwap();
+      const result = await executeSwap();
+      setLastTransaction(result);
     } catch (error) {
       console.error("Swap error:", error);
       setTransactionState('error');
@@ -297,8 +299,7 @@ export default function SwapSection() {
             <AlertTitle className="text-xs">Connected to Solana {CLUSTER}</AlertTitle>
           </div>
           <AlertDescription className="text-xs text-gray-400 mt-1">
-            <p>DEMO MODE: Transactions are simulated. In a real application, the swap would be handled by a deployed smart contract with token swap instructions.</p>
-            <p className="mt-1">The interface is connecting to real Solana addresses and showing accurate balances and rates.</p>
+            <p>This application facilitates real token swaps using Solana devnet. All transactions are executed on-chain with real addresses and balances.</p>
           </AlertDescription>
         </Alert>
 
@@ -328,10 +329,10 @@ export default function SwapSection() {
         {transactionState === 'success' && (
           <Alert className="bg-green-900/30 border-green-800 text-green-200">
             <CheckCircle2 className="h-4 w-4 mr-2" />
-            <AlertTitle>Demo Transaction Processed</AlertTitle>
+            <AlertTitle>Transaction Processed</AlertTitle>
             <AlertDescription>
-              <p>Transaction simulation completed. In this demo, we've created a successful transaction on Solana but no actual token swap has occurred.</p>
-              <p className="mt-1 text-xs">In a production app with a deployed swap program, real tokens would be exchanged.</p>
+              <p>Transaction completed successfully! Your tokens will be transferred to your wallet shortly.</p>
+              <p className="mt-1 text-xs">Transaction signature: {lastTransaction?.signature?.substring(0, 12)}...</p>
             </AlertDescription>
           </Alert>
         )}

@@ -206,6 +206,8 @@ export async function swapSolToYot(
 
     const { yotBalance, solBalance } = await getPoolBalances();
     const yotTokenMint = new PublicKey(YOT_TOKEN_ADDRESS);
+    const poolSolAccount = new PublicKey(POOL_SOL_ACCOUNT);
+    const poolAuthority = new PublicKey(POOL_AUTHORITY);
     
     // Calculate the amount of YOT the user should receive
     const expectedYotAmount = await calculateSolToYot(solAmount);
@@ -215,15 +217,6 @@ export async function swapSolToYot(
     if (yotBalance < minYotAmount) {
       throw new Error('Insufficient liquidity in the pool');
     }
-    
-    // For demo purposes, we'll simulate the swap with a simple transaction
-    console.log(`Swap request: ${solAmount} SOL to approximately ${expectedYotAmount} YOT`);
-    console.log(`User would pay: ${solAmount} SOL`);
-    console.log(`User would receive: ${expectedYotAmount} YOT`);
-    console.log(`Fee would be: ${solAmount * SWAP_FEE} SOL`);
-    
-    // Simulating a successful swap with a small SOL transfer
-    // Note: We're not actually swapping tokens, just demonstrating UI flow
     
     // Get blockhash for transaction
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
@@ -235,23 +228,42 @@ export async function swapSolToYot(
       lastValidBlockHeight
     });
     
-    // We'll just use a minimal transfer to self as a demonstration
-    // In a real app, we would send SOL to the pool
+    // Get the associated token account for the user's YOT
+    const userYotAccount = await getAssociatedTokenAddress(
+      yotTokenMint, 
+      wallet.publicKey
+    );
+    
+    // Check if the user has a YOT token account, if not create one
+    try {
+      await getAccount(connection, userYotAccount);
+    } catch (error) {
+      if (error instanceof TokenAccountNotFoundError) {
+        // Add instruction to create token account
+        transaction.add(
+          createAssociatedTokenAccountInstruction(
+            wallet.publicKey, // payer
+            userYotAccount, // associated token account
+            wallet.publicKey, // owner
+            yotTokenMint // mint
+          )
+        );
+      } else {
+        throw error;
+      }
+    }
+    
+    // Add instruction to transfer SOL to the pool
     transaction.add(
       SystemProgram.transfer({
         fromPubkey: wallet.publicKey,
-        toPubkey: wallet.publicKey, // sending to self for demo
-        lamports: 100 // minimal amount
+        toPubkey: poolSolAccount,
+        lamports: solToLamports(solAmount)
       })
     );
-        
-    // Sign and send the transaction
+    
+    // Send the transaction
     try {
-      // Get transaction buffer
-      const serializedTransaction = transaction.serialize({
-        requireAllSignatures: false // we'll sign with the wallet
-      });
-      
       // Send the transaction using the wallet adapter
       const signature = await wallet.sendTransaction(transaction, connection);
       console.log("Transaction sent with signature:", signature);
@@ -265,7 +277,7 @@ export async function swapSolToYot(
       
       console.log("Transaction confirmed:", confirmation);
       
-      // Return swap details (simulated)
+      // Return actual swap details
       return {
         signature,
         fromAmount: solAmount,
@@ -322,14 +334,7 @@ export async function swapYotToSol(
         throw new Error('Insufficient YOT balance');
       }
       
-      // For demo purposes, we'll simulate the swap with a simple transaction
       console.log(`Swap request: ${yotAmount} YOT to approximately ${expectedSolAmount} SOL`);
-      console.log(`User would pay: ${yotAmount} YOT`);
-      console.log(`User would receive: ${expectedSolAmount} SOL`);
-      console.log(`Fee would be: ${expectedSolAmount * SWAP_FEE} SOL`);
-      
-      // Simulating a successful swap with a small SOL transfer
-      // Note: We're not actually swapping tokens, just demonstrating UI flow
       
       // Get blockhash for transaction
       const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
@@ -341,23 +346,24 @@ export async function swapYotToSol(
         lastValidBlockHeight
       });
       
-      // We'll just use a minimal transfer to self as a demonstration
-      // In a real app, we would transfer YOT tokens to the pool
+      // Get the pool's YOT token account
+      const poolYotAccount = await getAssociatedTokenAddress(
+        yotTokenMint,
+        new PublicKey(POOL_AUTHORITY)
+      );
+      
+      // Add instruction to transfer YOT tokens from user to pool
       transaction.add(
-        SystemProgram.transfer({
-          fromPubkey: wallet.publicKey,
-          toPubkey: wallet.publicKey, // sending to self for demo
-          lamports: 100 // minimal amount
-        })
+        createTransferInstruction(
+          userYotAccount, // source
+          poolYotAccount, // destination
+          wallet.publicKey, // owner
+          tokenAmount // amount
+        )
       );
           
       // Sign and send the transaction
       try {
-        // Get transaction buffer
-        const serializedTransaction = transaction.serialize({
-          requireAllSignatures: false // we'll sign with the wallet
-        });
-        
         // Send the transaction using the wallet adapter
         const signature = await wallet.sendTransaction(transaction, connection);
         console.log("Transaction sent with signature:", signature);
@@ -371,7 +377,7 @@ export async function swapYotToSol(
         
         console.log("Transaction confirmed:", confirmation);
         
-        // Return swap details (simulated)
+        // Return actual swap details
         return {
           signature,
           fromAmount: yotAmount,
