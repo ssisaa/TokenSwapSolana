@@ -152,17 +152,39 @@ export class DatabaseStorage implements IStorage {
     const sanitizedWalletAddress = data.walletAddress.trim();
     const sanitizedAmount = Math.max(0, data.stakedAmount); // Ensure positive numbers only
     
-    // Ensure timestamp is a valid number (UNIX timestamp in milliseconds)
-    let timestampMs = Date.now(); // Default fallback value
+    // Ensure timestamp is a valid number and convert to seconds to avoid integer overflow
+    // PostgreSQL INT type can only handle up to ~2 billion, JS timestamps are ~1.6 trillion ms
+    let timestampSeconds: number;
     try {
+      // Default fallback value is current time in seconds
+      let timestampMs = Date.now();
+      
       if (typeof data.startTimestamp === 'number') {
         timestampMs = data.startTimestamp;
       } else if (typeof data.startTimestamp === 'string') {
         timestampMs = new Date(data.startTimestamp).getTime();
       }
+      
+      // Convert milliseconds to seconds to fit within PostgreSQL integer limits
+      timestampSeconds = Math.floor(timestampMs / 1000);
+      
+      // Validate the timestamp is reasonable (not too far in the future, not too old)
+      const now = Math.floor(Date.now() / 1000);
+      if (timestampSeconds > now + 60) { // Allow for small clock differences
+        console.warn("Timestamp is in the future, using current time");
+        timestampSeconds = now;
+      }
+      
+      // Don't accept timestamps from before 2020 (sanity check)
+      const jan2020 = 1577836800; // Jan 1, 2020 in seconds
+      if (timestampSeconds < jan2020) {
+        console.warn("Timestamp is too old, using current time");
+        timestampSeconds = now;
+      }
     } catch (e) {
       console.error("Invalid timestamp format:", e);
-      // Use default timestamp (now) if parsing fails
+      // Use current time if parsing fails
+      timestampSeconds = Math.floor(Date.now() / 1000);
     }
     
     // Check if staking record already exists for this wallet
@@ -175,7 +197,7 @@ export class DatabaseStorage implements IStorage {
           .update(stakingRecords)
           .set({
             stakedAmount: sanitizedAmount.toString(),
-            startTimestamp: timestampMs,
+            startTimestamp: timestampSeconds, // Now storing in seconds
             harvestedRewards: data.harvestableRewards ? Math.max(0, data.harvestableRewards).toString() : "0",
             updatedAt: new Date()
           })
@@ -190,8 +212,8 @@ export class DatabaseStorage implements IStorage {
           .values({
             walletAddress: sanitizedWalletAddress,
             stakedAmount: sanitizedAmount.toString(),
-            startTimestamp: timestampMs,
-            lastHarvestTime: timestampMs,
+            startTimestamp: timestampSeconds, // Now storing in seconds
+            lastHarvestTime: timestampSeconds, // Now storing in seconds
             harvestedRewards: data.harvestableRewards ? Math.max(0, data.harvestableRewards).toString() : "0",
           })
           .returning();
@@ -272,8 +294,8 @@ export class DatabaseStorage implements IStorage {
     // Security: Sanitize wallet address
     const sanitizedWalletAddress = walletAddress.trim();
     
-    // Use current timestamp in milliseconds
-    const currentTimeMs = Date.now();
+    // Use current timestamp in seconds (not milliseconds) for DB consistency
+    const currentTimeSeconds = Math.floor(Date.now() / 1000);
     
     try {
       // Reset harvested rewards and update lastHarvestTime
@@ -281,7 +303,7 @@ export class DatabaseStorage implements IStorage {
         .update(stakingRecords)
         .set({
           harvestedRewards: "0",
-          lastHarvestTime: currentTimeMs,
+          lastHarvestTime: currentTimeSeconds, // Now in seconds instead of milliseconds
           updatedAt: new Date()
         })
         .where(eq(stakingRecords.walletAddress, sanitizedWalletAddress));

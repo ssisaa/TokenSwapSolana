@@ -319,8 +319,19 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
         : 0;
       
       // Calculate time staked in seconds (with defensive programming)
-      const timeStakedMs = startTime && startTime > 0 ? (now - startTime) : 0;
-      const timeStakedSeconds = Math.max(0, timeStakedMs / 1000); // Ensure we never have negative time
+      // Handle both old (milliseconds) and new (seconds) timestamp formats
+      const nowInSeconds = Math.floor(now / 1000);
+      let startTimeInSeconds: number;
+      
+      if (startTime && startTime > 0) {
+        // If timestamp is in milliseconds (larger than what makes sense for seconds)
+        // then convert it to seconds, otherwise assume it's already in seconds
+        startTimeInSeconds = startTime > 9999999999 ? Math.floor(startTime / 1000) : startTime;
+      } else {
+        startTimeInSeconds = nowInSeconds;
+      }
+      
+      const timeStakedSeconds = Math.max(0, nowInSeconds - startTimeInSeconds); // Ensure we never have negative time
       
       // Get staking rate securely
       const settings = await getAdminSettings();
