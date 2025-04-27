@@ -283,18 +283,49 @@ export async function swapSolToYot(
     let solSignature;
     
     // Different wallets have different implementations of sendTransaction
-    if (typeof wallet.sendTransaction === 'function') {
-      // Standard wallet adapter approach (Phantom)
-      solSignature = await wallet.sendTransaction(transaction, connection);
-    } else if (wallet.signAndSendTransaction && typeof wallet.signAndSendTransaction === 'function') {
-      // Some wallet adapters use signAndSendTransaction instead
-      solSignature = await wallet.signAndSendTransaction(transaction);
-    } else if (wallet.signTransaction && typeof wallet.signTransaction === 'function') {
-      // If the wallet can only sign but not send, we sign first then send manually
-      const signedTx = await wallet.signTransaction(transaction);
-      solSignature = await connection.sendRawTransaction(signedTx.serialize());
-    } else {
-      throw new Error("Wallet doesn't support transaction signing");
+    try {
+      if (typeof wallet.sendTransaction === 'function') {
+        // Standard wallet adapter approach (Phantom)
+        solSignature = await wallet.sendTransaction(transaction, connection);
+        
+        // Handle case where Solflare may return an object instead of a string
+        if (typeof solSignature === 'object' && solSignature !== null) {
+          // For Solflare wallet which might return an object with signature property
+          if (solSignature.signature) {
+            solSignature = solSignature.signature;
+          } else {
+            // Try to stringify and clean up the signature
+            const sigStr = JSON.stringify(solSignature);
+            if (sigStr) {
+              // Remove quotes and braces if they exist
+              solSignature = sigStr.replace(/[{}"]/g, '');
+            }
+          }
+        }
+      } else if (wallet.signAndSendTransaction && typeof wallet.signAndSendTransaction === 'function') {
+        // Some wallet adapters use signAndSendTransaction instead
+        const result = await wallet.signAndSendTransaction(transaction);
+        // Handle various result formats
+        if (typeof result === 'string') {
+          solSignature = result;
+        } else if (typeof result === 'object' && result !== null) {
+          solSignature = result.signature || result.toString();
+        }
+      } else if (wallet.signTransaction && typeof wallet.signTransaction === 'function') {
+        // If the wallet can only sign but not send, we sign first then send manually
+        const signedTx = await wallet.signTransaction(transaction);
+        solSignature = await connection.sendRawTransaction(signedTx.serialize());
+      } else {
+        throw new Error("Wallet doesn't support transaction signing");
+      }
+      
+      // Ensure signature is a string
+      if (typeof solSignature !== 'string') {
+        throw new Error(`Invalid signature format: ${solSignature}`);
+      }
+    } catch (error) {
+      console.error("Transaction signing error:", error);
+      throw new Error(`Failed to sign transaction: ${error instanceof Error ? error.message : String(error)}`);
     }
     
     console.log("SOL transfer transaction sent with signature:", solSignature);
@@ -389,9 +420,29 @@ export async function swapYotToSol(
     
     // Check if the user has a YOT token account and sufficient balance
     try {
-      const account = await getAccount(connection, userYotAccount);
+      let account;
+      let userHasTokenAccount = true;
+      
+      try {
+        // Try to get the token account
+        account = await getAccount(connection, userYotAccount);
+      } catch (e) {
+        if (e instanceof TokenAccountNotFoundError) {
+          userHasTokenAccount = false;
+          console.log("YOT token account not found, will attempt to create it");
+        } else {
+          throw e;
+        }
+      }
+      
+      // Get token mint info for decimals
       const mintInfo = await getMint(connection, yotTokenMint);
       const tokenAmount = BigInt(Math.floor(yotAmount * Math.pow(10, mintInfo.decimals)));
+      
+      // If user doesn't have a token account, create one
+      if (!userHasTokenAccount) {
+        throw new TokenAccountNotFoundError();
+      }
       
       // Check if the user has enough YOT
       if (account.amount < tokenAmount) {
@@ -428,18 +479,49 @@ export async function swapYotToSol(
         // Handle different wallet implementations (Phantom, Solflare, etc.)
         let signature;
         
-        if (typeof wallet.sendTransaction === 'function') {
-          // Standard wallet adapter approach (Phantom)
-          signature = await wallet.sendTransaction(transaction, connection);
-        } else if (wallet.signAndSendTransaction && typeof wallet.signAndSendTransaction === 'function') {
-          // Some wallet adapters use signAndSendTransaction instead
-          signature = await wallet.signAndSendTransaction(transaction);
-        } else if (wallet.signTransaction && typeof wallet.signTransaction === 'function') {
-          // If the wallet can only sign but not send, we sign first then send manually
-          const signedTx = await wallet.signTransaction(transaction);
-          signature = await connection.sendRawTransaction(signedTx.serialize());
-        } else {
-          throw new Error("Wallet doesn't support transaction signing");
+        try {
+          if (typeof wallet.sendTransaction === 'function') {
+            // Standard wallet adapter approach (Phantom)
+            signature = await wallet.sendTransaction(transaction, connection);
+            
+            // Handle case where Solflare may return an object instead of a string
+            if (typeof signature === 'object' && signature !== null) {
+              // For Solflare wallet which might return an object with signature property
+              if (signature.signature) {
+                signature = signature.signature;
+              } else {
+                // Try to stringify and clean up the signature
+                const sigStr = JSON.stringify(signature);
+                if (sigStr) {
+                  // Remove quotes and braces if they exist
+                  signature = sigStr.replace(/[{}"]/g, '');
+                }
+              }
+            }
+          } else if (wallet.signAndSendTransaction && typeof wallet.signAndSendTransaction === 'function') {
+            // Some wallet adapters use signAndSendTransaction instead
+            const result = await wallet.signAndSendTransaction(transaction);
+            // Handle various result formats
+            if (typeof result === 'string') {
+              signature = result;
+            } else if (typeof result === 'object' && result !== null) {
+              signature = result.signature || result.toString();
+            }
+          } else if (wallet.signTransaction && typeof wallet.signTransaction === 'function') {
+            // If the wallet can only sign but not send, we sign first then send manually
+            const signedTx = await wallet.signTransaction(transaction);
+            signature = await connection.sendRawTransaction(signedTx.serialize());
+          } else {
+            throw new Error("Wallet doesn't support transaction signing");
+          }
+          
+          // Ensure signature is a string
+          if (typeof signature !== 'string') {
+            throw new Error(`Invalid signature format: ${signature}`);
+          }
+        } catch (error) {
+          console.error("Transaction signing error:", error);
+          throw new Error(`Failed to sign transaction: ${error instanceof Error ? error.message : String(error)}`);
         }
         
         console.log("Transaction sent with signature:", signature);
