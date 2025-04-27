@@ -1,11 +1,12 @@
 import React from 'react';
 import { useMultiWallet } from '@/context/MultiWalletContext';
-import { shortenAddress } from '@/lib/utils';
 import { CLUSTER } from '@/lib/constants';
-import MultiWalletConnect from './MultiWalletConnect';
+import TokenBalanceDisplay from './TokenBalanceDisplay';
+import { Button } from '@/components/ui/button';
+import WalletSelectorModal from './WalletSelectorModal';
 
 export default function ConnectionStatusBar() {
-  const { connected, publicKey } = useMultiWallet();
+  const { connected, setShowWalletSelector, showWalletSelector } = useMultiWallet();
 
   return (
     <div className="w-full bg-zinc-900 text-white py-2 px-4 flex justify-between items-center shadow-md">
@@ -14,20 +15,18 @@ export default function ConnectionStatusBar() {
         <span className="text-sm">Connected to Solana {CLUSTER}</span>
       </div>
       
-      <div>
-        {connected && publicKey && (
-          <div className="flex items-center">
-            <span className="text-sm mr-4 text-gray-300">
-              {shortenAddress(publicKey.toString())}
-            </span>
-            <MultiWalletConnect />
-          </div>
-        )}
-        
-        {!connected && (
-          <MultiWalletConnect />
-        )}
-      </div>
+      {connected ? (
+        <TokenBalanceDisplay />
+      ) : (
+        <Button 
+          className="bg-blue-600 hover:bg-blue-700 text-white"
+          onClick={() => setShowWalletSelector(true)}
+        >
+          Connect Wallet
+        </Button>
+      )}
+      
+      <WalletSelectorModal />
     </div>
   );
 }
