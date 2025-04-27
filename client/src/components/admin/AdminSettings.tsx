@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useAdminSettings } from "@/hooks/use-admin-settings";
 import {
   Card,
@@ -39,7 +39,7 @@ export default function AdminSettings() {
   });
   
   // Initialize form values when settings load
-  useState(() => {
+  React.useEffect(() => {
     if (settings) {
       setFormValues({
         liquidityContributionPercentage: settings.liquidityContributionPercentage.toString(),

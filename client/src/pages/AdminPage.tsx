@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
-import { AdminAuthProvider } from "@/hooks/use-admin-auth";
 import { Redirect } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
@@ -9,7 +8,7 @@ import { Loader2, LogOut } from "lucide-react";
 import AdminLogin from "@/components/admin/AdminLogin";
 import AdminSettings from "@/components/admin/AdminSettings";
 
-function AdminPageContent() {
+export default function AdminPage() {
   const { admin, isLoading, logoutMutation } = useAdminAuth();
   const [activeTab, setActiveTab] = useState("settings");
   
@@ -87,13 +86,5 @@ function AdminPageContent() {
         </TabsContent>
       </Tabs>
     </div>
-  );
-}
-
-export default function AdminPage() {
-  return (
-    <AdminAuthProvider>
-      <AdminPageContent />
-    </AdminAuthProvider>
   );
 }

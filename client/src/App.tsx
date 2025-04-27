@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { WalletProvider } from "@/context/WalletContext";
 import { MultiWalletProvider } from "@/context/MultiWalletContext";
+import { AdminAuthProvider } from "@/hooks/use-admin-auth";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
 import Swap from "@/pages/Swap";
@@ -44,10 +45,12 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <MultiWalletProvider>
         <WalletProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Router />
-          </TooltipProvider>
+          <AdminAuthProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Router />
+            </TooltipProvider>
+          </AdminAuthProvider>
         </WalletProvider>
       </MultiWalletProvider>
     </QueryClientProvider>
