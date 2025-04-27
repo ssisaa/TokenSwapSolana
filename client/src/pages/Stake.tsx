@@ -15,6 +15,7 @@ import { formatNumber } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { getQueryFn } from "@/lib/queryClient";
 import { AdminSettings } from "@shared/schema";
+import { stakeYOTTokens, unstakeYOTTokens, harvestYOSRewards, getStakingInfo } from "@/lib/staking";
 
 export default function Stake() {
   const { connected, publicKey } = useMultiWallet();
@@ -68,14 +69,12 @@ export default function Stake() {
   // Function to check staked balance from blockchain
   const checkStakedBalance = async (walletAddress: string) => {
     try {
-      // This would be replaced with an actual blockchain query
-      // to retrieve staked token amounts and staking start time
+      // Get staking info from our staking library
+      const stakingInfo = await getStakingInfo(walletAddress);
       
-      // For now, we'll reset the state until the appropriate blockchain
-      // methods are implemented
-      setStakedYOT(0);
-      setEarnedYOS(0);
-      setStakeStartTime(null);
+      setStakedYOT(stakingInfo.stakedAmount);
+      setEarnedYOS(stakingInfo.rewardsEarned);
+      setStakeStartTime(stakingInfo.startTimestamp);
     } catch (error) {
       console.error("Error checking staked balance:", error);
     }
@@ -126,17 +125,30 @@ export default function Stake() {
     setIsStaking(true);
     
     try {
-      // In a production environment, this would create and send a Solana 
-      // transaction to stake the tokens using the connected wallet
+      // Use our staking library to stake tokens
+      const success = await stakeYOTTokens(publicKey.toString(), amount);
       
-      toast({
-        title: "Staking not implemented",
-        description: "The staking blockchain functionality needs to be implemented using Solana program calls.",
-        variant: "destructive",
-      });
-      
-      // Reset the form
-      setStakeAmount("");
+      if (success) {
+        toast({
+          title: "Staking Successful",
+          description: `Successfully staked ${formatNumber(amount)} YOT tokens.`,
+        });
+        
+        // Refresh staking data
+        await checkStakedBalance(publicKey.toString());
+        
+        // Refresh wallet balances
+        await fetchBalances(publicKey.toString());
+        
+        // Reset the form
+        setStakeAmount("");
+      } else {
+        toast({
+          title: "Staking Failed",
+          description: "Failed to stake tokens. Please try again.",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       console.error("Error staking tokens:", error);
       toast({
@@ -171,14 +183,27 @@ export default function Stake() {
     setIsUnstaking(true);
     
     try {
-      // In a production environment, this would create and send a Solana 
-      // transaction to unstake the tokens using the connected wallet
+      // Use our staking library to unstake tokens
+      const success = await unstakeYOTTokens(publicKey.toString());
       
-      toast({
-        title: "Unstaking not implemented",
-        description: "The unstaking blockchain functionality needs to be implemented using Solana program calls.",
-        variant: "destructive",
-      });
+      if (success) {
+        toast({
+          title: "Unstaking Successful",
+          description: `Successfully unstaked ${formatNumber(stakedYOT)} YOT tokens.`,
+        });
+        
+        // Refresh staking data
+        await checkStakedBalance(publicKey.toString());
+        
+        // Refresh wallet balances
+        await fetchBalances(publicKey.toString());
+      } else {
+        toast({
+          title: "Unstaking Failed",
+          description: "Failed to unstake tokens. Please try again.",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       console.error("Error unstaking tokens:", error);
       toast({
@@ -223,14 +248,27 @@ export default function Stake() {
     setIsHarvesting(true);
     
     try {
-      // In a production environment, this would create and send a Solana 
-      // transaction to harvest the rewards using the connected wallet
+      // Use our staking library to harvest rewards
+      const success = await harvestYOSRewards(publicKey.toString());
       
-      toast({
-        title: "Harvesting not implemented",
-        description: "The harvesting blockchain functionality needs to be implemented using Solana program calls.",
-        variant: "destructive",
-      });
+      if (success) {
+        toast({
+          title: "Harvesting Successful",
+          description: `Successfully harvested ${formatNumber(earnedYOS)} YOS tokens.`,
+        });
+        
+        // Refresh staking data
+        await checkStakedBalance(publicKey.toString());
+        
+        // Refresh wallet balances
+        await fetchBalances(publicKey.toString());
+      } else {
+        toast({
+          title: "Harvesting Failed",
+          description: "Failed to harvest rewards. Please try again.",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       console.error("Error harvesting rewards:", error);
       toast({
@@ -347,7 +385,7 @@ export default function Stake() {
                             placeholder="0.0"
                             value={stakeAmount}
                             onChange={handleStakeAmountChange}
-                            className="bg-dark-300 border-dark-400"
+                            className="bg-dark-300 border-primary-400 text-white text-lg font-medium"
                           />
                           <Button 
                             variant="outline" 
@@ -403,8 +441,7 @@ export default function Stake() {
                           </div>
                           <Progress 
                             value={Math.min((earnedYOS / harvestThreshold) * 100, 100)} 
-                            className="h-1" 
-                            indicatorClassName={earnedYOS >= harvestThreshold ? "bg-green-500" : ""}
+                            className={`h-1 ${earnedYOS >= harvestThreshold ? "bg-green-500/20" : ""}`}
                           />
                         </div>
                         
