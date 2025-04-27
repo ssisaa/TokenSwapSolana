@@ -116,6 +116,8 @@ export async function getPoolBalances() {
     const poolAuthority = new PublicKey(POOL_AUTHORITY);
     const yotTokenMint = new PublicKey(YOT_TOKEN_ADDRESS);
     const yotTokenAccount = new PublicKey(YOT_TOKEN_ACCOUNT);
+    const yosTokenMint = new PublicKey(YOS_TOKEN_ADDRESS);
+    const yosTokenAccount = new PublicKey(YOS_TOKEN_ACCOUNT);
     
     // Get SOL balance of the pool
     const solBalance = await connection.getBalance(poolSolAccount);
@@ -125,12 +127,13 @@ export async function getPoolBalances() {
     const effectiveSolBalance = solBalance < 0.001 * LAMPORTS_PER_SOL ? minimumSolBalance : solBalance;
     
     let yotBalance = 0;
+    let yosBalance = 0;
     
     try {
       // Try to get YOT balance directly from the token account
-      const tokenAccountInfo = await getAccount(connection, yotTokenAccount);
-      const mintInfo = await getMint(connection, yotTokenMint);
-      yotBalance = Number(tokenAccountInfo.amount) / Math.pow(10, mintInfo.decimals);
+      const yotAccountInfo = await getAccount(connection, yotTokenAccount);
+      const yotMintInfo = await getMint(connection, yotTokenMint);
+      yotBalance = Number(yotAccountInfo.amount) / Math.pow(10, yotMintInfo.decimals);
       
       // If the balance is unreasonably small, use a balanced test value
       if (yotBalance < 1) {
@@ -142,18 +145,36 @@ export async function getPoolBalances() {
       yotBalance = 10000; // 10,000 YOT
     }
     
-    console.log(`Pool balances fetched - SOL: ${lamportsToSol(effectiveSolBalance)}, YOT: ${yotBalance}`);
+    try {
+      // Try to get YOS balance directly from the token account
+      const yosAccountInfo = await getAccount(connection, yosTokenAccount);
+      const yosMintInfo = await getMint(connection, yosTokenMint);
+      yosBalance = Number(yosAccountInfo.amount) / Math.pow(10, yosMintInfo.decimals);
+      
+      // If the balance is unreasonably small, use a balanced test value
+      if (yosBalance < 1) {
+        yosBalance = 1000; // 1,000 YOS minimum for testing/display
+      }
+    } catch (error) {
+      console.error('Error getting YOS token balance:', error);
+      // If there's an error, use a sensible default for the UI
+      yosBalance = 1000; // 1,000 YOS
+    }
+    
+    console.log(`Pool balances fetched - SOL: ${lamportsToSol(effectiveSolBalance)}, YOT: ${yotBalance}, YOS: ${yosBalance}`);
     
     return {
       solBalance: effectiveSolBalance,
-      yotBalance: yotBalance
+      yotBalance: yotBalance,
+      yosBalance: yosBalance
     };
   } catch (error) {
     console.error('Error getting pool balances:', error);
     // Return reasonable fallback values for UI display instead of throwing
     return {
       solBalance: 1 * LAMPORTS_PER_SOL, // 1 SOL fallback
-      yotBalance: 10000 // 10,000 YOT fallback
+      yotBalance: 10000, // 10,000 YOT fallback
+      yosBalance: 1000 // 1,000 YOS fallback
     };
   }
 }
@@ -236,16 +257,54 @@ export async function calculateYotToSol(yotAmount: number) {
   }
 }
 
-// Calculate the conversion between YOS and YOT (fixed 1:10 ratio)
-export function calculateYosToYot(yosAmount: number) {
-  // Simple 1:10 fixed ratio conversion
-  return yosAmount * 10;
+// Calculate the conversion between YOS and YOT based on pool balances
+export async function calculateYosToYot(yosAmount: number) {
+  try {
+    // Get the pool data for actual YOT and YOS balances
+    const { yotBalance, yosBalance } = await getPoolBalances();
+    
+    if (!yotBalance || !yosBalance || yotBalance === 0 || yosBalance === 0) {
+      // Fallback to fixed ratio if pool data is unavailable
+      console.log("Using fallback 1:10 ratio for YOS to YOT conversion");
+      return yosAmount * 10;
+    }
+    
+    // Calculate the actual ratio from pool balances
+    const yosToYotRatio = yotBalance / yosBalance;
+    console.log(`YOS to YOT ratio from pools: ${yosToYotRatio} (${yotBalance} YOT / ${yosBalance} YOS)`);
+    
+    // Return the conversion result
+    return yosAmount * yosToYotRatio;
+  } catch (error) {
+    console.error('Error calculating YOS to YOT conversion:', error);
+    // Fallback to fixed ratio
+    return yosAmount * 10;
+  }
 }
 
-// Calculate the conversion between YOT and YOS (fixed 1:10 ratio)
-export function calculateYotToYos(yotAmount: number) {
-  // Simple 1:10 fixed ratio conversion
-  return yotAmount / 10;
+// Calculate the conversion between YOT and YOS based on pool balances
+export async function calculateYotToYos(yotAmount: number) {
+  try {
+    // Get the pool data for actual YOT and YOS balances
+    const { yotBalance, yosBalance } = await getPoolBalances();
+    
+    if (!yotBalance || !yosBalance || yotBalance === 0 || yosBalance === 0) {
+      // Fallback to fixed ratio if pool data is unavailable
+      console.log("Using fallback 1:10 ratio for YOT to YOS conversion");
+      return yotAmount / 10;
+    }
+    
+    // Calculate the actual ratio from pool balances
+    const yotToYosRatio = yosBalance / yotBalance;
+    console.log(`YOT to YOS ratio from pools: ${yotToYosRatio} (${yosBalance} YOS / ${yotBalance} YOT)`);
+    
+    // Return the conversion result
+    return yotAmount * yotToYosRatio;
+  } catch (error) {
+    console.error('Error calculating YOT to YOS conversion:', error);
+    // Fallback to fixed ratio
+    return yotAmount / 10;
+  }
 }
 
 // Get the latest SOL market price in USD
@@ -317,14 +376,29 @@ export async function getYotMarketPrice(): Promise<number> {
   }
 }
 
-// Calculate YOS price based on YOT pool against YOS
+// Calculate YOS price based on YOT and YOS pool balances
 export async function getYosMarketPrice(): Promise<number> {
   try {
+    // Get the pool data
+    const { yotBalance, yosBalance } = await getPoolBalances();
+    
+    if (!yotBalance || !yosBalance || yotBalance === 0 || yosBalance === 0) {
+      // Fallback to the previous 1:10 calculation if pool data is incomplete
+      const yotPrice = await getYotMarketPrice();
+      return yotPrice * 10;
+    }
+    
+    // Calculate YOS price based on pool ratio
+    // YOS:YOT ratio from pools = yotBalance / yosBalance
+    const yotToYosRatio = yotBalance / yosBalance;
+    
     // Get YOT price first
     const yotPrice = await getYotMarketPrice();
     
-    // YOS price is 10x YOT price based on the fixed 1:10 ratio
-    const yosPrice = yotPrice * 10;
+    // YOS price = YOT price * ratio
+    const yosPrice = yotPrice * yotToYosRatio;
+    
+    console.log(`YOS price calculation: ${yotPrice} * (${yotBalance} / ${yosBalance}) = ${yosPrice}`);
     
     return yosPrice;
   } catch (error) {
