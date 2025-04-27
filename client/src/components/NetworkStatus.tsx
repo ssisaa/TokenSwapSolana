@@ -14,7 +14,7 @@ export default function NetworkStatus() {
       </div>
       
       {/* Wallet Info (shown when connected) */}
-      {connected && wallet && (
+      {connected && wallet && wallet.publicKey && (
         <div className="flex items-center">
           <span className="text-sm mr-2 text-white">{shortenAddress(wallet.publicKey.toString())}</span>
           <Button 

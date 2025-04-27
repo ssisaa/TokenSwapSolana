@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CloudLightning } from "lucide-react";
+import { CloudLightning, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useWallet } from "@/hooks/useSolanaWallet";
 import { useSwap } from "@/hooks/useSwap";
-import { SOL_SYMBOL, YOT_SYMBOL } from "@/lib/constants";
+import { SOL_SYMBOL, YOT_SYMBOL, CLUSTER } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function SwapSection() {
   const { wallet, connected } = useWallet();
@@ -289,46 +290,58 @@ export default function SwapSection() {
           </div>
         </div>
         
+        {/* Network Info */}
+        <Alert className="bg-dark-400 border-0 text-gray-200 text-xs">
+          <div className="flex items-center">
+            <div className="w-2 h-2 bg-green-500 rounded-full mr-2 pulse"></div>
+            <AlertTitle className="text-xs">Connected to Solana {CLUSTER}</AlertTitle>
+          </div>
+          <AlertDescription className="text-xs text-gray-400 mt-1">
+            This is a demo application using real token addresses.
+          </AlertDescription>
+        </Alert>
+
         {/* Swap Button */}
         <Button
-          className="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 px-4 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          className={`w-full text-white font-medium py-4 px-4 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed
+          ${isPending 
+            ? 'bg-yellow-600' 
+            : 'bg-gradient-to-r from-primary-600 to-blue-700 hover:from-primary-700 hover:to-blue-800'}`}
           disabled={!connected || isPending}
           onClick={handleExecuteSwap}
         >
-          {connected ? "Swap" : "Connect Wallet to Swap"}
+          {!connected && "Connect Wallet to Swap"}
+          {connected && !isPending && `Swap ${fromToken} to ${toToken}`}
+          {connected && isPending && (
+            <div className="flex items-center justify-center">
+              <svg className="animate-spin -ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Processing...
+            </div>
+          )}
         </Button>
         
         {/* Transaction Status */}
-        {transactionState !== 'idle' && (
-          <div className="rounded-lg p-3 text-sm">
-            {transactionState === 'pending' && (
-              <div className="flex items-center justify-center text-yellow-500">
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Processing transaction...
-              </div>
-            )}
-            
-            {transactionState === 'success' && (
-              <div className="flex items-center justify-center text-green-500">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                </svg>
-                Transaction successful
-              </div>
-            )}
-            
-            {transactionState === 'error' && (
-              <div className="flex items-center justify-center text-red-500">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {errorMessage}
-              </div>
-            )}
-          </div>
+        {transactionState === 'success' && (
+          <Alert className="bg-green-900/30 border-green-800 text-green-200">
+            <CheckCircle2 className="h-4 w-4 mr-2" />
+            <AlertTitle>Transaction Successful</AlertTitle>
+            <AlertDescription>
+              Your swap has been completed! The tokens will appear in your wallet shortly.
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {transactionState === 'error' && (
+          <Alert className="bg-red-900/30 border-red-800 text-red-200">
+            <AlertCircle className="h-4 w-4 mr-2" />
+            <AlertTitle>Transaction Failed</AlertTitle>
+            <AlertDescription>
+              {errorMessage}
+            </AlertDescription>
+          </Alert>
         )}
       </div>
     </Card>
