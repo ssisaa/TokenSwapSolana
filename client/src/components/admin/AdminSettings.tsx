@@ -154,6 +154,17 @@ export default function AdminSettings() {
         <CardDescription>
           Configure rates and percentages for the YOT ecosystem
         </CardDescription>
+        <div className="mt-2 flex items-center gap-2">
+          <div className={`h-3 w-3 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+          <span className="text-sm text-muted-foreground">
+            Wallet: {connected ? 'Connected' : 'Not Connected'}
+            {connected && wallet?.publicKey && (
+              <span className="ml-2 text-xs text-muted-foreground">
+                ({wallet.publicKey.toString().slice(0, 4)}...{wallet.publicKey.toString().slice(-4)})
+              </span>
+            )}
+          </span>
+        </div>
       </CardHeader>
       
       <CardContent>

@@ -161,19 +161,48 @@ export async function initializeStakingProgram(
   harvestThreshold: number
 ): Promise<string> {
   try {
+    console.log("Starting program initialization with:", {
+      programId: STAKING_PROGRAM_ID.toString(),
+      stakeRatePerSecond,
+      harvestThreshold
+    });
+    
     // Validate parameters
-    if (!adminWallet || !adminWallet.publicKey) {
-      throw new Error('Admin wallet not connected');
+    if (!adminWallet) {
+      throw new Error('Admin wallet not provided');
+    }
+    
+    if (!adminWallet.publicKey) {
+      throw new Error('Admin wallet public key not available');
+    }
+    
+    // Check if wallet has a signTransaction method
+    if (typeof adminWallet.signTransaction !== 'function') {
+      console.error("Wallet object:", adminWallet);
+      throw new Error('Invalid wallet: signTransaction method not found');
     }
     
     const adminPublicKey = adminWallet.publicKey;
+    console.log("Admin public key:", adminPublicKey.toString());
+    
     const yotMintPubkey = new PublicKey(YOT_TOKEN_ADDRESS);
     const yosMintPubkey = new PublicKey(YOS_TOKEN_ADDRESS);
     
+    console.log("Token addresses:", {
+      YOT: yotMintPubkey.toString(),
+      YOS: yosMintPubkey.toString()
+    });
+    
     // Find program state address
-    const [programStateAddress] = findProgramStateAddress();
+    const [programStateAddress, stateBump] = findProgramStateAddress();
+    console.log("Program state address:", programStateAddress.toString(), "with bump:", stateBump);
+    
+    // Check if the program state account already exists
+    const programStateAccountInfo = await connection.getAccountInfo(programStateAddress);
+    console.log("Program state account exists:", !!programStateAccountInfo);
     
     // Create transaction instruction
+    console.log("Creating initialization instruction");
     const initInstruction = new TransactionInstruction({
       keys: [
         { pubkey: adminPublicKey, isSigner: true, isWritable: true },
@@ -194,23 +223,36 @@ export async function initializeStakingProgram(
     
     // Set recent blockhash and fee payer
     transaction.feePayer = adminPublicKey;
-    transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+    const { blockhash } = await connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    
+    console.log("Transaction created, requesting wallet signature...");
     
     // Request signature from admin (this triggers a wallet signature request)
-    const signedTransaction = await adminWallet.signTransaction(transaction);
-    
-    // Send signed transaction
-    const signature = await connection.sendRawTransaction(signedTransaction.serialize());
-    
-    // Confirm transaction
-    await connection.confirmTransaction(signature, 'confirmed');
-    
-    toast({
-      title: "Staking Program Initialized",
-      description: "The staking program has been initialized successfully."
-    });
-    
-    return signature;
+    try {
+      const signedTransaction = await adminWallet.signTransaction(transaction);
+      console.log("Transaction signed successfully");
+      
+      // Send signed transaction
+      console.log("Sending transaction to network");
+      const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+      console.log("Transaction sent with signature:", signature);
+      
+      // Confirm transaction
+      console.log("Waiting for transaction confirmation");
+      const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+      console.log("Transaction confirmed:", confirmation);
+      
+      toast({
+        title: "Staking Program Initialized",
+        description: "The staking program has been initialized successfully."
+      });
+      
+      return signature;
+    } catch (signError) {
+      console.error("Error during transaction signing:", signError);
+      throw new Error(`Wallet signature error: ${signError.message}`);
+    }
   } catch (error) {
     console.error('Error initializing staking program:', error);
     toast({
