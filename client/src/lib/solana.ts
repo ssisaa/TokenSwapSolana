@@ -402,30 +402,17 @@ export async function getYotMarketPrice(): Promise<number> {
   }
 }
 
-// Calculate YOS price based on YOT and YOS pool balances using AMM ratio
+// Calculate YOS price based on YOT price (YOS is 10x less valuable than YOT)
 export async function getYosMarketPrice(): Promise<number> {
   try {
-    // Get the pool data
-    const { yotBalance, yosBalance } = await getPoolBalances();
-    
-    if (!yotBalance || !yosBalance || yotBalance === 0 || yosBalance === 0) {
-      // Fallback to approximate ratio if pool data is incomplete
-      const yotPrice = await getYotMarketPrice();
-      return yotPrice * 0.1; // Fallback approximation
-    }
-    
-    // Calculate YOS price based on AMM pool ratio
-    // In an AMM, the ratio of token prices is inverse to the ratio of token amounts
-    const actualRatio = yotBalance / yosBalance;
-    
-    // Get YOT price first
+    // Get the YOT price first
     const yotPrice = await getYotMarketPrice();
     
-    // YOS price = YOT price * (1/ratio)
-    const yosPrice = yotPrice * actualRatio;
+    // YOS price = YOT price / 10 (YOS is 10 times less valuable than YOT)
+    const yosPrice = yotPrice / 10;
     
-    console.log(`YOS price calculation using AMM ratio: ${yotPrice} * ${actualRatio} = ${yosPrice}`);
-    console.log(`AMM pool balances: ${yotBalance} YOT / ${yosBalance} YOS`);
+    console.log(`YOS price calculation: ${yotPrice} / 10 = ${yosPrice}`);
+    console.log(`YOS is 10 times less valuable than YOT (fixed ratio)`);
     
     return yosPrice;
   } catch (error) {
