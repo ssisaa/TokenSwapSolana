@@ -23,6 +23,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Loader2, InfoIcon } from "lucide-react";
 
 export default function AdminSettings() {
@@ -38,6 +45,14 @@ export default function AdminSettings() {
     stakeRatePerSecond: "",
   });
   
+  // New state for selecting rate type and value
+  const [buyLiquidityRate, setBuyLiquidityRate] = useState("33");
+  const [sellLiquidityRate, setSellLiquidityRate] = useState("33");
+  const [selectedLiquidityRateType, setSelectedLiquidityRateType] = useState("daily");
+  
+  const [stakingRate, setStakingRate] = useState("0.00125");
+  const [selectedStakingRateType, setSelectedStakingRateType] = useState("second");
+  
   // Initialize form values when settings load
   React.useEffect(() => {
     if (settings) {
@@ -50,6 +65,11 @@ export default function AdminSettings() {
         stakeRateHourly: settings.stakeRateHourly.toString(),
         stakeRatePerSecond: settings.stakeRatePerSecond.toString(),
       });
+      
+      // Initialize the new state values
+      setBuyLiquidityRate(settings.liquidityContributionPercentage.toString());
+      setSellLiquidityRate(settings.liquidityContributionPercentage.toString());
+      setStakingRate(settings.stakeRatePerSecond.toString());
     }
   }, [settings]);
   
@@ -58,21 +78,54 @@ export default function AdminSettings() {
     setFormValues(prev => ({ ...prev, [name]: value }));
   };
   
+  // Converts the staking rate based on selected type
+  const convertStakingRate = (rate: string, fromType: string): { daily: string, hourly: string, second: string } => {
+    const rateNum = parseFloat(rate);
+    if (isNaN(rateNum)) return { daily: "0", hourly: "0", second: "0" };
+    
+    let daily = 0, hourly = 0, second = 0;
+    
+    switch (fromType) {
+      case "daily":
+        daily = rateNum;
+        hourly = daily / 24;
+        second = hourly / 3600;
+        break;
+      case "hourly":
+        hourly = rateNum;
+        daily = hourly * 24;
+        second = hourly / 3600;
+        break;
+      case "second":
+        second = rateNum;
+        hourly = second * 3600;
+        daily = hourly * 24;
+        break;
+    }
+    
+    return {
+      daily: daily.toString(),
+      hourly: hourly.toString(),
+      second: second.toString()
+    };
+  };
+  
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Filter only changed values
-    const changedValues: any = {};
-    Object.entries(formValues).forEach(([key, value]) => {
-      if (value && settings && value !== settings[key as keyof typeof settings]?.toString()) {
-        changedValues[key] = value;
-      }
-    });
+    // Convert rates based on selected types
+    const stakingRates = convertStakingRate(stakingRate, selectedStakingRateType);
+    
+    // Update with the new values
+    const updatedValues: any = {
+      liquidityContributionPercentage: buyLiquidityRate, // Using buy rate for now
+      stakeRateDaily: stakingRates.daily,
+      stakeRateHourly: stakingRates.hourly,
+      stakeRatePerSecond: stakingRates.second
+    };
     
     // Update if there are changes
-    if (Object.keys(changedValues).length > 0) {
-      updateSettingsMutation.mutate(changedValues);
-    }
+    updateSettingsMutation.mutate(updatedValues);
   };
   
   if (isLoading) {
@@ -101,10 +154,10 @@ export default function AdminSettings() {
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-4 mt-2">
-                  <div className="grid gap-2">
+                  <div className="grid gap-4">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="liquidityContributionPercentage">
-                        Liquidity Contribution Percentage
+                      <Label htmlFor="buyLiquidityRate">
+                        Buy Side Liquidity Rate
                       </Label>
                       <TooltipProvider>
                         <Tooltip>
@@ -112,30 +165,29 @@ export default function AdminSettings() {
                             <InfoIcon className="h-4 w-4 text-muted-foreground" />
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p className="max-w-xs">Percentage of funds that go to the liquidity pool when users purchase tokens</p>
+                            <p className="max-w-xs">Percentage of funds that go to the liquidity pool when users buy tokens</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                     </div>
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-2">
                       <Input
-                        id="liquidityContributionPercentage"
-                        name="liquidityContributionPercentage"
+                        id="buyLiquidityRate"
                         type="number"
                         step="0.01"
-                        placeholder="Enter percentage"
-                        value={formValues.liquidityContributionPercentage}
-                        onChange={handleChange}
-                        className="w-full"
+                        placeholder="Enter rate"
+                        value={buyLiquidityRate}
+                        onChange={(e) => setBuyLiquidityRate(e.target.value)}
+                        className="flex-1"
                       />
                       <span className="ml-2">%</span>
                     </div>
                   </div>
                   
-                  <div className="grid gap-2">
+                  <div className="grid gap-4">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="liquidityRewardsRateDaily">
-                        Daily Liquidity Rewards Rate
+                      <Label htmlFor="sellLiquidityRate">
+                        Sell Side Liquidity Rate
                       </Label>
                       <TooltipProvider>
                         <Tooltip>
@@ -143,83 +195,20 @@ export default function AdminSettings() {
                             <InfoIcon className="h-4 w-4 text-muted-foreground" />
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p className="max-w-xs">Daily reward percentage for liquidity providers</p>
+                            <p className="max-w-xs">Percentage of funds that go to the liquidity pool when users sell tokens</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                     </div>
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-2">
                       <Input
-                        id="liquidityRewardsRateDaily"
-                        name="liquidityRewardsRateDaily"
+                        id="sellLiquidityRate"
                         type="number"
                         step="0.01"
-                        placeholder="Enter daily rate"
-                        value={formValues.liquidityRewardsRateDaily}
-                        onChange={handleChange}
-                        className="w-full"
-                      />
-                      <span className="ml-2">%</span>
-                    </div>
-                  </div>
-                  
-                  <div className="grid gap-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="liquidityRewardsRateWeekly">
-                        Weekly Liquidity Rewards Rate
-                      </Label>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <InfoIcon className="h-4 w-4 text-muted-foreground" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="max-w-xs">Weekly reward percentage for liquidity providers</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                    <div className="flex items-center">
-                      <Input
-                        id="liquidityRewardsRateWeekly"
-                        name="liquidityRewardsRateWeekly"
-                        type="number"
-                        step="0.01"
-                        placeholder="Enter weekly rate"
-                        value={formValues.liquidityRewardsRateWeekly}
-                        onChange={handleChange}
-                        className="w-full"
-                      />
-                      <span className="ml-2">%</span>
-                    </div>
-                  </div>
-                  
-                  <div className="grid gap-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="liquidityRewardsRateMonthly">
-                        Monthly Liquidity Rewards Rate
-                      </Label>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <InfoIcon className="h-4 w-4 text-muted-foreground" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="max-w-xs">Monthly reward percentage for liquidity providers</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                    <div className="flex items-center">
-                      <Input
-                        id="liquidityRewardsRateMonthly"
-                        name="liquidityRewardsRateMonthly"
-                        type="number"
-                        step="0.01"
-                        placeholder="Enter monthly rate"
-                        value={formValues.liquidityRewardsRateMonthly}
-                        onChange={handleChange}
-                        className="w-full"
+                        placeholder="Enter rate"
+                        value={sellLiquidityRate}
+                        onChange={(e) => setSellLiquidityRate(e.target.value)}
+                        className="flex-1"
                       />
                       <span className="ml-2">%</span>
                     </div>
@@ -236,8 +225,8 @@ export default function AdminSettings() {
                 <div className="space-y-4 mt-2">
                   <div className="grid gap-2">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="stakeRateDaily">
-                        Daily Staking Rate
+                      <Label htmlFor="stakingRate">
+                        Staking Rate
                       </Label>
                       <TooltipProvider>
                         <Tooltip>
@@ -245,85 +234,51 @@ export default function AdminSettings() {
                             <InfoIcon className="h-4 w-4 text-muted-foreground" />
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p className="max-w-xs">Daily reward percentage for staked tokens</p>
+                            <p className="max-w-xs">Reward percentage for staked tokens</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                     </div>
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-2">
                       <Input
-                        id="stakeRateDaily"
-                        name="stakeRateDaily"
-                        type="number"
-                        step="0.01"
-                        placeholder="Enter daily rate"
-                        value={formValues.stakeRateDaily}
-                        onChange={handleChange}
-                        className="w-full"
-                      />
-                      <span className="ml-2">%</span>
-                    </div>
-                  </div>
-                  
-                  <div className="grid gap-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="stakeRateHourly">
-                        Hourly Staking Rate
-                      </Label>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <InfoIcon className="h-4 w-4 text-muted-foreground" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="max-w-xs">Hourly reward percentage for staked tokens</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                    <div className="flex items-center">
-                      <Input
-                        id="stakeRateHourly"
-                        name="stakeRateHourly"
-                        type="number"
-                        step="0.0001"
-                        placeholder="Enter hourly rate"
-                        value={formValues.stakeRateHourly}
-                        onChange={handleChange}
-                        className="w-full"
-                      />
-                      <span className="ml-2">%</span>
-                    </div>
-                  </div>
-                  
-                  <div className="grid gap-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="stakeRatePerSecond">
-                        Per Second Staking Rate
-                      </Label>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <InfoIcon className="h-4 w-4 text-muted-foreground" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="max-w-xs">Per second reward percentage for staked tokens (for real-time calculations)</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                    <div className="flex items-center">
-                      <Input
-                        id="stakeRatePerSecond"
-                        name="stakeRatePerSecond"
+                        id="stakingRate"
                         type="number"
                         step="0.0000001"
-                        placeholder="Enter per second rate"
-                        value={formValues.stakeRatePerSecond}
-                        onChange={handleChange}
-                        className="w-full"
+                        placeholder="Enter rate"
+                        value={stakingRate}
+                        onChange={(e) => setStakingRate(e.target.value)}
+                        className="flex-1"
                       />
-                      <span className="ml-2">%</span>
+                      <Select
+                        value={selectedStakingRateType}
+                        onValueChange={setSelectedStakingRateType}
+                      >
+                        <SelectTrigger className="w-[140px]">
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="daily">Daily</SelectItem>
+                          <SelectItem value="hourly">Hourly</SelectItem>
+                          <SelectItem value="second">Per Second</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {/* Preview of converted rates */}
+                    <div className="mt-4 text-sm text-muted-foreground">
+                      <p>Current rate: {stakingRate}% per {selectedStakingRateType}</p>
+                      <p className="mt-1">
+                        {selectedStakingRateType !== "second" && 
+                          `Equivalent to approximately ${
+                            parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).second).toFixed(8)
+                          }% per second`
+                        }
+                        {selectedStakingRateType === "second" && 
+                          `Equivalent to approximately ${
+                            parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).daily).toFixed(4)
+                          }% per day`
+                        }
+                      </p>
                     </div>
                   </div>
                 </div>

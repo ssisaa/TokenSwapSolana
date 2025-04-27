@@ -74,3 +74,30 @@ export function formatTransactionTime(timestamp: number): string {
     hour12: false
   });
 }
+
+export function formatNumber(value: number, decimals: number = 4): string {
+  if (isNaN(value) || value === 0) return '0';
+  
+  // For very small numbers, use scientific notation
+  if (value < 0.0001) {
+    return value.toExponential(4);
+  }
+  
+  // Use abbreviated format for large numbers
+  const absValue = Math.abs(value);
+  if (absValue >= 1_000_000_000_000) { // >= 1 trillion
+    return (value / 1_000_000_000_000).toFixed(2) + 'T';
+  } else if (absValue >= 1_000_000_000) { // >= 1 billion
+    return (value / 1_000_000_000).toFixed(2) + 'B';
+  } else if (absValue >= 1_000_000) { // >= 1 million
+    return (value / 1_000_000).toFixed(2) + 'M';
+  } else if (absValue >= 1_000) { // >= 1 thousand
+    return (value / 1_000).toFixed(2) + 'K';
+  }
+  
+  // Regular formatting for other numbers
+  return value.toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: decimals
+  });
+}

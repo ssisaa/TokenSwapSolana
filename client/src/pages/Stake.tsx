@@ -1,300 +1,365 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useMultiWallet } from "@/context/MultiWalletContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useWallet } from "@/hooks/useSolanaWallet";
-import { useTokenData } from "@/hooks/useTokenData";
-import { ArrowDown, Download, Upload, Award } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Loader2, AlertCircle, ArrowRight, Clock } from "lucide-react";
+import { useTokenData } from "@/hooks/useTokenData";
+import { useToast } from "@/hooks/use-toast";
+import { formatNumber } from "@/lib/utils";
 
 export default function Stake() {
-  const { connected } = useWallet();
-  const { tokenData, poolData, balances, loading } = useTokenData();
-  const [stakeAmount, setStakeAmount] = useState("");
-  const [unstakeAmount, setUnstakeAmount] = useState("");
-  const [activeModal, setActiveModal] = useState<'stake' | 'unstake' | null>(null);
-
-  // In a real app, these would come from actual staking data
-  const stakingData = {
-    totalStaked: 0.00,
-    earnedRewards: 0.00,
-    apr: "NaN",
-    totalStakers: 0,
-    hourlyRate: 0.00125,
-    dailyRate: 0.03,
-    monthlyRate: 0.90
+  const { connected, publicKey } = useMultiWallet();
+  const { balances, loading: isBalancesLoading } = useTokenData();
+  const { toast } = useToast();
+  
+  // Staking state
+  const [stakeAmount, setStakeAmount] = useState<string>("");
+  const [stakingTab, setStakingTab] = useState<string>("stake");
+  const [isStaking, setIsStaking] = useState<boolean>(false);
+  const [isUnstaking, setIsUnstaking] = useState<boolean>(false);
+  
+  // Simulated staking data
+  const [stakedYOT, setStakedYOT] = useState<number>(0);
+  const [earnedYOS, setEarnedYOS] = useState<number>(0);
+  const [stakeStartTime, setStakeStartTime] = useState<number | null>(null);
+  
+  // Staking rate per second (retrieved from admin settings)
+  const stakeRatePerSecond = 0.00125 / 100; // 0.00125% per second, convert to decimal
+  
+  // Effect to simulate earning YOS over time when YOT is staked
+  useEffect(() => {
+    if (stakedYOT > 0 && stakeStartTime) {
+      const timer = setInterval(() => {
+        const secondsStaked = Math.floor((Date.now() - stakeStartTime) / 1000);
+        const earned = stakedYOT * stakeRatePerSecond * secondsStaked;
+        setEarnedYOS(earned);
+      }, 1000);
+      
+      return () => clearInterval(timer);
+    }
+  }, [stakedYOT, stakeStartTime]);
+  
+  const handleStakeAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value === "" || /^\d*\.?\d*$/.test(value)) {
+      setStakeAmount(value);
+    }
   };
-
-  const handleStakeSubmit = () => {
-    // In a real implementation, this would call a staking contract
-    console.log("Staking", stakeAmount, "YOT");
-    setActiveModal(null);
-    setStakeAmount("");
+  
+  const setMaxAmount = () => {
+    if (balances && balances.yot) {
+      setStakeAmount(balances.yot.toString());
+    }
   };
-
-  const handleUnstakeSubmit = () => {
-    // In a real implementation, this would call a staking contract
-    console.log("Unstaking", unstakeAmount, "YOT");
-    setActiveModal(null);
-    setUnstakeAmount("");
+  
+  const handleStake = () => {
+    if (!connected) {
+      toast({
+        title: "Wallet not connected",
+        description: "Please connect your wallet to stake YOT tokens.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const amount = parseFloat(stakeAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        title: "Invalid amount",
+        description: "Please enter a valid amount to stake.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (balances && amount > balances.yot) {
+      toast({
+        title: "Insufficient balance",
+        description: "You don't have enough YOT tokens to stake this amount.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsStaking(true);
+    
+    // Simulate staking process
+    setTimeout(() => {
+      setStakedYOT(prev => prev + amount);
+      if (!stakeStartTime) {
+        setStakeStartTime(Date.now());
+      }
+      setStakeAmount("");
+      setIsStaking(false);
+      
+      toast({
+        title: "Staking successful",
+        description: `You have staked ${amount} YOT tokens and will start earning YOS.`,
+      });
+    }, 2000);
   };
-
-  const handleClaimRewards = () => {
-    // In a real implementation, this would call a claiming function
-    console.log("Claiming rewards");
+  
+  const handleUnstake = () => {
+    if (!connected || stakedYOT <= 0) {
+      toast({
+        title: "Nothing to unstake",
+        description: "You don't have any staked YOT tokens.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsUnstaking(true);
+    
+    // Simulate unstaking process
+    setTimeout(() => {
+      setStakedYOT(0);
+      setStakeStartTime(null);
+      setEarnedYOS(0);
+      setIsUnstaking(false);
+      
+      toast({
+        title: "Unstaking successful",
+        description: "You have unstaked all your YOT tokens.",
+      });
+    }, 2000);
   };
-
+  
+  const handleHarvest = () => {
+    if (earnedYOS <= 0) {
+      toast({
+        title: "Nothing to harvest",
+        description: "You haven't earned any YOS tokens yet.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    toast({
+      title: "Harvest successful",
+      description: `You have harvested ${formatNumber(earnedYOS)} YOS tokens.`,
+    });
+    
+    // Reset earned YOS but keep staking
+    setEarnedYOS(0);
+    setStakeStartTime(Date.now());
+  };
+  
+  // Calculate APY based on the per-second rate
+  const calculateAPY = () => {
+    const secondsInYear = 365 * 24 * 60 * 60;
+    const apy = (stakeRatePerSecond * secondsInYear) * 100;
+    return apy.toFixed(2);
+  };
+  
+  // Time since staking started
+  const getStakingTime = () => {
+    if (!stakeStartTime) return "Not staking";
+    
+    const seconds = Math.floor((Date.now() - stakeStartTime) / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    if (days > 0) return `${days}d ${hours % 24}h`;
+    if (hours > 0) return `${hours}h ${minutes % 60}m`;
+    if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+    return `${seconds}s`;
+  };
+  
   return (
-    <DashboardLayout title="Stake">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-white">Your Staking Overview</h1>
-        </div>
-
-        {/* Staking Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <Card className="bg-dark-200 border-dark-400 p-6">
-            <h3 className="text-gray-400 text-sm mb-2">Total Staked</h3>
-            <div className="flex items-baseline">
-              <span className="text-3xl font-semibold text-white">{stakingData.totalStaked.toFixed(2)} YOT</span>
-              <span className="text-sm text-gray-400 ml-2">${(stakingData.totalStaked * (balances?.yotUsd || 0) / (balances?.yot || 1)).toFixed(2)}</span>
-            </div>
-          </Card>
-
-          <Card className="bg-dark-200 border-dark-400 p-6">
-            <h3 className="text-gray-400 text-sm mb-2">Earned Rewards</h3>
-            <div className="flex items-baseline">
-              <span className="text-3xl font-semibold text-white">{stakingData.earnedRewards.toFixed(2)} YOS</span>
-              <span className="text-sm text-gray-400 ml-2">${(stakingData.earnedRewards * (balances?.yosUsd || 0) / (balances?.yos || 1)).toFixed(2)}</span>
-            </div>
-          </Card>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex flex-wrap gap-4 mb-10">
-          <Button 
-            variant="outline" 
-            className="flex items-center bg-blue-600/20 text-blue-400 border-blue-500 hover:bg-blue-600/30 hover:text-blue-300"
-            onClick={() => setActiveModal('stake')}
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            Stake YOT
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            className="flex items-center bg-dark-300 text-gray-300 border-gray-600 hover:bg-dark-400 hover:text-white"
-            onClick={() => setActiveModal('unstake')}
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Unstake YOT
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            className="flex items-center bg-green-600/20 text-green-400 border-green-500 hover:bg-green-600/30 hover:text-green-300"
-            onClick={handleClaimRewards}
-            disabled={stakingData.earnedRewards <= 0}
-          >
-            <Award className="h-4 w-4 mr-2" />
-            Claim Rewards
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          {/* Staking FAQ */}
-          <div className="md:col-span-3">
-            <h2 className="text-xl font-semibold text-white mb-6">Staking FAQ</h2>
+    <DashboardLayout>
+      <div className="container mx-auto py-6 space-y-8">
+        <div className="flex flex-col md:flex-row gap-4 md:gap-8">
+          {/* Staking Card */}
+          <Card className="flex-1 bg-dark-200 border-dark-400">
+            <CardHeader>
+              <CardTitle className="text-2xl font-bold text-white">Stake YOT</CardTitle>
+              <CardDescription className="text-gray-400">
+                Stake your YOT tokens and earn YOS rewards
+              </CardDescription>
+            </CardHeader>
             
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-white font-medium mb-2">What is YOT staking?</h3>
-                <p className="text-gray-400 text-sm">
-                  Staking YOT allows you to earn YOS rewards while supporting the network. When you stake your YOT tokens, they are locked up, 
-                  and you earn YOS rewards at a rate of 0.00125% per hour.
-                </p>
+            <CardContent>
+              <div className="space-y-6">
+                {/* Staking Info */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-dark-300 p-4 rounded-lg">
+                    <p className="text-gray-400 text-sm">APY</p>
+                    <p className="text-green-400 text-2xl font-bold">{calculateAPY()}%</p>
+                  </div>
+                  <div className="bg-dark-300 p-4 rounded-lg">
+                    <p className="text-gray-400 text-sm">Total Staked</p>
+                    <p className="text-white text-2xl font-bold">{formatNumber(stakedYOT)} YOT</p>
+                  </div>
+                  <div className="bg-dark-300 p-4 rounded-lg">
+                    <p className="text-gray-400 text-sm">YOS Earned</p>
+                    <p className="text-primary-400 text-2xl font-bold">{formatNumber(earnedYOS)} YOS</p>
+                  </div>
+                </div>
+                
+                {/* Staking Progress */}
+                {stakedYOT > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm text-gray-400">Staking Time</span>
+                      <span className="text-sm text-white flex items-center">
+                        <Clock className="h-3 w-3 mr-1" /> {getStakingTime()}
+                      </span>
+                    </div>
+                    <Progress value={Math.min((earnedYOS / stakedYOT) * 100, 100)} className="h-1.5" />
+                  </div>
+                )}
+                
+                {/* Staking Actions */}
+                <Tabs value={stakingTab} onValueChange={setStakingTab}>
+                  <TabsList className="grid grid-cols-2 w-full bg-dark-300">
+                    <TabsTrigger value="stake">Stake</TabsTrigger>
+                    <TabsTrigger value="unstake">Unstake</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="stake" className="pt-4">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <Label htmlFor="stake-amount">Amount to Stake</Label>
+                          {connected && balances && (
+                            <span className="text-xs text-gray-400">
+                              Balance: {formatNumber(balances.yot)} YOT
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <Input
+                            id="stake-amount"
+                            placeholder="0.0"
+                            value={stakeAmount}
+                            onChange={handleStakeAmountChange}
+                            className="bg-dark-300 border-dark-400"
+                          />
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={setMaxAmount}
+                            className="border-dark-400 text-primary-400"
+                          >
+                            MAX
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <Button 
+                        className="w-full" 
+                        onClick={handleStake}
+                        disabled={!connected || isStaking || !stakeAmount || parseFloat(stakeAmount) <= 0}
+                      >
+                        {isStaking ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Staking...
+                          </>
+                        ) : (
+                          "Stake YOT"
+                        )}
+                      </Button>
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="unstake" className="pt-4">
+                    <div className="space-y-4">
+                      <Alert className="bg-dark-300 border-dark-400">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>Unstaking Information</AlertTitle>
+                        <AlertDescription>
+                          Unstaking will retrieve all of your staked YOT tokens.
+                          Make sure to harvest your earned YOS first!
+                        </AlertDescription>
+                      </Alert>
+                      
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <Button 
+                          variant="secondary" 
+                          className="flex-1" 
+                          onClick={handleHarvest}
+                          disabled={!connected || earnedYOS <= 0}
+                        >
+                          Harvest YOS
+                        </Button>
+                        <Button 
+                          variant="destructive" 
+                          className="flex-1" 
+                          onClick={handleUnstake}
+                          disabled={!connected || isUnstaking || stakedYOT <= 0}
+                        >
+                          {isUnstaking ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Unstaking...
+                            </>
+                          ) : (
+                            "Unstake All"
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </div>
-              
-              <div>
-                <h3 className="text-white font-medium mb-2">How are rewards calculated?</h3>
-                <p className="text-gray-400 text-sm">
-                  Rewards accrue at a rate of 0.00125% per hour on your staked YOT tokens. This equals approximately 3% per month or NaN% 
-                  annually.
-                </p>
+            </CardContent>
+            
+            <CardFooter className="border-t border-dark-400 pt-4">
+              <div className="text-xs text-gray-400 w-full">
+                <p>Staking YOT tokens earns you YOS tokens over time at a rate of 0.00125% per second.</p>
+                <p className="mt-1">You can unstake at any time, but make sure to harvest your rewards first!</p>
               </div>
-              
-              <div>
-                <h3 className="text-white font-medium mb-2">What can I do with YOS rewards?</h3>
-                <p className="text-gray-400 text-sm">
-                  YOS tokens can be swapped 1:1 for YOT tokens, allowing you to stake more, trade, or contribute to liquidity pools.
-                </p>
-              </div>
-              
-              <div>
-                <h3 className="text-white font-medium mb-2">Is there a lock-up period?</h3>
-                <p className="text-gray-400 text-sm">
-                  No, you can unstake your YOT at any time. However, the longer you stake, the more rewards you'll accumulate.
-                </p>
-              </div>
-            </div>
-          </div>
+            </CardFooter>
+          </Card>
           
-          {/* Staking Information */}
-          <div className="md:col-span-1">
-            <Card className="bg-dark-200 border-dark-400 p-4">
-              <h3 className="text-white font-medium mb-4">Staking Information</h3>
-              
-              <div className="space-y-4">
-                <div>
-                  <div className="text-gray-400 text-sm mb-1">Current APR</div>
-                  <div className="text-white font-medium">{stakingData.apr}%</div>
+          {/* Info Card */}
+          <div className="md:w-1/3 space-y-4">
+            <Card className="bg-dark-200 border-dark-400">
+              <CardHeader>
+                <CardTitle className="text-xl font-bold text-white">How Staking Works</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex-shrink-0 w-16 h-16 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-2xl">
+                    YOT
+                  </div>
+                  <ArrowRight className="text-gray-400" />
+                  <div className="flex-shrink-0 w-16 h-16 rounded-lg bg-green-200 flex items-center justify-center text-dark-900 font-bold">
+                    Earn YOS
+                  </div>
                 </div>
                 
-                <div>
-                  <div className="text-gray-400 text-sm mb-1">Total Stakers</div>
-                  <div className="text-white font-medium">{stakingData.totalStakers}</div>
-                  <Progress value={0} max={100} className="h-2 mt-1" />
+                <div className="space-y-2 text-sm text-gray-400">
+                  <p>1. Stake your YOT tokens to earn YOS rewards</p>
+                  <p>2. Rewards accumulate every second at {(stakeRatePerSecond * 100).toFixed(6)}% per second</p>
+                  <p>3. Harvest your YOS rewards anytime</p>
+                  <p>4. Swap YOS back to YOT when desired</p>
                 </div>
-                
-                <div>
-                  <div className="text-gray-400 text-sm mb-1">Total Staked</div>
-                  <div className="text-white font-medium">{stakingData.totalStaked.toFixed(2)} YOT</div>
-                  <Progress value={0} max={100} className="h-2 mt-1" />
-                </div>
-                
-                <div>
-                  <div className="text-gray-400 text-sm mb-1">Hourly Rate</div>
-                  <div className="text-white font-medium">{stakingData.hourlyRate.toFixed(5)}%</div>
-                </div>
-                
-                <div>
-                  <div className="text-gray-400 text-sm mb-1">Daily Rate</div>
-                  <div className="text-white font-medium">{stakingData.dailyRate.toFixed(2)}%</div>
-                </div>
-                
-                <div>
-                  <div className="text-gray-400 text-sm mb-1">Monthly Rate</div>
-                  <div className="text-white font-medium">{stakingData.monthlyRate.toFixed(2)}%</div>
-                </div>
-              </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-dark-200 border-dark-400">
+              <CardHeader>
+                <CardTitle className="text-xl font-bold text-white">Staking Benefits</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm text-gray-400">
+                <p>• Earn passive income through YOS rewards</p>
+                <p>• Support the YOT ecosystem</p>
+                <p>• No lockup period - unstake anytime</p>
+                <p>• Competitive APY of {calculateAPY()}%</p>
+              </CardContent>
             </Card>
           </div>
         </div>
-
-        {/* Staking Modal */}
-        {activeModal === 'stake' && (
-          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-            <Card className="bg-dark-200 border-dark-400 p-6 max-w-md w-full">
-              <h3 className="text-white font-semibold mb-4">Stake YOT</h3>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="text-gray-400 text-sm block mb-1">Amount to Stake</label>
-                  <Input 
-                    type="number" 
-                    placeholder="0.00"
-                    value={stakeAmount}
-                    onChange={(e) => setStakeAmount(e.target.value)}
-                    className="bg-dark-300 border-dark-400 text-white"
-                  />
-                  <div className="text-gray-400 text-xs mt-1">
-                    Available: {balances?.yot.toFixed(2) || "0.00"} YOT
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-center text-gray-400">
-                  <ArrowDown className="h-5 w-5" />
-                </div>
-                
-                <div>
-                  <div className="text-gray-400 text-sm mb-1">Estimated Rewards (24h)</div>
-                  <div className="bg-dark-300 p-3 rounded-md">
-                    <span className="text-white font-medium">
-                      {stakeAmount ? (parseFloat(stakeAmount) * stakingData.hourlyRate / 100 * 24).toFixed(6) : "0.00"} YOS
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="flex space-x-3 pt-2">
-                  <Button 
-                    variant="default" 
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-                    onClick={handleStakeSubmit}
-                    disabled={!stakeAmount || parseFloat(stakeAmount) <= 0}
-                  >
-                    Stake
-                  </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    className="flex-1 bg-dark-300 hover:bg-dark-400 text-white border-dark-400"
-                    onClick={() => setActiveModal(null)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          </div>
-        )}
-
-        {/* Unstaking Modal */}
-        {activeModal === 'unstake' && (
-          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-            <Card className="bg-dark-200 border-dark-400 p-6 max-w-md w-full">
-              <h3 className="text-white font-semibold mb-4">Unstake YOT</h3>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="text-gray-400 text-sm block mb-1">Amount to Unstake</label>
-                  <Input 
-                    type="number" 
-                    placeholder="0.00"
-                    value={unstakeAmount}
-                    onChange={(e) => setUnstakeAmount(e.target.value)}
-                    className="bg-dark-300 border-dark-400 text-white"
-                  />
-                  <div className="text-gray-400 text-xs mt-1">
-                    Staked: {stakingData.totalStaked.toFixed(2)} YOT
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-center text-gray-400">
-                  <ArrowDown className="h-5 w-5" />
-                </div>
-                
-                <div>
-                  <div className="text-gray-400 text-sm mb-1">You will receive</div>
-                  <div className="bg-dark-300 p-3 rounded-md">
-                    <span className="text-white font-medium">
-                      {unstakeAmount ? parseFloat(unstakeAmount).toFixed(2) : "0.00"} YOT
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="flex space-x-3 pt-2">
-                  <Button 
-                    variant="default" 
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-                    onClick={handleUnstakeSubmit}
-                    disabled={!unstakeAmount || parseFloat(unstakeAmount) <= 0 || parseFloat(unstakeAmount) > stakingData.totalStaked}
-                  >
-                    Unstake
-                  </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    className="flex-1 bg-dark-300 hover:bg-dark-400 text-white border-dark-400"
-                    onClick={() => setActiveModal(null)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          </div>
-        )}
       </div>
     </DashboardLayout>
   );
