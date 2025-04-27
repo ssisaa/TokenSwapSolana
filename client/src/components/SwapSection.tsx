@@ -355,11 +355,36 @@ export default function SwapSection() {
         {transactionState === 'success' && (
           <Alert className="bg-green-900/30 border-green-800 text-green-200">
             <CheckCircle2 className="h-4 w-4 mr-2" />
-            <AlertTitle>Transaction Processed</AlertTitle>
+            <AlertTitle>Transaction Processed: First Step Complete</AlertTitle>
             <AlertDescription>
-              <p>Transaction completed successfully! Your deposit to the pool has been recorded on the blockchain.</p>
-              <p className="mt-2 text-xs font-medium">Note: To complete the swap, a deployed token-swap program would be required to handle the token transfer back to your wallet.</p>
-              <p className="mt-1 text-xs">Transaction signature: {lastTransaction?.signature?.substring(0, 12)}...</p>
+              <div className="mb-2">
+                <p>Your {fromToken} has been successfully sent to the liquidity pool!</p>
+                <div className="flex items-center mt-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Deposit to pool: Completed</span>
+                </div>
+                <div className="flex items-center mt-1 text-gray-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
+                  </svg>
+                  <span>Receive {toToken} tokens: Requires token-swap program</span>
+                </div>
+              </div>
+              <div className="mt-2 text-xs border-t border-green-800 pt-2">
+                <a 
+                  href={`https://explorer.solana.com/tx/${lastTransaction?.signature}?cluster=devnet`} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-green-300 hover:text-green-100 underline flex items-center"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                  View transaction on Solana Explorer
+                </a>
+              </div>
             </AlertDescription>
           </Alert>
         )}

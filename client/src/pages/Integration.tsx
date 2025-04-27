@@ -28,8 +28,39 @@ export default function Integration() {
         <AlertTriangle className="h-5 w-5 text-primary-400" />
         <AlertTitle>Current Implementation Status</AlertTitle>
         <AlertDescription className="text-gray-300">
-          The current implementation can successfully send SOL to the liquidity pool, but a complete swap requires an
-          atomic exchange with a deployed token-swap program that can handle both sides of the transaction.
+          <div className="mt-2 space-y-2">
+            <div className="flex items-start">
+              <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
+              <div>
+                <span className="font-medium text-green-400">Completed:</span> Sending SOL/YOT to the liquidity pool with real blockchain transactions
+              </div>
+            </div>
+            
+            <div className="flex items-start">
+              <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
+              <div>
+                <span className="font-medium text-green-400">Completed:</span> Transaction verification and explorer links
+              </div>
+            </div>
+            
+            <div className="flex items-start">
+              <AlertTriangle className="h-5 w-5 text-yellow-500 mt-0.5 mr-2 flex-shrink-0" />
+              <div>
+                <span className="font-medium text-yellow-400">In Progress:</span> Receiving tokens back from the pool after sending (requires token-swap program)
+              </div>
+            </div>
+            
+            <div className="flex items-start">
+              <AlertTriangle className="h-5 w-5 text-gray-500 mt-0.5 mr-2 flex-shrink-0" />
+              <div>
+                <span className="font-medium text-gray-400">Pending:</span> Atomic swap transactions (send and receive in one transaction)
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-4 p-3 bg-dark-500 rounded-md">
+            A complete swap requires an atomic exchange with a deployed token-swap program that can handle both sides of the transaction. We've implemented the send functionality, and are working on simulating the receive part.
+          </div>
         </AlertDescription>
       </Alert>
       
