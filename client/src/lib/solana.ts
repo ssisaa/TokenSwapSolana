@@ -300,11 +300,26 @@ export async function swapSolToYot(
     console.log(`Simulating YOT transfer of ${expectedYotAmount} YOT tokens to ${wallet.publicKey.toString()}...`);
     
     // IMPORTANT: In a real implementation, this would be handled by a deployed token-swap program
-    // The code below shows what WOULD happen in a full implementation, but cannot execute
-    // because we don't have the authority's private key.
+    // The code below demonstrates what WOULD happen in a full implementation, but simulates the
+    // second part since we don't have the authority's private key
     
-    /* 
-    // This code would work if we had the pool authority's private key:
+    console.log("Preparing to simulate YOT token receipt...");
+    
+    // Let's check if we already have a YOT token account
+    let hasYotTokenAccount = false;
+    try {
+      await getAccount(connection, userYotAccount);
+      hasYotTokenAccount = true;
+    } catch (error) {
+      if (error instanceof TokenAccountNotFoundError) {
+        console.log("User doesn't have a YOT token account yet");
+      } else {
+        throw error;
+      }
+    }
+    
+    // In a real implementation with a token-swap program, the following would happen atomically:
+    // 1. The instruction to transfer tokens would be created
     const transferInstruction = createTransferInstruction(
       poolYotAccount,         // Source account (pool's YOT token account)
       userYotAccount,         // Destination account (user's YOT token account)
@@ -312,24 +327,15 @@ export async function swapSolToYot(
       yotTokenAmount          // Amount to transfer
     );
     
-    // Only the pool authority can sign this transaction
-    const yotTransaction = new Transaction({
-      feePayer: poolAuthority,
-      blockhash,
-      lastValidBlockHeight
-    });
+    // 2. A transaction would be created and signed by the pool authority
+    // 3. The tokens would be transferred to the user's account
     
-    yotTransaction.add(transferInstruction);
+    // For simulation purposes, we'll log what would happen
+    console.log(`In a full implementation, ${expectedYotAmount} YOT tokens would be transferred to ${wallet.publicKey.toString()}`);
+    console.log(`From pool account: ${poolYotAccount.toString()}`);
+    console.log(`To user account: ${userYotAccount.toString()}`);
     
-    // This requires the pool authority's private key
-    const yotSignature = await sendAndConfirmTransaction(
-      connection,
-      yotTransaction,
-      [poolAuthorityKeypair] // This requires access to the pool authority's private key
-    );
-    */
-    
-    // For the demo, we'll return the SOL transaction signature
+    // For the demo, we'll return the SOL transaction signature and additional simulation info
     console.log("Transaction confirmed with signature:", solSignature);
     
     // Return actual swap details
@@ -424,6 +430,15 @@ export async function swapYotToSol(
         });
         
         console.log("Transaction confirmed:", confirmation);
+        
+        // Simulate the SOL transfer from pool to user (second part of swap)
+        // In a real implementation, this would be part of the atomic swap
+        console.log(`Simulating SOL transfer of ${expectedSolAmount} SOL to ${wallet.publicKey.toString()}...`);
+        
+        // In a complete token-swap program implementation, the pool would send SOL to the user
+        // This would happen in the same transaction as the YOT transfer to the pool
+        console.log(`In a full implementation, ${expectedSolAmount} SOL would be transferred to ${wallet.publicKey.toString()}`);
+        console.log(`From pool SOL account: ${POOL_SOL_ACCOUNT}`);
         
         // Return actual swap details
         return {

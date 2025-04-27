@@ -353,9 +353,9 @@ export default function SwapSection() {
         
         {/* Transaction Status */}
         {transactionState === 'success' && (
-          <Alert className="bg-green-900/30 border-green-800 text-green-200">
+          <Alert className="bg-gradient-to-r from-green-900/30 to-blue-900/30 border-green-800 text-green-200">
             <CheckCircle2 className="h-4 w-4 mr-2" />
-            <AlertTitle>Transaction Processed: First Step Complete</AlertTitle>
+            <AlertTitle>Swap Initiated: First Step Complete</AlertTitle>
             <AlertDescription>
               <div className="mb-2">
                 <p>Your {fromToken} has been successfully sent to the liquidity pool!</p>
@@ -363,16 +363,33 @@ export default function SwapSection() {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                   </svg>
-                  <span>Deposit to pool: Completed</span>
+                  <span>✓ Step 1: Sent {fromToken} to pool (Transaction confirmed)</span>
                 </div>
-                <div className="flex items-center mt-1 text-gray-400">
+
+                <div className="flex items-center mt-2 text-yellow-300">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span>Receive {toToken} tokens: Requires token-swap program</span>
+                  <span>→ Step 2: Simulating receipt of {toToken} (Demo only)</span>
                 </div>
               </div>
-              <div className="mt-2 text-xs border-t border-green-800 pt-2">
+              
+              {/* Transaction Details */}
+              <div className="mt-3 mb-2 bg-dark-300 rounded-md p-2 text-xs">
+                <h4 className="font-medium text-white mb-1">Transaction Summary</h4>
+                <div className="grid grid-cols-2 gap-y-1">
+                  <div className="text-gray-400">Sent:</div>
+                  <div className="text-white font-medium">{lastTransaction?.fromAmount} {lastTransaction?.fromToken}</div>
+                  
+                  <div className="text-gray-400">Expected to receive:</div>
+                  <div className="text-white font-medium">{lastTransaction?.toAmount ? formatCurrency(lastTransaction.toAmount) : '0'} {lastTransaction?.toToken}</div>
+                  
+                  <div className="text-gray-400">Fee:</div>
+                  <div className="text-white font-medium">{lastTransaction?.fee ? formatCurrency(lastTransaction.fee) : '0'} {lastTransaction?.fromToken}</div>
+                </div>
+              </div>
+              
+              <div className="mt-2 text-xs border-t border-green-800 pt-2 flex justify-between items-center">
                 <a 
                   href={`https://explorer.solana.com/tx/${lastTransaction?.signature}?cluster=devnet`} 
                   target="_blank" 
@@ -383,6 +400,16 @@ export default function SwapSection() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                   </svg>
                   View transaction on Solana Explorer
+                </a>
+                
+                <a 
+                  href="/integration" 
+                  className="text-primary-400 hover:text-primary-300 underline flex items-center ml-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  View integration details
                 </a>
               </div>
             </AlertDescription>
