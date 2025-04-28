@@ -287,20 +287,40 @@ export default function AdminSettings() {
                       </Select>
                     </div>
                     
-                    {/* Preview of converted rates */}
-                    <div className="mt-4 text-sm text-muted-foreground">
-                      <p>Current rate: {stakingRate}% per {selectedStakingRateType}</p>
-                      <p className="mt-1">
-                        {selectedStakingRateType !== "second" && 
-                          `Equivalent to approximately ${
-                            parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).second).toFixed(8)
-                          }% per second`
-                        }
-                        {selectedStakingRateType === "second" && 
-                          `Equivalent to approximately ${
-                            parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).daily).toFixed(4)
-                          }% per day`
-                        }
+                    {/* Preview of converted rates with enhanced readability */}
+                    <div className="mt-4 text-sm bg-primary/10 p-3 rounded-md border border-primary/20">
+                      <p className="font-semibold text-primary">Rate Conversion Preview:</p>
+                      <p className="mt-1">Current setting: {stakingRate}% per {selectedStakingRateType}</p>
+                      
+                      {/* Always show all equivalent rates for clarity */}
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2">
+                        <p>
+                          <span className="font-medium">Per second:</span> {
+                            parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).second).toFixed(6)
+                          }%
+                        </p>
+                        <p>
+                          <span className="font-medium">Per hour:</span> {
+                            parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).hourly).toFixed(2)
+                          }%
+                        </p>
+                        <p>
+                          <span className="font-medium">Per day:</span> {
+                            parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).daily).toFixed(2)
+                          }%
+                        </p>
+                        <p>
+                          <span className="font-medium">Per year:</span> {
+                            parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).yearly).toFixed(2)
+                          }%
+                        </p>
+                      </div>
+                      
+                      {/* Note about blockchain value */}
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Blockchain storage: {
+                          Math.floor(parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).second) * 10000)
+                        } basis points
                       </p>
                     </div>
                   </div>
