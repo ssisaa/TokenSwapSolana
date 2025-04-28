@@ -1652,23 +1652,75 @@ export async function unstakeYOTTokens(
     
     // Set recent blockhash and fee payer
     transaction.feePayer = userPublicKey;
-    transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+    
+    // Get a fresh blockhash right before sending
+    let blockhashResponse = await connection.getLatestBlockhash('finalized');
+    transaction.recentBlockhash = blockhashResponse.blockhash;
     
     // Request signature from user (this triggers a wallet signature request)
     const signedTransaction = await wallet.signTransaction(transaction);
     
-    // Send signed transaction
-    const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+    try {
+      // Send signed transaction with retry logic
+      const rawTransaction = signedTransaction.serialize();
+      
+      // Send with priority fee to help ensure it confirms
+      const signature = await connection.sendRawTransaction(rawTransaction, {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+        maxRetries: 3
+      });
+      
+      // Confirm with more robust error handling
+      try {
+        console.log("Confirming unstake transaction:", signature);
+        const confirmation = await connection.confirmTransaction({
+          signature,
+          blockhash: blockhashResponse.blockhash,
+          lastValidBlockHeight: blockhashResponse.lastValidBlockHeight
+        }, 'confirmed');
+        
+        // Check if confirmation has errors
+        if (confirmation.value.err) {
+          throw new Error(`Transaction confirmed but failed: ${JSON.stringify(confirmation.value.err)}`);
+        }
+        
+        toast({
+          title: "Unstaking Successful",
+          description: `You have unstaked ${amount} YOT tokens successfully.`
+        });
+        return signature;
+      } catch (confirmError) {
+        console.error("Confirmation error during unstake:", confirmError);
+        toast({
+          title: "Transaction May Have Failed",
+          description: "The transaction was sent but we couldn't confirm if it succeeded. Please check your wallet.",
+          variant: "destructive"
+        });
+        throw confirmError;
+      }
+    } catch (sendError) {
+      console.error("Error sending unstake transaction:", sendError);
+      
+      // Handle blockhash issues specifically
+      if (sendError instanceof Error && sendError.message && sendError.message.includes("Blockhash not found")) {
+        toast({
+          title: "Transaction Expired",
+          description: "The unstake transaction took too long to process. Please try again.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Unstake Failed",
+          description: sendError instanceof Error ? sendError.message : "Unknown error sending transaction",
+          variant: "destructive"
+        });
+      }
+      throw sendError;
+    }
     
-    // Confirm transaction
-    await connection.confirmTransaction(signature, 'confirmed');
-    
-    toast({
-      title: "Unstaking Successful",
-      description: `You have unstaked ${amount} YOT tokens successfully.`
-    });
-    
-    return signature;
+    // This part is unreachable but needed to satisfy TypeScript
+    return '';
   } catch (error) {
     console.error('Error unstaking tokens:', error);
     const errorMessage = error instanceof Error
@@ -1946,7 +1998,7 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       console.error("Error sending transaction:", sendError);
       
       // Handle blockhash issues specifically
-      if (sendError.message && sendError.message.includes("Blockhash not found")) {
+      if (sendError instanceof Error && sendError.message && sendError.message.includes("Blockhash not found")) {
         toast({
           title: "Transaction Expired",
           description: "The transaction took too long to process. Please try again.",
@@ -1955,14 +2007,15 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       } else {
         toast({
           title: "Harvest Failed",
-          description: sendError.message || "Unknown error sending transaction",
+          description: sendError instanceof Error ? sendError.message : "Unknown error sending transaction",
           variant: "destructive"
         });
       }
       throw sendError;
     }
     
-    return signature;
+    // This part is unreachable but needed to satisfy TypeScript
+    return '';
   } catch (error) {
     console.error('Error harvesting rewards:', error);
     const errorMessage = error instanceof Error
@@ -2029,31 +2082,81 @@ export async function updateStakingParameters(
     
     // Set recent blockhash and fee payer
     transaction.feePayer = adminPublicKey;
-    transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+    
+    // Get a fresh blockhash right before sending
+    let blockhashResponse = await connection.getLatestBlockhash('finalized');
+    transaction.recentBlockhash = blockhashResponse.blockhash;
     
     console.log("Transaction created, requesting admin wallet signature...");
     
     // Request signature from admin (this triggers a wallet signature request)
     const signedTransaction = await adminWallet.signTransaction(transaction);
     
-    console.log("Transaction signed, sending to network...");
+    try {
+      console.log("Transaction signed, sending to network...");
+      // Send signed transaction with retry logic
+      const rawTransaction = signedTransaction.serialize();
+      
+      // Send with priority fee to help ensure it confirms
+      const signature = await connection.sendRawTransaction(rawTransaction, {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+        maxRetries: 3
+      });
+      
+      console.log("Transaction sent with signature:", signature);
+      
+      // Confirm with more robust error handling
+      try {
+        const confirmation = await connection.confirmTransaction({
+          signature,
+          blockhash: blockhashResponse.blockhash,
+          lastValidBlockHeight: blockhashResponse.lastValidBlockHeight
+        }, 'confirmed');
+        
+        // Check if confirmation has errors
+        if (confirmation.value.err) {
+          throw new Error(`Transaction confirmed but failed: ${JSON.stringify(confirmation.value.err)}`);
+        }
+        
+        console.log("Transaction confirmed successfully");
+        
+        toast({
+          title: "Parameters Updated",
+          description: "Staking parameters have been updated successfully."
+        });
+        return signature;
+      } catch (confirmError) {
+        console.error("Confirmation error during parameter update:", confirmError);
+        toast({
+          title: "Transaction May Have Failed",
+          description: "The transaction was sent but we couldn't confirm if it succeeded. Please check your wallet.",
+          variant: "destructive"
+        });
+        throw confirmError;
+      }
+    } catch (sendError) {
+      console.error("Error sending transaction:", sendError);
+      
+      // Handle blockhash issues specifically
+      if (sendError instanceof Error && sendError.message && sendError.message.includes("Blockhash not found")) {
+        toast({
+          title: "Transaction Expired",
+          description: "The parameter update transaction took too long to process. Please try again.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Update Failed",
+          description: sendError instanceof Error ? sendError.message : "Unknown error sending transaction",
+          variant: "destructive"
+        });
+      }
+      throw sendError;
+    }
     
-    // Send signed transaction
-    const signature = await connection.sendRawTransaction(signedTransaction.serialize());
-    
-    console.log("Transaction sent with signature:", signature);
-    
-    // Confirm transaction
-    await connection.confirmTransaction(signature, 'confirmed');
-    
-    console.log("Transaction confirmed successfully");
-    
-    toast({
-      title: "Parameters Updated",
-      description: "Staking parameters have been updated successfully."
-    });
-    
-    return signature;
+    // This part is unreachable but needed to satisfy TypeScript
+    return '';
   } catch (error) {
     console.error('Error updating parameters:', error);
     const errorMessage = error instanceof Error
