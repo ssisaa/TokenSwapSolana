@@ -1666,8 +1666,29 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       throw new Error('Wallet not connected');
     }
     
+    console.log("Starting harvesting process with validation checks...");
+    const connection = new Connection(ENDPOINT, 'confirmed');
     const userPublicKey = wallet.publicKey;
     const yosMintAddress = new PublicKey(YOS_TOKEN_ADDRESS);
+    
+    // First, run account validation to check if all accounts exist and are properly funded
+    const validationResult = await validateStakingAccounts(wallet);
+    if (!validationResult.isValid) {
+      throw new Error(`Staking accounts validation failed: ${validationResult.errors.join(', ')}`);
+    }
+    
+    // Check if program has enough YOS tokens
+    const pendingRewards = await getStakingInfo(userPublicKey.toString());
+    console.log(`User has ${pendingRewards.rewardsEarned} YOS tokens pending as rewards`);
+    
+    if (validationResult.accounts.programYosBalance !== undefined) {
+      const programYosBalance = validationResult.accounts.programYosBalance;
+      console.log(`Program YOS balance: ${programYosBalance}, Rewards to pay: ${pendingRewards.rewardsEarned}`);
+      
+      if (programYosBalance < pendingRewards.rewardsEarned) {
+        throw new Error(`Program has insufficient YOS (${programYosBalance}) for your rewards (${pendingRewards.rewardsEarned}). You may get back YOT but not all rewards.`);
+      }
+    }
     
     // Get the user's token account
     const userYosTokenAccount = await getAssociatedTokenAddress(
