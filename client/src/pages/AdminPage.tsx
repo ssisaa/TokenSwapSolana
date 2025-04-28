@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Loader2, LogOut } from "lucide-react";
 import AdminLogin from "@/components/admin/AdminLogin";
 import AdminSettings from "@/components/admin/AdminSettings";
+import AdminStatistics from "@/components/admin/AdminStatistics";
+import AdminTransactions from "@/components/admin/AdminTransactions";
 
 export default function AdminPage() {
   const { admin, isLoading, logoutMutation } = useAdminAuth();
