@@ -97,27 +97,7 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
         </Card>
       </div>
       
-      {/* Additional Stats Row */}
-      <div className="grid gap-4 grid-cols-2">        
-        {/* Total Staked Percentage */}
-        <Card className="bg-dark-200 border-border">
-          <CardContent className="p-4">
-            <h3 className="text-sm font-medium text-white mb-1">Your Stake %</h3>
-            {isLoading ? (
-              <Skeleton className="h-6 w-16 bg-dark-100" />
-            ) : (
-              <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold text-white">
-                  {globalStats && globalStats.totalStaked ? 
-                    ((stakingInfo.stakedAmount / globalStats.totalStaked) * 100).toFixed(2) : 
-                    '0.00'}
-                </span>
-                <span className="text-sm font-semibold text-primary">%</span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      {/* No additional stats here - they're all in the top row now */}
       
       {/* Quick Action Buttons */}
       <div className="flex flex-wrap gap-3 mt-4">

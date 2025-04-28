@@ -639,10 +639,15 @@ export function useStaking() {
     stakingRates: stakingRates || {
       stakeRatePerSecond: 0.00000125, // Stored as decimal (0.00125%)
       harvestThreshold: 1,
-      dailyAPR: 108,
-      weeklyAPR: 756,
-      monthlyAPR: 3240,
-      yearlyAPR: 39420
+      dailyAPR: 0.108,
+      weeklyAPR: 0.756,
+      monthlyAPR: 3.24,
+      yearlyAPR: 39.42,
+      // Add APY calculations (compound interest)
+      dailyAPY: 0.108,
+      weeklyAPY: 0.76,
+      monthlyAPY: 3.31,
+      yearlyAPY: 48.37
     },
     isLoading,
     error: stakingError || ratesError,
