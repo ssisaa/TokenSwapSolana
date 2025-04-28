@@ -1448,13 +1448,25 @@ export async function unstakeYOTTokens(
       STAKING_PROGRAM_ID
     );
     
-    // Use exact known program YOT token account that has the funds
-    // Rather than deriving it programmatically, which might lead to a different account
-    const programYotTokenAccount = new PublicKey("BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE");
+    // Derive program YOT token account programmatically
+    // This ensures we're using the token account that the program's authority actually owns
+    const programYotTokenAccount = await getAssociatedTokenAddress(
+      yotMintPubkey,
+      programAuthorityAddress,
+      true // allowOwnerOffCurve - required for PDAs
+    );
     
-    // Use exact known program YOS token account that has the funds
-    // Rather than deriving it programmatically, which might lead to a different account
-    const programYosTokenAccount = new PublicKey("BLz2mfhb9qoPAtKuFNVfrj9uTEyChHKKbZsniS1eRaUB");
+    console.log('Derived program YOT token account address:', programYotTokenAccount.toString());
+    
+    // Derive program YOS token account programmatically
+    // This ensures we're using the token account that the program's authority actually owns
+    const programYosTokenAccount = await getAssociatedTokenAddress(
+      yosMintPubkey,
+      programAuthorityAddress,
+      true // allowOwnerOffCurve - required for PDAs
+    );
+    
+    console.log('Derived program YOS token account address:', programYosTokenAccount.toString());
     
     // Create a transaction to potentially hold multiple instructions
     const transaction = new Transaction();
