@@ -1248,8 +1248,18 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // Calculate pending rewards
     const timeStakedSinceLastHarvest = currentTime - lastHarvestTime;
     
-    // Use the decimal rate for rewards calculation
-    const pendingRewards = Number(stakedAmount) * timeStakedSinceLastHarvest * stakeRateDecimal;
+    // Calculate rewards using compound interest formula (APY)
+    // Formula: principal * ((1 + rate) ^ time - 1)
+    // Where rate is per-second rate and time is in seconds
+    const pendingRewards = Number(stakedAmount) * (Math.pow(1 + stakeRateDecimal, timeStakedSinceLastHarvest) - 1);
+    
+    console.log("Reward calculation info:", {
+      stakedAmount: Number(stakedAmount),
+      timeStakedSinceLastHarvest,
+      stakeRateDecimal,
+      method: "APY (compound)",
+      pendingRewards
+    });
     
     return {
       stakedAmount: Number(stakedAmount),

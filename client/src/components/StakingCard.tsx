@@ -291,7 +291,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                     <div className="flex items-start">
                       <InfoIcon className="h-4 w-4 mr-2 mt-0.5 text-primary" />
                       <p className="text-gray-300">
-                        Staking locks your YOT tokens in the smart contract and automatically begins generating YOS rewards at {(stakingRates?.dailyAPR || 0).toFixed(2)}% daily APR ({(stakingRates?.dailyAPY || 0).toFixed(2)}% APY).
+                        Staking locks your YOT tokens in the smart contract and automatically begins generating YOS rewards at {(stakingRates?.dailyAPY || 0).toFixed(2)}% daily APY (compound interest).
                       </p>
                     </div>
                   </div>
