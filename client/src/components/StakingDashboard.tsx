@@ -67,8 +67,8 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
         </div>
       )}
       
-      {/* 5-box stats layout */}
-      <div className="grid grid-cols-5 gap-4">
+      {/* Responsive grid layout */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {/* Global Total Staked */}
         <Card className="bg-dark-200 border border-slate-700">
           <CardContent className="p-4">
