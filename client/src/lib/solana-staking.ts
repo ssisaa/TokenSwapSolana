@@ -119,8 +119,8 @@ function encodeInitializeInstruction(
   // Convert percentage per second to basis points using our reference ratio
   // IMPORTANT: Must use the same reference values as convertBasisPointsToRatePerSecond 
   // for consistent encoding/decoding between UI and blockchain
-  const REFERENCE_RATE = 0.0000125;
-  const REFERENCE_BASIS_POINTS = 120000;
+  const REFERENCE_RATE = 0.00000125;
+  const REFERENCE_BASIS_POINTS = 12000;
 
   // Handle specific string cases first to ensure accurate value detection
   let finalBasisPoints: number;
@@ -231,8 +231,8 @@ function encodeUpdateParametersInstruction(
   // Convert percentage per second to basis points using our reference ratio
   // IMPORTANT: Must use the same reference values as convertBasisPointsToRatePerSecond 
   // for consistent encoding/decoding between UI and blockchain
-  const REFERENCE_RATE = 0.0000125;
-  const REFERENCE_BASIS_POINTS = 120000;
+  const REFERENCE_RATE = 0.00000125;
+  const REFERENCE_BASIS_POINTS = 12000;
   
   // Handle specific string cases first to ensure accurate value detection
   let finalBasisPoints: number;
