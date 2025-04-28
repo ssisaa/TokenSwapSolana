@@ -1137,17 +1137,23 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       console.log('User staking account exists with size:', userStakingAccountInfo.data.length);
     }
     
-    // Create the harvest instruction
+    // Create the harvest instruction with account order matching the Rust program
     const harvestInstruction = new TransactionInstruction({
       keys: [
-        { pubkey: userPublicKey, isSigner: true, isWritable: true },
-        { pubkey: userYosTokenAccount, isSigner: false, isWritable: true },
-        { pubkey: programYosTokenAccount, isSigner: false, isWritable: true },
-        { pubkey: userStakingAddress, isSigner: false, isWritable: true },
-        { pubkey: programStateAddress, isSigner: false, isWritable: true }, // CHANGED TO WRITABLE to fix serialization error
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false },
-        { pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false }
+        // User accounts 
+        { pubkey: userPublicKey, isSigner: true, isWritable: true },        // User wallet
+        { pubkey: userYosTokenAccount, isSigner: false, isWritable: true }, // User's YOS token account (destination)
+        { pubkey: userStakingAddress, isSigner: false, isWritable: true },  // User staking account (PDA)
+        
+        // Program accounts
+        { pubkey: programStateAddress, isSigner: false, isWritable: true },     // Program state
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }, // Program authority
+        { pubkey: programYosTokenAccount, isSigner: false, isWritable: true },  // Program's YOS vault
+        
+        // System accounts
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },    // Token program
+        { pubkey: yosMintPubkey, isSigner: false, isWritable: false },       // YOS mint address
+        { pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false }  // Clock
       ],
       programId: STAKING_PROGRAM_ID,
       data: encodeHarvestInstruction()
