@@ -10,6 +10,7 @@ import AdminSettings from "@/components/admin/AdminSettings";
 import StakingSettings from "@/components/admin/StakingSettings";
 import AdminStatistics from "@/components/admin/AdminStatistics";
 import AdminTransactions from "@/components/admin/AdminTransactions";
+import FundProgramAccounts from "@/components/admin/FundProgramAccounts";
 
 export default function AdminPage() {
   const { admin, isLoading, logoutMutation } = useAdminAuth();
@@ -88,6 +89,9 @@ export default function AdminPage() {
                   Rate changes will affect all users immediately upon their next action (stake, unstake, or harvest).
                 </p>
               </div>
+
+              {/* Added Program Funding Component */}
+              <FundProgramAccounts />
             </div>
             
             {/* Statistics panel next to Blockchain settings */}
