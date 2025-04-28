@@ -289,7 +289,7 @@ export default function Dashboard() {
               <div className="text-xl font-semibold text-white mt-1">
                 {stakingLoading ? "Loading..." : formatNumber(stakingInfo.stakedAmount)} 
                 <span className="text-blue-400 text-sm ml-1">YOT</span>
-                {!stakingLoading && globalStats && globalStats.totalStaked > 0 && (
+                {!stakingLoading && globalStats && globalStats.totalStaked > 0 && stakingInfo.stakedAmount > 0 && (
                   <span className="text-gray-400 text-xs ml-2">
                     ({((stakingInfo.stakedAmount / globalStats.totalStaked) * 100).toFixed(2)}% of global)
                   </span>
