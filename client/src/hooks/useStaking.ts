@@ -29,6 +29,11 @@ interface StakingRates {
   weeklyAPR: number;
   monthlyAPR: number;
   yearlyAPR: number;
+  // APY calculations
+  dailyAPY: number;
+  weeklyAPY: number;
+  monthlyAPY: number;
+  yearlyAPY: number;
 }
 
 // Add interface for global staking statistics

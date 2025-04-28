@@ -1024,6 +1024,10 @@ export async function getStakingProgramState(): Promise<{
   weeklyAPR: number;
   monthlyAPR: number;
   yearlyAPR: number;
+  dailyAPY: number;
+  weeklyAPY: number;
+  monthlyAPY: number;
+  yearlyAPY: number;
 }> {
   try {
     // Find program state address
@@ -1051,13 +1055,23 @@ export async function getStakingProgramState(): Promise<{
       const monthlyAPR = stakeRatePerSecond * secondsPerMonth; // 3.24% monthly 
       const yearlyAPR = stakeRatePerSecond * secondsPerYear;   // 39.42% yearly
       
+      // Calculate APY values (compound interest)
+      const dailyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerDay) - 1) * 100;
+      const weeklyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerWeek) - 1) * 100;
+      const monthlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerMonth) - 1) * 100;
+      const yearlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerYear) - 1) * 100;
+      
       return {
         stakeRatePerSecond,
         harvestThreshold: 1,         // Default 1 YOS threshold for harvesting
         dailyAPR,                    // Simple daily rate (Annual Percentage Rate)
         weeklyAPR,                   // Simple weekly rate
         monthlyAPR,                  // Simple monthly rate
-        yearlyAPR                    // Simple yearly rate
+        yearlyAPR,                   // Simple yearly rate
+        dailyAPY,                    // Compound daily rate (Annual Percentage Yield)
+        weeklyAPY,                   // Compound weekly rate
+        monthlyAPY,                  // Compound monthly rate
+        yearlyAPY                    // Compound yearly rate
       };
     }
     
@@ -1114,13 +1128,23 @@ export async function getStakingProgramState(): Promise<{
       daily: `${stakeRatePerSecond} * ${secondsPerDay} = ${dailyAPR}`
     });
     
+    // Calculate APY values (compound interest)
+    const dailyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerDay) - 1) * 100;
+    const weeklyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerWeek) - 1) * 100;
+    const monthlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerMonth) - 1) * 100;
+    const yearlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerYear) - 1) * 100;
+    
     return {
       stakeRatePerSecond,
       harvestThreshold,
       dailyAPR,
       weeklyAPR,
       monthlyAPR,
-      yearlyAPR
+      yearlyAPR,
+      dailyAPY,
+      weeklyAPY,
+      monthlyAPY,
+      yearlyAPY
     };
   } catch (error) {
     console.error('Error fetching staking program state:', error);

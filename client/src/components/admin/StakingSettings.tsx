@@ -169,7 +169,7 @@ export default function StakingSettings() {
                 Updating Settings...
               </>
             ) : (
-              'Update All Settings (0.0000000125%)'
+              'Update All Settings'
             )}
           </Button>
         </CardFooter>
