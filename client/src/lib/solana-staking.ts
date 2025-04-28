@@ -1000,7 +1000,7 @@ export async function unstakeYOTTokens(
           userPublicKey,
           userYosTokenAccount,
           userPublicKey,
-          yosMintPubkey
+          yosMintAddress
         )
       );
       
@@ -1120,7 +1120,7 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
           userPublicKey,
           userYosTokenAccount,
           userPublicKey,
-          yosMintPubkey
+          yosMintAddress
         )
       );
       toast({
