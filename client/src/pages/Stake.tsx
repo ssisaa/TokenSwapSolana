@@ -23,7 +23,7 @@ import { useMultiWallet } from "@/context/MultiWalletContext";
 import ProgramFunding from "@/components/ProgramFunding";
 
 export default function Stake() {
-  const { connected } = useMultiWallet();
+  const { connected, wallet } = useMultiWallet();
   const { balance: yotBalance } = useTokenBalance(YOT_TOKEN_ADDRESS);
   const { balance: yosBalance } = useTokenBalance(YOS_TOKEN_ADDRESS);
   
