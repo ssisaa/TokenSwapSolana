@@ -20,6 +20,7 @@ import { useStaking } from "@/hooks/useStaking";
 import { useTokenBalance } from "@/hooks/useTokenBalance";
 import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS } from "@/lib/constants";
 import { useMultiWallet } from "@/context/MultiWalletContext";
+import ProgramFunding from "@/components/ProgramFunding";
 
 export default function Stake() {
   const { connected } = useMultiWallet();
@@ -156,6 +157,16 @@ export default function Stake() {
             </CardContent>
           </Card>
         </div>
+        
+        {/* Admin Controls - Only visible to admin */}
+        {connected && wallet?.publicKey?.toString() === "AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ" && (
+          <div className="mt-6 mb-4">
+            <h2 className="text-xl font-bold mb-4">Program YOS Management</h2>
+            <div className="bg-dark-200/50 p-4 rounded-lg border border-slate-700">
+              <ProgramFunding />
+            </div>
+          </div>
+        )}
         
         {/* Main Content */}
         <div className="mt-6">

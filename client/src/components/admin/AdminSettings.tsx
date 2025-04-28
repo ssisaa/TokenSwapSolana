@@ -50,9 +50,10 @@ import {
 } from '@solana/spl-token';
 import { 
   YOS_TOKEN_ADDRESS, 
-  STAKING_PROGRAM_ID 
+  STAKING_PROGRAM_ID,
+  ENDPOINT
 } from '@/lib/constants';
-import { connection } from '@/lib/solana-staking';
+import { connection } from '@/lib/completeSwap';
 import { toast } from "@/hooks/use-toast";
 
 export default function AdminSettings() {
@@ -661,15 +662,13 @@ export default function AdminSettings() {
                         description: "Program YOS account doesn't exist yet. It will be created automatically."
                       });
                       
-                      // Add create account instruction using createAssociatedTokenAccount
+                      // Add create account instruction using createAssociatedTokenAccountInstruction
                       transaction.add(
-                        Token.createAssociatedTokenAccountInstruction(
-                          TOKEN_PROGRAM_ID,
-                          wallet.publicKey,
-                          new PublicKey(YOS_TOKEN_ADDRESS),
-                          programYosTokenAccount,
-                          programAuthorityAddress,
-                          wallet.publicKey
+                        createAssociatedTokenAccountInstruction(
+                          wallet.publicKey, // payer
+                          programYosTokenAccount, // associatedToken
+                          programAuthorityAddress, // owner
+                          new PublicKey(YOS_TOKEN_ADDRESS) // mint
                         )
                       );
                     }
