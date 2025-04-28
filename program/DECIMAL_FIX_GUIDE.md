@@ -15,11 +15,12 @@ The fix involves updating the Rust program code in two key functions:
 1. **process_harvest function** - Ensures correct decimal handling during reward transfers
 2. **process_unstake function** - Ensures correct decimal handling during combined unstaking and reward transfers
 
-We've created two separate files with the fixed code:
-- `program/src/harvest_fix.rs`
-- `program/src/unstake_fix.rs`
+We've created several files with the fixed code:
+- `program/src/harvest_fix.rs` - Fixed decimal handling in the harvest function
+- `program/src/unstake_fix.rs` - Fixed decimal handling in the unstake function
+- `program/src/unstake_improved.rs` - Advanced fix for unstaking that handles both decimal issues AND insufficient program YOS token balance
 
-These changes maintain the same internal reward calculations but improve the display of token amounts in wallets by properly handling token decimals.
+These changes maintain the same internal reward calculations but improve the display of token amounts in wallets by properly handling token decimals. The unstake_improved.rs version also adds graceful fallback to ensure users can always unstake their YOT tokens even if the program doesn't have enough YOS tokens to pay rewards.
 
 ## Deployment Steps
 

@@ -1629,7 +1629,7 @@ export async function unstakeYOTTokens(
         // Check if the program has enough YOS tokens for rewards
         // Only show warning if pending rewards are significant (> 0.01)
         if (programYosBalance < pendingRewards && pendingRewards > 0.01) {
-          console.error(`Insufficient YOS tokens in program account for rewards. Available: ${programYosBalance}, Needed: ~${pendingRewards}`);
+          console.warn(`Insufficient YOS tokens in program account for rewards. Available: ${programYosBalance}, Needed: ~${pendingRewards}`);
           toast({
             title: "Warning: Rewards May Not Transfer",
             description: `Program has insufficient YOS (${programYosBalance.toFixed(2)}) for your rewards (${pendingRewards.toFixed(2)}). You may get back YOT but not all rewards.`,
@@ -1638,6 +1638,7 @@ export async function unstakeYOTTokens(
         }
       } catch (error) {
         console.error("Error checking program YOS token balance:", error);
+        // Don't block unstaking if we can't check the balance
       }
     }
 
