@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw, TrendingUp, Coins, Users, Calendar } from "lucide-react";
+import { Loader2, RefreshCw, TrendingUp, Coins, Users, Calendar, Info as InfoIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { connection } from "@/lib/solana";
 import { PublicKey } from "@solana/web3.js";
@@ -385,7 +385,7 @@ export default function AdminStatistics() {
                 
                 <div className="flex items-start mt-3 text-xs text-muted-foreground">
                   <div className="flex-shrink-0 mt-0.5 mr-1">
-                    <InfoIcon className="h-3 w-3 text-blue-400" />
+                    <span className="text-blue-400 font-bold">i</span>
                   </div>
                   <div>
                     APR is simple interest, while APY accounts for compounding (reinvesting rewards)
