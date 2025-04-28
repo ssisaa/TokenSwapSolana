@@ -604,9 +604,8 @@ function encodeUpdateParametersInstruction(
     console.log(`Formula: ${stakeRatePerSecond} * (${REFERENCE_BASIS_POINTS} / ${REFERENCE_RATE}) = ${finalBasisPoints}`);
   }
   
-  // YOS also uses 9 decimals just like YOT
-  const YOS_DECIMALS = 9;
-  const thresholdInRawUnits = Math.floor(harvestThreshold * Math.pow(10, YOS_DECIMALS));
+  // Convert harvest threshold to raw units using our utility function
+  const thresholdInRawUnits = uiToRawTokenAmount(harvestThreshold, YOS_DECIMALS);
   
   console.log("Encoding parameters update with converted values:", {
     finalBasisPoints,
@@ -2404,7 +2403,7 @@ export async function getGlobalStakingStats(): Promise<{
               // For example, if the staked amount is at offset 32 (after owner pubkey)
               try {
                 const stakedAmountRaw = account.account.data.readBigUInt64LE(32);
-                const stakedAmount = Number(stakedAmountRaw) / 1e9; // 9 decimals
+                const stakedAmount = rawToUiTokenAmount(stakedAmountRaw, YOT_DECIMALS);
                 totalStaked += stakedAmount;
               } catch (err) {
                 console.error("Error parsing staking account data:", err);
@@ -2792,9 +2791,8 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // Read staked amount (8 bytes, 64-bit unsigned integer)
     const stakedAmountRaw = data.readBigUInt64LE(32);
     
-    // Convert from raw to decimal using 9 decimals (important: YOT uses 9 decimals)
-    const YOT_DECIMALS = 9;
-    const stakedAmount = Number(stakedAmountRaw) / Math.pow(10, YOT_DECIMALS);
+    // Convert from raw to decimal using our utility function
+    const stakedAmount = rawToUiTokenAmount(stakedAmountRaw, YOT_DECIMALS);
     
     console.log(`Raw staked amount from blockchain: ${stakedAmountRaw}, converted to decimal using ${YOT_DECIMALS} decimals: ${stakedAmount}`);
     
@@ -2805,9 +2803,8 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // Read total harvested rewards (8 bytes, 64-bit unsigned integer)
     const totalHarvestedRaw = data.readBigUInt64LE(56);
     
-    // Convert from raw to decimal using 9 decimals (important: YOS uses 9 decimals)
-    const YOS_DECIMALS = 9;
-    const totalHarvested = Number(totalHarvestedRaw) / Math.pow(10, YOS_DECIMALS);
+    // Convert from raw to decimal using our utility function
+    const totalHarvested = rawToUiTokenAmount(totalHarvestedRaw, YOS_DECIMALS);
     
     console.log(`Raw total harvested from blockchain: ${totalHarvestedRaw}, converted to decimal using ${YOS_DECIMALS} decimals: ${totalHarvested}`);
     
