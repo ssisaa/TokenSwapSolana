@@ -1026,10 +1026,14 @@ export async function stakeYOTTokens(
       }
     }
     
-    // Use exact known program YOT token account that has the funds
-    // Rather than deriving it programmatically, which might lead to a different account
-    const programYotTokenAccount = new PublicKey("BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE");
-    console.log('Program YOT account:', programYotTokenAccount.toBase58());
+    // Derive program YOT token account programmatically
+    // This ensures we're using the token account that the program's authority actually owns
+    const programYotTokenAccount = await getAssociatedTokenAddress(
+      yotMintPubkey,
+      programAuthorityAddress,
+      true // allowOwnerOffCurve - required for PDAs
+    );
+    console.log('Derived program YOT account:', programYotTokenAccount.toBase58());
     
     // Check if the program token account exists
     console.log('Checking if program token account exists...');
