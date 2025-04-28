@@ -7,8 +7,9 @@ import { useQuery } from "@tanstack/react-query";
 import { connection } from "@/lib/solana";
 import { PublicKey } from "@solana/web3.js";
 import { STAKING_PROGRAM_ID, YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS } from "@/lib/constants";
-import { getStakingProgramState } from "@/lib/solana-staking";
+import { getStakingProgramState, getGlobalStakingStats } from "@/lib/solana-staking";
 import { Progress } from "@/components/ui/progress";
+import { useStaking } from "@/hooks/useStaking";
 
 // Find program state address
 function findProgramStateAddress(): [PublicKey, number] {
@@ -20,6 +21,9 @@ function findProgramStateAddress(): [PublicKey, number] {
 
 export default function AdminStatistics() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  
+  // Use the same staking hook that the main dashboard uses
+  const { globalStats, stakingRates, isLoading: isLoadingStaking, refreshStakingInfo } = useStaking();
   
   // Query staking program state
   const { 
@@ -41,115 +45,23 @@ export default function AdminStatistics() {
     enabled: true
   });
   
-  // Query token accounts to check total staked and rewards
-  const {
-    data: tokenStats,
-    isLoading: isLoadingTokenStats,
-    refetch: refetchTokenStats
-  } = useQuery({
-    queryKey: ['tokenStats', refreshTrigger],
-    queryFn: async () => {
-      // Find program authority address
-      const [programAuthorityAddress] = PublicKey.findProgramAddressSync(
-        [Buffer.from('authority')],
-        new PublicKey(STAKING_PROGRAM_ID)
-      );
-      
-      // Get token accounts owned by the program authority
-      try {
-        const response = await connection.getParsedTokenAccountsByOwner(
-          programAuthorityAddress,
-          {
-            programId: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA") // Solana token program ID
-          }
-        );
-        
-        let yotStaked = 0;
-        let yosRewards = 0;
-        
-        for (const item of response.value) {
-          const tokenInfo = item.account.data.parsed.info;
-          const mintAddress = tokenInfo.mint;
-          const amount = Number(tokenInfo.tokenAmount.amount) / (10 ** tokenInfo.tokenAmount.decimals);
-          
-          if (mintAddress === YOT_TOKEN_ADDRESS) {
-            yotStaked = amount;
-          } else if (mintAddress === YOS_TOKEN_ADDRESS) {
-            yosRewards = amount;
-          }
-        }
-        
-        return {
-          yotStaked,
-          yosRewards
-        };
-      } catch (error) {
-        console.error("Error fetching token stats:", error);
-        return {
-          yotStaked: 0,
-          yosRewards: 0
-        };
-      }
-    },
-    retry: 1,
-    enabled: true
-  });
+  // Use global stats for consistency
+  const isLoadingTokenStats = isLoadingStaking;
+  const tokenStats = globalStats ? {
+    yotStaked: globalStats.totalStaked,
+    yosRewards: globalStats.totalHarvested
+  } : null;
   
-  // Query for total stakers
-  const {
-    data: stakersData,
-    isLoading: isLoadingStakers,
-    refetch: refetchStakers
-  } = useQuery({
-    queryKey: ['stakersCount', refreshTrigger],
-    queryFn: async () => {
-      try {
-        // Get stakers count from blockchain by looking for accounts with the right data size
-        // We need to use the same filter as in getGlobalStakingStats to be consistent
-        const response = await connection.getProgramAccounts(
-          new PublicKey(STAKING_PROGRAM_ID),
-          {
-            filters: [
-              { dataSize: 128 }, // Updated size to match the staking account size from getGlobalStakingStats
-            ]
-          }
-        );
-        
-        // Count unique stakers (owners) from the accounts
-        const uniqueOwners = new Set();
-        for (const account of response) {
-          if (account.account.data.length >= 32) {
-            try {
-              // First 32 bytes are typically the owner pubkey
-              const ownerPubkey = new PublicKey(account.account.data.slice(0, 32));
-              uniqueOwners.add(ownerPubkey.toString());
-            } catch (err) {
-              console.error("Error parsing staking account owner:", err);
-            }
-          }
-        }
-        
-        console.log(`Found ${uniqueOwners.size} unique stakers in admin statistics`);
-        
-        return {
-          totalStakers: uniqueOwners.size || 2 // Ensure we have at least 2 stakers to match global stats
-        };
-      } catch (error) {
-        console.error("Error fetching stakers count:", error);
-        return {
-          totalStakers: 0
-        };
-      }
-    },
-    retry: 1,
-    enabled: true
-  });
+  // Use global stats for stakers count too
+  const isLoadingStakers = isLoadingStaking;
+  const stakersData = globalStats ? {
+    totalStakers: globalStats.totalStakers
+  } : null;
   
   const handleRefresh = () => {
     setRefreshTrigger(prev => prev + 1);
     refetchState();
-    refetchTokenStats();
-    refetchStakers();
+    refreshStakingInfo(); // Use the same refresh function from useStaking
   };
   
   const isLoading = isLoadingState || isLoadingTokenStats || isLoadingStakers;
