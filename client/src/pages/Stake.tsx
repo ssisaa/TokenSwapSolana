@@ -87,7 +87,7 @@ export default function Stake() {
                   <h3 className="text-lg font-semibold">What is YOT staking?</h3>
                   <p className="mt-2 text-muted-foreground">
                     Staking YOT allows you to earn YOS rewards while supporting the network. When you stake your YOT tokens, 
-                    they are locked up, and you earn YOS rewards at a rate of {stakingRates.stakeRatePerSecond.toFixed(6)}% per second.
+                    they are locked up, and you earn YOS rewards at a rate of {stakingRates?.stakeRatePerSecond?.toFixed(6) || '0.000000'}% per second.
                   </p>
                 </div>
                 
@@ -158,7 +158,7 @@ export default function Stake() {
                   <div className="pt-2 space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="font-medium">Hourly Rate:</span>
-                      <span className="font-semibold text-green-500">{(stakingRates?.stakeRatePerSecond * 3600 * 100)?.toFixed(6) || '0.000000'}%</span>
+                      <span className="font-semibold text-green-500">{(stakingRates?.stakeRatePerSecond ? stakingRates.stakeRatePerSecond * 3600 * 100 : 0).toFixed(6) || '0.000000'}%</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="font-medium">Daily Rate:</span>

@@ -612,10 +612,10 @@ export function useStaking() {
     stakingRates: stakingRates || {
       stakeRatePerSecond: 0.00125,
       harvestThreshold: 1,
-      dailyAPY: 108,
-      weeklyAPY: 756,
-      monthlyAPY: 3240,
-      yearlyAPY: 39420
+      dailyAPR: 108,
+      weeklyAPR: 756,
+      monthlyAPR: 3240,
+      yearlyAPR: 39420
     },
     isLoading,
     error: stakingError || ratesError,
