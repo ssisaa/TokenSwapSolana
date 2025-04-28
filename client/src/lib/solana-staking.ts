@@ -1932,34 +1932,31 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       console.error("Error checking program YOS balance:", error);
     }
     
-    // Check if program has absolutely zero tokens
+    // Instead of showing errors for low program balance, just warn and proceed
+    // The program will transfer whatever tokens are available
+    const userStakingInfo = await getStakingInfo(userPublicKey.toString());
+    
     if (availableProgramBalance <= 0) {
-      console.error("Program has no YOS tokens available for rewards");
+      console.warn("Program has no YOS tokens available for rewards, but proceeding with harvest anyway");
       
-      // Show a clear error toast to the user
+      // Just a warning, still proceed with harvesting
       toast({
-        title: "Harvesting Failed",
-        description: "Program has no YOS tokens available. Harvest cannot proceed.",
+        title: "Low Program Balance",
+        description: "Program token balance is low. Admin needs to fund it with YOS tokens for rewards to transfer.",
         variant: "destructive"
       });
-      
-      // Return early with a specific error code that the frontend can handle
-      throw new Error("PROGRAM_NO_TOKENS_AVAILABLE");
-    }
-    
-    // Also handle the case where program has some tokens but not enough
-    const userStakingInfo = await getStakingInfo(userPublicKey.toString());
-    if (availableProgramBalance < userStakingInfo.rewardsEarned && userStakingInfo.rewardsEarned > 0) {
+    } 
+    else if (availableProgramBalance < userStakingInfo.rewardsEarned && userStakingInfo.rewardsEarned > 0) {
       console.warn(`Program has insufficient YOS (${availableProgramBalance.toFixed(2)}) for full rewards (${userStakingInfo.rewardsEarned.toFixed(2)})`);
       
       toast({
         title: "Partial Rewards Expected",
-        description: `Program has insufficient YOS (${availableProgramBalance.toFixed(2)}) for your rewards (${userStakingInfo.rewardsEarned.toFixed(2)}). You will receive what's available. Please contact admin to add more YOS tokens for full rewards.`,
+        description: `You'll receive ${availableProgramBalance.toFixed(2)} YOS tokens out of ${userStakingInfo.rewardsEarned.toFixed(2)} earned. For full rewards, admin needs to add more YOS tokens.`,
         variant: "destructive"
       });
-      
-      // Continue with the harvest - the program will transfer what it can
     }
+    
+    // Always proceed with harvest - the program will transfer what it can
     
     // Add harvest instruction to transaction
     transaction.add(harvestInstruction);

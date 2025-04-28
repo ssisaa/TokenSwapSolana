@@ -159,15 +159,7 @@ export default function Stake() {
           </Card>
         </div>
         
-        {/* YOS Token Distribution - Available to users with zero YOS or to admins */}
-        {connected && (yosBalance === 0 || wallet?.publicKey?.toString() === "AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ") && (
-          <div className="mt-6 mb-4">
-            <h2 className="text-xl font-bold mb-4">YOS Token Distribution</h2>
-            <div className="bg-dark-200/50 p-4 rounded-lg border border-slate-700">
-              <YosDistribution />
-            </div>
-          </div>
-        )}
+{/* Removed YOS Distribution section - users should not have to request tokens */}
         
         {/* Admin Controls - Only visible to admin */}
         {connected && wallet?.publicKey?.toString() === "AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ" && (
