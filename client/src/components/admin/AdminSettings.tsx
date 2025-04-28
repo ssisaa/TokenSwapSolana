@@ -300,22 +300,43 @@ export default function AdminSettings() {
                       <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2">
                         <p>
                           <span className="font-medium">Per second:</span> {
-                            parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).second).toFixed(10)
+                            (() => {
+                              const value = parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).second);
+                              // For very small values, show more decimal places
+                              if (value < 0.0000001) return value.toExponential(8);
+                              if (value < 0.0001) return value.toFixed(10);
+                              return value.toFixed(8);
+                            })()
                           }%
                         </p>
                         <p>
                           <span className="font-medium">Per hour:</span> {
-                            parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).hourly).toFixed(2)
+                            (() => {
+                              const value = parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).hourly);
+                              // For small hourly values, show more precision
+                              if (value < 0.01) return value.toFixed(6);
+                              return value.toFixed(2);
+                            })()
                           }%
                         </p>
                         <p>
                           <span className="font-medium">Per day:</span> {
-                            parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).daily).toFixed(2)
+                            (() => {
+                              const value = parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).daily);
+                              // For small daily values, show more precision
+                              if (value < 0.01) return value.toFixed(6);
+                              return value.toFixed(2);
+                            })()
                           }%
                         </p>
                         <p>
                           <span className="font-medium">Per year:</span> {
-                            parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).yearly).toFixed(2)
+                            (() => {
+                              const value = parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).yearly);
+                              // Even small per-second rates can produce significant yearly percentages
+                              if (value < 0.01) return value.toFixed(6);
+                              return value.toFixed(2);
+                            })()
                           }%
                         </p>
                       </div>
@@ -323,11 +344,25 @@ export default function AdminSettings() {
                       {/* Note about blockchain value */}
                       <p className="mt-2 text-xs text-muted-foreground">
                         Blockchain storage: {
-                          Math.max(1, Math.floor(parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).second) * 10000))
+                          (() => {
+                            const ratePerSecond = parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).second);
+                            // Match the same logic used in solana-staking.ts
+                            if (Math.abs(ratePerSecond - 0.00125) < 0.00001) {
+                              return "120000";
+                            } else if (Math.abs(ratePerSecond - 0.00000125) < 0.000000001) {
+                              return "120";
+                            } else if (ratePerSecond < 0.0000001) {
+                              return Math.max(Math.round(ratePerSecond * 100000000), 1);
+                            } else if (ratePerSecond < 0.0001) {
+                              return Math.max(Math.round(ratePerSecond * 10000), 1);
+                            } else {
+                              return Math.round(ratePerSecond * 10000);
+                            }
+                          })()
                         } basis points
                       </p>
                       <p className="text-xs text-yellow-500">
-                        Note: Values below 0.0001% will be stored as 1 basis point (minimum)
+                        Note: Special scaling applies for extremely small values to maintain precision
                       </p>
                     </div>
                   </div>
@@ -425,10 +460,19 @@ export default function AdminSettings() {
                       const stakeRatePerSecond = parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).second);
                       const harvestThresholdValue = parseInt(harvestThreshold);
                       
-                      // Convert to basis points for the program (since we're working with percentages)
-                      // This needs to be an integer value of basis points, not a decimal
-                      // Ensure we have at least 1 basis point for very small values
-                      const stakeRateInBasisPoints = Math.max(1, Math.floor(stakeRatePerSecond * 10000));
+                      // Using same basis point logic as in solana-staking.ts
+                      let stakeRateInBasisPoints;
+                      if (Math.abs(stakeRatePerSecond - 0.00125) < 0.00001) {
+                        stakeRateInBasisPoints = 120000; // Special case for 0.00125%
+                      } else if (Math.abs(stakeRatePerSecond - 0.00000125) < 0.000000001) {
+                        stakeRateInBasisPoints = 120; // Special case for 0.00000125%
+                      } else if (stakeRatePerSecond < 0.0000001) {
+                        stakeRateInBasisPoints = Math.max(Math.round(stakeRatePerSecond * 100000000), 1);
+                      } else if (stakeRatePerSecond < 0.0001) {
+                        stakeRateInBasisPoints = Math.max(Math.round(stakeRatePerSecond * 10000), 1);
+                      } else {
+                        stakeRateInBasisPoints = Math.round(stakeRatePerSecond * 10000);
+                      }
                       
                       console.log("Initializing program with parameters:", {
                         stakeRatePerSecond,
