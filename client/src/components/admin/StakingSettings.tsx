@@ -7,14 +7,16 @@ import { useMultiWallet } from '@/context/MultiWalletContext';
 import { useStaking } from '@/hooks/useStaking';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAdminSettings } from '@/hooks/use-admin-settings';
 
 export default function StakingSettings() {
   const { connected, publicKey } = useMultiWallet();
   const { updateParameters, isUpdatingParameters, stakingRates } = useStaking();
   const { toast } = useToast();
+  const { updateSettings, isUpdating: isUpdatingDatabase } = useAdminSettings();
   
   // State for form values - initialize with current values from blockchain
-  const [stakeRatePerSecond, setStakeRatePerSecond] = useState<string>('0.00000125');
+  const [stakeRatePerSecond, setStakeRatePerSecond] = useState<string>('0.0000000125');
   const [harvestThreshold, setHarvestThreshold] = useState<string>('1.0');
   
   React.useEffect(() => {
@@ -27,6 +29,21 @@ export default function StakingSettings() {
   // Validate admin status
   // In a real implementation, we would verify the admin's public key
   const isAdmin = connected && publicKey;
+  
+  // Convert staking rate from percentage per second to other formats
+  const convertStakingRate = (ratePerSecond: number) => {
+    const second = ratePerSecond;
+    const hourly = second * 3600;
+    const daily = hourly * 24;
+    const yearly = daily * 365;
+    
+    return {
+      second: second.toString(),
+      hourly: hourly.toString(),
+      daily: daily.toString(),
+      yearly: yearly.toString()
+    };
+  };
   
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
@@ -52,9 +69,24 @@ export default function StakingSettings() {
         harvestThreshold: thresholdValue
       });
       
+      // 1. Update blockchain parameters first
       updateParameters({
         stakeRatePerSecond: ratePerSecond, // Pass the raw percentage value
         harvestThreshold: thresholdValue    // Pass the raw threshold value
+      });
+      
+      // 2. Also update database settings to keep them in sync
+      const stakingRates = convertStakingRate(ratePerSecond);
+      updateSettings({
+        stakeRatePerSecond: stakingRates.second,
+        stakeRateHourly: stakingRates.hourly,
+        stakeRateDaily: stakingRates.daily,
+        harvestThreshold: thresholdValue.toString()
+      });
+      
+      toast({
+        title: 'Settings Updated',
+        description: 'Both blockchain and database settings have been synchronized.',
       });
     } catch (error) {
       toast({
@@ -68,9 +100,10 @@ export default function StakingSettings() {
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>Staking Settings</CardTitle>
+        <CardTitle>Blockchain Staking Settings</CardTitle>
         <CardDescription>
-          Update staking parameters directly on the blockchain. All changes require admin wallet signature.
+          Update staking parameters on both blockchain and database simultaneously. 
+          All changes require admin wallet signature.
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
@@ -123,13 +156,13 @@ export default function StakingSettings() {
             className="w-full" 
             disabled={isUpdatingParameters || !isAdmin}
           >
-            {isUpdatingParameters ? (
+            {isUpdatingParameters || isUpdatingDatabase ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Updating On Blockchain...
+                Updating Settings...
               </>
             ) : (
-              'Update Parameters'
+              'Update All Settings (0.0000000125%)'
             )}
           </Button>
         </CardFooter>

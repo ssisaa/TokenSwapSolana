@@ -52,5 +52,8 @@ export function useAdminSettings() {
     isLoading,
     error,
     updateSettingsMutation,
+    // Convenience method with better naming
+    updateSettings: (data: UpdateSettingsData) => updateSettingsMutation.mutate(data),
+    isUpdating: updateSettingsMutation.isPending
   };
 }
