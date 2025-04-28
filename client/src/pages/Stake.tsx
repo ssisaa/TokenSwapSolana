@@ -129,54 +129,54 @@ export default function Stake() {
             {/* Stats Overview */}
             <div className="grid grid-cols-4 gap-4 mb-6">
               {/* Total Staked */}
-              <Card className="bg-dark-200">
+              <Card className="bg-dark-200 border border-slate-700">
                 <CardContent className="p-4">
-                  <h3 className="text-sm font-medium text-white mb-1">Total Staked</h3>
+                  <h3 className="text-sm font-medium text-gray-300 mb-2">Total Staked</h3>
                   {isLoading ? (
                     <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
                   ) : (
                     <div className="flex items-baseline gap-1">
                       <span className="text-xl font-bold text-white">{formatNumber(globalStats ? globalStats.totalStaked : 0)}</span>
-                      <span className="text-sm font-semibold text-primary">YOT</span>
+                      <span className="text-sm font-semibold text-blue-400">YOT</span>
                     </div>
                   )}
                 </CardContent>
               </Card>
               
               {/* Earned Rewards */}
-              <Card className="bg-dark-200">
+              <Card className="bg-dark-200 border border-slate-700">
                 <CardContent className="p-4">
-                  <h3 className="text-sm font-medium text-white mb-1">Earned Rewards</h3>
+                  <h3 className="text-sm font-medium text-gray-300 mb-2">Earned Rewards</h3>
                   {isLoading ? (
                     <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
                   ) : (
                     <div className="flex items-baseline gap-1">
                       <span className="text-xl font-bold text-white">{formatNumber(stakingInfo.rewardsEarned)}</span>
-                      <span className="text-sm font-semibold text-green-500">YOS</span>
+                      <span className="text-sm font-semibold text-green-400">YOS</span>
                     </div>
                   )}
                 </CardContent>
               </Card>
               
               {/* Total Harvested */}
-              <Card className="bg-dark-200">
+              <Card className="bg-dark-200 border border-slate-700">
                 <CardContent className="p-4">
-                  <h3 className="text-sm font-medium text-white mb-1">Total Harvested</h3>
+                  <h3 className="text-sm font-medium text-gray-300 mb-2">Total Harvested</h3>
                   {isLoading ? (
                     <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
                   ) : (
                     <div className="flex items-baseline gap-1">
                       <span className="text-xl font-bold text-white">{formatNumber(stakingInfo.totalHarvested)}</span>
-                      <span className="text-sm font-semibold text-green-500">YOS</span>
+                      <span className="text-sm font-semibold text-green-400">YOS</span>
                     </div>
                   )}
                 </CardContent>
               </Card>
               
               {/* YOT Stake % */}
-              <Card className="bg-dark-200">
+              <Card className="bg-dark-200 border border-slate-700">
                 <CardContent className="p-4">
-                  <h3 className="text-sm font-medium text-white mb-1">Your Stake %</h3>
+                  <h3 className="text-sm font-medium text-gray-300 mb-2">Your Stake %</h3>
                   {isLoading ? (
                     <div className="animate-pulse bg-dark-300 h-6 w-16 rounded"></div>
                   ) : (
@@ -186,7 +186,7 @@ export default function Stake() {
                           ((stakingInfo.stakedAmount / globalStats.totalStaked) * 100).toFixed(2) : 
                           '0.00'}
                       </span>
-                      <span className="text-sm font-semibold text-primary">%</span>
+                      <span className="text-sm font-semibold text-blue-400">%</span>
                     </div>
                   )}
                 </CardContent>

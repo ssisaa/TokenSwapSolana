@@ -100,30 +100,22 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
       {/* No additional stats here - they're all in the top row now */}
       
       {/* Quick Action Buttons */}
-      <div className="flex flex-wrap gap-3 mt-4">
+      <div className="flex gap-3 mt-4">
         <Button 
           variant="default" 
-          className="flex gap-2 bg-primary text-white hover:bg-primary/90 font-medium" 
+          className="flex-1 flex justify-center items-center gap-2 bg-primary text-white hover:bg-primary/90 font-medium py-5" 
           disabled={!connected}
           onClick={() => onTabChange && onTabChange("stake")}
         >
-          <Download className="h-4 w-4" /> Stake YOT
+          <Download className="h-5 w-5" /> Stake YOT
         </Button>
         <Button 
           variant="default" 
-          className="flex gap-2 bg-secondary text-white hover:bg-secondary/90 font-medium" 
-          disabled={!connected || stakingInfo.stakedAmount <= 0}
-          onClick={() => onTabChange && onTabChange("unstake")}
-        >
-          <Upload className="h-4 w-4" /> Unstake YOT
-        </Button>
-        <Button 
-          variant="default" 
-          className="flex gap-2 bg-gradient-to-r from-blue-600 to-green-600 text-white hover:from-blue-700 hover:to-green-700 font-medium" 
+          className="flex-1 flex justify-center items-center gap-2 bg-gradient-to-r from-blue-600 to-green-600 text-white hover:from-blue-700 hover:to-green-700 font-medium py-5" 
           disabled={!connected || stakingInfo.rewardsEarned <= 0}
           onClick={() => onTabChange && onTabChange("harvest")}
         >
-          <CheckCircle className="h-4 w-4" /> Harvest Rewards
+          <CheckCircle className="h-5 w-5" /> Harvest Rewards
         </Button>
       </div>
     </div>
