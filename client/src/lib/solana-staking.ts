@@ -101,34 +101,36 @@ function encodeInitializeInstruction(
     harvestThreshold
   });
   
+  // DEBUG: First look at the exact value we received
+  console.log(`DEBUG - Init exact value: ${stakeRatePerSecond} (${typeof stakeRatePerSecond})`);
+  console.log(`DEBUG - Init string form: "${stakeRatePerSecond.toString()}"`);
+
   // Convert percentage per second to basis points using our reference ratio
   // IMPORTANT: Must use the same reference values as convertBasisPointsToRatePerSecond 
   // for consistent encoding/decoding between UI and blockchain
   const REFERENCE_RATE = 0.0000125;
   const REFERENCE_BASIS_POINTS = 120000;
+
+  // Handle specific string cases first to ensure accurate value detection
+  let finalBasisPoints: number;
   
-  // Calculate basis points using reverse of the formula in convertBasisPointsToRatePerSecond
-  const rateInBasisPoints = Math.round(stakeRatePerSecond * (REFERENCE_BASIS_POINTS / REFERENCE_RATE));
-  
-  console.log(`Converting ${stakeRatePerSecond}% to ${rateInBasisPoints} basis points using universal formula`);
-  console.log(`Formula: ${stakeRatePerSecond} * (${REFERENCE_BASIS_POINTS} / ${REFERENCE_RATE}) = ${rateInBasisPoints}`);
-  
-  // Special case handling for standard rates to ensure exact matching values
-  // This ensures we get exact basis point values for known percentage rates
-  let finalBasisPoints = rateInBasisPoints;
-  
-  if (Math.abs(stakeRatePerSecond - 0.0000125) < 0.0000001) {
-    console.log("Special case detected: Using exact 120000 basis points for 0.0000125%");
-    finalBasisPoints = 120000;
-  } else if (Math.abs(stakeRatePerSecond - 0.00000125) < 0.000000001) {
-    console.log("Special case detected: Using exact 12000 basis points for 0.00000125%");
+  // This handles precision issues with floating point by checking string representation
+  if (stakeRatePerSecond.toString() === '0.00000125') {
+    console.log("Init String match detected: Using exact 12000 basis points for 0.00000125%");
     finalBasisPoints = 12000;
+  } else if (stakeRatePerSecond.toString() === '0.0000125') {
+    console.log("Init String match detected: Using exact 120000 basis points for 0.0000125%");
+    finalBasisPoints = 120000;
+  } else {
+    // Calculate basis points using the reverse of our conversion formula
+    finalBasisPoints = Math.round(stakeRatePerSecond * (REFERENCE_BASIS_POINTS / REFERENCE_RATE));
+    console.log(`Converting ${stakeRatePerSecond}% to ${finalBasisPoints} basis points using universal formula`);
+    console.log(`Formula: ${stakeRatePerSecond} * (${REFERENCE_BASIS_POINTS} / ${REFERENCE_RATE}) = ${finalBasisPoints}`);
   }
   
   const thresholdInLamports = Math.floor(harvestThreshold * 1000000);
   
   console.log("Converted values:", {
-    originalRateInBasisPoints: rateInBasisPoints,
     finalBasisPoints,
     thresholdInLamports
   });
@@ -211,34 +213,36 @@ function encodeUpdateParametersInstruction(
   stakeRatePerSecond: number,
   harvestThreshold: number
 ): Buffer {
+  // DEBUG: First look at the exact value we received
+  console.log(`DEBUG - Exact value received: ${stakeRatePerSecond} (${typeof stakeRatePerSecond})`);
+  console.log(`DEBUG - String form: "${stakeRatePerSecond.toString()}"`);
+  
   // Convert percentage per second to basis points using our reference ratio
   // IMPORTANT: Must use the same reference values as convertBasisPointsToRatePerSecond 
   // for consistent encoding/decoding between UI and blockchain
   const REFERENCE_RATE = 0.0000125;
   const REFERENCE_BASIS_POINTS = 120000;
   
-  // Calculate basis points using the reverse of our conversion formula
-  const rateInBasisPoints = Math.round(stakeRatePerSecond * (REFERENCE_BASIS_POINTS / REFERENCE_RATE));
+  // Handle specific string cases first to ensure accurate value detection
+  let finalBasisPoints: number;
   
-  console.log(`Converting ${stakeRatePerSecond}% to ${rateInBasisPoints} basis points using universal formula`);
-  console.log(`Formula: ${stakeRatePerSecond} * (${REFERENCE_BASIS_POINTS} / ${REFERENCE_RATE}) = ${rateInBasisPoints}`);
-  
-  // Special case handling for standard rates to ensure exact matching values
-  // This ensures we get exact basis point values for known percentage rates
-  let finalBasisPoints = rateInBasisPoints;
-  
-  if (Math.abs(stakeRatePerSecond - 0.0000125) < 0.0000001) {
-    console.log("Special case detected: Using exact 120000 basis points for 0.0000125%");
-    finalBasisPoints = 120000;
-  } else if (Math.abs(stakeRatePerSecond - 0.00000125) < 0.000000001) {
-    console.log("Special case detected: Using exact 12000 basis points for 0.00000125%");
+  // This handles precision issues with floating point by checking string representation
+  if (stakeRatePerSecond.toString() === '0.00000125') {
+    console.log("String match detected: Using exact 12000 basis points for 0.00000125%");
     finalBasisPoints = 12000;
+  } else if (stakeRatePerSecond.toString() === '0.0000125') {
+    console.log("String match detected: Using exact 120000 basis points for 0.0000125%");
+    finalBasisPoints = 120000;
+  } else {
+    // Calculate basis points using the reverse of our conversion formula
+    finalBasisPoints = Math.round(stakeRatePerSecond * (REFERENCE_BASIS_POINTS / REFERENCE_RATE));
+    console.log(`Converting ${stakeRatePerSecond}% to ${finalBasisPoints} basis points using universal formula`);
+    console.log(`Formula: ${stakeRatePerSecond} * (${REFERENCE_BASIS_POINTS} / ${REFERENCE_RATE}) = ${finalBasisPoints}`);
   }
   
   const thresholdInLamports = Math.floor(harvestThreshold * 1000000);
   
   console.log("Encoding parameters update with converted values:", {
-    originalRateInBasisPoints: rateInBasisPoints,
     finalBasisPoints,
     thresholdInLamports
   });
