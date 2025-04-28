@@ -591,12 +591,12 @@ export default function AdminSettings() {
                       const balance = await connection.getTokenAccountBalance(programYosTokenAccount);
                       toast({
                         title: "Program YOS Balance",
-                        description: `Program YOS account: ${programYosTokenAccount.toString()}\nBalance: ${balance.value.uiAmount || 0} YOS`
+                        description: `Program YOS account: ${programYosTokenAccount.toString()}\nBalance: ${balance.value.uiAmount || 0} YOS\n\nNote: This is the correct PDA-owned account needed for harvesting.`
                       });
                     } else {
                       toast({
                         title: "Program YOS Account",
-                        description: `Program YOS account: ${programYosTokenAccount.toString()}\nStatus: Not yet created (will be created when funded)`
+                        description: `Program YOS account: ${programYosTokenAccount.toString()}\nStatus: Not yet created (will be created when funded)\n\nNOTE: This is different from the old hardcoded account (BLz2mfhb9qoPAtKuFNVfrj9uTEyChHKKbZsniS1eRaUB) and must be funded for harvesting to work.`
                       });
                     }
                   } catch (error) {
@@ -704,7 +704,7 @@ export default function AdminSettings() {
                     
                     toast({
                       title: "Success!",
-                      description: `Successfully funded program YOS account with ${amountToSend} YOS. You can now harvest rewards.`
+                      description: `Successfully funded program YOS account with ${amountToSend} YOS. You can now harvest rewards.\n\nThis PDA-owned account (${programYosTokenAccount.toString()}) is where the program will take tokens from when users harvest.`
                     });
                     
                     // After a short delay, show the balance
