@@ -35,10 +35,12 @@ export async function fundProgramYosAccount(wallet: any, amountToSend = 3.0) {
   );
   
   // Get program's YOS token account
+  // CRITICAL: This MUST match the same derivation used in solana-staking.ts
+  // This ensures we're using the token account that the program's authority actually owns
   const programYosTokenAccount = await getAssociatedTokenAddress(
     new PublicKey(YOS_TOKEN_ADDRESS),
     programAuthorityAddress,
-    true // allowOwnerOffCurve
+    true // allowOwnerOffCurve - required for PDAs
   );
   
   console.log('Program YOS token account:', programYosTokenAccount.toString());

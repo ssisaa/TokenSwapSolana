@@ -1853,13 +1853,18 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       });
     }
     
-    // Use exact known program YOS token account that has the funds
-    // Rather than deriving it programmatically, which might lead to a different account
-    const programYosTokenAccount = new PublicKey("BLz2mfhb9qoPAtKuFNVfrj9uTEyChHKKbZsniS1eRaUB");
+    // IMPORTANT: We must derive the program's YOS token account from the program authority
+    // This ensures the account is actually owned by the program's authority PDA
+    // The previous hardcoded address (BLz2mfhb9qoPAtKuFNVfrj9uTEyChHKKbZsniS1eRaUB) wasn't owned by the program
+    const programYosTokenAccount = await getAssociatedTokenAddress(
+      yosMintPubkey,
+      programAuthorityAddress,
+      true // allowOwnerOffCurve - required for PDAs
+    );
     
     // Check if the program token account exists
     console.log('Checking if program YOS token account exists...');
-    console.log('Program YOS token account address for harvest:', programYosTokenAccount.toBase58());
+    console.log('Correctly derived program YOS token account address for harvest:', programYosTokenAccount.toBase58());
     
     // Additional diagnostic: Try to find ALL YOS accounts associated with the program authority
     const programYosAccounts = await connection.getTokenAccountsByOwner(
