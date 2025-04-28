@@ -20,11 +20,36 @@ import { connection } from '@/lib/completeSwap';
 import { 
   YOT_TOKEN_ADDRESS, 
   YOS_TOKEN_ADDRESS,
-  ENDPOINT
+  ENDPOINT,
+  YOT_DECIMALS,
+  YOS_DECIMALS
 } from '@/lib/constants';
 
 // Import the staking program ID from constants
 import { STAKING_PROGRAM_ID as PROGRAM_ID_STRING } from '@/lib/constants';
+
+/**
+ * Utility function to convert UI token amount to raw blockchain amount
+ * @param amount UI amount (e.g., 1.5 YOT)
+ * @param decimals Token decimals (e.g., 9 for most Solana tokens)
+ * @returns Raw token amount as BigInt (e.g., 1500000000)
+ */
+export function uiToRawTokenAmount(amount: number, decimals: number): bigint {
+  return BigInt(Math.floor(amount * Math.pow(10, decimals)));
+}
+
+/**
+ * Utility function to convert raw blockchain amount to UI token amount
+ * @param rawAmount Raw token amount (e.g., 1500000000)
+ * @param decimals Token decimals (e.g., 9 for most Solana tokens)
+ * @returns UI amount (e.g., 1.5 YOT)
+ */
+export function rawToUiTokenAmount(rawAmount: bigint | number, decimals: number): number {
+  if (typeof rawAmount === 'bigint') {
+    return Number(rawAmount) / Math.pow(10, decimals);
+  }
+  return rawAmount / Math.pow(10, decimals);
+}
 
 // Convert the program ID string to a PublicKey object
 const STAKING_PROGRAM_ID = new PublicKey(PROGRAM_ID_STRING);
@@ -467,10 +492,8 @@ function encodeStakeInstruction(amount: number): Buffer {
   // Enhanced version with better debugging and error handling
   console.log(`Encoding stake instruction with amount: ${amount}`);
   
-  // YOT uses 9 decimals, so convert to raw units by multiplying by 10^9
-  // This is critical for proper encoding/decoding between UI and blockchain
-  const YOT_DECIMALS = 9;
-  const amountInRawUnits = Math.floor(amount * Math.pow(10, YOT_DECIMALS));
+  // Use our utility function to convert UI amount to raw blockchain units
+  const amountInRawUnits = uiToRawTokenAmount(amount, YOT_DECIMALS);
   console.log(`Amount converted to raw units: ${amountInRawUnits} (using ${YOT_DECIMALS} decimals)`);
   
   // Verify the calculation
@@ -485,7 +508,7 @@ function encodeStakeInstruction(amount: number): Buffer {
   
   // Write amount as little-endian u64 (8 bytes)
   try {
-    buffer.writeBigUInt64LE(BigInt(amountInRawUnits), 1);
+    buffer.writeBigUInt64LE(amountInRawUnits, 1);
     
     // Verify buffer content to ensure correct serialization
     console.log(`Buffer verification: discriminator=${buffer.readUInt8(0)}, amount=${buffer.readBigUInt64LE(1)}`);
@@ -503,10 +526,8 @@ function encodeUnstakeInstruction(amount: number): Buffer {
   // Enhanced version with better debugging and error handling
   console.log(`Encoding unstake instruction with amount: ${amount}`);
   
-  // YOT uses 9 decimals, so convert to raw units by multiplying by 10^9
-  // This is critical for proper encoding/decoding between UI and blockchain
-  const YOT_DECIMALS = 9;
-  const amountInRawUnits = Math.floor(amount * Math.pow(10, YOT_DECIMALS));
+  // Use our utility function to convert UI amount to raw blockchain units
+  const amountInRawUnits = uiToRawTokenAmount(amount, YOT_DECIMALS);
   console.log(`Unstake amount converted to raw units: ${amountInRawUnits} (using ${YOT_DECIMALS} decimals)`);
   
   // Verify the calculation
@@ -521,7 +542,7 @@ function encodeUnstakeInstruction(amount: number): Buffer {
   
   // Write amount as little-endian u64 (8 bytes)
   try {
-    buffer.writeBigUInt64LE(BigInt(amountInRawUnits), 1);
+    buffer.writeBigUInt64LE(amountInRawUnits, 1);
     
     // Verify buffer content to ensure correct serialization
     console.log(`Unstake buffer verification: discriminator=${buffer.readUInt8(0)}, amount=${buffer.readBigUInt64LE(1)}`);
