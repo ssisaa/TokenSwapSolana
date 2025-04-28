@@ -454,8 +454,11 @@ fn process_harvest(
     // Convert staking rate from basis points to decimal
     let rate_decimal = (program_state.stake_rate_per_second as f64) / 10000.0;
     
-    // Calculate rewards based on staked amount, time, and rate
-    let rewards = (staking_data.staked_amount as f64 * time_staked_seconds as f64 * rate_decimal) as u64;
+    // Calculate rewards using compound interest formula (APY)
+    // Formula: principal * ((1 + rate)^time - 1)
+    let rewards = (staking_data.staked_amount as f64 * ((1.0 + rate_decimal).powf(time_staked_seconds as f64) - 1.0)) as u64;
+    msg!("APY Calculation: {} YOT staked * ((1 + {})^{} - 1) = {} YOS", 
+        staking_data.staked_amount, rate_decimal, time_staked_seconds, rewards);
     
     // Check rewards meet minimum threshold
     if rewards < program_state.harvest_threshold {
