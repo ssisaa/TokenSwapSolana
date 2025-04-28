@@ -102,10 +102,10 @@ function encodeInitializeInstruction(
   });
   
   // Convert percentage per second to basis points using our reference ratio
-  // Using the same reference conversion as in convertBasisPointsToRatePerSecond
-  // This ensures symmetry between reading and writing rates
-  const REFERENCE_RATE = 0.00000125;
-  const REFERENCE_BASIS_POINTS = 120;
+  // IMPORTANT: Must use the same reference values as convertBasisPointsToRatePerSecond 
+  // for consistent encoding/decoding between UI and blockchain
+  const REFERENCE_RATE = 0.0000125;
+  const REFERENCE_BASIS_POINTS = 120000;
   
   // Calculate basis points using reverse of the formula in convertBasisPointsToRatePerSecond
   const rateInBasisPoints = Math.round(stakeRatePerSecond * (REFERENCE_BASIS_POINTS / REFERENCE_RATE));
@@ -114,8 +114,8 @@ function encodeInitializeInstruction(
   console.log(`Formula: ${stakeRatePerSecond} * (${REFERENCE_BASIS_POINTS} / ${REFERENCE_RATE}) = ${rateInBasisPoints}`);
   
   // Special case logging for common values
-  if (Math.abs(stakeRatePerSecond - 0.00125) < 0.00001) {
-    console.log("Note: This is the standard rate of 0.00125% (120,000 basis points)");
+  if (Math.abs(stakeRatePerSecond - 0.0000125) < 0.0000001) {
+    console.log("Note: This is the standard rate of 0.0000125% (120,000 basis points)");
   } else if (Math.abs(stakeRatePerSecond - 0.00000125) < 0.000000001) {
     console.log("Note: This is the tiny rate of 0.00000125% (120 basis points)");
   }
@@ -205,20 +205,20 @@ function encodeUpdateParametersInstruction(
   harvestThreshold: number
 ): Buffer {
   // Convert percentage per second to basis points using our reference ratio
-  // Using the same reference conversion as in convertBasisPointsToRatePerSecond
-  // This ensures symmetry between reading and writing rates
-  const REFERENCE_RATE = 0.00000125;
-  const REFERENCE_BASIS_POINTS = 120;
+  // IMPORTANT: Must use the same reference values as convertBasisPointsToRatePerSecond 
+  // for consistent encoding/decoding between UI and blockchain
+  const REFERENCE_RATE = 0.0000125;
+  const REFERENCE_BASIS_POINTS = 120000;
   
-  // Calculate basis points using reverse of the formula in convertBasisPointsToRatePerSecond
+  // Calculate basis points using the reverse of our conversion formula
   const rateInBasisPoints = Math.round(stakeRatePerSecond * (REFERENCE_BASIS_POINTS / REFERENCE_RATE));
   
   console.log(`Converting ${stakeRatePerSecond}% to ${rateInBasisPoints} basis points using universal formula`);
   console.log(`Formula: ${stakeRatePerSecond} * (${REFERENCE_BASIS_POINTS} / ${REFERENCE_RATE}) = ${rateInBasisPoints}`);
   
   // Special case logging for common values
-  if (Math.abs(stakeRatePerSecond - 0.00125) < 0.00001) {
-    console.log("Note: This is the standard rate of 0.00125% (120,000 basis points)");
+  if (Math.abs(stakeRatePerSecond - 0.0000125) < 0.0000001) {
+    console.log("Note: This is the standard rate of 0.0000125% (120,000 basis points)");
   } else if (Math.abs(stakeRatePerSecond - 0.00000125) < 0.000000001) {
     console.log("Note: This is the tiny rate of 0.00000125% (120 basis points)");
   }
