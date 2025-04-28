@@ -1599,11 +1599,12 @@ export async function unstakeYOTTokens(
         console.log(`User has approximately ${pendingRewards} YOS pending rewards`);
         
         // Check if the program has enough YOS tokens for rewards
-        if (programYosBalance < pendingRewards) {
+        // Only show warning if pending rewards are significant (> 0.01)
+        if (programYosBalance < pendingRewards && pendingRewards > 0.01) {
           console.error(`Insufficient YOS tokens in program account for rewards. Available: ${programYosBalance}, Needed: ~${pendingRewards}`);
           toast({
             title: "Warning: Rewards May Not Transfer",
-            description: `Program has insufficient YOS (${programYosBalance}) for your rewards (${pendingRewards.toFixed(2)}). You may get back YOT but not all rewards.`,
+            description: `Program has insufficient YOS (${programYosBalance.toFixed(2)}) for your rewards (${pendingRewards.toFixed(2)}). You may get back YOT but not all rewards.`,
             variant: "destructive"
           });
         }
@@ -1803,11 +1804,12 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
         console.log(`User has approximately ${pendingRewards} YOS pending rewards`);
         
         // Check if the program has enough tokens for the harvest
-        if (programYosBalance < pendingRewards) {
+        // Only show warning if pending rewards are significant (> 0.01)
+        if (programYosBalance < pendingRewards && pendingRewards > 0.01) {
           console.error(`Insufficient YOS tokens in program account. Available: ${programYosBalance}, Needed: ~${pendingRewards}`);
           toast({
-            title: "Harvesting May Fail",
-            description: `The program doesn't have enough YOS tokens (${programYosBalance} available, ~${pendingRewards} needed). This transaction may fail.`,
+            title: "Warning: Rewards May Not Transfer",
+            description: `Program has insufficient YOS (${programYosBalance.toFixed(2)}) for your rewards (${pendingRewards.toFixed(2)}). Please contact admin to add more YOS tokens.`,
             variant: "destructive"
           });
         }
