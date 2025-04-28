@@ -767,27 +767,28 @@ export async function stakeYOTTokens(
       console.log('User staking account exists with size:', userStakingAccountInfo.data.length);
     }
     
+    // CRITICAL UPDATE: Recheck the Rust program to ensure account order matches perfectly
     // Create the stake instruction with account order matching exactly what the program expects
     const stakeInstruction = new TransactionInstruction({
       keys: [
-        // User accounts - MUST match the order in the Rust program
-        { pubkey: userPublicKey, isSigner: true, isWritable: true },     // Signer wallet - payer
-        { pubkey: userYotTokenAccount, isSigner: false, isWritable: true }, // User YOT token account (source)
-        { pubkey: userStakingAddress, isSigner: false, isWritable: true },  // User staking account (PDA)
+        // User accounts - explicitly ordered to match Rust program exactly
+        { pubkey: userPublicKey, isSigner: true, isWritable: true },        // 0: User wallet (payer)
+        { pubkey: userStakingAddress, isSigner: false, isWritable: true },  // 1: User staking account (PDA)
+        { pubkey: userYotTokenAccount, isSigner: false, isWritable: true }, // 2: User YOT token account (source)
+        { pubkey: programYotTokenAccount, isSigner: false, isWritable: true }, // 3: Program YOT vault
         
-        // Program state and authority
-        { pubkey: programStateAddress, isSigner: false, isWritable: true },  // Program state with staking parameters
-        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }, // Authority PDA
-        { pubkey: programYotTokenAccount, isSigner: false, isWritable: true },  // Program's YOT vault
+        // Program accounts
+        { pubkey: programStateAddress, isSigner: false, isWritable: true },  // 4: Program state
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }, // 5: Authority PDA
         
         // YOS token accounts for rewards
-        { pubkey: userYosTokenAccount, isSigner: false, isWritable: true },  // User's YOS token account (for rewards)
+        { pubkey: userYosTokenAccount, isSigner: false, isWritable: true },  // 6: User's YOS token account (for rewards)
         
-        // System accounts - required by the program to create the staking account
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, 
-        { pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false }
+        // System accounts - required by the program
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // 7: System program
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },        // 8: Token program
+        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },      // 9: Rent sysvar
+        { pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false }     // 10: Clock sysvar
       ],
       programId: STAKING_PROGRAM_ID,
       data: encodeStakeInstruction(amount)
