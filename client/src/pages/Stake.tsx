@@ -105,126 +105,119 @@ export default function Stake() {
           </Card>
         </div>
         
-        <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-          {/* Left Column */}
-          <div className="space-y-6">
-            {/* Staking Actions */}
-            <div className="mt-4">
-              <StakingCard />
-            </div>
-            
-            {/* FAQ Section */}
-            <div className="mt-8">
-              <h2 className="text-xl font-bold mb-4">Staking FAQ</h2>
+        {/* Main Content - Two Columns Side by Side */}
+        <div className="grid gap-6 lg:grid-cols-2 mt-6">
+          {/* Left Column - StakingCard */}
+          <StakingCard />
+          
+          {/* Right Column - How Staking Works */}
+          <Card className="bg-dark-200 border border-slate-700">
+            <CardContent className="pt-6">
+              <h3 className="text-xl font-bold mb-4 text-white">How Staking Works</h3>
               
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold">What is YOT staking?</h3>
-                  <p className="mt-2 text-muted-foreground">
-                    Staking YOT allows you to earn YOS rewards while supporting the network. When you stake your YOT tokens, 
-                    they are locked up, and you earn YOS rewards at a rate of {stakingRates?.stakeRatePerSecond?.toFixed(6) || '0.000000'}% per second.
-                  </p>
+              <div className="space-y-4">
+                <div className="flex gap-3">
+                  <div className="mt-1">
+                    <div className="bg-blue-600/20 p-2 rounded-full">
+                      <Download className="h-4 w-4 text-blue-400" />
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-white">Stake YOT</h4>
+                    <p className="text-sm text-gray-300 mt-1">
+                      Lock your YOT tokens in the staking contract to start earning rewards.
+                    </p>
+                  </div>
                 </div>
                 
-                <div>
-                  <h3 className="text-lg font-semibold">How are rewards calculated?</h3>
-                  <p className="mt-2 text-muted-foreground">
-                    Rewards accrue at a rate of {stakingRates?.stakeRatePerSecond?.toFixed(6) || '0.000000'}% per second on your staked YOT tokens. 
-                    This equals approximately {stakingRates?.dailyAPR?.toFixed(2) || '0.00'}% per day, {stakingRates?.monthlyAPR?.toFixed(2) || '0.00'}% per month, or {stakingRates?.yearlyAPR?.toFixed(2) || '0.00'}% annually.
-                  </p>
+                <div className="flex gap-3">
+                  <div className="mt-1">
+                    <div className="bg-blue-600/20 p-2 rounded-full">
+                      <Clock className="h-4 w-4 text-blue-400" />
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-white">Earn Rewards</h4>
+                    <p className="text-sm text-gray-300 mt-1">
+                      Earn YOS rewards continuously based on your staked amount and the current APY.
+                    </p>
+                  </div>
                 </div>
                 
-                <div>
-                  <h3 className="text-lg font-semibold">What can I do with YOS rewards?</h3>
-                  <p className="mt-2 text-muted-foreground">
-                    YOS tokens can be swapped 1:1 for YOT tokens, allowing you to stake more, trade, or contribute to liquidity pools.
-                  </p>
+                <div className="flex gap-3">
+                  <div className="mt-1">
+                    <div className="bg-blue-600/20 p-2 rounded-full">
+                      <CheckCircle className="h-4 w-4 text-blue-400" />
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-white">Harvest Anytime</h4>
+                    <p className="text-sm text-gray-300 mt-1">
+                      Claim your YOS rewards whenever you want. No lock-up period or vesting.
+                    </p>
+                  </div>
                 </div>
                 
-                <div>
-                  <h3 className="text-lg font-semibold">Is there a lock-up period?</h3>
-                  <p className="mt-2 text-muted-foreground">
-                    No, you can unstake your YOT at any time. However, the longer you stake, the more rewards you'll accumulate.
-                  </p>
-                </div>
-                
-                <div>
-                  <h3 className="text-lg font-semibold">How is staking security ensured?</h3>
-                  <p className="mt-2 text-muted-foreground">
-                    All staking operations are performed on-chain using secure Solana smart contracts. Every transaction requires 
-                    your explicit wallet signature for authorization, and no private keys or sensitive data are ever stored outside your wallet.
-                  </p>
+                <div className="flex gap-3">
+                  <div className="mt-1">
+                    <div className="bg-blue-600/20 p-2 rounded-full">
+                      <Shield className="h-4 w-4 text-blue-400" />
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-white">Staking Security</h4>
+                    <p className="text-sm text-gray-300 mt-1">
+                      All operations require your explicit wallet signature. Your funds remain secure through Solana's smart contracts.
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
+        </div>
+        
+        {/* FAQ Section */}
+        <div className="mt-8">
+          <h2 className="text-xl font-bold mb-4">Staking FAQ</h2>
           
-          {/* Right Column */}
           <div className="space-y-6">
-            {/* How Staking Works */}
-            <Card className="bg-dark-200 h-full">
-              <CardContent className="pt-6">
-                <h3 className="text-xl font-bold mb-4 text-white">How Staking Works</h3>
-                
-                <div className="space-y-4">
-                  <div className="flex gap-3">
-                    <div className="mt-1">
-                      <div className="bg-blue-600/20 p-2 rounded-full">
-                        <Download className="h-4 w-4 text-blue-400" />
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-white">Stake YOT</h4>
-                      <p className="text-sm text-gray-300 mt-1">
-                        Lock your YOT tokens in the staking contract to start earning rewards.
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-3">
-                    <div className="mt-1">
-                      <div className="bg-blue-600/20 p-2 rounded-full">
-                        <Clock className="h-4 w-4 text-blue-400" />
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-white">Earn Rewards</h4>
-                      <p className="text-sm text-gray-300 mt-1">
-                        Earn YOS rewards continuously based on your staked amount and the current APY.
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-3">
-                    <div className="mt-1">
-                      <div className="bg-blue-600/20 p-2 rounded-full">
-                        <CheckCircle className="h-4 w-4 text-blue-400" />
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-white">Harvest Anytime</h4>
-                      <p className="text-sm text-gray-300 mt-1">
-                        Claim your YOS rewards whenever you want. No lock-up period or vesting.
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-3">
-                    <div className="mt-1">
-                      <div className="bg-blue-600/20 p-2 rounded-full">
-                        <Shield className="h-4 w-4 text-blue-400" />
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-white">Staking Security</h4>
-                      <p className="text-sm text-gray-300 mt-1">
-                        All operations require your explicit wallet signature. Your funds remain secure through Solana's smart contracts.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <div>
+              <h3 className="text-lg font-semibold">What is YOT staking?</h3>
+              <p className="mt-2 text-muted-foreground">
+                Staking YOT allows you to earn YOS rewards while supporting the network. When you stake your YOT tokens, 
+                they are locked up, and you earn YOS rewards at a rate of {stakingRates?.stakeRatePerSecond?.toFixed(6) || '0.000000'}% per second.
+              </p>
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-semibold">How are rewards calculated?</h3>
+              <p className="mt-2 text-muted-foreground">
+                Rewards accrue at a rate of {stakingRates?.stakeRatePerSecond?.toFixed(6) || '0.000000'}% per second on your staked YOT tokens. 
+                This equals approximately {stakingRates?.dailyAPR?.toFixed(2) || '0.00'}% per day, {stakingRates?.monthlyAPR?.toFixed(2) || '0.00'}% per month, or {stakingRates?.yearlyAPR?.toFixed(2) || '0.00'}% annually.
+              </p>
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-semibold">What can I do with YOS rewards?</h3>
+              <p className="mt-2 text-muted-foreground">
+                YOS tokens can be swapped 1:1 for YOT tokens, allowing you to stake more, trade, or contribute to liquidity pools.
+              </p>
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-semibold">Is there a lock-up period?</h3>
+              <p className="mt-2 text-muted-foreground">
+                No, you can unstake your YOT at any time. However, the longer you stake, the more rewards you'll accumulate.
+              </p>
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-semibold">How is staking security ensured?</h3>
+              <p className="mt-2 text-muted-foreground">
+                All staking operations are performed on-chain using secure Solana smart contracts. Every transaction requires 
+                your explicit wallet signature for authorization, and no private keys or sensitive data are ever stored outside your wallet.
+              </p>
+            </div>
           </div>
         </div>
       </div>
