@@ -927,19 +927,12 @@ export async function getStakingProgramState(): Promise<{
     // Next 32 bytes are YOS mint pubkey
     
     // Read stake rate (8 bytes, 64-bit unsigned integer)
-    // The rate stored on-chain represents basis points divided by a scale factor
-    // For example, if we store 125 on chain, that represents 0.0125% per second (or 0.000125 in decimal)
-    // First divide by 10000 to get the percentage value
-    let stakeRatePerSecond = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32)) / 10000;
+    // The rate stored on-chain represents percentage (e.g., 0.00125 for 0.00125%)
+    // We just need to ensure it's in the correct format for UI display and calculations
+    const stakeRatePerSecond = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32)) / 10000;
     
-    // Convert from percentage to decimal for math calculations
-    // e.g., 0.0125% becomes 0.000125 as a decimal
-    stakeRatePerSecond = stakeRatePerSecond / 100;
-    
-    // No need to cap the rate - the admin has set 0.00125% per second
-    // We just need to convert it correctly for calculations
-    // 0.00125% = 0.0000125 in decimal format
-    stakeRatePerSecond = stakeRatePerSecond;
+    // The value is now in percentage form (e.g., 0.00125) and ready to use
+    // No further conversion needed - we'll convert to decimal later for calculations
     
     // Read harvest threshold (8 bytes, 64-bit unsigned integer)
     const harvestThreshold = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32 + 8)) / 1000000;
@@ -951,18 +944,17 @@ export async function getStakingProgramState(): Promise<{
     const secondsPerMonth = secondsPerDay * 30;
     const secondsPerYear = secondsPerDay * 365;
     
-    // The stakeRatePerSecond is in decimal format (e.g., 0.00000125 for 0.000125%)
+    // stakeRatePerSecond is already in percentage format (e.g., 0.00125 for 0.00125%)
     // Calculate rates based on the per-second rate
-    // Formula: stakeRatePerSecond * seconds_in_period * 100 (to convert to percentage)
-    // This is a simple calculation without compounding
+    // Formula: stakeRatePerSecond * seconds_in_period
+    // This is a simple linear accumulation (not compounding)
     const secondsPerHour = 3600;
     
-    // Simple non-compounded rates (matches admin's expected values)
-    const hourlyRate = stakeRatePerSecond * secondsPerHour * 100;
-    const dailyAPR = hourlyRate * 24;  // 108% for 0.00125% per second
-    const weeklyAPR = dailyAPR * 7;    // 756% for 0.00125% per second
-    const monthlyAPR = dailyAPR * 30;  // 3240% for 0.00125% per second
-    const yearlyAPR = dailyAPR * 365;  // 39420% for 0.00125% per second
+    // Simple linear rates (matches admin's expected values)
+    const dailyAPR = stakeRatePerSecond * secondsPerDay;     // 108% for 0.00125% per second
+    const weeklyAPR = stakeRatePerSecond * secondsPerWeek;   // 756% for 0.00125% per second
+    const monthlyAPR = stakeRatePerSecond * secondsPerMonth; // ~3240% for 0.00125% per second
+    const yearlyAPR = stakeRatePerSecond * secondsPerYear;   // ~39420% for 0.00125% per second
     
     return {
       stakeRatePerSecond,
