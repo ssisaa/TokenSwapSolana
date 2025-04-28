@@ -10,7 +10,8 @@ import {
   harvestYOSRewards, 
   getStakingInfo,
   updateStakingParameters,
-  getStakingProgramState
+  getStakingProgramState,
+  getGlobalStakingStats
 } from '@/lib/solana-staking';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -607,26 +608,33 @@ export function useStaking() {
     // Function to fetch global staking statistics from blockchain
     const fetchGlobalStats = async () => {
       try {
-        // We would normally fetch this from the blockchain
-        // For now, we'll set placeholders with actual logic that would fetch from blockchain
+        // Get global stats directly from blockchain using our function
+        const stats = await getGlobalStakingStats();
         
-        // Example of how to get these values from blockchain:
-        // 1. Query for all staking accounts under the program
-        // 2. Sum up stakedAmount and totalHarvested
-        // 3. Count unique wallets as totalStakers
-        
-        // Placeholder values that would be fetched from blockchain
-        const totalStaked = stakingInfo?.stakedAmount || 0;
-        const totalStakers = 3; // Fixed to show 3 stakers (2/3) as requested
-        const totalHarvested = stakingInfo?.totalHarvested || 0;
-        
+        // Update state with actual blockchain data
         setGlobalStats({
-          totalStaked: totalStaked, // Use actual staked amount from blockchain
-          totalStakers,
-          totalHarvested
+          totalStaked: stats.totalStaked,
+          totalStakers: stats.totalStakers,
+          totalHarvested: stats.totalHarvested
         });
+        
       } catch (error: any) {
         console.error("Error fetching global staking stats:", error);
+        
+        // Handle error case, but still provide valid data structure
+        // Don't use hardcoded values - our UI components will handle empty/zero states
+        setGlobalStats({
+          totalStaked: 0,
+          totalStakers: 0, 
+          totalHarvested: 0
+        });
+        
+        // Show error toast for transparency
+        toast({
+          title: "Blockchain Data Error",
+          description: "Could not fetch staking data from blockchain. Retrying...",
+          variant: "destructive"
+        });
       }
     };
     

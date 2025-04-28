@@ -67,7 +67,7 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
         </div>
       )}
       
-      {/* 4-box grid layout */}
+      {/* 5-box grid layout */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Global Total Staked */}
         <Card className="bg-dark-200 border border-slate-700">
@@ -79,6 +79,21 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
               <div className="flex items-baseline gap-1">
                 <span className="text-xl font-bold text-white">{formatNumber(globalStats ? globalStats.totalStaked : 0)}</span>
                 <span className="text-sm font-semibold text-blue-400">YOT</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        
+        {/* Total Users Staked */}
+        <Card className="bg-dark-200 border border-slate-700">
+          <CardContent className="p-4">
+            <h3 className="text-sm font-medium text-gray-300 mb-2">Total Users Staked</h3>
+            {isLoading ? (
+              <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
+            ) : (
+              <div className="flex items-baseline gap-1">
+                <span className="text-xl font-bold text-white">{globalStats ? globalStats.totalStakers : 0}</span>
+                <span className="text-sm font-semibold text-blue-400">users</span>
               </div>
             )}
           </CardContent>
@@ -120,9 +135,10 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
             )}
           </CardContent>
         </Card>
-        
-
-        
+      </div>
+      
+      {/* Additional row with just the YOS tokens box */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
         {/* Your YOS Tokens */}
         <Card className="bg-dark-200 border border-slate-700">
           <CardContent className="p-4">

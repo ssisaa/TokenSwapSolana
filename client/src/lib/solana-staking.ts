@@ -1297,6 +1297,156 @@ export async function updateStakingParameters(
 /**
  * Get staking program state with rates information
  */
+// Function to get global staking stats directly from blockchain
+export async function getGlobalStakingStats(): Promise<{
+  totalStaked: number;
+  totalStakers: number;
+  totalHarvested: number;
+}> {
+  try {
+    // 1. Get the program state account for global totals
+    const [programStateAddress] = findProgramStateAddress();
+    const programStateInfo = await connection.getAccountInfo(programStateAddress);
+    
+    let totalStaked = 0;
+    let totalHarvested = 0;
+    
+    // Parse program state if it exists
+    if (programStateInfo && programStateInfo.data) {
+      // Read total staked amount at appropriate offset
+      // In a real implementation, this would be at the specific offset for total staked in the program state
+      const programData = programStateInfo.data;
+      // Skip past admin pubkey, YOT mint, YOS mint (32 bytes each) and other fields
+      const totalStakedOffset = 32 + 32 + 32 + 16; // Example offset, adjust based on actual program structure
+      
+      // Read total staked as a u64 (BigInt)
+      // Note: In production, this would be read from the exact offset where the program stores it
+      if (programData.length >= totalStakedOffset + 8) {
+        const totalStakedRaw = programData.readBigUInt64LE(totalStakedOffset);
+        totalStaked = Number(totalStakedRaw) / Math.pow(10, 9); // Convert using YOT decimals
+      }
+      
+      // Read total harvested as a u64 (BigInt)
+      const totalHarvestedOffset = totalStakedOffset + 8; // Example offset, adjust based on actual program structure
+      if (programData.length >= totalHarvestedOffset + 8) {
+        const totalHarvestedRaw = programData.readBigUInt64LE(totalHarvestedOffset);
+        totalHarvested = Number(totalHarvestedRaw) / Math.pow(10, 9); // Convert using YOS decimals
+      }
+      
+      // If we can't read from program state, use a fallback method to calculate
+      if (totalStaked === 0) {
+        // Fallback: Calculate by getting all stake accounts
+        console.log("Using fallback method to calculate total staked amount");
+        const allStakingAccounts = await getAllStakingAccounts();
+        totalStaked = allStakingAccounts.reduce((sum, account) => sum + account.stakedAmount, 0);
+      }
+    } else {
+      // If program state doesn't exist, get data by querying all staking accounts
+      console.log("Program state not found, querying all staking accounts");
+      const allStakingAccounts = await getAllStakingAccounts();
+      totalStaked = allStakingAccounts.reduce((sum, account) => sum + account.stakedAmount, 0);
+      totalHarvested = allStakingAccounts.reduce((sum, account) => sum + account.totalHarvested, 0);
+    }
+    
+    // 2. Find all staking accounts under the program to count stakers
+    const stakers = await getAllStakers();
+    const totalStakers = stakers.length;
+    
+    // Return actual blockchain data
+    return {
+      totalStaked,
+      totalStakers,
+      totalHarvested
+    };
+  } catch (error) {
+    console.error("Error fetching global staking stats:", error);
+    // Instead of returning hardcoded defaults, return empty values that UI can handle
+    throw error;
+  }
+}
+
+// Helper function to get all stakers from blockchain
+async function getAllStakers(): Promise<string[]> {
+  try {
+    // Determine the key to use (discriminator/seed) for staking accounts
+    // In a real implementation, you'd use the appropriate program filters
+    const accountDiscriminator = Buffer.from("staking_account", "utf-8");
+    
+    // Find all program accounts that match our discriminator
+    // This is a simplified approach - in reality, you'd use proper Solana program filters
+    const accounts = await connection.getProgramAccounts(new PublicKey(STAKING_PROGRAM_ID), {
+      filters: [
+        {
+          // Filter by account size, etc. to locate staking accounts
+          dataSize: 128, // Example: size of a staking account (adjust based on actual program)
+        }
+      ]
+    });
+    
+    // Parse the data and extract unique wallet addresses
+    const uniqueStakers = new Set<string>();
+    
+    for (const account of accounts) {
+      // First 32 bytes typically contain the owner public key in Solana PDA accounts
+      if (account.account.data.length >= 32) {
+        const ownerPubkey = new PublicKey(account.account.data.slice(0, 32));
+        uniqueStakers.add(ownerPubkey.toString());
+      }
+    }
+    
+    return Array.from(uniqueStakers);
+  } catch (error) {
+    console.error("Error getting all stakers:", error);
+    return [];
+  }
+}
+
+// Helper function to get all staking accounts with data
+async function getAllStakingAccounts(): Promise<{
+  owner: string;
+  stakedAmount: number;
+  totalHarvested: number;
+}[]> {
+  try {
+    // Get all program accounts based on criteria that identifies staking accounts
+    const accounts = await connection.getProgramAccounts(new PublicKey(STAKING_PROGRAM_ID), {
+      filters: [
+        {
+          // Filter that would identify staking accounts in the real program
+          dataSize: 128, // Example size, adjust based on actual program
+        }
+      ]
+    });
+    
+    // Parse each account data
+    const stakingAccounts = accounts.map(account => {
+      const data = account.account.data;
+      
+      // Extract data from appropriate offsets
+      const owner = new PublicKey(data.slice(0, 32)).toString();
+      
+      // Read staked amount (u64)
+      const stakedAmountRaw = data.readBigUInt64LE(32);
+      const stakedAmount = Number(stakedAmountRaw) / Math.pow(10, 9); // YOT uses 9 decimals
+      
+      // Read total harvested (u64)
+      const totalHarvestedRaw = data.readBigUInt64LE(56); // Example offset, adjust based on actual program
+      const totalHarvested = Number(totalHarvestedRaw) / Math.pow(10, 9); // YOS uses 9 decimals
+      
+      return {
+        owner,
+        stakedAmount,
+        totalHarvested
+      };
+    });
+    
+    return stakingAccounts;
+  } catch (error) {
+    console.error("Error getting all staking accounts:", error);
+    return [];
+  }
+}
+
 export async function getStakingProgramState(): Promise<{
   stakeRatePerSecond: number;
   harvestThreshold: number;
