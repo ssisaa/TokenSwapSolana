@@ -467,39 +467,49 @@ export function useStaking() {
       }
     },
     onSuccess: (result, variables) => {
-      // Invalidate all staking queries to trigger refetch later
-      queryClient.invalidateQueries({ queryKey: ['staking'] });
-      queryClient.invalidateQueries({ queryKey: ['staking-rates'] });
-      
-      // IMPORTANT: Immediately update the UI with the simulated result
+      // IMPORTANT: Immediately update the UI with the simulated result BEFORE invalidating queries
       // Extract the parameter values from the variables
       const { stakeRatePerSecond, harvestThreshold } = variables;
       
-      // Calculate corresponding APYs
+      // Calculate corresponding APRs (Annual Percentage Rate, not APY)
       const secondsInDay = 86400;
-      const dailyAPY = parseFloat((stakeRatePerSecond * secondsInDay * 100).toFixed(2));
-      const weeklyAPY = parseFloat((dailyAPY * 7).toFixed(2));
-      const monthlyAPY = parseFloat((dailyAPY * 30).toFixed(2));
-      const yearlyAPY = parseFloat((dailyAPY * 365).toFixed(2));
+      const dailyAPR = stakeRatePerSecond * secondsInDay * 100;
+      const weeklyAPR = dailyAPR * 7;
+      const monthlyAPR = dailyAPR * 30;
+      const yearlyAPR = dailyAPR * 365;
+      
+      console.log("Parameter update successful, updating UI with:", {
+        stakeRatePerSecond,
+        harvestThreshold,
+        calculatedRates: {
+          dailyAPR,
+          weeklyAPR,
+          monthlyAPR,
+          yearlyAPR
+        }
+      });
       
       // Create a simulated updated rates
       const updatedRates = {
         stakeRatePerSecond,
         harvestThreshold,
-        dailyAPY,
-        weeklyAPY,
-        monthlyAPY,
-        yearlyAPY
+        dailyAPR,
+        weeklyAPR,
+        monthlyAPR,
+        yearlyAPR
       };
       
       console.log("Updating staking rates with simulated data:", updatedRates);
       
-      // Update the cache with simulated data
+      // Update the cache with simulated data immediately
       queryClient.setQueryData(['staking', 'rates'], updatedRates);
+      
+      // Invalidate queries after updating cache to trigger background refresh
+      queryClient.invalidateQueries({ queryKey: ['staking'] });
       
       toast({
         title: "Parameters Updated",
-        description: "Successfully updated staking parameters.",
+        description: "Successfully updated staking parameters. Changes will be reflected immediately.",
       });
     },
     onError: (error: Error) => {

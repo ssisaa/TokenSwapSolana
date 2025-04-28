@@ -52,12 +52,20 @@ function findProgramStateAddress(): [PublicKey, number] {
  * @returns The corresponding percentage per second
  */
 function convertBasisPointsToRatePerSecond(basisPoints: number): number {
-  // Reference: 120 basis points = 0.00000125% per second
-  const REFERENCE_RATE = 0.00000125;
-  const REFERENCE_BASIS_POINTS = 120;
+  // CRITICAL REFERENCE VALUE: 120000 basis points = 0.0000125% per second 
+  // (and NOT 0.00125% as previously calculated)
+  const REFERENCE_RATE = 0.0000125;
+  const REFERENCE_BASIS_POINTS = 120000;
   
   // Calculate rate using the same ratio for all values
   const ratePerSecond = basisPoints * (REFERENCE_RATE / REFERENCE_BASIS_POINTS);
+  
+  console.log(`Converting ${basisPoints} basis points using reference values:`, {
+    REFERENCE_RATE,
+    REFERENCE_BASIS_POINTS,
+    result: ratePerSecond,
+    formula: `${basisPoints} * (${REFERENCE_RATE} / ${REFERENCE_BASIS_POINTS}) = ${ratePerSecond}`
+  });
   
   // Ensure we never have a zero rate
   return Math.max(ratePerSecond, 0.0000000001);
