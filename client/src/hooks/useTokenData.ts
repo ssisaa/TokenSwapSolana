@@ -46,6 +46,9 @@ export function useTokenData() {
   const [balances, setBalances] = useState<Balances>({ sol: 0, solUsd: 0, yot: 0, yotUsd: 0, yos: 0, yosUsd: 0 });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  
+  // Add error state
+  const [error, setError] = useState<Error | null>(null);
 
   // Fetch token information
   const fetchTokenInfo = useCallback(async () => {
@@ -152,6 +155,7 @@ export function useTokenData() {
     poolData,
     balances,
     loading,
+    error,
     fetchTokenInfo,
     fetchBalances
   };

@@ -12,7 +12,7 @@ import { getExchangeRate, getPoolBalances, getSolMarketPrice } from "@/lib/solan
 
 export default function Dashboard() {
   const { connected, wallet } = useWallet();
-  const { tokenData, poolData, balances, loading, fetchTokenInfo } = useTokenData();
+  const { tokenData, poolData, balances, loading, fetchTokenInfo, fetchBalances } = useTokenData();
   const [priceData, setPriceData] = useState({
     yotPrice: 0.00000200,
     yosPrice: 0.00002000,
@@ -69,13 +69,27 @@ export default function Dashboard() {
     fetchTokenInfo();
     fetchPriceData();
     
+    // Fetch wallet balances when connected
+    if (connected && wallet?.publicKey) {
+      console.log("Fetching balances for connected wallet:", wallet.publicKey.toString());
+      fetchTokenInfo();
+      // Call fetchBalances with the wallet address
+      fetchBalances(wallet.publicKey.toString());
+    }
+    
     // Set up interval to refresh price data
     const interval = setInterval(() => {
       fetchPriceData();
-    }, 30000); // Refresh every 30 seconds
+      
+      // Also refresh balances if wallet is connected
+      if (connected && wallet?.publicKey) {
+        fetchTokenInfo();
+        fetchBalances(wallet.publicKey.toString());
+      }
+    }, 15000); // Refresh every 15 seconds
     
     return () => clearInterval(interval);
-  }, [fetchTokenInfo, fetchPriceData]);
+  }, [fetchTokenInfo, fetchPriceData, fetchBalances, connected, wallet]);
 
   // Removed countdown timer for next claim feature
   
@@ -255,14 +269,20 @@ export default function Dashboard() {
             <Card className="bg-dark-200 border-dark-400 p-4">
               <h3 className="text-gray-400 text-sm">Total Staked</h3>
               <div className="text-xl font-semibold text-white mt-1">
-                {formatCurrency(1000)} YOT <span className="text-sm text-gray-400">${formatCurrency(1000 * priceData.yotPrice)}</span>
+                {loading ? "Loading..." : formatCurrency(balances?.yot || 0)} YOT 
+                <span className="text-sm text-gray-400">
+                  ${formatCurrency((balances?.yot || 0) * priceData.yotPrice)}
+                </span>
               </div>
             </Card>
             
             <Card className="bg-dark-200 border-dark-400 p-4">
               <h3 className="text-gray-400 text-sm">Earned Rewards</h3>
               <div className="text-xl font-semibold text-white mt-1">
-                {formatCurrency(100)} YOS <span className="text-sm text-gray-400">${formatCurrency(100 * priceData.yosPrice)}</span>
+                {loading ? "Loading..." : formatCurrency(balances?.yos || 0)} YOS 
+                <span className="text-sm text-gray-400">
+                  ${formatCurrency((balances?.yos || 0) * priceData.yosPrice)}
+                </span>
               </div>
             </Card>
           </div>
