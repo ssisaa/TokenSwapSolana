@@ -340,10 +340,13 @@ fn process_unstake(
     let user_account = next_account_info(account_info_iter)?;
     let user_yot_token_account = next_account_info(account_info_iter)?;
     let program_yot_token_account = next_account_info(account_info_iter)?;
+    let user_yos_token_account = next_account_info(account_info_iter)?;
+    let program_yos_token_account = next_account_info(account_info_iter)?;
     let user_staking_account = next_account_info(account_info_iter)?;
     let program_state_account = next_account_info(account_info_iter)?;
     let token_program = next_account_info(account_info_iter)?;
     let program_authority = next_account_info(account_info_iter)?;
+    let clock = next_account_info(account_info_iter)?;
     
     // Verify user signature (mandatory signature verification)
     if !user_account.is_signer {
@@ -369,6 +372,33 @@ fn process_unstake(
         return Err(ProgramError::InsufficientFunds);
     }
     
+    // Get program state - IMPORTANT: We need this to get the CURRENT staking rate
+    let program_state = ProgramState::try_from_slice(&program_state_account.data.borrow())?;
+    
+    // Get current time
+    let clock = Clock::from_account_info(clock)?;
+    let current_time = clock.unix_timestamp;
+    
+    // Calculate pending rewards using CURRENT rate from program state
+    let time_staked_seconds = current_time.checked_sub(staking_data.last_harvest_time)
+        .ok_or(ProgramError::InvalidArgument)?;
+    
+    // Convert staking rate from basis points to decimal
+    // FIXED: Now using the CURRENT rate from program_state, not a cached/stored value
+    let rate_decimal = (program_state.stake_rate_per_second as f64) / 10000.0;
+    
+    // Calculate rewards based on staked amount, time, and CURRENT rate
+    let rewards = (staking_data.staked_amount as f64 * time_staked_seconds as f64 * rate_decimal) as u64;
+    
+    // Update staking data
+    staking_data.last_harvest_time = current_time;
+    
+    // Only add to total harvested if there are rewards to claim
+    if rewards > 0 {
+        staking_data.total_harvested = staking_data.total_harvested.checked_add(rewards)
+            .ok_or(ProgramError::InvalidArgument)?;
+    }
+    
     // Reduce staked amount
     staking_data.staked_amount = staking_data.staked_amount.checked_sub(amount)
         .ok_or(ProgramError::InvalidArgument)?; // Use InvalidArgument instead of ArithmeticOverflow
@@ -376,7 +406,7 @@ fn process_unstake(
     // Save updated staking data
     staking_data.serialize(&mut *user_staking_account.try_borrow_mut_data()?)?;
     
-    // Transfer tokens back to user
+    // Transfer YOT tokens back to user
     invoke_signed(
         &spl_token::instruction::transfer(
             token_program.key,
@@ -395,7 +425,30 @@ fn process_unstake(
         &[&[b"authority", &[authority_bump]]],
     )?;
     
-    msg!("Unstaked {} YOT tokens", amount);
+    // Transfer any pending YOS rewards if available
+    if rewards > 0 {
+        invoke_signed(
+            &spl_token::instruction::transfer(
+                token_program.key,
+                program_yos_token_account.key,
+                user_yos_token_account.key,
+                program_authority.key,
+                &[],
+                rewards,
+            )?,
+            &[
+                program_yos_token_account.clone(),
+                user_yos_token_account.clone(),
+                program_authority.clone(),
+                token_program.clone(),
+            ],
+            &[&[b"authority", &[authority_bump]]],
+        )?;
+        
+        msg!("Unstaked {} YOT tokens and harvested {} YOS rewards", amount, rewards);
+    } else {
+        msg!("Unstaked {} YOT tokens", amount);
+    }
     
     Ok(())
 }
