@@ -67,8 +67,8 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
         </div>
       )}
       
-      {/* 5-box stats layout */}
-      <div className="grid grid-cols-5 gap-4">
+      {/* 4-box stats layout */}
+      <div className="grid grid-cols-4 gap-4">
         {/* Global Total Staked */}
         <Card className="bg-dark-200 border border-slate-700">
           <CardContent className="p-4">
@@ -99,22 +99,7 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
           </CardContent>
         </Card>
         
-        {/* Your YOS Tokens */}
-        <Card className="bg-dark-200 border border-slate-700">
-          <CardContent className="p-4">
-            <h3 className="text-sm font-medium text-gray-300 mb-2">Your YOS Tokens</h3>
-            {isLoading ? (
-              <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
-            ) : (
-              <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold text-white">{formatNumber(yosBalance)}</span>
-                <span className="text-sm font-semibold text-green-400">YOS</span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        
-        {/* Pending Rewards */}
+        {/* Your Pending Rewards */}
         <Card className="bg-dark-200 border border-slate-700">
           <CardContent className="p-4">
             <h3 className="text-sm font-medium text-gray-300 mb-2">Your Pending Rewards</h3>
@@ -129,23 +114,60 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
           </CardContent>
         </Card>
         
-        {/* Total Harvested */}
+        {/* Your Stake % */}
         <Card className="bg-dark-200 border border-slate-700">
           <CardContent className="p-4">
-            <h3 className="text-sm font-medium text-gray-300 mb-2">Your Total Harvested</h3>
+            <h3 className="text-sm font-medium text-gray-300 mb-2">Your Stake %</h3>
             {isLoading ? (
-              <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
+              <div className="animate-pulse bg-dark-300 h-6 w-16 rounded"></div>
             ) : (
               <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold text-white">{formatNumber(stakingInfo.totalHarvested)}</span>
-                <span className="text-sm font-semibold text-green-400">YOS</span>
+                <span className="text-xl font-bold text-white">
+                  {yotBalance && (yotBalance + stakingInfo.stakedAmount) > 0 ? 
+                    ((stakingInfo.stakedAmount / (yotBalance + stakingInfo.stakedAmount)) * 100).toFixed(2) : 
+                    '0.00'}
+                </span>
+                <span className="text-sm font-semibold text-blue-400">%</span>
               </div>
             )}
           </CardContent>
         </Card>
       </div>
       
-      {/* No additional stats here - they're all in the top row now */}
+      {/* YOS Tokens Box */}
+      <div className="mt-6">
+        <Card className="bg-dark-200 border border-slate-700">
+          <CardContent className="p-6">
+            <div className="flex items-center mb-3">
+              <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center text-white font-bold">
+                YOS
+              </div>
+              <div className="ml-3">
+                <h3 className="text-white font-semibold">Your Own Story</h3>
+                <p className="text-xs text-gray-400">Rewards & Claims Token</p>
+              </div>
+              <div className="ml-auto text-xs bg-green-600/20 text-green-400 px-2 py-1 rounded">
+                SPL Token
+              </div>
+            </div>
+            
+            <div className="flex justify-between items-center">
+              <div>
+                <div className="text-gray-400 text-sm">Balance</div>
+                <div className="text-xl font-semibold text-white">
+                  {isLoading ? "Loading..." : formatNumber(yosBalance)} YOS
+                </div>
+              </div>
+              <div>
+                <div className="text-gray-400 text-sm">Pending Rewards</div>
+                <div className="text-xl font-semibold text-white">
+                  {isLoading ? "Loading..." : formatNumber(stakingInfo.rewardsEarned)} YOS
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
       
       {/* Quick Action Buttons */}
       <div className="flex gap-3 mt-4">
