@@ -846,6 +846,245 @@ export async function stakeYOTTokens(
 }
 
 /**
+ * Prepare unstake transaction for simulation or sending
+ * This function does all the account setup and instruction creation
+ * but doesn't sign or send the transaction
+ */
+export async function prepareUnstakeTransaction(
+  wallet: any,
+  amount: number
+) {
+  try {
+    // Validate parameters
+    if (!wallet || !wallet.publicKey) {
+      throw new Error('Wallet not connected');
+    }
+    
+    if (amount <= 0) {
+      throw new Error('Amount must be greater than 0');
+    }
+    
+    const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
+    const userPublicKey = wallet.publicKey;
+    
+    console.log("=== PREPARING UNSTAKE TRANSACTION ===");
+    console.log("Amount to unstake:", amount);
+    console.log("User wallet:", userPublicKey.toString());
+    
+    // Initialize transaction and instruction data
+    const transaction = new Transaction();
+    
+    // Get token addresses
+    const yotMintPubkey = new PublicKey(YOT_TOKEN_ADDRESS);
+    const yosMintPubkey = new PublicKey(YOS_TOKEN_ADDRESS);
+    
+    // Find user's YOT token account
+    const userYotTokenAccount = await getAssociatedTokenAddress(
+      yotMintPubkey,
+      userPublicKey
+    );
+    const userYotAccountInfo = await connection.getAccountInfo(userYotTokenAccount);
+    console.log("User YOT account:", userYotTokenAccount.toString(), "exists:", !!userYotAccountInfo);
+    
+    if (!userYotAccountInfo) {
+      console.log("Creating YOT token account for user");
+      const createYotAccountInstruction = createAssociatedTokenAccountInstruction(
+        userPublicKey,
+        userYotTokenAccount,
+        userPublicKey,
+        yotMintPubkey
+      );
+      transaction.add(createYotAccountInstruction);
+    }
+    
+    // Find program authority (PDA)
+    const [programAuthorityAddress] = PublicKey.findProgramAddressSync(
+      [Buffer.from("authority")],
+      STAKING_PROGRAM_ID
+    );
+    console.log("Program authority:", programAuthorityAddress.toString());
+    
+    // Find program's YOT token account
+    const programYotTokenAccount = await getAssociatedTokenAddress(
+      yotMintPubkey,
+      programAuthorityAddress,
+      true // allowOwnerOffCurve
+    );
+    const programYotAccountInfo = await connection.getAccountInfo(programYotTokenAccount);
+    console.log("Program YOT account:", programYotTokenAccount.toString(), "exists:", !!programYotAccountInfo);
+    
+    if (!programYotAccountInfo) {
+      throw new Error("Program YOT token account does not exist. Admin needs to initialize it.");
+    }
+    
+    // Check program YOT token balance to ensure it has enough for unstaking
+    try {
+      const programYotBalance = await connection.getTokenAccountBalance(programYotTokenAccount);
+      console.log("Program YOT token balance:", programYotBalance.value.uiAmount);
+      
+      if ((programYotBalance.value.uiAmount || 0) < amount) {
+        throw new Error(`Program has insufficient YOT tokens for unstaking. Available: ${programYotBalance.value.uiAmount}, Requested: ${amount}`);
+      }
+    } catch (error) {
+      console.error("Error checking program YOT balance:", error);
+      throw new Error("Failed to verify program YOT token balance. " + (error instanceof Error ? error.message : String(error)));
+    }
+    
+    // Find user's YOS token account
+    let userYosTokenAccount = await getAssociatedTokenAddress(
+      yosMintPubkey,
+      userPublicKey
+    );
+    const userYosAccountInfo = await connection.getAccountInfo(userYosTokenAccount);
+    console.log("User YOS account:", userYosTokenAccount.toString(), "exists:", !!userYosAccountInfo);
+    
+    // Create YOS token account if it doesn't exist
+    if (!userYosAccountInfo) {
+      console.log("User YOS token account does not exist. Creating...");
+      
+      // Create Associated Token Account for YOS
+      const createYosAccountInstruction = createAssociatedTokenAccountInstruction(
+        userPublicKey,
+        userYosTokenAccount,
+        userPublicKey,
+        yosMintPubkey
+      );
+      
+      transaction.add(createYosAccountInstruction);
+      console.log("Added instruction to create YOS token account");
+    }
+    
+    // Find program's YOS token account
+    const programYosTokenAccount = await getAssociatedTokenAddress(
+      yosMintPubkey,
+      programAuthorityAddress,
+      true // allowOwnerOffCurve
+    );
+    const programYosAccountInfo = await connection.getAccountInfo(programYosTokenAccount);
+    console.log("Program YOS account:", programYosTokenAccount.toString(), "exists:", !!programYosAccountInfo);
+    
+    if (!programYosAccountInfo) {
+      throw new Error("Program YOS token account does not exist. Admin needs to initialize it.");
+    }
+    
+    // Check program YOS token balance to ensure it has enough for rewards
+    try {
+      const programYosBalance = await connection.getTokenAccountBalance(programYosTokenAccount);
+      console.log("Program YOS token balance:", programYosBalance.value.uiAmount);
+      
+      // Check if the user has a staking account to calculate pending rewards
+      const [userStakingAddress] = PublicKey.findProgramAddressSync(
+        [Buffer.from("staking"), userPublicKey.toBuffer()],
+        STAKING_PROGRAM_ID
+      );
+      const stakingAccountInfo = await connection.getAccountInfo(userStakingAddress);
+      
+      if (stakingAccountInfo) {
+        // Get user's staking info to check rewards
+        const stakingInfo = await getStakingInfo(userPublicKey.toString());
+        console.log("User has pending rewards:", stakingInfo.rewardsEarned);
+        
+        if (stakingInfo.rewardsEarned > 0 && (programYosBalance.value.uiAmount || 0) < stakingInfo.rewardsEarned) {
+          console.warn(`Program has insufficient YOS tokens for rewards. Available: ${programYosBalance.value.uiAmount}, Needed: ${stakingInfo.rewardsEarned}`);
+          // Continue with unstake but warn the user
+          toast({
+            title: "Warning: Rewards May Not Transfer",
+            description: `Program may have insufficient YOS tokens for your rewards. You'll get your YOT back but possibly not all rewards.`,
+            variant: "destructive",
+            duration: 6000
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error checking program YOS balance:", error);
+      // Continue with unstake but warn the user
+      toast({
+        title: "Warning: Error Checking Rewards",
+        description: "Failed to verify reward token balance. Unstaking may succeed but reward transfer could fail.",
+        variant: "destructive",
+        duration: 6000
+      });
+    }
+    
+    // Find user's staking account (PDA derived from user pubkey)
+    const [userStakingAddress] = PublicKey.findProgramAddressSync(
+      [Buffer.from("staking"), userPublicKey.toBuffer()],
+      STAKING_PROGRAM_ID
+    );
+    const userStakingAccountInfo = await connection.getAccountInfo(userStakingAddress);
+    console.log("User staking account:", userStakingAddress.toString(), "exists:", !!userStakingAccountInfo);
+    
+    if (!userStakingAccountInfo) {
+      throw new Error("User staking account does not exist. You need to stake tokens first.");
+    }
+    
+    // Find program state account (global state PDA)
+    const [programStateAddress] = PublicKey.findProgramAddressSync(
+      [Buffer.from("state")],
+      STAKING_PROGRAM_ID
+    );
+    const programStateInfo = await connection.getAccountInfo(programStateAddress);
+    console.log("Program state account:", programStateAddress.toString(), "exists:", !!programStateInfo);
+    
+    if (!programStateInfo) {
+      throw new Error("Program state account does not exist. Admin needs to initialize the program first.");
+    }
+    
+    // Create unstake instruction
+    console.log("Creating unstake instruction for amount:", amount);
+    
+    // CRITICAL UPDATE: Account order EXACTLY matches process_unstake function in Rust program
+    // Get accounts from process_unstake function (line ~339):
+    // user_account, user_yot_token_account, program_yot_token_account, user_yos_token_account,
+    // program_yos_token_account, user_staking_account, program_state_account, token_program, 
+    // program_authority, clock
+    const unstakeInstruction = new TransactionInstruction({
+      keys: [
+        // Exact order from Rust program process_unstake function
+        { pubkey: userPublicKey, isSigner: true, isWritable: true },        // user_account
+        { pubkey: userYotTokenAccount, isSigner: false, isWritable: true }, // user_yot_token_account (destination)
+        { pubkey: programYotTokenAccount, isSigner: false, isWritable: true }, // program_yot_token_account (source)
+        { pubkey: userYosTokenAccount, isSigner: false, isWritable: true }, // user_yos_token_account
+        { pubkey: programYosTokenAccount, isSigner: false, isWritable: true }, // program_yos_token_account (source for rewards)
+        { pubkey: userStakingAddress, isSigner: false, isWritable: true },  // user_staking_account (PDA)
+        { pubkey: programStateAddress, isSigner: false, isWritable: true }, // program_state_account
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },   // token_program
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }, // program_authority
+        { pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false } // clock
+      ],
+      programId: STAKING_PROGRAM_ID,
+      data: encodeUnstakeInstruction(amount)
+    });
+    
+    // Add unstake instruction to transaction
+    transaction.add(unstakeInstruction);
+    console.log("Added unstake instruction to transaction");
+    
+    // Set recent blockhash and fee payer
+    transaction.feePayer = userPublicKey;
+    transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+    
+    console.log("=== UNSTAKE TRANSACTION PREPARATION COMPLETE ===");
+    
+    return {
+      transaction,
+      connection,
+      userPublicKey,
+      userYotTokenAccount,
+      programYotTokenAccount,
+      userYosTokenAccount,
+      programYosTokenAccount,
+      userStakingAddress,
+      programStateAddress,
+      programAuthorityAddress
+    };
+  } catch (error) {
+    console.error("Error preparing unstake transaction:", error);
+    throw error;
+  }
+}
+
+/**
  * Unstake YOT tokens using the deployed program
  */
 export async function unstakeYOTTokens(

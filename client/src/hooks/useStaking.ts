@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { PublicKey } from '@solana/web3.js';
+import { Connection, PublicKey } from '@solana/web3.js';
 import { useMultiWallet } from '@/context/MultiWalletContext';
 import { connection } from '@/lib/completeSwap';
 import { toast } from '@/hooks/use-toast';
@@ -14,6 +14,42 @@ import {
   getGlobalStakingStats
 } from '@/lib/solana-staking';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { SOLANA_RPC_URL, YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, STAKING_PROGRAM_ID } from '@/lib/constants';
+import { getAssociatedTokenAddress } from '@solana/spl-token';
+
+// Define utility functions internally since they're not exported by solana-staking.ts
+function findStakingAccountAddress(walletAddress: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("staking"), walletAddress.toBuffer()],
+    new PublicKey(STAKING_PROGRAM_ID)
+  );
+}
+
+function findProgramStateAddress(): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("state")],
+    new PublicKey(STAKING_PROGRAM_ID)
+  );
+}
+
+function findProgramAuthorityAddress(): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("authority")],
+    new PublicKey(STAKING_PROGRAM_ID)
+  );
+}
+
+// Use getAssociatedTokenAddress from spl-token instead
+async function findAssociatedTokenAddress(
+  walletAddress: PublicKey,
+  tokenMintAddress: PublicKey
+): Promise<PublicKey> {
+  return await getAssociatedTokenAddress(
+    tokenMintAddress,
+    walletAddress,
+    true // allowOwnerOffCurve if needed for PDAs
+  );
+}
 
 interface StakingInfo {
   stakedAmount: number;
@@ -233,15 +269,83 @@ export function useStaking() {
       }
       
       try {
-        // Call the updated unstaking function which shows the wallet signature prompt
-        // even though the program isn't deployed yet
+        console.log("Starting unstake operation with detailed debugging...");
+        console.log("Amount to unstake:", amount);
+        
+        // Get the wallet public key string for logging
+        const walletAddress = publicKey.toString();
+        console.log("Wallet address:", walletAddress);
+        
+        // Find associated token accounts for wallet
+        const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
+        
+        // Check if the user's YOT token account exists
+        const userYotAccount = await findAssociatedTokenAddress(publicKey, new PublicKey(YOT_TOKEN_ADDRESS));
+        const userYotAccountInfo = await connection.getAccountInfo(userYotAccount);
+        console.log("User YOT account:", userYotAccount.toString(), "exists:", !!userYotAccountInfo);
+        
+        // Check if the user's YOS token account exists
+        const userYosAccount = await findAssociatedTokenAddress(publicKey, new PublicKey(YOS_TOKEN_ADDRESS));
+        const userYosAccountInfo = await connection.getAccountInfo(userYosAccount);
+        console.log("User YOS account:", userYosAccount.toString(), "exists:", !!userYosAccountInfo);
+        
+        // Find staking account PDA
+        const [userStakingAddress] = findStakingAccountAddress(publicKey);
+        const userStakingAccountInfo = await connection.getAccountInfo(userStakingAddress);
+        console.log("User staking account:", userStakingAddress.toString(), "exists:", !!userStakingAccountInfo);
+        if (userStakingAccountInfo) {
+          console.log("User staking account size:", userStakingAccountInfo.data.length, "bytes");
+        }
+        
+        // Check program state account
+        const [programStateAddress] = findProgramStateAddress();
+        const programStateInfo = await connection.getAccountInfo(programStateAddress);
+        console.log("Program state account:", programStateAddress.toString(), "exists:", !!programStateInfo);
+        if (programStateInfo) {
+          console.log("Program state account size:", programStateInfo.data.length, "bytes");
+        }
+        
+        // Get the program token accounts
+        const [programAuthorityAddress] = findProgramAuthorityAddress();
+        
+        // Check program's YOT token account
+        const programYotAccount = await findAssociatedTokenAddress(programAuthorityAddress, new PublicKey(YOT_TOKEN_ADDRESS));
+        const programYotAccountInfo = await connection.getAccountInfo(programYotAccount);
+        console.log("Program YOT account:", programYotAccount.toString(), "exists:", !!programYotAccountInfo);
+        
+        // Check program's YOS token account
+        const programYosAccount = await findAssociatedTokenAddress(programAuthorityAddress, new PublicKey(YOS_TOKEN_ADDRESS));
+        const programYosAccountInfo = await connection.getAccountInfo(programYosAccount);
+        console.log("Program YOS account:", programYosAccount.toString(), "exists:", !!programYosAccountInfo);
+        
+        // Check token balances
+        if (programYotAccountInfo) {
+          try {
+            const programYotBalance = await connection.getTokenAccountBalance(programYotAccount);
+            console.log("Program YOT balance:", programYotBalance.value.uiAmount);
+          } catch (e) {
+            console.error("Error getting program YOT balance:", e);
+          }
+        }
+        
+        if (programYosAccountInfo) {
+          try {
+            const programYosBalance = await connection.getTokenAccountBalance(programYosAccount);
+            console.log("Program YOS balance:", programYosBalance.value.uiAmount);
+          } catch (e) {
+            console.error("Error getting program YOS balance:", e);
+          }
+        }
+        
+        // Now call the actual unstake operation with all this debugging information
+        console.log("Now executing actual unstake operation...");
         const signature = await unstakeYOTTokens(wallet, amount);
         console.log("Unstake transaction signature:", signature);
         
         // Return both the signature and amount for processing in onSuccess
         return { signature, amount };
       } catch (err) {
-        console.error("Error unstaking:", err);
+        console.error("Error during unstaking operation:", err);
         throw err;
       }
     },
@@ -341,15 +445,80 @@ export function useStaking() {
       }
       
       try {
-        // Call the updated harvesting function which shows the wallet signature prompt
-        // even though the program isn't deployed yet
+        console.log("Starting harvest operation with detailed debugging...");
+        
+        // Get the wallet public key string for logging
+        const walletAddress = publicKey.toString();
+        console.log("Wallet address:", walletAddress);
+        
+        // Find associated token accounts for wallet
+        const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
+        
+        // Check if the user's YOT token account exists
+        const userYotAccount = await findAssociatedTokenAddress(publicKey, new PublicKey(YOT_TOKEN_ADDRESS));
+        const userYotAccountInfo = await connection.getAccountInfo(userYotAccount);
+        console.log("User YOT account:", userYotAccount.toString(), "exists:", !!userYotAccountInfo);
+        
+        // Check if the user's YOS token account exists
+        const userYosAccount = await findAssociatedTokenAddress(publicKey, new PublicKey(YOS_TOKEN_ADDRESS));
+        const userYosAccountInfo = await connection.getAccountInfo(userYosAccount);
+        console.log("User YOS account:", userYosAccount.toString(), "exists:", !!userYosAccountInfo);
+        
+        // Find staking account PDA
+        const [userStakingAddress] = findStakingAccountAddress(publicKey);
+        const userStakingAccountInfo = await connection.getAccountInfo(userStakingAddress);
+        console.log("User staking account:", userStakingAddress.toString(), "exists:", !!userStakingAccountInfo);
+        if (userStakingAccountInfo) {
+          console.log("User staking account size:", userStakingAccountInfo.data.length, "bytes");
+        }
+        
+        // Check program state account
+        const [programStateAddress] = findProgramStateAddress();
+        const programStateInfo = await connection.getAccountInfo(programStateAddress);
+        console.log("Program state account:", programStateAddress.toString(), "exists:", !!programStateInfo);
+        if (programStateInfo) {
+          console.log("Program state account size:", programStateInfo.data.length, "bytes");
+        }
+        
+        // Get the program token accounts
+        const [programAuthorityAddress] = findProgramAuthorityAddress();
+        
+        // Check program's YOT token account
+        const programYotAccount = await findAssociatedTokenAddress(programAuthorityAddress, new PublicKey(YOT_TOKEN_ADDRESS));
+        const programYotAccountInfo = await connection.getAccountInfo(programYotAccount);
+        console.log("Program YOT account:", programYotAccount.toString(), "exists:", !!programYotAccountInfo);
+        
+        // Check program's YOS token account
+        const programYosAccount = await findAssociatedTokenAddress(programAuthorityAddress, new PublicKey(YOS_TOKEN_ADDRESS));
+        const programYosAccountInfo = await connection.getAccountInfo(programYosAccount);
+        console.log("Program YOS account:", programYosAccount.toString(), "exists:", !!programYosAccountInfo);
+        
+        // Check token balances
+        if (programYosAccountInfo) {
+          try {
+            const programYosBalance = await connection.getTokenAccountBalance(programYosAccount);
+            console.log("Program YOS balance:", programYosBalance.value.uiAmount);
+            
+            // Check if rewards are available
+            const stakingInfo = await getStakingInfo(walletAddress);
+            console.log("Calculated rewards:", stakingInfo.rewardsEarned);
+            console.log("Last harvest time:", new Date(stakingInfo.lastHarvestTime * 1000).toISOString());
+            console.log("Program has enough tokens to pay rewards:", 
+              programYosBalance.value.uiAmount >= stakingInfo.rewardsEarned);
+          } catch (e) {
+            console.error("Error getting program YOS balance:", e);
+          }
+        }
+        
+        // Now call the actual harvest operation with all this debugging information
+        console.log("Now executing actual harvest operation...");
         const signature = await harvestYOSRewards(wallet);
         console.log("Harvest transaction signature:", signature);
         
         // Return the signature for processing in onSuccess
         return { signature };
       } catch (err) {
-        console.error("Error harvesting:", err);
+        console.error("Error during harvesting operation:", err);
         throw err;
       }
     },

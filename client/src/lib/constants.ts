@@ -3,6 +3,7 @@ import { Cluster, clusterApiUrl } from '@solana/web3.js';
 // Network configuration
 export const CLUSTER: Cluster = 'devnet';
 export const ENDPOINT = clusterApiUrl(CLUSTER);
+export const SOLANA_RPC_URL = ENDPOINT;
 
 // YOT Token (main token)
 export const YOT_TOKEN_ADDRESS = '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF';
