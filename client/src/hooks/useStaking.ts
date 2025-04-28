@@ -504,8 +504,18 @@ export function useStaking() {
       // Update the cache with simulated data immediately
       queryClient.setQueryData(['staking', 'rates'], updatedRates);
       
-      // Invalidate queries after updating cache to trigger background refresh
-      queryClient.invalidateQueries({ queryKey: ['staking'] });
+      // Invalidate queries after updating cache to trigger immediate refresh
+      // Specifically invalidate the rates query with refetchType: 'active' to force an immediate refresh
+      queryClient.invalidateQueries({ 
+        queryKey: ['staking', 'rates'],
+        refetchType: 'all'  // Force immediate refetch instead of waiting
+      });
+      
+      // Also invalidate any other staking queries
+      queryClient.invalidateQueries({ 
+        queryKey: ['staking'],
+        refetchType: 'all'  // Force immediate refetch of all staking queries
+      });
       
       toast({
         title: "Parameters Updated",

@@ -1011,14 +1011,16 @@ export async function getStakingProgramState(): Promise<{
     // This handles any staking rate consistently, from extremely small to large values
     const stakeRatePerSecond = convertBasisPointsToRatePerSecond(stakeRateBasisPoints);
     
+    // Define reference values consistent with convertBasisPointsToRatePerSecond
+    const REF_RATE = 0.0000125;
+    const REF_BASIS_POINTS = 120000;
+    
     console.log("Actual rate from blockchain:", {
       stakeRateBasisPoints,
       stakeRatePerSecond,
-      calculationDetails: stakeRateBasisPoints === 120000 ? "Special case: 120000 basis points → 0.00125%" : 
-                         stakeRateBasisPoints === 120 ? "Special case: 120 basis points → 0.00000125%" :
-                         stakeRateBasisPoints < 10 ? `${stakeRateBasisPoints} / 100000000 = ${stakeRateBasisPoints/100000000}` :
-                         stakeRateBasisPoints < 100 ? `${stakeRateBasisPoints} / 10000000 = ${stakeRateBasisPoints/10000000}` :
-                         `${stakeRateBasisPoints} / 10000 = ${stakeRateBasisPoints/10000}`
+      calculationDetails: stakeRateBasisPoints === 120000 ? "Special case: 120000 basis points → 0.0000125%" : 
+                         stakeRateBasisPoints === 12000 ? "Special case: 12000 basis points → 0.00000125%" :
+                         `Standard calculation: ${stakeRateBasisPoints} * (${REF_RATE} / ${REF_BASIS_POINTS}) = ${stakeRatePerSecond}`
     });
     
     // Additional logging to verify calculations for transparency
@@ -1130,14 +1132,16 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // This handles any staking rate consistently, from extremely small to large values
     const stakeRatePerSecond = convertBasisPointsToRatePerSecond(stakeRateBasisPoints);
     
+    // Define reference values consistent with convertBasisPointsToRatePerSecond
+    const REF_RATE = 0.0000125;
+    const REF_BASIS_POINTS = 120000;
+    
     console.log("Rate for reward calculation:", {
       stakeRateBasisPoints,
       stakeRatePerSecond,
-      calculationDetails: stakeRateBasisPoints === 120000 ? "Special case: 120000 basis points → 0.00125%" : 
-                         stakeRateBasisPoints === 120 ? "Special case: 120 basis points → 0.00000125%" :
-                         stakeRateBasisPoints < 10 ? `${stakeRateBasisPoints} / 100000000 = ${stakeRateBasisPoints/100000000}` :
-                         stakeRateBasisPoints < 100 ? `${stakeRateBasisPoints} / 10000000 = ${stakeRateBasisPoints/10000000}` :
-                         `${stakeRateBasisPoints} / 10000 = ${stakeRateBasisPoints/10000}`,
+      calculationDetails: stakeRateBasisPoints === 120000 ? "Special case: 120000 basis points → 0.0000125%" : 
+                         stakeRateBasisPoints === 12000 ? "Special case: 12000 basis points → 0.00000125%" :
+                         `Standard calculation: ${stakeRateBasisPoints} * (${REF_RATE} / ${REF_BASIS_POINTS}) = ${stakeRatePerSecond}`,
       displayedInUI: stakeRatePerSecond * 100, // What gets displayed in UI (percentage)
       dailyPercentage: stakeRatePerSecond * 86400,
       yearlyPercentage: stakeRatePerSecond * 86400 * 365
