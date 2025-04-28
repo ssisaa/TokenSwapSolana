@@ -897,7 +897,7 @@ export async function getStakingProgramState(): Promise<{
     if (!programStateInfo) {
       // Calculate realistic APY values based on the rate per second
       // This is the percentage per second (0.00125%)
-      const stakeRatePerSecond = 0.00125; 
+      const stakeRatePerSecond = 0.00125;
       
       // Simple multiplication for APY calculation (not compounding)
       const secondsPerDay = 86400;
@@ -928,8 +928,8 @@ export async function getStakingProgramState(): Promise<{
     
     // Read stake rate (8 bytes, 64-bit unsigned integer)
     // The rate stored on-chain represents percentage (e.g., 0.00125 for 0.00125%)
-    // We just need to ensure it's in the correct format for UI display and calculations
-    const stakeRatePerSecond = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32)) / 10000;
+    // Need to ensure we're using the correct divisor for UI display and calculations
+    const stakeRatePerSecond = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32)) / 1000000;
     
     // The value is now in percentage form (e.g., 0.00125) and ready to use
     // No further conversion needed - we'll convert to decimal later for calculations
@@ -1029,7 +1029,7 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     const totalHarvested = Number(data.readBigUInt64LE(56));
     
     // Get the staking rate in percentage format (e.g., 0.00125 for 0.00125%)
-    const stakeRatePerSecond = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32)) / 10000;
+    const stakeRatePerSecond = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32)) / 1000000;
     
     // For rewards calculation, convert from percentage to decimal (0.00125% → 0.0000125)
     const stakeRateDecimal = stakeRatePerSecond / 100;
