@@ -895,13 +895,28 @@ export async function getStakingProgramState(): Promise<{
     
     // If program state doesn't exist yet, return default values
     if (!programStateInfo) {
+      // Calculate realistic APY values based on the rate per second
+      const stakeRatePerSecond = 0.00000125; // 0.00000125 is 0.000125% per second (not 0.00125%)
+      
+      // Use compound interest formula: (1 + rate)^periods - 1
+      const secondsPerDay = 86400;
+      const secondsPerWeek = secondsPerDay * 7;
+      const secondsPerMonth = secondsPerDay * 30;
+      const secondsPerYear = secondsPerDay * 365;
+      
+      // Calculate compound interest: (1 + r)^n - 1
+      const dailyAPY = (Math.pow(1 + stakeRatePerSecond, secondsPerDay) - 1) * 100;
+      const weeklyAPY = (Math.pow(1 + stakeRatePerSecond, secondsPerWeek) - 1) * 100;
+      const monthlyAPY = (Math.pow(1 + stakeRatePerSecond, secondsPerMonth) - 1) * 100;
+      const yearlyAPY = (Math.pow(1 + stakeRatePerSecond, secondsPerYear) - 1) * 100;
+      
       return {
-        stakeRatePerSecond: 0.00125, // Default 0.00125% per second
+        stakeRatePerSecond,
         harvestThreshold: 1,         // Default 1 YOS threshold for harvesting
-        dailyAPY: 108,               // Default daily rate
-        weeklyAPY: 756,              // Default weekly rate 
-        monthlyAPY: 3240,            // Default monthly rate
-        yearlyAPY: 39420             // Default yearly rate
+        dailyAPY,                    // Compounded daily rate
+        weeklyAPY,                   // Compounded weekly rate
+        monthlyAPY,                  // Compounded monthly rate
+        yearlyAPY                    // Compounded yearly rate
       };
     }
     
