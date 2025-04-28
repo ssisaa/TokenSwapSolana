@@ -453,6 +453,9 @@ export async function initializeStakingProgram(
         
         // Add YOS mint address
         { pubkey: yosMintPubkey, isSigner: false, isWritable: false },
+        
+        // Clock for transaction time reference
+        { pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false },
       ],
       programId: STAKING_PROGRAM_ID,
       data: encodeInitializeInstruction(
@@ -670,7 +673,8 @@ export async function stakeYOTTokens(
         // System accounts
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // System program for account creation 
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // Token program for transfers
-        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false } // Rent
+        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, // Rent
+        { pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false } // Clock for timestamps
       ],
       programId: STAKING_PROGRAM_ID,
       data: encodeStakeInstruction(amount)
@@ -794,7 +798,8 @@ export async function unstakeYOTTokens(
         { pubkey: userStakingAddress, isSigner: false, isWritable: true },
         { pubkey: programStateAddress, isSigner: false, isWritable: false },
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false },
+        { pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false }
       ],
       programId: STAKING_PROGRAM_ID,
       data: encodeUnstakeInstruction(amount)
@@ -988,7 +993,8 @@ export async function updateStakingParameters(
     const updateInstruction = new TransactionInstruction({
       keys: [
         { pubkey: adminPublicKey, isSigner: true, isWritable: true },
-        { pubkey: programStateAddress, isSigner: false, isWritable: true }
+        { pubkey: programStateAddress, isSigner: false, isWritable: true },
+        { pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false }
       ],
       programId: STAKING_PROGRAM_ID,
       data: encodeUpdateParametersInstruction(stakeRatePerSecond, harvestThreshold)
