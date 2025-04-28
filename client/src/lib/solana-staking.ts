@@ -1028,15 +1028,11 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // Read total harvested rewards (8 bytes, 64-bit unsigned integer)
     const totalHarvested = Number(data.readBigUInt64LE(56));
     
-    // Parse program state data - get rate in proper decimal format
-    let stakeRatePerSecond = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32)) / 10000;
+    // Get the staking rate in percentage format (e.g., 0.00125 for 0.00125%)
+    const stakeRatePerSecond = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32)) / 10000;
     
-    // Convert from percentage to decimal for math calculations (same as in getStakingProgramState)
-    stakeRatePerSecond = stakeRatePerSecond / 100;
-    
-    // No need to cap rate - keep it as is to match admin settings
-    // 0.00125% = 0.0000125 in decimal form
-    stakeRatePerSecond = stakeRatePerSecond;
+    // For rewards calculation, convert from percentage to decimal (0.00125% → 0.0000125)
+    const stakeRateDecimal = stakeRatePerSecond / 100;
     
     // Calculate current time
     const currentTime = Math.floor(Date.now() / 1000);
@@ -1044,8 +1040,8 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // Calculate pending rewards
     const timeStakedSinceLastHarvest = currentTime - lastHarvestTime;
     
-    // Use the same rate for rewards calculation as we do for APR
-    const pendingRewards = Number(stakedAmount) * timeStakedSinceLastHarvest * stakeRatePerSecond;
+    // Use the decimal rate for rewards calculation
+    const pendingRewards = Number(stakedAmount) * timeStakedSinceLastHarvest * stakeRateDecimal;
     
     return {
       stakedAmount: Number(stakedAmount),
