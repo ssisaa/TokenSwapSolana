@@ -137,8 +137,8 @@ export default function Stake() {
               ) : (
                 <div className="flex items-baseline gap-1">
                   <span className="text-xl font-bold text-white">
-                    {globalStats && globalStats.totalStaked ? 
-                      ((stakingInfo.stakedAmount / globalStats.totalStaked) * 100).toFixed(2) : 
+                    {yotBalance && (yotBalance + stakingInfo.stakedAmount) > 0 ? 
+                      ((stakingInfo.stakedAmount / (yotBalance + stakingInfo.stakedAmount)) * 100).toFixed(2) : 
                       '0.00'}
                   </span>
                   <span className="text-sm font-semibold text-blue-400">%</span>
