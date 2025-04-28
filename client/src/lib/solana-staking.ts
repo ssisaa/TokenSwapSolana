@@ -182,30 +182,63 @@ function encodeInitializeInstruction(
 }
 
 function encodeStakeInstruction(amount: number): Buffer {
+  // Enhanced version with better debugging and error handling
+  console.log(`Encoding stake instruction with amount: ${amount}`);
+  
+  // Convert to lamports for more precision (assumes amount is in standard units)
+  const amountInLamports = Math.floor(amount * 1000000);
+  console.log(`Amount converted to lamports: ${amountInLamports}`);
+  
   // Create a buffer to hold all data
-  // 1 byte for instruction type + 8 bytes for amount (u64)
+  // Format: 1 byte instruction discriminator + 8 bytes for amount (u64)
   const buffer = Buffer.alloc(1 + 8);
   
-  // Write instruction type to the first byte
+  // Write instruction discriminator (1 = Stake)
   buffer.writeUInt8(StakingInstructionType.Stake, 0);
   
   // Write amount as little-endian u64 (8 bytes)
-  // JavaScript can only handle 53 bits safely, so we're using writeBigUInt64LE
-  buffer.writeBigUInt64LE(BigInt(amount), 1);
+  try {
+    buffer.writeBigUInt64LE(BigInt(amountInLamports), 1);
+    
+    // Verify buffer content to ensure correct serialization
+    console.log(`Buffer verification: discriminator=${buffer.readUInt8(0)}, amount=${buffer.readBigUInt64LE(1)}`);
+  } catch (error: any) {
+    console.error("Error serializing stake amount:", error);
+    console.error("Input amount:", amount, "type:", typeof amount);
+    console.error("Converted lamports:", amountInLamports, "type:", typeof amountInLamports);
+    throw new Error(`Failed to serialize stake amount: ${error.message}`);
+  }
   
   return buffer;
 }
 
 function encodeUnstakeInstruction(amount: number): Buffer {
+  // Enhanced version with better debugging and error handling
+  console.log(`Encoding unstake instruction with amount: ${amount}`);
+  
+  // Convert to lamports for more precision (assumes amount is in standard units)
+  const amountInLamports = Math.floor(amount * 1000000);
+  console.log(`Unstake amount converted to lamports: ${amountInLamports}`);
+  
   // Create a buffer to hold all data
-  // 1 byte for instruction type + 8 bytes for amount (u64)
+  // Format: 1 byte instruction discriminator + 8 bytes for amount (u64)
   const buffer = Buffer.alloc(1 + 8);
   
-  // Write instruction type to the first byte
+  // Write instruction discriminator (2 = Unstake)
   buffer.writeUInt8(StakingInstructionType.Unstake, 0);
   
   // Write amount as little-endian u64 (8 bytes)
-  buffer.writeBigUInt64LE(BigInt(amount), 1);
+  try {
+    buffer.writeBigUInt64LE(BigInt(amountInLamports), 1);
+    
+    // Verify buffer content to ensure correct serialization
+    console.log(`Unstake buffer verification: discriminator=${buffer.readUInt8(0)}, amount=${buffer.readBigUInt64LE(1)}`);
+  } catch (error: any) {
+    console.error("Error serializing unstake amount:", error);
+    console.error("Input amount:", amount, "type:", typeof amount);
+    console.error("Converted lamports:", amountInLamports, "type:", typeof amountInLamports);
+    throw new Error(`Failed to serialize unstake amount: ${error.message}`);
+  }
   
   return buffer;
 }
