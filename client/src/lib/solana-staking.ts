@@ -1465,13 +1465,45 @@ export async function getGlobalStakingStats(): Promise<{
       totalStakers = 2;
     }
     
-    // Step 4: Calculate total harvested YOS (this would come from program state)
-    // For now, use a realistic value based on the staked amount
-    // Assuming average APR of 39.42% and an average staking period of 3 months
-    totalHarvested = Math.round((totalStaked * 0.3942 * 0.25) * 100) / 100;
+    // Step 4: Calculate total harvested YOS - use actual blockchain data
+    // Get total harvested from all user staking accounts
+    try {
+      // Process all user staking accounts to get total harvested YOS
+      const programAccounts = await connection.getProgramAccounts(
+        new PublicKey(STAKING_PROGRAM_ID),
+        {
+          filters: [
+            {
+              dataSize: 128, // Expected size of a staking account
+            }
+          ]
+        }
+      );
+      
+      // Sum up all the harvested values from each staking account
+      for (const account of programAccounts) {
+        if (account.account.data.length >= 64) { // Make sure there's enough data to read
+          try {
+            // Total harvested is at offset 56 (8 bytes, u64) in the staking account data
+            const harvestedRaw = account.account.data.readBigUInt64LE(56);
+            
+            // Convert from raw to decimal using 9 decimals (YOS uses 9 decimals)
+            const YOS_DECIMALS = 9;
+            const harvested = Number(harvestedRaw) / Math.pow(10, YOS_DECIMALS);
+            
+            // Add to total
+            totalHarvested += harvested;
+          } catch (err) {
+            console.error("Error parsing staking account harvested data:", err);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching staking accounts for harvested calculation:", err);
+    }
     
-    // Log the final stats we're returning
-    console.log(`Returning realistic blockchain-based global stats: ${totalStaked} YOT staked, ${totalStakers} stakers, ${totalHarvested} YOS harvested`);
+    // No fallbacks - use only blockchain data
+    console.log(`Returning actual blockchain-based global stats: ${totalStaked} YOT staked, ${totalStakers} stakers, ${totalHarvested} YOS harvested`);
     
     return {
       totalStaked,
