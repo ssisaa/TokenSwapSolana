@@ -959,12 +959,12 @@ export async function getStakingProgramState(): Promise<{
     const stakeRateBasisPoints = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32));
     
     // Convert basis points to percentage
-    // For a value of 12 basis points, we want 0.00125% per second
+    // For a value of 13 basis points, we want 0.00125% per second
     // We need to do a specific conversion based on the expected value
     let stakeRatePerSecond;
     
-    if (stakeRateBasisPoints === 12) {
-      // If it's 12 basis points, use exactly 0.00125%
+    if (stakeRateBasisPoints === 13) {
+      // If it's 13 basis points, use exactly 0.00125%
       stakeRatePerSecond = 0.00125;
     } else {
       // Otherwise, use the general conversion (basis points / 10000)
