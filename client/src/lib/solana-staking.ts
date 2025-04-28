@@ -197,6 +197,10 @@ function encodeUpdateParametersInstruction(
     // If you need to change this in the future, you can switch between these values:
     // rateInBasisPoints = 12;     // Original encoding (12 basis points)
     // rateInBasisPoints = 120000; // Current encoding (120000 basis points)
+  } else if (stakeRatePerSecond < 0.0001) {
+    // For extremely small values (less than 0.0001%), enforce a minimum of 1 basis point
+    rateInBasisPoints = 1;
+    console.log(`Very small rate detected (${stakeRatePerSecond}%). Using minimum 1 basis point for update`);
   } else {
     // Otherwise, use the standard formula (1% = 10000 basis points)
     rateInBasisPoints = Math.round(stakeRatePerSecond * 10000);
