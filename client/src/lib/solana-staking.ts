@@ -85,6 +85,10 @@ function encodeInitializeInstruction(
     // (Initially we used 12 basis points, but blockchain now has 120000)
     rateInBasisPoints = 120000;
     console.log("Using special encoding for initialization: 120000 basis points for 0.00125% rate");
+  } else if (stakeRatePerSecond < 0.0001) {
+    // For extremely small values (less than 0.0001%), enforce a minimum of 1 basis point
+    rateInBasisPoints = 1;
+    console.log(`Very small rate detected (${stakeRatePerSecond}%). Using minimum 1 basis point for initialization`);
   } else {
     // Otherwise, use the standard formula (1% = 10000 basis points)
     rateInBasisPoints = Math.round(stakeRatePerSecond * 10000);

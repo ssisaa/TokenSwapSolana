@@ -300,7 +300,7 @@ export default function AdminSettings() {
                       <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2">
                         <p>
                           <span className="font-medium">Per second:</span> {
-                            parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).second).toFixed(6)
+                            parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).second).toFixed(10)
                           }%
                         </p>
                         <p>
@@ -323,8 +323,11 @@ export default function AdminSettings() {
                       {/* Note about blockchain value */}
                       <p className="mt-2 text-xs text-muted-foreground">
                         Blockchain storage: {
-                          Math.floor(parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).second) * 10000)
+                          Math.max(1, Math.floor(parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).second) * 10000))
                         } basis points
+                      </p>
+                      <p className="text-xs text-yellow-500">
+                        Note: Values below 0.0001% will be stored as 1 basis point (minimum)
                       </p>
                     </div>
                   </div>
@@ -424,12 +427,14 @@ export default function AdminSettings() {
                       
                       // Convert to basis points for the program (since we're working with percentages)
                       // This needs to be an integer value of basis points, not a decimal
-                      const stakeRateInBasisPoints = Math.floor(stakeRatePerSecond * 10000);
+                      // Ensure we have at least 1 basis point for very small values
+                      const stakeRateInBasisPoints = Math.max(1, Math.floor(stakeRatePerSecond * 10000));
                       
                       console.log("Initializing program with parameters:", {
                         stakeRatePerSecond,
                         stakeRateInBasisPoints,
-                        harvestThresholdValue
+                        harvestThresholdValue,
+                        minValueEnforced: stakeRatePerSecond < 0.0001
                       });
                       
                       console.log("Using wallet:", wallet);
