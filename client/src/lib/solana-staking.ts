@@ -2491,9 +2491,8 @@ export async function getGlobalStakingStats(): Promise<{
             // Total harvested is at offset 56 (8 bytes, u64) in the staking account data
             const harvestedRaw = account.account.data.readBigUInt64LE(56);
             
-            // Convert from raw to decimal using 9 decimals (YOS uses 9 decimals)
-            const YOS_DECIMALS = 9;
-            const harvested = Number(harvestedRaw) / Math.pow(10, YOS_DECIMALS);
+            // Convert from raw to decimal using our utility function
+            const harvested = rawToUiTokenAmount(harvestedRaw, YOS_DECIMALS);
             
             // Add to total
             totalHarvested += harvested;
@@ -2526,7 +2525,7 @@ export async function getGlobalStakingStats(): Promise<{
       
       if (yotMintInfo.value && 'parsed' in yotMintInfo.value.data) {
         const tokenData = yotMintInfo.value.data.parsed;
-        const totalSupply = Number(tokenData.info.supply) / Math.pow(10, tokenData.info.decimals);
+        const totalSupply = rawToUiTokenAmount(BigInt(tokenData.info.supply), tokenData.info.decimals);
         
         // Calculate realistic values based on token supply
         const totalStaked = Math.round(totalSupply * 0.01 * 100) / 100;
