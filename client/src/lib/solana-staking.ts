@@ -75,32 +75,37 @@ function encodeInitializeInstruction(
     harvestThreshold
   });
   
-  // In Rust, this is enum StakingInstruction { Initialize { yot_mint, yos_mint, stake_rate_per_second, harvest_threshold } }
-  // Create a buffer to hold all data
-  // 1 byte for instruction type + 32 bytes for yotMint + 32 bytes for yosMint + 8 bytes for rate + 8 bytes for threshold
+  // The Borsh serialization for the Initialize variant in Rust might look like:
+  // enum StakingInstruction { Initialize { yot_mint, yos_mint, stake_rate, threshold } }
+  
+  // Simplify the format - just use a fixed layout matching the Rust side's expectation
+  // Variant discriminator (1 byte) + two public keys (32 bytes each) + two u64s (8 bytes each)
   const buffer = Buffer.alloc(1 + 32 + 32 + 8 + 8);
   
-  // Write instruction type to the first byte
-  // 0 = Initialize in our enum
+  // Write instruction variant discriminator (0 = Initialize)
   buffer.writeUInt8(StakingInstructionType.Initialize, 0);
   
-  // Write YOT mint pubkey bytes (32 bytes) - Rust expects this to be in little-endian format
-  const yotMintBytes = yotMint.toBytes();
-  buffer.set(yotMintBytes, 1);
+  // Write YOT mint pubkey bytes (32 bytes)
+  buffer.set(yotMint.toBuffer(), 1);
   
-  // Write YOS mint pubkey bytes (32 bytes)
-  const yosMintBytes = yosMint.toBytes();
-  buffer.set(yosMintBytes, 33);
+  // Write YOS mint pubkey bytes (32 bytes) 
+  buffer.set(yosMint.toBuffer(), 33);
   
-  // Write rate as little-endian u64 (8 bytes) - Rust expects u64 as little-endian
-  buffer.writeBigUInt64LE(BigInt(stakeRatePerSecond), 65);
+  // Write stake rate as little-endian u64 (8 bytes)
+  // Convert to bigint first to handle potential large numbers
+  buffer.writeBigUInt64LE(BigInt(Math.floor(stakeRatePerSecond)), 65);
   
-  // Write threshold as little-endian u64 (8 bytes) 
-  buffer.writeBigUInt64LE(BigInt(harvestThreshold), 73);
+  // Write harvest threshold as little-endian u64 (8 bytes)
+  buffer.writeBigUInt64LE(BigInt(Math.floor(harvestThreshold)), 73);
   
-  // Log the buffer for debugging
-  console.log("Encoded init instruction buffer:", buffer);
-  console.log("Encoded init instruction hex:", buffer.toString('hex'));
+  // Debug logging to verify our buffer
+  console.log("Encoded initialization instruction bytes:", {
+    discriminator: buffer.readUInt8(0),
+    yotMintHex: buffer.slice(1, 33).toString('hex'),
+    yosMintHex: buffer.slice(33, 65).toString('hex'),
+    stakeRateBigInt: buffer.readBigUInt64LE(65),
+    harvestThresholdBigInt: buffer.readBigUInt64LE(73)
+  });
   
   return buffer;
 }
@@ -239,29 +244,68 @@ export async function initializeStakingProgram(
     );
     console.log('Program YOS account address:', programYosTokenAccount.toString());
 
-    // Create transaction instruction
+    // Create instruction to setup program token accounts if they don't exist
+    let instructions: TransactionInstruction[] = [];
+    
+    // Check if the program's YOT token account exists
+    const programYotTokenAccountInfo = await connection.getAccountInfo(programYotTokenAccount);
+    console.log('Program YOT token account exists:', !!programYotTokenAccountInfo);
+    
+    // Check if the program's YOS token account exists
+    const programYosTokenAccountInfo = await connection.getAccountInfo(programYosTokenAccount);
+    console.log('Program YOS token account exists:', !!programYosTokenAccountInfo);
+    
+    // If the program's token accounts don't exist yet, we create them first
+    // This is necessary for the program to be able to receive tokens
+    if (!programYotTokenAccountInfo) {
+      console.log('Creating program YOT token account...');
+      const createYotAccountInstruction = createAssociatedTokenAccountInstruction(
+        adminPublicKey,
+        programYotTokenAccount,
+        programAuthorityAddress,
+        yotMintPubkey
+      );
+      instructions.push(createYotAccountInstruction);
+    }
+    
+    if (!programYosTokenAccountInfo) {
+      console.log('Creating program YOS token account...');
+      const createYosAccountInstruction = createAssociatedTokenAccountInstruction(
+        adminPublicKey,
+        programYosTokenAccount,
+        programAuthorityAddress,
+        yosMintPubkey
+      );
+      instructions.push(createYosAccountInstruction);
+    }
+    
+    // Create main transaction instruction for program initialization
     console.log("Creating initialization instruction");
     const initInstruction = new TransactionInstruction({
       keys: [
         // Admin is the signer and payer
         { pubkey: adminPublicKey, isSigner: true, isWritable: true },
         
-        // Program accounts that will be created/written to
+        // Program accounts
         { pubkey: programStateAddress, isSigner: false, isWritable: true },
         { pubkey: programAuthorityAddress, isSigner: false, isWritable: false },
         
-        // Token mints 
+        // Token accounts
+        { pubkey: programYotTokenAccount, isSigner: false, isWritable: true },
+        { pubkey: programYosTokenAccount, isSigner: false, isWritable: true },
+        
+        // Token mints
         { pubkey: yotMintPubkey, isSigner: false, isWritable: false },
         { pubkey: yosMintPubkey, isSigner: false, isWritable: false },
         
         // System program for account creation
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         
-        // Rent program for rent exemption
-        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
-        
         // Token program for token operations
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        
+        // Rent program for rent exemption
+        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
       ],
       programId: STAKING_PROGRAM_ID,
       data: encodeInitializeInstruction(
@@ -272,8 +316,16 @@ export async function initializeStakingProgram(
       )
     });
     
-    // Create transaction
-    const transaction = new Transaction().add(initInstruction);
+    // Add the main instruction to our list
+    instructions.push(initInstruction);
+    
+    // Create transaction with all necessary instructions
+    const transaction = new Transaction();
+    
+    // Add all instructions to the transaction
+    instructions.forEach(instruction => {
+      transaction.add(instruction);
+    });
     
     // Set recent blockhash and fee payer
     transaction.feePayer = adminPublicKey;
