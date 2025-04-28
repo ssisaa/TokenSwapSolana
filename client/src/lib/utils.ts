@@ -12,19 +12,14 @@ export function formatCurrency(amount: number | string, decimals: number = 6): s
   
   if (isNaN(amount)) return '0.00';
   
-  // Use abbreviated format for large numbers
   const absAmount = Math.abs(amount);
-  if (absAmount >= 1_000_000_000_000) { // >= 1 trillion
-    return (amount / 1_000_000_000_000).toFixed(2) + 'T';
-  } else if (absAmount >= 1_000_000_000) { // >= 1 billion
-    return (amount / 1_000_000_000).toFixed(2) + 'B';
-  } else if (absAmount >= 1_000_000) { // >= 1 million
-    return (amount / 1_000_000).toFixed(2) + 'M';
-  } else if (absAmount >= 1_000) { // >= 1 thousand
-    return (amount / 1_000).toFixed(2) + 'K';
+  
+  // For very small numbers (below 0.0001), use scientific notation
+  if (absAmount < 0.0001 && absAmount > 0) {
+    return amount.toExponential(4);
   }
   
-  // Use standard formatting for smaller numbers
+  // Use exact values for all currency amounts to ensure users see their precise balances
   const formatter = new Intl.NumberFormat('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: decimals,
@@ -78,24 +73,16 @@ export function formatTransactionTime(timestamp: number): string {
 export function formatNumber(value: number, decimals: number = 4): string {
   if (isNaN(value) || value === 0) return '0';
   
-  // For very small numbers, use scientific notation
-  if (value < 0.0001) {
+  // For amounts less than 10,000, we show exact values with appropriate decimals
+  const absValue = Math.abs(value);
+  
+  // For very small numbers (below 0.0001), use scientific notation to avoid too many zeros
+  if (absValue < 0.0001) {
     return value.toExponential(4);
   }
   
-  // Use abbreviated format for large numbers
-  const absValue = Math.abs(value);
-  if (absValue >= 1_000_000_000_000) { // >= 1 trillion
-    return (value / 1_000_000_000_000).toFixed(2) + 'T';
-  } else if (absValue >= 1_000_000_000) { // >= 1 billion
-    return (value / 1_000_000_000).toFixed(2) + 'B';
-  } else if (absValue >= 1_000_000) { // >= 1 million
-    return (value / 1_000_000).toFixed(2) + 'M';
-  } else if (absValue >= 1_000) { // >= 1 thousand
-    return (value / 1_000).toFixed(2) + 'K';
-  }
-  
-  // Regular formatting for other numbers
+  // Regular formatting for all numbers - show exact values, not abbreviations
+  // This ensures users see their precise token amounts
   return value.toLocaleString('en-US', {
     minimumFractionDigits: 0,
     maximumFractionDigits: decimals

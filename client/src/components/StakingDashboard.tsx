@@ -77,7 +77,7 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
               <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
             ) : (
               <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold text-white">{formatNumber(globalStats ? globalStats.totalStaked : 0)}</span>
+                <span className="text-xl font-bold text-white">{(globalStats ? globalStats.totalStaked : 0).toLocaleString('en-US')}</span>
                 <span className="text-sm font-semibold text-blue-400">YOT</span>
               </div>
             )}
@@ -92,7 +92,7 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
               <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
             ) : (
               <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold text-white">{formatNumber(stakingInfo.rewardsEarned)}</span>
+                <span className="text-xl font-bold text-white">{stakingInfo.rewardsEarned.toLocaleString('en-US')}</span>
                 <span className="text-sm font-semibold text-green-400">YOS</span>
               </div>
             )}
@@ -107,7 +107,7 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
               <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
             ) : (
               <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold text-white">{formatNumber(stakingInfo.totalHarvested)}</span>
+                <span className="text-xl font-bold text-white">{stakingInfo.totalHarvested.toLocaleString('en-US')}</span>
                 <span className="text-sm font-semibold text-green-400">YOS</span>
               </div>
             )}
