@@ -369,6 +369,78 @@ export default function Stake() {
             </Card>
           </div>
           
+          {/* Staking APR/APY Rates */}
+          <Card className="bg-dark-200 border border-slate-700 mb-6">
+            <CardContent className="pt-6">
+              <h3 className="text-xl font-bold mb-4 text-white">Staking APR/APY Rates</h3>
+              
+              <div className="border-t border-slate-700 py-3">
+                <div className="flex justify-between items-center">
+                  <div className="text-sm font-medium text-white">Per Second Rate:</div>
+                  <div className="text-sm font-bold text-green-400">
+                    {`${(stakingRates?.stakeRatePerSecond || 0).toFixed(8)}%`}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-2 border-b border-slate-700">
+                  <div className="text-xs font-medium text-gray-400">Daily APR:</div>
+                  <div className="text-sm font-bold text-green-400">
+                    {`${(stakingRates?.dailyAPR || 0).toFixed(2)}%`}
+                  </div>
+                </div>
+                <div className="p-2 border-b border-slate-700">
+                  <div className="text-xs font-medium text-gray-400">Daily APY:</div>
+                  <div className="text-sm font-bold text-green-400">
+                    {`${(stakingRates?.dailyAPY || 0).toFixed(2)}%`}
+                  </div>
+                </div>
+                <div className="p-2 border-b border-slate-700">
+                  <div className="text-xs font-medium text-gray-400">Weekly APR:</div>
+                  <div className="text-sm font-bold text-green-400">
+                    {`${(stakingRates?.weeklyAPR || 0).toFixed(2)}%`}
+                  </div>
+                </div>
+                <div className="p-2 border-b border-slate-700">
+                  <div className="text-xs font-medium text-gray-400">Weekly APY:</div>
+                  <div className="text-sm font-bold text-green-400">
+                    {`${(stakingRates?.weeklyAPY || 0).toFixed(2)}%`}
+                  </div>
+                </div>
+                <div className="p-2 border-b border-slate-700">
+                  <div className="text-xs font-medium text-gray-400">Monthly APR:</div>
+                  <div className="text-sm font-bold text-green-400">
+                    {`${(stakingRates?.monthlyAPR || 0).toFixed(2)}%`}
+                  </div>
+                </div>
+                <div className="p-2 border-b border-slate-700">
+                  <div className="text-xs font-medium text-gray-400">Monthly APY:</div>
+                  <div className="text-sm font-bold text-green-400">
+                    {`${(stakingRates?.monthlyAPY || 0).toFixed(2)}%`}
+                  </div>
+                </div>
+                <div className="p-2">
+                  <div className="text-xs font-medium text-gray-400">Yearly APR:</div>
+                  <div className="text-sm font-bold text-green-400">
+                    {`${(stakingRates?.yearlyAPR || 0).toFixed(2)}%`}
+                  </div>
+                </div>
+                <div className="p-2">
+                  <div className="text-xs font-medium text-gray-400">Yearly APY:</div>
+                  <div className="text-sm font-bold text-green-400">
+                    {`${(stakingRates?.yearlyAPY || 0).toFixed(2)}%`}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="text-xs text-gray-400 flex items-center mt-2">
+                <InfoIcon className="h-3 w-3 mr-1 text-blue-400" />
+                Rates are set by the admin and may change
+              </div>
+            </CardContent>
+          </Card>
+          
           {/* How Staking Works (Below) */}
           <Card className="bg-dark-200 border border-slate-700 mb-6">
             <CardContent className="pt-6">
