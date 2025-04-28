@@ -11,7 +11,9 @@ import {
   getStakingInfo,
   updateStakingParameters,
   getStakingProgramState,
-  getGlobalStakingStats
+  getGlobalStakingStats,
+  validateStakingAccounts,
+  simulateTransaction
 } from '@/lib/solana-staking';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ENDPOINT, YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, STAKING_PROGRAM_ID } from '@/lib/constants';

@@ -30,6 +30,69 @@ import { STAKING_PROGRAM_ID as PROGRAM_ID_STRING } from '@/lib/constants';
 const STAKING_PROGRAM_ID = new PublicKey(PROGRAM_ID_STRING);
 
 /**
+ * Simulates a transaction and returns detailed logs to diagnose issues
+ * @param connection Solana connection
+ * @param transaction Transaction to simulate
+ * @returns Simulation results with logs and potential error information
+ */
+export async function simulateTransaction(connection: Connection, transaction: Transaction) {
+  try {
+    console.log("=== SIMULATING TRANSACTION ===");
+    
+    // Clone the transaction to avoid modifying the original
+    const simulationTx = Transaction.from(transaction.serialize());
+    
+    // Run simulation
+    const simulation = await connection.simulateTransaction(simulationTx);
+    
+    // Analyze the results
+    const result = {
+      success: !simulation.value.err,
+      error: simulation.value.err,
+      logs: simulation.value.logs || [],
+      unitsConsumed: simulation.value.unitsConsumed || 0
+    };
+    
+    console.log("Simulation success:", result.success);
+    if (!result.success) {
+      console.error("Simulation error:", result.error);
+    }
+    
+    console.log(`Compute units consumed: ${result.unitsConsumed}`);
+    console.log("Transaction simulation logs:");
+    if (result.logs && result.logs.length > 0) {
+      result.logs.forEach((log, i) => {
+        console.log(`${i}: ${log}`);
+      });
+    } else {
+      console.log("No logs returned from simulation");
+    }
+    
+    // Look for specific error patterns in logs
+    if (result.logs) {
+      // Search for common program errors in the logs
+      const errorLogs = result.logs.filter(log => 
+        log.includes("Error") || 
+        log.includes("failed") || 
+        log.includes("insufficient") ||
+        log.includes("not initialized")
+      );
+      
+      if (errorLogs.length > 0) {
+        console.error("Found error indicators in logs:");
+        errorLogs.forEach(log => console.error(`- ${log}`));
+      }
+    }
+    
+    console.log("=== SIMULATION COMPLETE ===");
+    return result;
+  } catch (error) {
+    console.error("Error during transaction simulation:", error);
+    throw error;
+  }
+}
+
+/**
  * Validates all token accounts and PDAs required for staking operations
  * @param wallet The connected wallet
  * @returns Object containing all validated accounts and any warnings/errors
