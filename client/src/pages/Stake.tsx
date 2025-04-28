@@ -142,17 +142,17 @@ export default function Stake() {
                   <div>
                     <div className="flex justify-between mb-1">
                       <span className="font-medium">Total Stakers</span>
-                      <span className="font-semibold">{globalStats?.totalStakers || '-'}</span>
+                      <span className="font-semibold">{globalStats ? globalStats.totalStakers : '-'}</span>
                     </div>
-                    <Progress value={globalStats?.totalStakers ? Math.min((globalStats.totalStakers / 100) * 100, 100) : 50} className="h-2" />
+                    <Progress value={globalStats ? Math.min((globalStats.totalStakers / 100) * 100, 100) : 50} className="h-2" />
                   </div>
                   
                   <div>
                     <div className="flex justify-between mb-1">
                       <span className="font-medium">Total Staked</span>
-                      <span className="font-semibold">{formatNumber(globalStats?.totalStaked || 0)} YOT</span>
+                      <span className="font-semibold">{formatNumber(globalStats ? globalStats.totalStaked : 0)} YOT</span>
                     </div>
-                    <Progress value={Math.min((globalStats?.totalStaked || 0) / 10000000 * 100, 100)} className="h-2" />
+                    <Progress value={Math.min((globalStats ? globalStats.totalStaked : 0) / 10000000 * 100, 100)} className="h-2" />
                   </div>
                   
                   <div className="pt-2 space-y-2">

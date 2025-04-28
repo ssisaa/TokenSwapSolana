@@ -107,7 +107,7 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
               <Skeleton className="h-6 w-28 bg-dark-100" />
             ) : (
               <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold text-white">{formatNumber(globalStats?.totalStaked || 0)}</span>
+                <span className="text-xl font-bold text-white">{formatNumber(globalStats ? globalStats.totalStaked : 0)}</span>
                 <span className="text-sm font-semibold text-primary">YOT</span>
               </div>
             )}
@@ -123,7 +123,7 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
             ) : (
               <div className="flex items-baseline gap-1">
                 <span className="text-xl font-bold text-white">
-                  {globalStats?.totalStaked ? 
+                  {globalStats && globalStats.totalStaked ? 
                     ((stakingInfo.stakedAmount / globalStats.totalStaked) * 100).toFixed(2) : 
                     '0.00'}
                 </span>

@@ -896,19 +896,20 @@ export async function getStakingProgramState(): Promise<{
     // If program state doesn't exist yet, return default values
     if (!programStateInfo) {
       // Calculate realistic APY values based on the rate per second
-      const stakeRatePerSecond = 0.00000125; // 0.00000125 is 0.000125% per second (not 0.00125%)
+      // This is the percentage per second (0.00125%)
+      const stakeRatePerSecond = 0.00125; 
       
-      // Use compound interest formula: (1 + rate)^periods - 1
+      // Simple multiplication for APY calculation (not compounding)
       const secondsPerDay = 86400;
       const secondsPerWeek = secondsPerDay * 7;
       const secondsPerMonth = secondsPerDay * 30;
       const secondsPerYear = secondsPerDay * 365;
       
-      // Calculate compound interest: (1 + r)^n - 1
-      const dailyAPY = (Math.pow(1 + stakeRatePerSecond, secondsPerDay) - 1) * 100;
-      const weeklyAPY = (Math.pow(1 + stakeRatePerSecond, secondsPerWeek) - 1) * 100;
-      const monthlyAPY = (Math.pow(1 + stakeRatePerSecond, secondsPerMonth) - 1) * 100;
-      const yearlyAPY = (Math.pow(1 + stakeRatePerSecond, secondsPerYear) - 1) * 100;
+      // Calculate linear rates (not compound)
+      const dailyAPY = stakeRatePerSecond * secondsPerDay;     // ~108% daily
+      const weeklyAPY = dailyAPY * 7;                          // ~756% weekly
+      const monthlyAPY = dailyAPY * 30;                        // ~3240% monthly
+      const yearlyAPY = dailyAPY * 365;                        // ~39420% yearly
       
       return {
         stakeRatePerSecond,
@@ -1066,7 +1067,7 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     
     // For existing users who have no staking account, returning zero values is appropriate
     // This is not a fallback or mock - it accurately represents that the user hasn't staked yet
-    if (error.message && error.message.includes('Account does not exist')) {
+    if (error && (error as any).message && (error as any).message.includes('Account does not exist')) {
       return {
         stakedAmount: 0,
         startTimestamp: 0,
