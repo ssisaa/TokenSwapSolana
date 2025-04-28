@@ -5,10 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useMultiWallet } from '@/context/MultiWalletContext';
 import { useStaking } from '@/hooks/useStaking';
-import { Loader2, AlertTriangle, Flame } from 'lucide-react';
+import { Loader2, AlertTriangle, Flame, CoinsIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAdminSettings } from '@/hooks/use-admin-settings';
 import { initializeStakingProgram } from '@/lib/solana-staking';
+import { fundProgramYosAccount, checkProgramYosBalance } from '@/lib/helpers/fund-program';
 
 export default function StakingSettings() {
   const { connected, publicKey, wallet } = useMultiWallet();
@@ -16,6 +17,10 @@ export default function StakingSettings() {
   const { toast } = useToast();
   const { updateSettings, isUpdating: isUpdatingDatabase } = useAdminSettings();
   const [isInitializing, setIsInitializing] = useState(false);
+  const [isFunding, setIsFunding] = useState(false);
+  const [isCheckingBalance, setIsCheckingBalance] = useState(false);
+  const [programYosBalance, setProgramYosBalance] = useState<number | null>(null);
+  const [fundAmount, setFundAmount] = useState<string>('10.0');
   
   // State for form values - initialize with current values from blockchain
   const [stakeRatePerSecond, setStakeRatePerSecond] = useState<string>('0.0000000125');
@@ -287,6 +292,169 @@ export default function StakingSettings() {
               </Button>
             </div>
           )}
+          
+          {/* Add program funding section */}
+          <div className="bg-green-50 border border-green-200 p-3 rounded-md mt-4">
+            <div className="flex items-center gap-2 text-green-700 font-medium mb-2">
+              <CoinsIcon className="h-5 w-5" />
+              <span>Program YOS Rewards Balance</span>
+            </div>
+            
+            <p className="text-sm text-green-600 mb-3">
+              The program needs YOS tokens to pay out rewards to stakers. If users are having trouble 
+              harvesting rewards, you may need to fund the program's YOS token account.
+            </p>
+            
+            {programYosBalance !== null && (
+              <div className="bg-white p-3 rounded-md mb-3 text-center">
+                <span className="font-semibold">Current Balance:</span> {programYosBalance.toFixed(2)} YOS tokens
+                {programYosBalance < 10 && (
+                  <div className="text-xs text-red-500 mt-1">
+                    Warning: Low balance may prevent users from harvesting rewards!
+                  </div>
+                )}
+              </div>
+            )}
+            
+            <div className="flex gap-3 mb-3">
+              <Button 
+                type="button"
+                variant="secondary"
+                className="flex-1"
+                disabled={!isAdmin || isCheckingBalance}
+                onClick={async () => {
+                  if (!isAdmin) return;
+                  
+                  try {
+                    setIsCheckingBalance(true);
+                    const result = await checkProgramYosBalance();
+                    setProgramYosBalance(result.balance);
+                    
+                    if (!result.exists) {
+                      toast({
+                        title: "Program Account Missing",
+                        description: "The program's YOS token account doesn't exist yet. Funding will create it automatically.",
+                        variant: "destructive"
+                      });
+                    } else if (result.balance < 5) {
+                      toast({
+                        title: "Low Program Balance",
+                        description: `Program only has ${result.balance.toFixed(2)} YOS tokens. Consider adding more to ensure users can harvest rewards.`,
+                        variant: "destructive"
+                      });
+                    } else {
+                      toast({
+                        title: "Program Balance",
+                        description: `Current program YOS balance: ${result.balance.toFixed(2)} tokens.`
+                      });
+                    }
+                  } catch (error: any) {
+                    console.error("Error checking balance:", error);
+                    toast({
+                      title: "Error Checking Balance",
+                      description: error.message || "Failed to check program YOS balance.",
+                      variant: "destructive"
+                    });
+                  } finally {
+                    setIsCheckingBalance(false);
+                  }
+                }}
+              >
+                {isCheckingBalance ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Checking...
+                  </>
+                ) : (
+                  "Check Balance"
+                )}
+              </Button>
+            </div>
+            
+            <div className="space-y-2 mb-3">
+              <Label htmlFor="fundAmount">Amount to Fund (YOS)</Label>
+              <Input
+                id="fundAmount"
+                type="number"
+                step="1"
+                min="1"
+                value={fundAmount}
+                onChange={(e) => setFundAmount(e.target.value)}
+                placeholder="10.0"
+                disabled={isFunding || !isAdmin}
+              />
+              <p className="text-xs text-muted-foreground">
+                Amount of YOS tokens to transfer from your wallet to the program.
+                Ensure you have enough YOS tokens in your wallet.
+              </p>
+            </div>
+            
+            <Button 
+              type="button"
+              variant="default"
+              className="w-full bg-green-600 hover:bg-green-700 text-white"
+              disabled={!isAdmin || isFunding || !fundAmount || parseFloat(fundAmount) <= 0}
+              onClick={async () => {
+                if (!wallet || !connected) {
+                  toast({
+                    title: 'Wallet Required',
+                    description: 'Please connect your admin wallet to fund the program.',
+                    variant: 'destructive',
+                  });
+                  return;
+                }
+                
+                try {
+                  setIsFunding(true);
+                  const amount = parseFloat(fundAmount);
+                  
+                  if (isNaN(amount) || amount <= 0) {
+                    throw new Error("Please enter a valid positive amount.");
+                  }
+                  
+                  toast({
+                    title: "Funding Program",
+                    description: `Sending ${amount} YOS tokens to the program...`
+                  });
+                  
+                  const result = await fundProgramYosAccount(wallet, amount);
+                  
+                  if (result.success) {
+                    toast({
+                      title: "Program Funded",
+                      description: `Successfully funded program with ${amount} YOS tokens. New balance: ${result.newBalance?.toFixed(2) || 'unknown'} YOS.`,
+                    });
+                    
+                    // Update the displayed balance
+                    setProgramYosBalance(result.newBalance || null);
+                  } else {
+                    throw new Error("Transaction failed");
+                  }
+                } catch (error: any) {
+                  console.error("Funding error:", error);
+                  toast({
+                    title: 'Funding Failed',
+                    description: error.message || 'An error occurred while funding the program.',
+                    variant: 'destructive',
+                  });
+                } finally {
+                  setIsFunding(false);
+                }
+              }}
+            >
+              {isFunding ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Funding Program...
+                </>
+              ) : (
+                <>
+                  <CoinsIcon className="mr-2 h-4 w-4" />
+                  Fund Program with YOS
+                </>
+              )}
+            </Button>
+          </div>
         </CardFooter>
       </form>
     </Card>
