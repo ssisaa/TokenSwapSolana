@@ -33,20 +33,26 @@ export default function Stake() {
   const {
     stakingInfo,
     stakingRates,
-    isLoading,
     globalStats,
-    stakeTokens,
-    unstakeTokens,
-    harvestRewards,
-    isStaking,
-    isUnstaking,
-    isHarvesting
+    isLoadingStakingInfo,
+    isLoadingRates,
+    stakeMutation,
+    unstakeMutation,
+    harvestMutation,
+    stakingError,
+    ratesError
   } = useStaking();
+
+  // Renamed for easier use in UI
+  const isLoading = isLoadingStakingInfo || isLoadingRates;
+  const isStaking = stakeMutation.isPending;
+  const isUnstaking = unstakeMutation.isPending;
+  const isHarvesting = harvestMutation.isPending;
   
   // Handle stake button click
   const handleStake = () => {
     if (!stakeAmount || parseFloat(stakeAmount) <= 0) return;
-    stakeTokens({ amount: parseFloat(stakeAmount) });
+    stakeMutation.mutate({ amount: parseFloat(stakeAmount) });
     setStakeAmount('');
   };
   
@@ -54,13 +60,13 @@ export default function Stake() {
   const handleUnstake = () => {
     if (!unstakeAmount || parseFloat(unstakeAmount) <= 0) return;
     const amount = Math.min(parseFloat(unstakeAmount), stakingInfo.stakedAmount);
-    unstakeTokens({ amount });
+    unstakeMutation.mutate({ amount });
     setUnstakeAmount('');
   };
   
   // Handle harvest button click
   const handleHarvest = () => {
-    harvestRewards();
+    harvestMutation.mutate();
   };
   
   // Handle max stake button
