@@ -5,15 +5,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useMultiWallet } from '@/context/MultiWalletContext';
 import { useStaking } from '@/hooks/useStaking';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { Loader2, AlertTriangle, Flame } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAdminSettings } from '@/hooks/use-admin-settings';
+import { initializeStakingProgram } from '@/lib/solana-staking';
 
 export default function StakingSettings() {
-  const { connected, publicKey } = useMultiWallet();
+  const { connected, publicKey, wallet } = useMultiWallet();
   const { updateParameters, isUpdatingParameters, stakingRates } = useStaking();
   const { toast } = useToast();
   const { updateSettings, isUpdating: isUpdatingDatabase } = useAdminSettings();
+  const [isInitializing, setIsInitializing] = useState(false);
   
   // State for form values - initialize with current values from blockchain
   const [stakeRatePerSecond, setStakeRatePerSecond] = useState<string>('0.0000000125');
@@ -157,7 +159,7 @@ export default function StakingSettings() {
             </p>
           </div>
         </CardContent>
-        <CardFooter>
+        <CardFooter className="flex flex-col gap-3">
           <Button 
             type="submit" 
             className="w-full" 
@@ -172,6 +174,119 @@ export default function StakingSettings() {
               'Update All Settings'
             )}
           </Button>
+          
+          {!stakingRates ? (
+            <div className="bg-red-50 border border-red-200 p-3 rounded-md">
+              <div className="flex items-center gap-2 text-red-700 font-medium mb-2">
+                <AlertTriangle className="h-5 w-5" />
+                <span>Staking Program Not Initialized</span>
+              </div>
+              <p className="text-sm text-red-600 mb-3">
+                The staking program needs to be initialized before users can stake tokens. 
+                Click the button below to initialize with your current settings.
+              </p>
+              <Button 
+                type="button"
+                variant="destructive"
+                className="w-full"
+                disabled={!isAdmin || isInitializing}
+                onClick={async () => {
+                  if (!wallet || !connected) {
+                    toast({
+                      title: 'Wallet Required',
+                      description: 'Please connect your admin wallet to initialize the program.',
+                      variant: 'destructive',
+                    });
+                    return;
+                  }
+                  
+                  try {
+                    setIsInitializing(true);
+                    const ratePerSecond = parseFloat(stakeRatePerSecond);
+                    const thresholdValue = parseFloat(harvestThreshold);
+                    
+                    console.log("Initializing program with parameters:", {
+                      stakeRatePerSecond: ratePerSecond,
+                      harvestThreshold: thresholdValue
+                    });
+                    
+                    await initializeStakingProgram(wallet, ratePerSecond, thresholdValue);
+                    
+                    toast({
+                      title: 'Program Initialized',
+                      description: 'The staking program has been successfully initialized.',
+                    });
+                    
+                    // Update database settings to match
+                    const stakingRates = convertStakingRate(ratePerSecond);
+                    updateSettings({
+                      stakeRatePerSecond: stakingRates.second,
+                      stakeRateHourly: stakingRates.hourly,
+                      stakeRateDaily: stakingRates.daily,
+                      harvestThreshold: thresholdValue.toString()
+                    });
+                    
+                    // Force reload to update the UI
+                    window.location.reload();
+                  } catch (error: any) {
+                    console.error("Initialization error:", error);
+                    
+                    if (error.message && error.message.includes("Program state already exists")) {
+                      toast({
+                        title: 'Program Already Initialized',
+                        description: 'The staking program has already been initialized. Try refreshing the page to load current settings.',
+                        variant: 'default',
+                      });
+                    } else {
+                      toast({
+                        title: 'Initialization Failed',
+                        description: error.message || 'An error occurred during program initialization.',
+                        variant: 'destructive',
+                      });
+                    }
+                  } finally {
+                    setIsInitializing(false);
+                  }
+                }}
+              >
+                {isInitializing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Initializing...
+                  </>
+                ) : (
+                  <>
+                    <Flame className="mr-2 h-4 w-4" />
+                    Initialize Staking Program
+                  </>
+                )}
+              </Button>
+            </div>
+          ) : (
+            <div className="bg-blue-50 border border-blue-200 p-3 rounded-md">
+              <div className="flex items-center gap-2 text-blue-700 font-medium mb-2">
+                <AlertTriangle className="h-5 w-5" />
+                <span>Program State Synchronization</span>
+              </div>
+              <p className="text-sm text-blue-600 mb-3">
+                If you're encountering errors with staking operations, you can manually force a refresh of the program state.
+                This will re-sync the frontend with the blockchain state.
+              </p>
+              <Button 
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={!isAdmin || isInitializing}
+                onClick={() => {
+                  // Force a refresh by reloading the page
+                  window.location.reload();
+                }}
+              >
+                <Flame className="mr-2 h-4 w-4" />
+                Refresh Program State
+              </Button>
+            </div>
+          )}
         </CardFooter>
       </form>
     </Card>
