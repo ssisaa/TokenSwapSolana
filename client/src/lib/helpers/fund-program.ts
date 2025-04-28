@@ -26,7 +26,7 @@ export async function fundProgramYosAccount(wallet: any, amountToSend = 3.0) {
     new PublicKey(STAKING_PROGRAM_ID)
   );
   
-  console.log('Program authority address:', programAuthorityAddress.toString());
+  console.log('Program authority address (PDA signer):', programAuthorityAddress.toString());
   
   // Get sender's YOS token account
   const senderTokenAccount = await getAssociatedTokenAddress(

@@ -1856,10 +1856,15 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     // IMPORTANT: We must derive the program's YOS token account from the program authority
     // This ensures the account is actually owned by the program's authority PDA
     // The previous hardcoded address (BLz2mfhb9qoPAtKuFNVfrj9uTEyChHKKbZsniS1eRaUB) wasn't owned by the program
+    
+    // Log the program authority PDA for debugging
+    console.log("Program authority PDA for token account:", programAuthorityAddress.toString());
+    
+    // Get Associated Token Account for the PDA
     const programYosTokenAccount = await getAssociatedTokenAddress(
       yosMintPubkey,
       programAuthorityAddress,
-      true // allowOwnerOffCurve - required for PDAs
+      true // allowOwnerOffCurve - required for PDAs since they're not on the ed25519 curve
     );
     
     // Check if the program token account exists
