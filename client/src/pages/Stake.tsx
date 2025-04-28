@@ -111,9 +111,9 @@ export default function Stake() {
                     <span className="text-sm font-semibold text-blue-400">YOT</span>
                   </div>
                   {globalStats && globalStats.totalStaked > 0 && stakingInfo.stakedAmount > 0 && (
-                    <div className="text-sm text-blue-400 mt-1 font-medium">
+                    <span className="text-xs text-gray-400 ml-1">
                       ({((stakingInfo.stakedAmount / globalStats.totalStaked) * 100).toFixed(2)}% of global)
-                    </div>
+                    </span>
                   )}
                 </div>
               )}
