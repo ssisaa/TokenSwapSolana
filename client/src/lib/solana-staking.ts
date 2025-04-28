@@ -1685,10 +1685,53 @@ export async function unstakeYOTTokens(
           throw new Error(`Transaction confirmed but failed: ${JSON.stringify(confirmation.value.err)}`);
         }
         
-        toast({
-          title: "Unstaking Successful",
-          description: `You have unstaked ${amount} YOT tokens successfully.`
-        });
+        // Better user experience - show how many tokens they received
+        // Get the actual transferred amount if possible - falling back to the requested amount
+        try {
+          // Try to get the txn details to show exact amount unstaked
+          const txInfo = await connection.getTransaction(signature, { commitment: 'confirmed' });
+          if (txInfo && txInfo.meta && txInfo.meta.preTokenBalances && txInfo.meta.postTokenBalances) {
+            // Find the YOT token account in the balances
+            const preBalance = txInfo.meta.preTokenBalances.find(
+              b => b.owner === userPublicKey.toString() && 
+                   b.mint === YOT_TOKEN_ADDRESS
+            );
+            const postBalance = txInfo.meta.postTokenBalances.find(
+              b => b.owner === userPublicKey.toString() && 
+                   b.mint === YOT_TOKEN_ADDRESS
+            );
+            
+            if (preBalance && postBalance) {
+              const unstakedAmount = 
+                (postBalance.uiTokenAmount.uiAmount || 0) - 
+                (preBalance.uiTokenAmount.uiAmount || 0);
+              
+              toast({
+                title: "Unstaking Successful",
+                description: `You have unstaked ${Math.abs(unstakedAmount).toFixed(2)} YOT tokens successfully.`
+              });
+            } else {
+              // Fallback if token balances not found
+              toast({
+                title: "Unstaking Successful",
+                description: `You have unstaked ${amount} YOT tokens successfully.`
+              });
+            }
+          } else {
+            // Fallback if transaction info not available
+            toast({
+              title: "Unstaking Successful",
+              description: `You have unstaked ${amount} YOT tokens successfully.`
+            });
+          }
+        } catch (error) {
+          console.error("Error getting transaction details:", error);
+          // Fallback if error occurs
+          toast({
+            title: "Unstaking Successful",
+            description: `You have unstaked ${amount} YOT tokens successfully.`
+          });
+        }
         return signature;
       } catch (confirmError) {
         console.error("Confirmation error during unstake:", confirmError);
@@ -1996,10 +2039,54 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
           throw new Error(`Transaction confirmed but failed: ${JSON.stringify(confirmation.value.err)}`);
         }
         
-        toast({
-          title: "Harvest Successful",
-          description: "You have harvested your YOS rewards successfully."
-        });
+        // Better user experience - show how many tokens they received
+        // Get the actual transferred amount if possible - falling back to the calculated amount
+        try {
+          // Try to get the txn details to show exact amount harvested
+          const txInfo = await connection.getTransaction(signature, { commitment: 'confirmed' });
+          if (txInfo && txInfo.meta && txInfo.meta.preTokenBalances && txInfo.meta.postTokenBalances) {
+            // Find the YOS token account in the balances
+            const preBalance = txInfo.meta.preTokenBalances.find(
+              b => b.owner === userPublicKey.toString() && 
+                   b.mint === YOS_TOKEN_ADDRESS
+            );
+            const postBalance = txInfo.meta.postTokenBalances.find(
+              b => b.owner === userPublicKey.toString() && 
+                   b.mint === YOS_TOKEN_ADDRESS
+            );
+            
+            if (preBalance && postBalance) {
+              const harvestedAmount = 
+                (postBalance.uiTokenAmount.uiAmount || 0) - 
+                (preBalance.uiTokenAmount.uiAmount || 0);
+              
+              toast({
+                title: "Harvest Successful",
+                description: `You have harvested ${harvestedAmount.toFixed(2)} YOS tokens successfully.`
+              });
+            } else {
+              // Fallback if token balances not found
+              toast({
+                title: "Harvest Successful",
+                description: "You have harvested your YOS rewards successfully."
+              });
+            }
+          } else {
+            // Fallback if transaction info not available
+            toast({
+              title: "Harvest Successful",
+              description: "You have harvested your YOS rewards successfully."
+            });
+          }
+        } catch (error) {
+          console.error("Error getting transaction details:", error);
+          // Fallback if error occurs
+          toast({
+            title: "Harvest Successful",
+            description: "You have harvested your YOS rewards successfully."
+          });
+        }
+        
         return signature;
       } catch (confirmError) {
         console.error("Confirmation error:", confirmError);
