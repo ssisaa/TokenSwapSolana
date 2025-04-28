@@ -399,6 +399,7 @@ export default function AdminSettings() {
                       const harvestThresholdValue = parseInt(harvestThreshold);
                       
                       // Convert to basis points for the program (since we're working with percentages)
+                      // This needs to be an integer value of basis points, not a decimal
                       const stakeRateInBasisPoints = Math.floor(stakeRatePerSecond * 10000);
                       
                       console.log("Initializing program with parameters:", {
@@ -409,10 +410,11 @@ export default function AdminSettings() {
                       
                       console.log("Using wallet:", wallet);
                       
-                      // Call the initialization function
+                      // Call the initialization function - pass stakeRatePerSecond
+                      // The initialization function will convert to basis points internally
                       initializeStakingProgram(
                         wallet, 
-                        stakeRateInBasisPoints,
+                        stakeRatePerSecond,
                         harvestThresholdValue
                       ).then(signature => {
                         console.log("Program initialized successfully with signature:", signature);

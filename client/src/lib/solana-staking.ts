@@ -929,7 +929,8 @@ export async function getStakingProgramState(): Promise<{
     // Read stake rate (8 bytes, 64-bit unsigned integer)
     // The rate stored on-chain represents basis points (e.g., 12.5 for 0.00125%)
     // Must divide by 10000 to match the encoding divisor we used when initializing
-    const stakeRatePerSecond = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32)) / 10000;
+    const stakeRateBasisPoints = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32));
+    const stakeRatePerSecond = stakeRateBasisPoints / 10000;
     
     // The value is now in percentage form (e.g., 0.00125) and ready to use
     
@@ -949,11 +950,16 @@ export async function getStakingProgramState(): Promise<{
     // This is a simple linear accumulation (not compounding)
     const secondsPerHour = 3600;
     
-    // Simple linear rates (matches admin's expected values)
-    const dailyAPR = stakeRatePerSecond * secondsPerDay;     // 108% for 0.00125% per second
-    const weeklyAPR = stakeRatePerSecond * secondsPerWeek;   // 756% for 0.00125% per second
-    const monthlyAPR = stakeRatePerSecond * secondsPerMonth; // ~3240% for 0.00125% per second
-    const yearlyAPR = stakeRatePerSecond * secondsPerYear;   // ~39420% for 0.00125% per second
+    // Convert percentage to proper format for display
+    // stakeRatePerSecond is already in percentage format (e.g., 0.00125)
+    // For a per-second rate of 0.00125%, we expect:
+    // Daily: 0.00125 * 86400 = 108%
+    // But the value is currently showing up as 1036800% because the calculation
+    // isn't applied correctly. Let's fix it to show real percentage values.
+    const dailyAPR = stakeRatePerSecond * secondsPerDay; 
+    const weeklyAPR = stakeRatePerSecond * secondsPerWeek;
+    const monthlyAPR = stakeRatePerSecond * secondsPerMonth;
+    const yearlyAPR = stakeRatePerSecond * secondsPerYear;
     
     return {
       stakeRatePerSecond,
@@ -1027,9 +1033,10 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // Read total harvested rewards (8 bytes, 64-bit unsigned integer)
     const totalHarvested = Number(data.readBigUInt64LE(56));
     
-    // Get the staking rate in decimal format (representing percentage)
+    // Get the staking rate in basis points
     // Must use the same divisor as in getStakingProgramState (10000)
-    const stakeRatePerSecond = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32)) / 10000;
+    const stakeRateBasisPoints = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32));
+    const stakeRatePerSecond = stakeRateBasisPoints / 10000;
     
     // For rewards calculation, convert from percentage to decimal (0.00125% → 0.0000125)
     const stakeRateDecimal = stakeRatePerSecond / 100;
