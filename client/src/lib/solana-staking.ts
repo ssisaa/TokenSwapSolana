@@ -605,13 +605,37 @@ export async function stakeYOTTokens(
     if (!programStateInfo) {
       console.error('Program state account does not exist. Program needs to be initialized by admin.');
       toast({
-        title: "Program Not Initialized",
-        description: "The staking program has not been initialized yet. Please contact an admin to initialize the program first.",
+        title: "Staking Program Not Initialized",
+        description: "The staking program needs to be initialized by an admin. Please check admin settings.",
         variant: "destructive"
       });
       throw new Error('Program state account does not exist');
     }
     console.log('Program state account exists with size:', programStateInfo.data.length);
+    
+    // Verify the user has YOT tokens to stake
+    try {
+      const userYotBalance = await connection.getTokenAccountBalance(userYotTokenAccount);
+      console.log('User YOT balance:', userYotBalance.value.uiAmount);
+      
+      if (!userYotBalance.value.uiAmount || userYotBalance.value.uiAmount < amount) {
+        toast({
+          title: "Insufficient YOT Balance",
+          description: `You need at least ${amount} YOT to stake. Your balance: ${userYotBalance.value.uiAmount || 0} YOT`,
+          variant: "destructive"
+        });
+        throw new Error(`Insufficient YOT balance. Required: ${amount}, Available: ${userYotBalance.value.uiAmount || 0}`);
+      }
+    } catch (error) {
+      console.error('Failed to check YOT balance:', error);
+      // If we can't get the balance, it probably means the token account doesn't exist
+      toast({
+        title: "YOT Token Account Not Found",
+        description: "You don't have a YOT token account. You need to acquire YOT tokens first.",
+        variant: "destructive"
+      });
+      throw new Error('YOT token account not found or inaccessible');
+    }
     
     // Get program token account
     const programYotTokenAccount = await getAssociatedTokenAddress(
