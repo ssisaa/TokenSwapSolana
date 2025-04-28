@@ -536,12 +536,19 @@ function encodeUnstakeInstruction(amount: number): Buffer {
 }
 
 function encodeHarvestInstruction(): Buffer {
+  console.log(`Encoding harvest instruction`);
+  
   // Create a buffer with just the instruction type
   const buffer = Buffer.alloc(1);
   
   // Write instruction type to the buffer
   buffer.writeUInt8(StakingInstructionType.Harvest, 0);
   
+  // For debugging, verify the buffer content
+  console.log(`Harvest buffer verification: discriminator=${buffer.readUInt8(0)}`);
+  
+  // Note: we don't need to pass any amount for harvest, the program calculates it
+  // but we need to ensure the program is treating those amounts correctly
   return buffer;
 }
 

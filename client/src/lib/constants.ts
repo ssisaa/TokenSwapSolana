@@ -8,10 +8,12 @@ export const SOLANA_RPC_URL = ENDPOINT;
 // YOT Token (main token)
 export const YOT_TOKEN_ADDRESS = '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF';
 export const YOT_TOKEN_ACCOUNT = 'BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE';
+export const YOT_DECIMALS = 9; // Most Solana tokens have 9 decimals
 
 // YOS Token (staking reward token)
 export const YOS_TOKEN_ADDRESS = 'GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n';
 export const YOS_TOKEN_ACCOUNT = 'BLz2mfhb9qoPAtKuFNVfrj9uTEyChHKKbZsniS1eRaUB';
+export const YOS_DECIMALS = 9; // Most Solana tokens have 9 decimals
 
 // Swap/Liquidity Pool
 export const POOL_AUTHORITY = '7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK';
