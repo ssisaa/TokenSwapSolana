@@ -156,27 +156,71 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-gradient-to-br from-green-900/40 to-green-800/30 rounded-md p-3 border border-green-800/40">
-                    <div className="text-xs font-medium text-green-100">Daily APR</div>
-                    <div className="text-lg font-bold text-green-400">
-                      {`${(stakingRates?.dailyAPR || 0).toFixed(2)}%`}
+                    <div className="text-xs font-medium text-green-100">Daily Rates</div>
+                    <div className="flex justify-between gap-2">
+                      <div>
+                        <div className="text-xs text-green-200">APR:</div>
+                        <div className="text-sm font-bold text-green-400">
+                          {`${(stakingRates?.dailyAPR || 0).toFixed(2)}%`}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-green-200">APY:</div>
+                        <div className="text-sm font-bold text-green-400">
+                          {`${(stakingRates?.dailyAPY || 0).toFixed(2)}%`}
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <div className="bg-gradient-to-br from-green-900/40 to-green-800/30 rounded-md p-3 border border-green-800/40">
-                    <div className="text-xs font-medium text-green-100">Weekly APR</div>
-                    <div className="text-lg font-bold text-green-400">
-                      {`${(stakingRates?.weeklyAPR || 0).toFixed(2)}%`}
+                    <div className="text-xs font-medium text-green-100">Weekly Rates</div>
+                    <div className="flex justify-between gap-2">
+                      <div>
+                        <div className="text-xs text-green-200">APR:</div>
+                        <div className="text-sm font-bold text-green-400">
+                          {`${(stakingRates?.weeklyAPR || 0).toFixed(2)}%`}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-green-200">APY:</div>
+                        <div className="text-sm font-bold text-green-400">
+                          {`${(stakingRates?.weeklyAPY || 0).toFixed(2)}%`}
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <div className="bg-gradient-to-br from-green-900/40 to-green-800/30 rounded-md p-3 border border-green-800/40">
-                    <div className="text-xs font-medium text-green-100">Monthly APR</div>
-                    <div className="text-lg font-bold text-green-400">
-                      {`${(stakingRates?.monthlyAPR || 0).toFixed(2)}%`}
+                    <div className="text-xs font-medium text-green-100">Monthly Rates</div>
+                    <div className="flex justify-between gap-2">
+                      <div>
+                        <div className="text-xs text-green-200">APR:</div>
+                        <div className="text-sm font-bold text-green-400">
+                          {`${(stakingRates?.monthlyAPR || 0).toFixed(2)}%`}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-green-200">APY:</div>
+                        <div className="text-sm font-bold text-green-400">
+                          {`${(stakingRates?.monthlyAPY || 0).toFixed(2)}%`}
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <div className="bg-gradient-to-br from-green-900/40 to-green-800/30 rounded-md p-3 border border-green-800/40">
-                    <div className="text-xs font-medium text-green-100">Yearly APR</div>
-                    <div className="text-lg font-bold text-green-400">
-                      {`${(stakingRates?.yearlyAPR || 0).toFixed(2)}%`}
+                    <div className="text-xs font-medium text-green-100">Yearly Rates</div>
+                    <div className="flex justify-between gap-2">
+                      <div>
+                        <div className="text-xs text-green-200">APR:</div>
+                        <div className="text-sm font-bold text-green-400">
+                          {`${(stakingRates?.yearlyAPR || 0).toFixed(2)}%`}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-green-200">APY:</div>
+                        <div className="text-sm font-bold text-green-400">
+                          {`${(stakingRates?.yearlyAPY || 0).toFixed(2)}%`}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -247,7 +291,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                     <div className="flex items-start">
                       <InfoIcon className="h-4 w-4 mr-2 mt-0.5 text-primary" />
                       <p className="text-gray-300">
-                        Staking locks your YOT tokens in the smart contract and automatically begins generating YOS rewards at {(stakingRates?.dailyAPR || 0).toFixed(2)}% daily APR.
+                        Staking locks your YOT tokens in the smart contract and automatically begins generating YOS rewards at {(stakingRates?.dailyAPR || 0).toFixed(2)}% daily APR ({(stakingRates?.dailyAPY || 0).toFixed(2)}% APY).
                       </p>
                     </div>
                   </div>
