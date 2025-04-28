@@ -1052,7 +1052,7 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // Calculate pending rewards
     const timeStakedSinceLastHarvest = currentTime - lastHarvestTime;
     
-    // Use the same rate for rewards calculation as we do for APY
+    // Use the same rate for rewards calculation as we do for APR
     const pendingRewards = Number(stakedAmount) * timeStakedSinceLastHarvest * stakeRatePerSecond;
     
     return {

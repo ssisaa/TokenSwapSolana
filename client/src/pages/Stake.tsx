@@ -95,7 +95,7 @@ export default function Stake() {
                   <h3 className="text-lg font-semibold">How are rewards calculated?</h3>
                   <p className="mt-2 text-muted-foreground">
                     Rewards accrue at a rate of {stakingRates.stakeRatePerSecond.toFixed(6)}% per second on your staked YOT tokens. 
-                    This equals approximately {stakingRates.monthlyAPY.toFixed(2)}% per month or {stakingRates.yearlyAPY.toFixed(2)}% annually.
+                    This equals approximately {stakingRates.monthlyAPR.toFixed(2)}% per month or {stakingRates.yearlyAPR.toFixed(2)}% annually.
                   </p>
                 </div>
                 
@@ -135,7 +135,7 @@ export default function Stake() {
                   <div>
                     <div className="flex justify-between mb-1">
                       <span className="font-medium">Current APR</span>
-                      <span className="font-semibold text-green-500">{stakingRates.yearlyAPY.toFixed(2)}%</span>
+                      <span className="font-semibold text-green-500">{stakingRates.yearlyAPR.toFixed(2)}%</span>
                     </div>
                   </div>
                   
