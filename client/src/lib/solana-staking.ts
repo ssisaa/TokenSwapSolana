@@ -177,7 +177,7 @@ function encodeInitializeInstruction(
     yosMintHex: buffer.slice(33, 65).toString('hex'),
     finalBasisPoints,
     finalBasisPointsFromBuffer: buffer.readBigUInt64LE(65),
-    harvestThresholdLamports: buffer.readBigUInt64LE(73),
+    harvestThresholdRawUnits: buffer.readBigUInt64LE(73),
     bufferLength: buffer.length
   });
   
@@ -693,7 +693,21 @@ export async function stakeYOTTokens(
     console.log('Checking if program token account exists...');
     const programTokenAccountInfo = await connection.getAccountInfo(programYotTokenAccount);
     if (!programTokenAccountInfo) {
-      console.log('Program token account does not exist. It may need to be created.');
+      console.log('Program token account does not exist. Creating it now...');
+      // Create the program token account if it doesn't exist
+      // This is critical for the staking operation to succeed
+      transaction.add(
+        createAssociatedTokenAccountInstruction(
+          userPublicKey,
+          programYotTokenAccount,
+          programAuthorityAddress,
+          yotMintPubkey
+        )
+      );
+      toast({
+        title: "Setting Up Program",
+        description: "Creating program token account as part of your transaction."
+      });
     } else {
       console.log('Program token account exists with size:', programTokenAccountInfo.data.length);
     }
@@ -830,24 +844,66 @@ export async function unstakeYOTTokens(
       true // allowOwnerOffCurve
     );
     
-    // Create the unstake instruction
+    // Create a transaction to potentially hold multiple instructions
+    const transaction = new Transaction();
+    
+    // Check if user YOT token account exists, create if needed
+    const userYotAccountInfo = await connection.getAccountInfo(userYotTokenAccount);
+    if (!userYotAccountInfo) {
+      console.log('Creating YOT token account for user during unstake...');
+      transaction.add(
+        createAssociatedTokenAccountInstruction(
+          userPublicKey,
+          userYotTokenAccount,
+          userPublicKey,
+          yotMintPubkey
+        )
+      );
+      toast({
+        title: "Creating YOT Token Account",
+        description: "You need a YOT token account to receive unstaked tokens. It will be created automatically."
+      });
+    }
+    
+    // Check if program token account exists, create if needed
+    const programTokenAccountInfo = await connection.getAccountInfo(programYotTokenAccount);
+    if (!programTokenAccountInfo) {
+      console.log('Program token account does not exist. Creating it during unstake...');
+      transaction.add(
+        createAssociatedTokenAccountInstruction(
+          userPublicKey,
+          programYotTokenAccount,
+          programAuthorityAddress,
+          yotMintPubkey
+        )
+      );
+      toast({
+        title: "Setting Up Program",
+        description: "Creating program token account as part of your transaction."
+      });
+    }
+    
+    // Create the unstake instruction with explicit accounts
     const unstakeInstruction = new TransactionInstruction({
       keys: [
-        { pubkey: userPublicKey, isSigner: true, isWritable: true },
-        { pubkey: userYotTokenAccount, isSigner: false, isWritable: true },
-        { pubkey: programYotTokenAccount, isSigner: false, isWritable: true },
-        { pubkey: userStakingAddress, isSigner: false, isWritable: true },
-        { pubkey: programStateAddress, isSigner: false, isWritable: false },
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false },
-        { pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false }
+        // User accounts
+        { pubkey: userPublicKey, isSigner: true, isWritable: true }, // User wallet, paying for transaction
+        { pubkey: userYotTokenAccount, isSigner: false, isWritable: true }, // User's YOT token account
+        { pubkey: programYotTokenAccount, isSigner: false, isWritable: true }, // Program's YOT token account
+        { pubkey: userStakingAddress, isSigner: false, isWritable: true }, // PDA to track user staking info
+        
+        // Program accounts
+        { pubkey: programStateAddress, isSigner: false, isWritable: false }, // Program state PDA 
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // Token program for transfers
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }, // Program authority PDA
+        { pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false } // Clock for timestamps
       ],
       programId: STAKING_PROGRAM_ID,
       data: encodeUnstakeInstruction(amount)
     });
     
-    // Create a transaction and add the unstake instruction
-    const transaction = new Transaction().add(unstakeInstruction);
+    // Add unstake instruction to transaction
+    transaction.add(unstakeInstruction);
     
     // Set recent blockhash and fee payer
     transaction.feePayer = userPublicKey;
@@ -903,19 +959,6 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     
     // Create transaction to add instructions to
     const transaction = new Transaction();
-    const userAccountInfo = await connection.getAccountInfo(userYosTokenAccount);
-    
-    if (!userAccountInfo) {
-      // Create associated token account for user
-      transaction.add(
-        createAssociatedTokenAccountInstruction(
-          userPublicKey,
-          userYosTokenAccount,
-          userPublicKey,
-          yosMintPubkey
-        )
-      );
-    }
     
     // Find program state address
     const [programStateAddress] = PublicKey.findProgramAddressSync(
@@ -935,12 +978,49 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       STAKING_PROGRAM_ID
     );
     
+    // Check if user YOS token account exists, create if needed
+    const userAccountInfo = await connection.getAccountInfo(userYosTokenAccount);
+    if (!userAccountInfo) {
+      console.log('Creating YOS token account for user during harvest...');
+      transaction.add(
+        createAssociatedTokenAccountInstruction(
+          userPublicKey,
+          userYosTokenAccount,
+          userPublicKey,
+          yosMintPubkey
+        )
+      );
+      toast({
+        title: "Creating YOS Token Account",
+        description: "You need a YOS token account to receive rewards. It will be created automatically."
+      });
+    }
+    
     // Get program token account for YOS
     const programYosTokenAccount = await getAssociatedTokenAddress(
       yosMintPubkey,
       programAuthorityAddress,
       true // allowOwnerOffCurve
     );
+    
+    // Check if the program token account exists
+    console.log('Checking if program YOS token account exists...');
+    const programTokenAccountInfo = await connection.getAccountInfo(programYosTokenAccount);
+    if (!programTokenAccountInfo) {
+      console.log('Program YOS token account does not exist. Creating it during harvest...');
+      transaction.add(
+        createAssociatedTokenAccountInstruction(
+          userPublicKey,
+          programYosTokenAccount,
+          programAuthorityAddress,
+          yosMintPubkey
+        )
+      );
+      toast({
+        title: "Setting Up Program",
+        description: "Creating program YOS token account as part of your transaction."
+      });
+    }
     
     // Create the harvest instruction
     const harvestInstruction = new TransactionInstruction({
