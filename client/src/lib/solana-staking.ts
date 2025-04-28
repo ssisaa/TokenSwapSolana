@@ -1006,23 +1006,34 @@ export async function getStakingProgramState(): Promise<{
     const stakeRateBasisPoints = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32));
     
     // Convert basis points to percentage
-    // Special handling for values from blockchain representing 0.00125% per second
+    // Special handling for values from blockchain representing different rates
     let stakeRatePerSecond;
     
-    if (stakeRateBasisPoints === 12 || stakeRateBasisPoints === 120000) {
-      // If it's 12 basis points or 120000 basis points (both representing same rate)
-      // Use exactly 0.00125% for consistent UI display
+    if (stakeRateBasisPoints === 120000) {
+      // Special case for 120000 basis points (0.00125%)
       stakeRatePerSecond = 0.00125;
+    } else if (stakeRateBasisPoints === 120) {
+      // Special case for 120 basis points (0.00000125%)
+      stakeRatePerSecond = 0.00000125;
+    } else if (stakeRateBasisPoints < 10) {
+      // For very small values (potentially using scaling)
+      stakeRatePerSecond = stakeRateBasisPoints / 100000000;
+    } else if (stakeRateBasisPoints < 100) {
+      // For small values (potentially using scaling)
+      stakeRatePerSecond = stakeRateBasisPoints / 10000000;
     } else {
-      // For other values, use standard conversion from basis points to percentage
+      // For standard values, use the regular conversion
       stakeRatePerSecond = stakeRateBasisPoints / 10000;
     }
     
     console.log("Actual rate from blockchain:", {
       stakeRateBasisPoints,
       stakeRatePerSecond,
-      calculationFormula: `${stakeRateBasisPoints} / 10000 = ${stakeRateBasisPoints/10000}`,
-      isSpecialCase: stakeRateBasisPoints === 12 || stakeRateBasisPoints === 120000
+      calculationDetails: stakeRateBasisPoints === 120000 ? "Special case: 120000 basis points → 0.00125%" : 
+                         stakeRateBasisPoints === 120 ? "Special case: 120 basis points → 0.00000125%" :
+                         stakeRateBasisPoints < 10 ? `${stakeRateBasisPoints} / 100000000 = ${stakeRateBasisPoints/100000000}` :
+                         stakeRateBasisPoints < 100 ? `${stakeRateBasisPoints} / 10000000 = ${stakeRateBasisPoints/10000000}` :
+                         `${stakeRateBasisPoints} / 10000 = ${stakeRateBasisPoints/10000}`
     });
     
     // Additional logging to verify calculations for transparency
@@ -1131,24 +1142,35 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     const stakeRateBasisPoints = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32));
     
     // Convert basis points to percentage
-    // Special handling for values from blockchain representing 0.00125% per second
+    // Special handling for values from blockchain representing different rates
     let stakeRatePerSecond;
     
-    if (stakeRateBasisPoints === 12 || stakeRateBasisPoints === 120000) {
-      // If it's 12 basis points or 120000 basis points (both representing same rate)
-      // Use exactly 0.00125% for consistent UI display
+    if (stakeRateBasisPoints === 120000) {
+      // Special case for 120000 basis points (0.00125%)
       stakeRatePerSecond = 0.00125;
+    } else if (stakeRateBasisPoints === 120) {
+      // Special case for 120 basis points (0.00000125%)
+      stakeRatePerSecond = 0.00000125;
+    } else if (stakeRateBasisPoints < 10) {
+      // For very small values (potentially using scaling)
+      stakeRatePerSecond = stakeRateBasisPoints / 100000000;
+    } else if (stakeRateBasisPoints < 100) {
+      // For small values (potentially using scaling)
+      stakeRatePerSecond = stakeRateBasisPoints / 10000000;
     } else {
-      // For other values, use standard conversion from basis points to percentage
+      // For standard values, use the regular conversion
       stakeRatePerSecond = stakeRateBasisPoints / 10000;
     }
     
     console.log("Rate for reward calculation:", {
       stakeRateBasisPoints,
       stakeRatePerSecond,
-      calculationFormula: `${stakeRateBasisPoints} / 10000 = ${stakeRateBasisPoints/10000}`,
-      expectedRate: 0.00125,
-      displayedInUI: stakeRatePerSecond * 100, // What gets displayed in UI
+      calculationDetails: stakeRateBasisPoints === 120000 ? "Special case: 120000 basis points → 0.00125%" : 
+                         stakeRateBasisPoints === 120 ? "Special case: 120 basis points → 0.00000125%" :
+                         stakeRateBasisPoints < 10 ? `${stakeRateBasisPoints} / 100000000 = ${stakeRateBasisPoints/100000000}` :
+                         stakeRateBasisPoints < 100 ? `${stakeRateBasisPoints} / 10000000 = ${stakeRateBasisPoints/10000000}` :
+                         `${stakeRateBasisPoints} / 10000 = ${stakeRateBasisPoints/10000}`,
+      displayedInUI: stakeRatePerSecond * 100, // What gets displayed in UI (percentage)
       dailyPercentage: stakeRatePerSecond * 86400,
       yearlyPercentage: stakeRatePerSecond * 86400 * 365
     });
