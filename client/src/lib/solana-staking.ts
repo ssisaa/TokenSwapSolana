@@ -1687,8 +1687,8 @@ export async function unstakeYOTTokens(
     // Set recent blockhash and fee payer
     transaction.feePayer = userPublicKey;
     
-    // Get a fresh blockhash right before sending
-    let blockhashResponse = await connection.getLatestBlockhash('finalized');
+    // Get a fresh blockhash right before sending - using confirmed commitment to avoid blockhash not found errors
+    let blockhashResponse = await connection.getLatestBlockhash('confirmed');
     transaction.recentBlockhash = blockhashResponse.blockhash;
     
     // Request signature from user (this triggers a wallet signature request)
