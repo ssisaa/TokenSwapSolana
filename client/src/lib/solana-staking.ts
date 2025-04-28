@@ -954,7 +954,7 @@ export async function unstakeYOTTokens(
         const requestedAmount = amount;
         
         // Check if the program has enough tokens
-        if (programYotBalance < requestedAmount) {
+        if (programYotBalance && programYotBalance < requestedAmount) {
           console.error(`Insufficient tokens in program account. Available: ${programYotBalance}, Requested: ${requestedAmount}`);
           toast({
             title: "Unstaking Failed",
@@ -1082,11 +1082,11 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     }
     
     const userPublicKey = wallet.publicKey;
-    const yosMintPubkey = new PublicKey(YOS_TOKEN_ADDRESS);
+    const yosMintAddress = new PublicKey(YOS_TOKEN_ADDRESS);
     
     // Get the user's token account
     const userYosTokenAccount = await getAssociatedTokenAddress(
-      yosMintPubkey,
+      yosMintAddress,
       userPublicKey
     );
     
@@ -1131,7 +1131,7 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     
     // Get program token account for YOS
     const programYosTokenAccount = await getAssociatedTokenAddress(
-      yosMintPubkey,
+      yosMintAddress,
       programAuthorityAddress,
       true // allowOwnerOffCurve
     );
@@ -1146,13 +1146,38 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
           userPublicKey,
           programYosTokenAccount,
           programAuthorityAddress,
-          yosMintPubkey
+          yosMintAddress
         )
       );
       toast({
         title: "Setting Up Program",
         description: "Creating program YOS token account as part of your transaction."
       });
+    } else {
+      // Check the program YOS token account balance
+      try {
+        const programYosAccountInfo = await connection.getTokenAccountBalance(programYosTokenAccount);
+        const programYosBalance = programYosAccountInfo.value.uiAmount || 0;
+        console.log(`Program YOS token account balance: ${programYosBalance} YOS`);
+        
+        // Get the user's staking info to estimate rewards
+        const stakingInfo = await getStakingInfo(userPublicKey.toString());
+        const pendingRewards = stakingInfo.rewardsEarned;
+        
+        console.log(`User has approximately ${pendingRewards} YOS pending rewards`);
+        
+        // Check if the program has enough tokens for the harvest
+        if (programYosBalance < pendingRewards) {
+          console.error(`Insufficient YOS tokens in program account. Available: ${programYosBalance}, Needed: ~${pendingRewards}`);
+          toast({
+            title: "Harvesting May Fail",
+            description: `The program doesn't have enough YOS tokens (${programYosBalance} available, ~${pendingRewards} needed). This transaction may fail.`,
+            variant: "destructive"
+          });
+        }
+      } catch (error) {
+        console.error("Error checking program YOS token balance:", error);
+      }
     }
     
     // Check if user's staking account exists - users must have staked before they can harvest
