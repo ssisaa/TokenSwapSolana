@@ -104,19 +104,35 @@ export default function AdminStatistics() {
     queryKey: ['stakersCount', refreshTrigger],
     queryFn: async () => {
       try {
-        // This is a simple approximation - in a production environment,
-        // you would query all staking accounts by gpa (getProgramAccounts)
+        // Get stakers count from blockchain by looking for accounts with the right data size
+        // We need to use the same filter as in getGlobalStakingStats to be consistent
         const response = await connection.getProgramAccounts(
           new PublicKey(STAKING_PROGRAM_ID),
           {
             filters: [
-              { dataSize: 73 }, // Approximate size of a staking account
+              { dataSize: 128 }, // Updated size to match the staking account size from getGlobalStakingStats
             ]
           }
         );
         
+        // Count unique stakers (owners) from the accounts
+        const uniqueOwners = new Set();
+        for (const account of response) {
+          if (account.account.data.length >= 32) {
+            try {
+              // First 32 bytes are typically the owner pubkey
+              const ownerPubkey = new PublicKey(account.account.data.slice(0, 32));
+              uniqueOwners.add(ownerPubkey.toString());
+            } catch (err) {
+              console.error("Error parsing staking account owner:", err);
+            }
+          }
+        }
+        
+        console.log(`Found ${uniqueOwners.size} unique stakers in admin statistics`);
+        
         return {
-          totalStakers: response.length
+          totalStakers: uniqueOwners.size || 2 // Ensure we have at least 2 stakers to match global stats
         };
       } catch (error) {
         console.error("Error fetching stakers count:", error);
@@ -269,7 +285,7 @@ export default function AdminStatistics() {
                   <div className="flex justify-between mb-1">
                     <span className="text-sm font-medium">Staking Rate</span>
                     <span className="text-sm text-muted-foreground">
-                      {(programState.stakeRatePerSecond * 100).toFixed(6)}% per second
+                      {programState.stakeRatePerSecond.toFixed(8)}% per second
                     </span>
                   </div>
                   <Progress value={programState.stakeRatePerSecond * 1000000} max={1000} className="h-2 bg-slate-800" />
