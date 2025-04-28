@@ -91,10 +91,13 @@ export function useStaking() {
         return await getStakingProgramState();
       } catch (error) {
         console.error("Failed to get staking program state:", error);
-        // Only throw if it's not the expected "program state doesn't exist" error
-        // This will prevent the UI from showing an error toast for the expected case
-        if (!(error instanceof Error && error.message.includes('Program state account does not exist'))) {
-          throw error;
+        // The getStakingProgramState function now handles errors internally
+        // and returns default values instead of throwing, but we'll keep this as a fallback
+        if (error instanceof Error) {
+          // Log the error but don't throw it - we'll get default values from getStakingProgramState
+          console.warn(`Staking program state error: ${error.message}`);
+          // Return values from another attempt - our updated function handles errors
+          return await getStakingProgramState();
         }
         return null;
       }

@@ -623,17 +623,26 @@ export async function stakeYOTTokens(
     
     // Check if program state exists first
     console.log('Checking if program state account exists...');
-    const programStateInfo = await connection.getAccountInfo(programStateAddress);
-    if (!programStateInfo) {
-      console.error('Program state account does not exist. Program needs to be initialized by admin.');
-      toast({
-        title: "Staking Program Not Initialized",
-        description: "The staking program needs to be initialized by an admin. Please check admin settings.",
-        variant: "destructive"
-      });
-      throw new Error('Program state account does not exist');
+    try {
+      const programStateInfo = await connection.getAccountInfo(programStateAddress);
+      if (!programStateInfo) {
+        console.error('Program state account does not exist. Program needs to be initialized by admin.');
+        // Don't show toast here since it creates too much noise, just return a descriptive error
+        throw new Error('Program state account does not exist');
+      }
+      console.log('Program state account exists with size:', programStateInfo.data.length);
+    } catch (err) {
+      console.error('Error checking program state:', err);
+      // If this is a connection-related issue, treat it differently than program not initialized
+      if (err instanceof Error && !err.message.includes('Program state account does not exist')) {
+        toast({
+          title: "Connection Error",
+          description: "Failed to connect to Solana. Please check your network connection.",
+          variant: "destructive"
+        });
+      }
+      throw err;
     }
-    console.log('Program state account exists with size:', programStateInfo.data.length);
     
     // Check if user YOT token account exists
     const userYotAccountInfo = await connection.getAccountInfo(userYotTokenAccount);
@@ -1306,12 +1315,23 @@ export async function getStakingProgramState(): Promise<{
     const [programStateAddress] = findProgramStateAddress();
     
     // Get program state account data
-    const programStateInfo = await connection.getAccountInfo(programStateAddress);
+    let programStateInfo;
+    try {
+      programStateInfo = await connection.getAccountInfo(programStateAddress);
+    } catch (connErr) {
+      console.error("Connection error when fetching program state:", connErr);
+      // Show a toast with connection error but don't throw - the default values will be used
+      toast({
+        title: "Connection Issue",
+        description: "Having trouble connecting to Solana network. Using default staking rates.",
+        variant: "destructive"
+      });
+    }
     
-    // If program state doesn't exist yet, we'll try to use default values
+    // If program state doesn't exist yet or there was a connection error, use default values
     // This will allow UI components to show proper rates even if data format isn't as expected
     if (!programStateInfo) {
-      console.log("Program state doesn't exist on chain - using defaults");
+      console.log("Program state not available or doesn't exist - using defaults");
       
       // Use our corrected, smaller default rate per second
       // This matches the expected 0.00000125% per second value (not 0.0000125%)
@@ -1424,8 +1444,42 @@ export async function getStakingProgramState(): Promise<{
   } catch (error) {
     console.error('Error fetching staking program state:', error);
     
-    // Instead of providing fallback values, make an explicit note that we rely on blockchain data
-    throw new Error('Failed to fetch staking program state from blockchain. Please try again later.');
+    // Instead of throwing an error, return default values with console warning
+    console.warn('Using default staking rates due to error');
+    
+    // Use our corrected, smaller default rate per second (0.00000125%)
+    const stakeRatePerSecond = 0.00000125;
+    
+    // Simple multiplication for APR calculation (not compounding)
+    const secondsPerDay = 86400;
+    const secondsPerWeek = secondsPerDay * 7;
+    const secondsPerMonth = secondsPerDay * 30;
+    const secondsPerYear = secondsPerDay * 365;
+    
+    // Calculate linear rates (not compound)
+    const dailyAPR = stakeRatePerSecond * secondsPerDay;
+    const weeklyAPR = stakeRatePerSecond * secondsPerWeek;
+    const monthlyAPR = stakeRatePerSecond * secondsPerMonth;
+    const yearlyAPR = stakeRatePerSecond * secondsPerYear;
+    
+    // Calculate APY values (compound interest)
+    const dailyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerDay) - 1) * 100;
+    const weeklyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerWeek) - 1) * 100;
+    const monthlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerMonth) - 1) * 100;
+    const yearlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerYear) - 1) * 100;
+    
+    return {
+      stakeRatePerSecond,
+      harvestThreshold: 1,
+      dailyAPR,
+      weeklyAPR,
+      monthlyAPR,
+      yearlyAPR,
+      dailyAPY,
+      weeklyAPY,
+      monthlyAPY,
+      yearlyAPY
+    };
   }
 }
 
