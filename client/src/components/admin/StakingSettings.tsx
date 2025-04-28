@@ -176,19 +176,19 @@ export default function StakingSettings() {
           </Button>
           
           {!stakingRates ? (
-            <div className="bg-red-50 border border-red-200 p-3 rounded-md">
-              <div className="flex items-center gap-2 text-red-700 font-medium mb-2">
+            <div className="bg-amber-50 border border-amber-200 p-3 rounded-md">
+              <div className="flex items-center gap-2 text-amber-700 font-medium mb-2">
                 <AlertTriangle className="h-5 w-5" />
-                <span>Staking Program Not Initialized</span>
+                <span>Checking Staking Program Status</span>
               </div>
-              <p className="text-sm text-red-600 mb-3">
-                The staking program needs to be initialized before users can stake tokens. 
-                Click the button below to initialize with your current settings.
+              <p className="text-sm text-amber-600 mb-3">
+                If the staking program is not initialized, you can initialize it with the button below.
+                If you know the program is already initialized, try refreshing the page or checking your connection.
               </p>
               <Button 
                 type="button"
-                variant="destructive"
-                className="w-full"
+                variant="default"
+                className="w-full bg-amber-600 hover:bg-amber-700 text-white"
                 disabled={!isAdmin || isInitializing}
                 onClick={async () => {
                   if (!wallet || !connected) {

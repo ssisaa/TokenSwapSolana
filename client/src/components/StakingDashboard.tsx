@@ -59,11 +59,11 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
         </Button>
       </div>
       
-      {/* Program Initialization Warning Banner - triggered only when stakingRates is null */}
-      {stakingRates === null && (
+      {/* Program Initialization Warning Banner - now checks if the rates are completely missing */}
+      {stakingRates === null && !isLoading && (
         <div className="bg-red-600 text-white p-4 rounded-md mb-6">
-          <h3 className="text-lg font-semibold mb-1">Staking Program Not Initialized</h3>
-          <p>The staking program needs to be initialized by an admin. Please check admin settings.</p>
+          <h3 className="text-lg font-semibold mb-1">Connecting to Staking Program</h3>
+          <p>If this message persists, the staking program might need to be initialized by an admin. Try refreshing the page first.</p>
         </div>
       )}
       
