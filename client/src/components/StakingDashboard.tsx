@@ -99,6 +99,27 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
       
       {/* Additional Stats Row */}
       <div className="grid gap-4 grid-cols-3">
+        {/* Annual Rates */}
+        <Card className="bg-dark-200 border-border">
+          <CardContent className="p-4">
+            <h3 className="text-sm font-medium text-muted-foreground mb-1">Annual Rates</h3>
+            {isLoading ? (
+              <Skeleton className="h-6 w-28 bg-dark-100" />
+            ) : (
+              <div className="flex flex-col gap-1">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-sm text-muted-foreground">APR:</span>
+                  <span className="text-lg font-bold text-green-400">{(stakingRates?.yearlyAPR || 0).toFixed(2)}%</span>
+                </div>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-sm text-muted-foreground">APY:</span>
+                  <span className="text-lg font-bold text-green-400">{(stakingRates?.yearlyAPY || 0).toFixed(2)}%</span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        
         {/* Total Staked (All Users Combined) */}
         <Card className="bg-dark-200 border-border">
           <CardContent className="p-4">
