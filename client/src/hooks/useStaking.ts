@@ -610,7 +610,7 @@ export function useStaking() {
       rewardsEarned: 0
     },
     stakingRates: stakingRates || {
-      stakeRatePerSecond: 0.00125,
+      stakeRatePerSecond: 0.00000125, // Stored as decimal (0.00125%)
       harvestThreshold: 1,
       dailyAPR: 108,
       weeklyAPR: 756,
