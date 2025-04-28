@@ -9,7 +9,6 @@ interface Transaction {
   userAddress: string;
   amount: number;
   status: string;
-  [key: string]: string | number; // Index signature to allow string indexing
 }
 import {
   Card,
@@ -68,7 +67,10 @@ export default function AdminTransactions() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [transactionType, setTransactionType] = useState("all");
-  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({
+  // Type for sort keys to ensure we only sort by valid properties
+  type SortableKey = keyof Transaction;
+  
+  const [sortConfig, setSortConfig] = useState<{ key: SortableKey; direction: 'asc' | 'desc' }>({
     key: 'timestamp',
     direction: 'desc'
   });
@@ -207,29 +209,44 @@ export default function AdminTransactions() {
     
   // Sort transactions
   const sortedTransactions = [...filteredTransactions].sort((a, b) => {
+    // Get the key and direction from the sort config
     const { key, direction } = sortConfig;
     
-    // Type-safe comparison based on specific known properties
+    // Handle numeric properties
     if (key === 'timestamp' || key === 'amount') {
-      return direction === 'asc' 
-        ? (a[key] as number) - (b[key] as number)
-        : (b[key] as number) - (a[key] as number);
+      // Safety check if properties exist
+      if (a[key as SortableKey] === undefined || b[key as SortableKey] === undefined) {
+        return 0;
+      }
+      
+      // Sort numbers
+      const aValue = a[key as 'timestamp' | 'amount'];
+      const bValue = b[key as 'timestamp' | 'amount'];
+      
+      return direction === 'asc' ? aValue - bValue : bValue - aValue;
     }
     
-    // For string comparisons
+    // Handle string properties
     if (key === 'signature' || key === 'txType' || key === 'userAddress' || key === 'status') {
-      const aValue = String(a[key]);
-      const bValue = String(b[key]);
-      return direction === 'asc'
-        ? aValue.localeCompare(bValue)
-        : bValue.localeCompare(aValue);
+      // Safety check if properties exist
+      if (a[key as SortableKey] === undefined || b[key as SortableKey] === undefined) {
+        return 0;
+      }
+      
+      // Sort strings
+      const aValue = a[key as 'signature' | 'txType' | 'userAddress' | 'status'];
+      const bValue = b[key as 'signature' | 'txType' | 'userAddress' | 'status'];
+      
+      return direction === 'asc' 
+        ? String(aValue).localeCompare(String(bValue))
+        : String(bValue).localeCompare(String(aValue));
     }
     
     return 0;
   });
   
-  // Handle sort click
-  const handleSort = (key: string) => {
+  // Handle sort click with type-safe key
+  const handleSort = (key: SortableKey) => {
     setSortConfig({
       key,
       direction: sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc'
