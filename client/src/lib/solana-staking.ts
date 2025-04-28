@@ -926,7 +926,13 @@ export async function getStakingProgramState(): Promise<{
     // Next 32 bytes are YOS mint pubkey
     
     // Read stake rate (8 bytes, 64-bit unsigned integer)
-    const stakeRatePerSecond = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32)) / 10000;
+    // The rate stored on-chain is in basis points (1/10000), so we need to convert to decimal
+    // 1.25 basis points = 0.000125 in decimal (or 0.0125% per second)
+    let stakeRatePerSecond = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32)) / 10000;
+    
+    // Convert from percentage to decimal for math calculations
+    // e.g., 0.0125% becomes 0.000125 as a decimal
+    stakeRatePerSecond = stakeRatePerSecond / 100;
     
     // Read harvest threshold (8 bytes, 64-bit unsigned integer)
     const harvestThreshold = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32 + 8)) / 1000000;
@@ -1036,14 +1042,19 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // Read total harvested rewards (8 bytes, 64-bit unsigned integer)
     const totalHarvested = Number(data.readBigUInt64LE(56));
     
-    // Parse program state data
-    const stakeRatePerSecond = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32)) / 10000;
+    // Parse program state data - get rate in proper decimal format
+    let stakeRatePerSecond = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32)) / 10000;
+    
+    // Convert from percentage to decimal for math calculations (same as in getStakingProgramState)
+    stakeRatePerSecond = stakeRatePerSecond / 100;
     
     // Calculate current time
     const currentTime = Math.floor(Date.now() / 1000);
     
     // Calculate pending rewards
     const timeStakedSinceLastHarvest = currentTime - lastHarvestTime;
+    
+    // Use the same rate for rewards calculation as we do for APY
     const pendingRewards = Number(stakedAmount) * timeStakedSinceLastHarvest * stakeRatePerSecond;
     
     return {
