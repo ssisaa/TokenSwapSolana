@@ -113,17 +113,23 @@ function encodeInitializeInstruction(
   console.log(`Converting ${stakeRatePerSecond}% to ${rateInBasisPoints} basis points using universal formula`);
   console.log(`Formula: ${stakeRatePerSecond} * (${REFERENCE_BASIS_POINTS} / ${REFERENCE_RATE}) = ${rateInBasisPoints}`);
   
-  // Special case logging for common values
+  // Special case handling for standard rates to ensure exact matching values
+  // This ensures we get exact basis point values for known percentage rates
+  let finalBasisPoints = rateInBasisPoints;
+  
   if (Math.abs(stakeRatePerSecond - 0.0000125) < 0.0000001) {
-    console.log("Note: This is the standard rate of 0.0000125% (120,000 basis points)");
+    console.log("Special case detected: Using exact 120000 basis points for 0.0000125%");
+    finalBasisPoints = 120000;
   } else if (Math.abs(stakeRatePerSecond - 0.00000125) < 0.000000001) {
-    console.log("Note: This is the tiny rate of 0.00000125% (120 basis points)");
+    console.log("Special case detected: Using exact 12000 basis points for 0.00000125%");
+    finalBasisPoints = 12000;
   }
   
   const thresholdInLamports = Math.floor(harvestThreshold * 1000000);
   
   console.log("Converted values:", {
-    rateInBasisPoints,
+    originalRateInBasisPoints: rateInBasisPoints,
+    finalBasisPoints,
     thresholdInLamports
   });
   
@@ -141,8 +147,8 @@ function encodeInitializeInstruction(
   buffer.set(yosMint.toBuffer(), 33);
   
   // Write stake rate as little-endian u64 (8 bytes)
-  // Use the converted basis points value
-  buffer.writeBigUInt64LE(BigInt(rateInBasisPoints), 65);
+  // Use the converted basis points value (with special case handling if needed)
+  buffer.writeBigUInt64LE(BigInt(finalBasisPoints), 65);
   
   // Write harvest threshold as little-endian u64 (8 bytes)
   // Use the converted lamports value
@@ -153,7 +159,8 @@ function encodeInitializeInstruction(
     discriminator: buffer.readUInt8(0),
     yotMintHex: buffer.slice(1, 33).toString('hex'),
     yosMintHex: buffer.slice(33, 65).toString('hex'),
-    stakeRateBasisPoints: buffer.readBigUInt64LE(65),
+    finalBasisPoints,
+    finalBasisPointsFromBuffer: buffer.readBigUInt64LE(65),
     harvestThresholdLamports: buffer.readBigUInt64LE(73),
     bufferLength: buffer.length
   });
@@ -216,17 +223,23 @@ function encodeUpdateParametersInstruction(
   console.log(`Converting ${stakeRatePerSecond}% to ${rateInBasisPoints} basis points using universal formula`);
   console.log(`Formula: ${stakeRatePerSecond} * (${REFERENCE_BASIS_POINTS} / ${REFERENCE_RATE}) = ${rateInBasisPoints}`);
   
-  // Special case logging for common values
+  // Special case handling for standard rates to ensure exact matching values
+  // This ensures we get exact basis point values for known percentage rates
+  let finalBasisPoints = rateInBasisPoints;
+  
   if (Math.abs(stakeRatePerSecond - 0.0000125) < 0.0000001) {
-    console.log("Note: This is the standard rate of 0.0000125% (120,000 basis points)");
+    console.log("Special case detected: Using exact 120000 basis points for 0.0000125%");
+    finalBasisPoints = 120000;
   } else if (Math.abs(stakeRatePerSecond - 0.00000125) < 0.000000001) {
-    console.log("Note: This is the tiny rate of 0.00000125% (120 basis points)");
+    console.log("Special case detected: Using exact 12000 basis points for 0.00000125%");
+    finalBasisPoints = 12000;
   }
   
   const thresholdInLamports = Math.floor(harvestThreshold * 1000000);
   
   console.log("Encoding parameters update with converted values:", {
-    rateInBasisPoints,
+    originalRateInBasisPoints: rateInBasisPoints,
+    finalBasisPoints,
     thresholdInLamports
   });
   
@@ -238,7 +251,8 @@ function encodeUpdateParametersInstruction(
   buffer.writeUInt8(StakingInstructionType.UpdateParameters, 0);
   
   // Write rate as little-endian u64 (8 bytes) - as basis points
-  buffer.writeBigUInt64LE(BigInt(rateInBasisPoints), 1);
+  // We use finalBasisPoints which might have been adjusted for exact values
+  buffer.writeBigUInt64LE(BigInt(finalBasisPoints), 1);
   
   // Write threshold as little-endian u64 (8 bytes) - as lamports
   buffer.writeBigUInt64LE(BigInt(thresholdInLamports), 9);
