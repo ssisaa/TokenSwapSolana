@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,8 +17,7 @@ export default function StakingSettings() {
   const [stakeRatePerSecond, setStakeRatePerSecond] = useState<string>('0.00000125');
   const [harvestThreshold, setHarvestThreshold] = useState<string>('1.0');
   
-  // Update form state when we get rates from blockchain
-  useEffect(() => {
+  React.useEffect(() => {
     if (stakingRates) {
       setStakeRatePerSecond(stakingRates.stakeRatePerSecond.toString());
       setHarvestThreshold(stakingRates.harvestThreshold.toString());
