@@ -179,33 +179,36 @@ function encodeUpdateParametersInstruction(
   harvestThreshold: number
 ): Buffer {
   // Convert percentage per second to basis points
-  // Special case: For 0.00125%, we need to use exactly 12 basis points
-  // to match what's already in the blockchain
+  // Special case: For 0.00125%, we need to use exactly 120000 basis points
+  // to match what's already in the blockchain (initially was 12 but now 120000)
   let rateInBasisPoints;
   
   if (Math.abs(stakeRatePerSecond - 0.00125) < 0.00001) {
-    // If it's 0.00125%, we have two options for encoding:
-    // 1. Use 12 basis points (original encoding used in the blockchain)
-    // 2. Use 120000 basis points (the value currently in blockchain)
-    
-    // IMPORTANT: Currently the blockchain has 120000 basis points stored, so we should match that
-    // if we want to maintain the same rate
+    // If it's 0.00125%, use 120000 basis points to match current blockchain value
     rateInBasisPoints = 120000;
-    
     console.log("Using special encoding for 0.00125% rate: 120000 basis points");
-    
-    // If you need to change this in the future, you can switch between these values:
-    // rateInBasisPoints = 12;     // Original encoding (12 basis points)
-    // rateInBasisPoints = 120000; // Current encoding (120000 basis points)
+  } else if (Math.abs(stakeRatePerSecond - 0.00000125) < 0.000000001) {
+    // Special case for extremely tiny value (0.00000125%)
+    // Scale factor is 1000 times less than for 0.00125%
+    rateInBasisPoints = 120; // 120000 / 1000
+    console.log(`Special encoding for tiny rate (${stakeRatePerSecond}%): 120 basis points`);
+  } else if (stakeRatePerSecond < 0.0000001) {
+    // For ultra small values (less than 0.0000001%), use proportional scaling
+    // Calculate scaled basis points with high precision
+    const scaledBasisPoints = Math.max(Math.round(stakeRatePerSecond * 100000000), 1);
+    rateInBasisPoints = scaledBasisPoints;
+    console.log(`Ultra small rate detected (${stakeRatePerSecond}%). Using ${rateInBasisPoints} basis points`);
   } else if (stakeRatePerSecond < 0.0001) {
-    // For extremely small values (less than 0.0001%), enforce a minimum of 1 basis point
-    rateInBasisPoints = 1;
-    console.log(`Very small rate detected (${stakeRatePerSecond}%). Using minimum 1 basis point for update`);
+    // For small values (less than 0.0001%), ensure we have at least 1 basis point
+    // but try to maintain proportional scaling when possible
+    rateInBasisPoints = Math.max(Math.round(stakeRatePerSecond * 10000), 1);
+    console.log(`Small rate detected (${stakeRatePerSecond}%). Using ${rateInBasisPoints} basis points`);
   } else {
-    // Otherwise, use the standard formula (1% = 10000 basis points)
+    // Standard formula (1% = 10000 basis points)
     rateInBasisPoints = Math.round(stakeRatePerSecond * 10000);
     console.log(`Converting ${stakeRatePerSecond}% to ${rateInBasisPoints} basis points`);
   }
+  
   const thresholdInLamports = Math.floor(harvestThreshold * 1000000);
   
   console.log("Encoding parameters update with converted values:", {
