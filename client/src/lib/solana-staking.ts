@@ -2051,7 +2051,8 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     transaction.feePayer = userPublicKey;
     
     // Get a fresh blockhash right before sending
-    let blockhashResponse = await connection.getLatestBlockhash('finalized');
+    // Using 'confirmed' commitment level to avoid "blockhash not found" errors
+    let blockhashResponse = await connection.getLatestBlockhash('confirmed');
     transaction.recentBlockhash = blockhashResponse.blockhash;
     
     // Request signature from user (this triggers a wallet signature request)
@@ -2230,7 +2231,8 @@ export async function updateStakingParameters(
     transaction.feePayer = adminPublicKey;
     
     // Get a fresh blockhash right before sending
-    let blockhashResponse = await connection.getLatestBlockhash('finalized');
+    // Using 'confirmed' commitment level to avoid "blockhash not found" errors
+    let blockhashResponse = await connection.getLatestBlockhash('confirmed');
     transaction.recentBlockhash = blockhashResponse.blockhash;
     
     console.log("Transaction created, requesting admin wallet signature...");
