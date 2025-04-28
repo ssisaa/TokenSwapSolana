@@ -75,12 +75,9 @@ function encodeInitializeInstruction(
     harvestThreshold
   });
   
-  // IMPORTANT: We need to set the specific basis points for 0.00125% per second
-  // 0.00125% expressed in basis points = 0.00125 * 100 = 0.125 basis points
-  // However, we'll need to shift by a factor of 100 to get a clean integer
-  // So 0.125 * 100 = 12.5, rounded to 12 or 13 basis points
-  // This should give us a rate very close to 0.00125% per second
-  const rateInBasisPoints = 12; // Specific value for 0.00125%
+  // Simply hardcode the value to exactly 13 for 0.00125% (slightly higher but works better)
+  // Using a fixed value without complex calculations is safer
+  const rateInBasisPoints = 13;
   const thresholdInLamports = Math.floor(harvestThreshold * 1000000);
   
   console.log("Converted values:", {
@@ -312,21 +309,40 @@ export async function initializeStakingProgram(
     }
     
     // Create main transaction instruction for program initialization
-    // IMPORTANT: Looking at the Rust program, it only expects 3 accounts for initialization:
+    // IMPORTANT: Looking at the Rust program, it needs these accounts for initialization:
     // 1. Admin account (signer)
     // 2. Program state account (PDA)
     // 3. System program (for creating the account)
-    console.log("Creating initialization instruction with minimal accounts required by the program");
+    // 4. YOT token mint address
+    // 5. YOS token mint address
+    console.log("Creating initialization instruction with all required accounts");
+    
+    // Check if the program state already exists
+    if (programStateAccountInfo) {
+      console.log("Program state already exists, no need to initialize again");
+      toast({
+        title: "Program Already Initialized",
+        description: "The staking program has already been initialized. You can update parameters instead."
+      });
+      throw new Error("Program state already exists");
+    }
+    
     const initInstruction = new TransactionInstruction({
       keys: [
         // Admin is the signer and payer
         { pubkey: adminPublicKey, isSigner: true, isWritable: true },
         
-        // Program state PDA account - the only account being created during initialization
+        // Program state PDA account - the account being created during initialization
         { pubkey: programStateAddress, isSigner: false, isWritable: true },
         
         // System program for account creation
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        
+        // Add YOT mint address
+        { pubkey: yotMintPubkey, isSigner: false, isWritable: false },
+        
+        // Add YOS mint address
+        { pubkey: yosMintPubkey, isSigner: false, isWritable: false },
       ],
       programId: STAKING_PROGRAM_ID,
       data: encodeInitializeInstruction(
