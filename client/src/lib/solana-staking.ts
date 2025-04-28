@@ -1684,7 +1684,7 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     console.log("Starting harvesting process with validation checks...");
     const connection = new Connection(ENDPOINT, 'confirmed');
     const userPublicKey = wallet.publicKey;
-    const yosMintAddress = new PublicKey(YOS_TOKEN_ADDRESS);
+    const yosMintPubkey = new PublicKey(YOS_TOKEN_ADDRESS);
     
     // First, run account validation to check if all accounts exist and are properly funded
     const validationResult = await validateStakingAccounts(wallet);
@@ -1707,7 +1707,7 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     
     // Get the user's token account
     const userYosTokenAccount = await getAssociatedTokenAddress(
-      yosMintAddress,
+      yosMintPubkey,
       userPublicKey
     );
     
@@ -1764,7 +1764,7 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     // Additional diagnostic: Try to find ALL YOS accounts associated with the program authority
     const programYosAccounts = await connection.getTokenAccountsByOwner(
       programAuthorityAddress,
-      { mint: yosMintAddress }
+      { mint: new PublicKey(YOS_TOKEN_ADDRESS) }
     );
     
     console.log(`Found ${programYosAccounts.value.length} YOS accounts owned by program authority`);
@@ -1782,7 +1782,7 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
           userPublicKey,
           programYosTokenAccount,
           programAuthorityAddress,
-          yosMintAddress
+          new PublicKey(YOS_TOKEN_ADDRESS)
         )
       );
       toast({
