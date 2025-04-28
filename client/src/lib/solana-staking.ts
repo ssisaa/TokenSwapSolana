@@ -68,24 +68,39 @@ function encodeInitializeInstruction(
   stakeRatePerSecond: number,
   harvestThreshold: number
 ): Buffer {
+  console.log("Encoding initialization instruction with parameters:", {
+    yotMint: yotMint.toString(),
+    yosMint: yosMint.toString(),
+    stakeRatePerSecond,
+    harvestThreshold
+  });
+  
+  // In Rust, this is enum StakingInstruction { Initialize { yot_mint, yos_mint, stake_rate_per_second, harvest_threshold } }
   // Create a buffer to hold all data
   // 1 byte for instruction type + 32 bytes for yotMint + 32 bytes for yosMint + 8 bytes for rate + 8 bytes for threshold
   const buffer = Buffer.alloc(1 + 32 + 32 + 8 + 8);
   
   // Write instruction type to the first byte
+  // 0 = Initialize in our enum
   buffer.writeUInt8(StakingInstructionType.Initialize, 0);
   
-  // Write YOT mint pubkey bytes (32 bytes)
-  buffer.set(yotMint.toBytes(), 1);
+  // Write YOT mint pubkey bytes (32 bytes) - Rust expects this to be in little-endian format
+  const yotMintBytes = yotMint.toBytes();
+  buffer.set(yotMintBytes, 1);
   
   // Write YOS mint pubkey bytes (32 bytes)
-  buffer.set(yosMint.toBytes(), 33);
+  const yosMintBytes = yosMint.toBytes();
+  buffer.set(yosMintBytes, 33);
   
-  // Write rate as little-endian u64 (8 bytes)
+  // Write rate as little-endian u64 (8 bytes) - Rust expects u64 as little-endian
   buffer.writeBigUInt64LE(BigInt(stakeRatePerSecond), 65);
   
-  // Write threshold as little-endian u64 (8 bytes)
+  // Write threshold as little-endian u64 (8 bytes) 
   buffer.writeBigUInt64LE(BigInt(harvestThreshold), 73);
+  
+  // Log the buffer for debugging
+  console.log("Encoded init instruction buffer:", buffer);
+  console.log("Encoded init instruction hex:", buffer.toString('hex'));
   
   return buffer;
 }
@@ -201,13 +216,52 @@ export async function initializeStakingProgram(
     const programStateAccountInfo = await connection.getAccountInfo(programStateAddress);
     console.log("Program state account exists:", !!programStateAccountInfo);
     
+    // Find program authority address
+    const [programAuthorityAddress, programAuthorityBump] = PublicKey.findProgramAddressSync(
+      [Buffer.from('authority')],
+      STAKING_PROGRAM_ID
+    );
+    console.log("Program authority address:", programAuthorityAddress.toString(), "with bump:", programAuthorityBump);
+    
+    // Get program YOT token account
+    const programYotTokenAccount = await getAssociatedTokenAddress(
+      yotMintPubkey,
+      programAuthorityAddress,
+      true // allowOwnerOffCurve
+    );
+    console.log('Program YOT account address:', programYotTokenAccount.toString());
+    
+    // Get program YOS token account
+    const programYosTokenAccount = await getAssociatedTokenAddress(
+      yosMintPubkey,
+      programAuthorityAddress,
+      true // allowOwnerOffCurve
+    );
+    console.log('Program YOS account address:', programYosTokenAccount.toString());
+
     // Create transaction instruction
     console.log("Creating initialization instruction");
     const initInstruction = new TransactionInstruction({
       keys: [
+        // Admin is the signer and payer
         { pubkey: adminPublicKey, isSigner: true, isWritable: true },
+        
+        // Program accounts that will be created/written to
         { pubkey: programStateAddress, isSigner: false, isWritable: true },
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false },
+        
+        // Token mints 
+        { pubkey: yotMintPubkey, isSigner: false, isWritable: false },
+        { pubkey: yosMintPubkey, isSigner: false, isWritable: false },
+        
+        // System program for account creation
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        
+        // Rent program for rent exemption
+        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+        
+        // Token program for token operations
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
       ],
       programId: STAKING_PROGRAM_ID,
       data: encodeInitializeInstruction(
@@ -251,13 +305,19 @@ export async function initializeStakingProgram(
       return signature;
     } catch (signError) {
       console.error("Error during transaction signing:", signError);
-      throw new Error(`Wallet signature error: ${signError.message}`);
+      const errorMessage = signError instanceof Error 
+        ? signError.message 
+        : 'Unknown wallet signature error';
+      throw new Error(`Wallet signature error: ${errorMessage}`);
     }
   } catch (error) {
     console.error('Error initializing staking program:', error);
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : 'Unknown error during initialization';
     toast({
       title: "Initialization Failed",
-      description: error.message,
+      description: errorMessage,
       variant: "destructive"
     });
     throw error;
