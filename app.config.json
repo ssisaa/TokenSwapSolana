@@ -1,0 +1,71 @@
+{
+  "environment": "production",
+  
+  "solana": {
+    "network": "devnet",
+    "rpcUrl": "https://api.devnet.solana.com",
+    "programId": "6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6",
+    "commitment": "confirmed",
+    "tokens": {
+      "yot": {
+        "address": "2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF", 
+        "decimals": 9,
+        "name": "YOT Token"
+      },
+      "yos": {
+        "address": "GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n",
+        "decimals": 9,
+        "name": "YOS Staking Token"
+      }
+    },
+    "pool": {
+      "authority": "7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK",
+      "solAccount": "7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS"
+    }
+  },
+  
+  "admin": {
+    "defaultUsername": "admin",
+    "maxLiquidityContribution": 10000,
+    "defaultLiquidityFee": 0.3,
+    "stakingRatePerSecond": 3, 
+    "harvestThreshold": 1000000000
+  },
+  
+  "security": {
+    "sessionSecret": "REPLACE_WITH_SECURE_RANDOM_STRING",
+    "sessionTTL": 86400000,
+    "rateLimit": {
+      "windowMs": 15 * 60 * 1000,
+      "max": 100
+    },
+    "cors": {
+      "origin": "*", 
+      "methods": ["GET", "POST"]
+    }
+  },
+  
+  "api": {
+    "port": 3000,
+    "basePath": "/api"
+  },
+  
+  "database": {
+    "usePostgres": true,
+    "migrationStrategy": "auto"
+  },
+  
+  "ui": {
+    "theme": "dark",
+    "defaultDecimalPlaces": 4,
+    "refreshRateMs": 30000
+  },
+  
+  "features": {
+    "enableSwap": true,
+    "enableStaking": true,
+    "enableLiquidity": true,
+    "enableAdminPanel": true,
+    "enableAnalytics": true
+  }
+}
