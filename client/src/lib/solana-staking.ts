@@ -1382,10 +1382,16 @@ export async function unstakeYOTTokens(
     
     const userPublicKey = wallet.publicKey;
     const yotMintPubkey = new PublicKey(YOT_TOKEN_ADDRESS);
+    const yosMintPubkey = new PublicKey(YOS_TOKEN_ADDRESS);
     
-    // Get the user's token account
+    // Get the user's token accounts for both YOT and YOS
     const userYotTokenAccount = await getAssociatedTokenAddress(
       yotMintPubkey,
+      userPublicKey
+    );
+    
+    const userYosTokenAccount = await getAssociatedTokenAddress(
+      yosMintPubkey,
       userPublicKey
     );
     
@@ -1426,6 +1432,21 @@ export async function unstakeYOTTokens(
     // Create a transaction to potentially hold multiple instructions
     const transaction = new Transaction();
     
+    // Get staking info to check user's staked amount and pending rewards
+    console.log("Fetching user staking info to check staked amount and rewards...");
+    const stakingInfo = await getStakingInfo(userPublicKey.toString());
+    console.log(`User has ${stakingInfo.stakedAmount} YOT staked and ${stakingInfo.rewardsEarned} YOS rewards pending`);
+    
+    // Ensure user has enough staked tokens
+    if (stakingInfo.stakedAmount < amount) {
+      toast({
+        title: "Insufficient Staked Amount",
+        description: `You only have ${stakingInfo.stakedAmount} YOT staked, but you're trying to unstake ${amount} YOT.`,
+        variant: "destructive"
+      });
+      throw new Error(`Insufficient staked amount. Available: ${stakingInfo.stakedAmount}, Requested: ${amount}`);
+    }
+    
     // Check if user YOT token account exists, create if needed
     const userYotAccountInfo = await connection.getAccountInfo(userYotTokenAccount);
     if (!userYotAccountInfo) {
@@ -1441,6 +1462,26 @@ export async function unstakeYOTTokens(
       toast({
         title: "Creating YOT Token Account",
         description: "You need a YOT token account to receive unstaked tokens. It will be created automatically."
+      });
+    }
+    
+    // Check for YOS token account existence
+    // Check if user YOS token account exists, create if needed
+    const userYosAccountInfo = await connection.getAccountInfo(userYosTokenAccount);
+    if (!userYosAccountInfo) {
+      console.log('YOS token account for user does not exist. Creating it...');
+      transaction.add(
+        createAssociatedTokenAccountInstruction(
+          userPublicKey,
+          userYosTokenAccount,
+          userPublicKey,
+          yosMintPubkey
+        )
+      );
+      
+      toast({
+        title: "Creating YOS Token Account",
+        description: "You need a YOS token account to receive staking rewards. It will be created automatically."
       });
     }
     
@@ -1503,33 +1544,8 @@ export async function unstakeYOTTokens(
       console.log('User staking account exists with size:', userStakingAccountInfo.data.length);
     }
     
-    // Also check for YOS token account existence
-    const userYosTokenAccount = await getAssociatedTokenAddress(
-      yosMintAddress, // Use the yosMintAddress we defined above
-      userPublicKey
-    );
+    // userYosTokenAccount was initialized at the beginning of the function
     console.log('User YOS token account address for unstake:', userYosTokenAccount.toBase58());
-    
-    // Check if YOS token account exists
-    const userYosAccountInfo = await connection.getAccountInfo(userYosTokenAccount);
-    if (!userYosAccountInfo) {
-      console.log('YOS token account for user does not exist. Creating it for unstake...');
-      transaction.add(
-        createAssociatedTokenAccountInstruction(
-          userPublicKey,
-          userYosTokenAccount,
-          userPublicKey,
-          yosMintAddress
-        )
-      );
-      
-      toast({
-        title: "Creating YOS Token Account",
-        description: "You need a YOS token account to receive staking rewards. It will be created automatically."
-      });
-    } else {
-      console.log('User YOS token account exists for unstake operation');
-    }
     
     // Also check if program YOS token account exists, create if needed
     console.log('Checking if program YOS token account exists...');
