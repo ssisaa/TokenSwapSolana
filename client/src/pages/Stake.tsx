@@ -152,46 +152,120 @@ export default function Stake() {
         <div className="mt-6">
           <div className="grid gap-6 lg:grid-cols-2 mb-6">
             {/* YOT Staking Stats */}
-            <Card className="bg-dark-200 border border-slate-700">
-              <CardContent className="p-6">
-                <h3 className="text-xl font-bold mb-4 text-white">YOT Staking</h3>
-                <p className="text-sm text-gray-300 mb-4">
-                  Stake YOT tokens to earn YOS rewards. All actions require wallet signature.
-                </p>
-                
-                {/* Stats */}
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Total Staked:</span>
-                    <span className="font-medium text-white">{formatNumber(isLoading ? 0 : stakingInfo.stakedAmount)} YOT</span>
+            <div className="space-y-6">
+              <Card className="bg-dark-200 border border-slate-700">
+                <CardContent className="p-6">
+                  <h3 className="text-xl font-bold mb-4 text-white">YOT Staking</h3>
+                  <p className="text-sm text-gray-300 mb-4">
+                    Stake YOT tokens to earn YOS rewards. All actions require wallet signature.
+                  </p>
+                  
+                  {/* Stats */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Total Staked:</span>
+                      <span className="font-medium text-white">{formatNumber(isLoading ? 0 : stakingInfo.stakedAmount)} YOT</span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Pending Rewards:</span>
+                      <span className="font-medium text-white">{formatNumber(isLoading ? 0 : stakingInfo.rewardsEarned)} YOS</span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Staking Since:</span>
+                      <span className="font-medium text-white">
+                        {isLoading ? 'Loading...' : (stakingInfo.startTimestamp === 0 ? 'Not staked yet' : new Date(stakingInfo.startTimestamp * 1000).toLocaleDateString())}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Last Harvest:</span>
+                      <span className="font-medium text-white">
+                        {isLoading ? 'Loading...' : (stakingInfo.lastHarvestTime === 0 ? 'Never harvested' : `${Math.floor((Date.now()/1000 - stakingInfo.lastHarvestTime) / 3600)} hours ago`)}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Total Harvested:</span>
+                      <span className="font-medium text-white">{formatNumber(isLoading ? 0 : stakingInfo.totalHarvested)} YOS</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {/* Staking APR/APY Rates */}
+              <Card className="bg-dark-200 border border-slate-700">
+                <CardContent className="pt-6">
+                  <h3 className="text-xl font-bold mb-4 text-white">Staking APR/APY Rates</h3>
+                  
+                  <div className="border-t border-slate-700 py-3">
+                    <div className="flex justify-between items-center">
+                      <div className="text-sm font-medium text-white">Per Second Rate:</div>
+                      <div className="text-sm font-bold text-green-400">
+                        {`${(stakingRates?.stakeRatePerSecond || 0).toFixed(8)}%`}
+                      </div>
+                    </div>
                   </div>
                   
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Pending Rewards:</span>
-                    <span className="font-medium text-white">{formatNumber(isLoading ? 0 : stakingInfo.rewardsEarned)} YOS</span>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-2 border-b border-slate-700">
+                      <div className="text-xs font-medium text-gray-400">Daily APR:</div>
+                      <div className="text-sm font-bold text-green-400">
+                        {`${(stakingRates?.dailyAPR || 0).toFixed(2)}%`}
+                      </div>
+                    </div>
+                    <div className="p-2 border-b border-slate-700">
+                      <div className="text-xs font-medium text-gray-400">Daily APY:</div>
+                      <div className="text-sm font-bold text-green-400">
+                        {`${(stakingRates?.dailyAPY || 0).toFixed(2)}%`}
+                      </div>
+                    </div>
+                    <div className="p-2 border-b border-slate-700">
+                      <div className="text-xs font-medium text-gray-400">Weekly APR:</div>
+                      <div className="text-sm font-bold text-green-400">
+                        {`${(stakingRates?.weeklyAPR || 0).toFixed(2)}%`}
+                      </div>
+                    </div>
+                    <div className="p-2 border-b border-slate-700">
+                      <div className="text-xs font-medium text-gray-400">Weekly APY:</div>
+                      <div className="text-sm font-bold text-green-400">
+                        {`${(stakingRates?.weeklyAPY || 0).toFixed(2)}%`}
+                      </div>
+                    </div>
+                    <div className="p-2 border-b border-slate-700">
+                      <div className="text-xs font-medium text-gray-400">Monthly APR:</div>
+                      <div className="text-sm font-bold text-green-400">
+                        {`${(stakingRates?.monthlyAPR || 0).toFixed(2)}%`}
+                      </div>
+                    </div>
+                    <div className="p-2 border-b border-slate-700">
+                      <div className="text-xs font-medium text-gray-400">Monthly APY:</div>
+                      <div className="text-sm font-bold text-green-400">
+                        {`${(stakingRates?.monthlyAPY || 0).toFixed(2)}%`}
+                      </div>
+                    </div>
+                    <div className="p-2">
+                      <div className="text-xs font-medium text-gray-400">Yearly APR:</div>
+                      <div className="text-sm font-bold text-green-400">
+                        {`${(stakingRates?.yearlyAPR || 0).toFixed(2)}%`}
+                      </div>
+                    </div>
+                    <div className="p-2">
+                      <div className="text-xs font-medium text-gray-400">Yearly APY:</div>
+                      <div className="text-sm font-bold text-green-400">
+                        {`${(stakingRates?.yearlyAPY || 0).toFixed(2)}%`}
+                      </div>
+                    </div>
                   </div>
                   
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Staking Since:</span>
-                    <span className="font-medium text-white">
-                      {isLoading ? 'Loading...' : (stakingInfo.startTimestamp === 0 ? 'Not staked yet' : new Date(stakingInfo.startTimestamp * 1000).toLocaleDateString())}
-                    </span>
+                  <div className="text-xs text-gray-400 flex items-center mt-2">
+                    <InfoIcon className="h-3 w-3 mr-1 text-blue-400" />
+                    Rates are set by the admin and may change
                   </div>
-                  
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Last Harvest:</span>
-                    <span className="font-medium text-white">
-                      {isLoading ? 'Loading...' : (stakingInfo.lastHarvestTime === 0 ? 'Never harvested' : `${Math.floor((Date.now()/1000 - stakingInfo.lastHarvestTime) / 3600)} hours ago`)}
-                    </span>
-                  </div>
-                  
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Total Harvested:</span>
-                    <span className="font-medium text-white">{formatNumber(isLoading ? 0 : stakingInfo.totalHarvested)} YOS</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
             
             {/* Staking Actions Form */}
             <Card className="bg-dark-200 border border-slate-700">
@@ -369,79 +443,7 @@ export default function Stake() {
             </Card>
           </div>
           
-          {/* Staking APR/APY Rates */}
-          <Card className="bg-dark-200 border border-slate-700 mb-6">
-            <CardContent className="pt-6">
-              <h3 className="text-xl font-bold mb-4 text-white">Staking APR/APY Rates</h3>
-              
-              <div className="border-t border-slate-700 py-3">
-                <div className="flex justify-between items-center">
-                  <div className="text-sm font-medium text-white">Per Second Rate:</div>
-                  <div className="text-sm font-bold text-green-400">
-                    {`${(stakingRates?.stakeRatePerSecond || 0).toFixed(8)}%`}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-2 border-b border-slate-700">
-                  <div className="text-xs font-medium text-gray-400">Daily APR:</div>
-                  <div className="text-sm font-bold text-green-400">
-                    {`${(stakingRates?.dailyAPR || 0).toFixed(2)}%`}
-                  </div>
-                </div>
-                <div className="p-2 border-b border-slate-700">
-                  <div className="text-xs font-medium text-gray-400">Daily APY:</div>
-                  <div className="text-sm font-bold text-green-400">
-                    {`${(stakingRates?.dailyAPY || 0).toFixed(2)}%`}
-                  </div>
-                </div>
-                <div className="p-2 border-b border-slate-700">
-                  <div className="text-xs font-medium text-gray-400">Weekly APR:</div>
-                  <div className="text-sm font-bold text-green-400">
-                    {`${(stakingRates?.weeklyAPR || 0).toFixed(2)}%`}
-                  </div>
-                </div>
-                <div className="p-2 border-b border-slate-700">
-                  <div className="text-xs font-medium text-gray-400">Weekly APY:</div>
-                  <div className="text-sm font-bold text-green-400">
-                    {`${(stakingRates?.weeklyAPY || 0).toFixed(2)}%`}
-                  </div>
-                </div>
-                <div className="p-2 border-b border-slate-700">
-                  <div className="text-xs font-medium text-gray-400">Monthly APR:</div>
-                  <div className="text-sm font-bold text-green-400">
-                    {`${(stakingRates?.monthlyAPR || 0).toFixed(2)}%`}
-                  </div>
-                </div>
-                <div className="p-2 border-b border-slate-700">
-                  <div className="text-xs font-medium text-gray-400">Monthly APY:</div>
-                  <div className="text-sm font-bold text-green-400">
-                    {`${(stakingRates?.monthlyAPY || 0).toFixed(2)}%`}
-                  </div>
-                </div>
-                <div className="p-2">
-                  <div className="text-xs font-medium text-gray-400">Yearly APR:</div>
-                  <div className="text-sm font-bold text-green-400">
-                    {`${(stakingRates?.yearlyAPR || 0).toFixed(2)}%`}
-                  </div>
-                </div>
-                <div className="p-2">
-                  <div className="text-xs font-medium text-gray-400">Yearly APY:</div>
-                  <div className="text-sm font-bold text-green-400">
-                    {`${(stakingRates?.yearlyAPY || 0).toFixed(2)}%`}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="text-xs text-gray-400 flex items-center mt-2">
-                <InfoIcon className="h-3 w-3 mr-1 text-blue-400" />
-                Rates are set by the admin and may change
-              </div>
-            </CardContent>
-          </Card>
-          
-          {/* How Staking Works (Below) */}
+          {/* How Staking Works (Below the forms) */}
           <Card className="bg-dark-200 border border-slate-700 mb-6">
             <CardContent className="pt-6">
               <h3 className="text-xl font-bold mb-4 text-white">How Staking Works</h3>
