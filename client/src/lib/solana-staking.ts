@@ -897,9 +897,10 @@ export async function unstakeYOTTokens(
     );
     
     // Get program token account for YOS
-    const yosMintPubkey = new PublicKey(YOS_TOKEN_ADDRESS);
+    // Important: reuse the same variable name across different functions
+    const yosMintAddress = new PublicKey(YOS_TOKEN_ADDRESS);
     const programYosTokenAccount = await getAssociatedTokenAddress(
-      yosMintPubkey,
+      yosMintAddress,
       programAuthorityAddress,
       true // allowOwnerOffCurve
     );
@@ -961,7 +962,7 @@ export async function unstakeYOTTokens(
     
     // Also check for YOS token account existence
     const userYosTokenAccount = await getAssociatedTokenAddress(
-      yosMintPubkey, // Using the yosMintPubkey that we already defined
+      yosMintAddress, // Use the yosMintAddress we defined above
       userPublicKey
     );
     console.log('User YOS token account address for unstake:', userYosTokenAccount.toBase58());
