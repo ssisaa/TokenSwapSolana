@@ -26,12 +26,55 @@ export default function Stake() {
   const { balance: yotBalance } = useTokenBalance(YOT_TOKEN_ADDRESS);
   const { balance: yosBalance } = useTokenBalance(YOS_TOKEN_ADDRESS);
   
+  const [stakeAmount, setStakeAmount] = useState<string>('');
+  const [unstakeAmount, setUnstakeAmount] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'stake' | 'unstake' | 'harvest'>('stake');
+  
   const {
     stakingInfo,
     stakingRates,
     isLoading,
-    globalStats
+    globalStats,
+    stakeTokens,
+    unstakeTokens,
+    harvestRewards,
+    isStaking,
+    isUnstaking,
+    isHarvesting
   } = useStaking();
+  
+  // Handle stake button click
+  const handleStake = () => {
+    if (!stakeAmount || parseFloat(stakeAmount) <= 0) return;
+    stakeTokens({ amount: parseFloat(stakeAmount) });
+    setStakeAmount('');
+  };
+  
+  // Handle unstake button click
+  const handleUnstake = () => {
+    if (!unstakeAmount || parseFloat(unstakeAmount) <= 0) return;
+    const amount = Math.min(parseFloat(unstakeAmount), stakingInfo.stakedAmount);
+    unstakeTokens({ amount });
+    setUnstakeAmount('');
+  };
+  
+  // Handle harvest button click
+  const handleHarvest = () => {
+    harvestRewards();
+  };
+  
+  // Handle max stake button
+  const handleMaxStake = () => {
+    setStakeAmount(yotBalance.toString());
+  };
+  
+  // Handle max unstake button
+  const handleMaxUnstake = () => {
+    setUnstakeAmount(stakingInfo.stakedAmount.toString());
+  };
+  
+  // Check if rewards can be harvested
+  const canHarvest = stakingInfo.rewardsEarned > 0;
   
   return (
     <DashboardLayout>
@@ -105,75 +148,278 @@ export default function Stake() {
           </Card>
         </div>
         
-        {/* Main Content - Two Columns Side by Side */}
-        <div className="grid gap-6 lg:grid-cols-2 mt-6">
-          {/* Left Column - StakingCard */}
-          <StakingCard />
+        {/* Main Content */}
+        <div className="mt-6">
+          <div className="grid gap-6 lg:grid-cols-2 mb-6">
+            {/* YOT Staking Stats */}
+            <Card className="bg-dark-200 border border-slate-700">
+              <CardContent className="p-6">
+                <h3 className="text-xl font-bold mb-4 text-white">YOT Staking</h3>
+                <p className="text-sm text-gray-300 mb-4">
+                  Stake YOT tokens to earn YOS rewards. All actions require wallet signature.
+                </p>
+                
+                {/* Stats */}
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Total Staked:</span>
+                    <span className="font-medium text-white">{formatNumber(isLoading ? 0 : stakingInfo.stakedAmount)} YOT</span>
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Pending Rewards:</span>
+                    <span className="font-medium text-white">{formatNumber(isLoading ? 0 : stakingInfo.rewardsEarned)} YOS</span>
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Staking Since:</span>
+                    <span className="font-medium text-white">
+                      {isLoading ? 'Loading...' : (stakingInfo.startTimestamp === 0 ? 'Not staked yet' : new Date(stakingInfo.startTimestamp * 1000).toLocaleDateString())}
+                    </span>
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Last Harvest:</span>
+                    <span className="font-medium text-white">
+                      {isLoading ? 'Loading...' : (stakingInfo.lastHarvestTime === 0 ? 'Never harvested' : `${Math.floor((Date.now()/1000 - stakingInfo.lastHarvestTime) / 3600)} hours ago`)}
+                    </span>
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Total Harvested:</span>
+                    <span className="font-medium text-white">{formatNumber(isLoading ? 0 : stakingInfo.totalHarvested)} YOS</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Staking Actions Form */}
+            <Card className="bg-dark-200 border border-slate-700">
+              <CardContent className="p-6">
+                {/* Action Tabs */}
+                <div className="flex border-b border-slate-700 mb-4">
+                  <button 
+                    className={`flex items-center mr-4 pb-3 px-1 ${activeTab === 'stake' ? 'border-b-2 border-blue-500 text-white font-medium' : 'text-gray-400'}`}
+                    onClick={() => setActiveTab('stake')}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Stake
+                  </button>
+                  <button 
+                    className={`flex items-center mr-4 pb-3 px-1 ${activeTab === 'unstake' ? 'border-b-2 border-blue-500 text-white font-medium' : 'text-gray-400'}`}
+                    onClick={() => setActiveTab('unstake')}
+                    disabled={stakingInfo.stakedAmount <= 0}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Unstake
+                  </button>
+                  <button 
+                    className={`flex items-center pb-3 px-1 ${activeTab === 'harvest' ? 'border-b-2 border-blue-500 text-white font-medium' : 'text-gray-400'}`}
+                    onClick={() => setActiveTab('harvest')}
+                    disabled={stakingInfo.rewardsEarned <= 0}
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Harvest
+                  </button>
+                </div>
+                
+                {/* Stake Tab */}
+                {activeTab === 'stake' && (
+                  <>
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-lg font-semibold text-white">Stake YOT</h3>
+                      <div className="flex items-center text-sm">
+                        <span className="text-gray-400">Available: </span>
+                        <span className="font-medium ml-1 text-white">{formatNumber(yotBalance)} YOT</span>
+                      </div>
+                    </div>
+                    
+                    {/* Input Field */}
+                    <div className="bg-dark-100 rounded-md border border-slate-700 flex justify-between items-center mb-2">
+                      <input 
+                        type="number"
+                        placeholder="Amount to stake"
+                        value={stakeAmount}
+                        onChange={(e) => setStakeAmount(e.target.value)}
+                        className="border-0 bg-transparent h-14 px-4 focus:outline-none flex-1 text-white"
+                        disabled={!connected || isStaking}
+                      />
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="mr-2 bg-slate-700 text-white hover:bg-slate-600"
+                        onClick={handleMaxStake}
+                        disabled={!connected || isStaking}
+                      >
+                        MAX
+                      </Button>
+                    </div>
+                    
+                    <Button 
+                      onClick={handleStake}
+                      className="h-14 bg-blue-600 hover:bg-blue-700 text-white font-medium w-full mb-4"
+                      disabled={!connected || !stakeAmount || isStaking || parseFloat(stakeAmount || '0') <= 0}
+                    >
+                      {isStaking ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : null}
+                      Stake
+                    </Button>
+                    
+                    <div className="bg-dark-300 border border-slate-700 p-3 rounded-lg text-sm">
+                      <div className="flex items-start">
+                        <InfoIcon className="h-4 w-4 mr-2 mt-0.5 text-blue-400" />
+                        <p className="text-gray-300">
+                          Staking locks your YOT tokens in the smart contract and automatically begins generating YOS rewards at {(stakingRates?.dailyAPY || 0).toFixed(2)}% daily APY (compound interest).
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                )}
+                
+                {/* Unstake Tab */}
+                {activeTab === 'unstake' && (
+                  <>
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-lg font-semibold text-white">Unstake YOT</h3>
+                      <div className="flex items-center text-sm">
+                        <span className="text-gray-400">Staked: </span>
+                        <span className="font-medium ml-1 text-white">{formatNumber(stakingInfo.stakedAmount)} YOT</span>
+                      </div>
+                    </div>
+                    
+                    {/* Input Field */}
+                    <div className="bg-dark-100 rounded-md border border-slate-700 flex justify-between items-center mb-2">
+                      <input 
+                        type="number"
+                        placeholder="Amount to unstake"
+                        value={unstakeAmount}
+                        onChange={(e) => setUnstakeAmount(e.target.value)}
+                        className="border-0 bg-transparent h-14 px-4 focus:outline-none flex-1 text-white"
+                        disabled={!connected || isUnstaking}
+                      />
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="mr-2 bg-slate-700 text-white hover:bg-slate-600"
+                        onClick={handleMaxUnstake}
+                        disabled={!connected || isUnstaking}
+                      >
+                        MAX
+                      </Button>
+                    </div>
+                    
+                    <Button 
+                      onClick={handleUnstake}
+                      className="h-14 bg-blue-600 hover:bg-blue-700 text-white font-medium w-full mb-4"
+                      disabled={!connected || !unstakeAmount || isUnstaking || parseFloat(unstakeAmount || '0') <= 0}
+                    >
+                      {isUnstaking ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : null}
+                      Unstake
+                    </Button>
+                    
+                    <div className="bg-dark-300 border border-slate-700 p-3 rounded-lg text-sm">
+                      <div className="flex items-start">
+                        <InfoIcon className="h-4 w-4 mr-2 mt-0.5 text-blue-400" />
+                        <p className="text-gray-300">
+                          Unstaking will return your YOT tokens to your wallet. There is no lock-up period or penalties for unstaking.
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                )}
+                
+                {/* Harvest Tab */}
+                {activeTab === 'harvest' && (
+                  <>
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-lg font-semibold text-white">Harvest Rewards</h3>
+                      <span className="text-sm text-gray-400">
+                        <span className="font-medium text-white">{formatNumber(stakingInfo.rewardsEarned)}</span> YOS available
+                      </span>
+                    </div>
+                    
+                    <Button 
+                      onClick={handleHarvest}
+                      className="h-14 bg-blue-600 hover:bg-blue-700 text-white font-medium w-full mb-4"
+                      disabled={!connected || !canHarvest || isHarvesting}
+                    >
+                      {isHarvesting ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <CheckCircle className="h-5 w-5 mr-2" />}
+                      Harvest Rewards
+                    </Button>
+                    
+                    <div className="bg-dark-300 border border-slate-700 p-3 rounded-lg text-sm">
+                      <div className="flex items-start">
+                        <InfoIcon className="h-4 w-4 mr-2 mt-0.5 text-blue-400" />
+                        <p className="text-gray-300">
+                          Harvesting will claim your earned YOS rewards and send them to your wallet. You can harvest anytime rewards are available.
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                )}
+                
+                {/* Wallet Not Connected Message */}
+                {!connected && (
+                  <div className="bg-dark-300 border border-slate-700 p-4 rounded-lg text-center mt-4">
+                    <p className="text-sm text-gray-300">
+                      Connect your wallet to use staking features
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
           
-          {/* Right Column - How Staking Works */}
-          <Card className="bg-dark-200 border border-slate-700">
+          {/* How Staking Works (Below) */}
+          <Card className="bg-dark-200 border border-slate-700 mb-6">
             <CardContent className="pt-6">
               <h3 className="text-xl font-bold mb-4 text-white">How Staking Works</h3>
               
-              <div className="space-y-4">
-                <div className="flex gap-3">
-                  <div className="mt-1">
-                    <div className="bg-blue-600/20 p-2 rounded-full">
-                      <Download className="h-4 w-4 text-blue-400" />
-                    </div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="flex flex-col items-center text-center">
+                  <div className="bg-blue-600/20 p-3 rounded-full mb-3">
+                    <Download className="h-5 w-5 text-blue-400" />
                   </div>
-                  <div>
-                    <h4 className="font-medium text-white">Stake YOT</h4>
-                    <p className="text-sm text-gray-300 mt-1">
-                      Lock your YOT tokens in the staking contract to start earning rewards.
-                    </p>
-                  </div>
+                  <h4 className="font-medium text-white mb-2">Stake YOT</h4>
+                  <p className="text-sm text-gray-300">
+                    Lock your YOT tokens in the staking contract to start earning rewards.
+                  </p>
                 </div>
                 
-                <div className="flex gap-3">
-                  <div className="mt-1">
-                    <div className="bg-blue-600/20 p-2 rounded-full">
-                      <Clock className="h-4 w-4 text-blue-400" />
-                    </div>
+                <div className="flex flex-col items-center text-center">
+                  <div className="bg-blue-600/20 p-3 rounded-full mb-3">
+                    <Clock className="h-5 w-5 text-blue-400" />
                   </div>
-                  <div>
-                    <h4 className="font-medium text-white">Earn Rewards</h4>
-                    <p className="text-sm text-gray-300 mt-1">
-                      Earn YOS rewards continuously based on your staked amount and the current APY.
-                    </p>
-                  </div>
+                  <h4 className="font-medium text-white mb-2">Earn Rewards</h4>
+                  <p className="text-sm text-gray-300">
+                    Earn YOS rewards continuously based on your staked amount and the current APY.
+                  </p>
                 </div>
                 
-                <div className="flex gap-3">
-                  <div className="mt-1">
-                    <div className="bg-blue-600/20 p-2 rounded-full">
-                      <CheckCircle className="h-4 w-4 text-blue-400" />
-                    </div>
+                <div className="flex flex-col items-center text-center">
+                  <div className="bg-blue-600/20 p-3 rounded-full mb-3">
+                    <CheckCircle className="h-5 w-5 text-blue-400" />
                   </div>
-                  <div>
-                    <h4 className="font-medium text-white">Harvest Anytime</h4>
-                    <p className="text-sm text-gray-300 mt-1">
-                      Claim your YOS rewards whenever you want. No lock-up period or vesting.
-                    </p>
-                  </div>
+                  <h4 className="font-medium text-white mb-2">Harvest Anytime</h4>
+                  <p className="text-sm text-gray-300">
+                    Claim your YOS rewards whenever you want. No lock-up period or vesting.
+                  </p>
                 </div>
                 
-                <div className="flex gap-3">
-                  <div className="mt-1">
-                    <div className="bg-blue-600/20 p-2 rounded-full">
-                      <Shield className="h-4 w-4 text-blue-400" />
-                    </div>
+                <div className="flex flex-col items-center text-center">
+                  <div className="bg-blue-600/20 p-3 rounded-full mb-3">
+                    <Shield className="h-5 w-5 text-blue-400" />
                   </div>
-                  <div>
-                    <h4 className="font-medium text-white">Staking Security</h4>
-                    <p className="text-sm text-gray-300 mt-1">
-                      All operations require your explicit wallet signature. Your funds remain secure through Solana's smart contracts.
-                    </p>
-                  </div>
+                  <h4 className="font-medium text-white mb-2">Staking Security</h4>
+                  <p className="text-sm text-gray-300">
+                    All operations require your explicit wallet signature. Your funds remain secure through Solana's smart contracts.
+                  </p>
                 </div>
               </div>
             </CardContent>
           </Card>
+          
+          {/* We're hiding the original StakingCard component since we've implemented our own UI */}
+          {/* <StakingCard /> */}
         </div>
         
         {/* FAQ Section */}
