@@ -512,6 +512,28 @@ export function useStaking() {
           throw new Error(`Account validation failed: ${errorMessages}`);
         }
         
+        // Check if program has enough YOS tokens for rewards, but allow the operation to continue
+        // even with low balance - the program will handle partial rewards
+        const stakingInfo = await getStakingInfo(publicKey.toString());
+        if (programYosAccountInfo) {
+          try {
+            const programYosBalance = await connection.getTokenAccountBalance(programYosAccount);
+            const availableYos = programYosBalance.value.uiAmount || 0;
+            const pendingRewards = stakingInfo.rewardsEarned;
+            
+            console.log(`Program YOS balance: ${availableYos}, User pending rewards: ${pendingRewards}`);
+            
+            if (availableYos < pendingRewards && pendingRewards > 0.01) {
+              // Just log a warning - don't prevent harvesting
+              console.warn(`Program has insufficient YOS tokens (${availableYos}) for full rewards (${pendingRewards})`);
+              // The actual harvest function (harvestYOSRewards) will also show a toast warning
+            }
+          } catch (e) {
+            console.error("Error checking program YOS balance during harvest preparation:", e);
+          }
+        }
+        
+        // Execute the harvest regardless of token balance - it will handle partial rewards
         const signature = await harvestYOSRewards(wallet);
         console.log("Harvest transaction signature:", signature);
         
