@@ -1,5 +1,6 @@
 import { useState } from "react";
 import StakingCard from "@/components/StakingCard";
+import StakingDashboard from "@/components/StakingDashboard";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
