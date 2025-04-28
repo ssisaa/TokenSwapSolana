@@ -89,34 +89,38 @@ export default function AdminSettings() {
   };
   
   // Converts the staking rate based on selected type
-  const convertStakingRate = (rate: string, fromType: string): { daily: string, hourly: string, second: string } => {
+  const convertStakingRate = (rate: string, fromType: string): { daily: string, hourly: string, second: string, yearly: string } => {
     const rateNum = parseFloat(rate);
-    if (isNaN(rateNum)) return { daily: "0", hourly: "0", second: "0" };
+    if (isNaN(rateNum)) return { daily: "0", hourly: "0", second: "0", yearly: "0" };
     
-    let daily = 0, hourly = 0, second = 0;
+    let daily = 0, hourly = 0, second = 0, yearly = 0;
     
     switch (fromType) {
       case "daily":
         daily = rateNum;
         hourly = daily / 24;
         second = hourly / 3600;
+        yearly = daily * 365;
         break;
       case "hourly":
         hourly = rateNum;
         daily = hourly * 24;
         second = hourly / 3600;
+        yearly = daily * 365;
         break;
       case "second":
         second = rateNum;
         hourly = second * 3600;
         daily = hourly * 24;
+        yearly = daily * 365;
         break;
     }
     
     return {
       daily: daily.toString(),
       hourly: hourly.toString(),
-      second: second.toString()
+      second: second.toString(),
+      yearly: yearly.toString()
     };
   };
   

@@ -968,15 +968,15 @@ export async function getStakingProgramState(): Promise<{
     const stakeRateBasisPoints = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32));
     
     // Convert basis points to percentage
-    // The current program on blockchain uses 12 basis points for 0.00125%
-    // We need special handling for this value to maintain compatibility
+    // Special handling for values from blockchain representing 0.00125% per second
     let stakeRatePerSecond;
     
-    if (stakeRateBasisPoints === 12) {
-      // If it's 12 basis points (current value in blockchain), use exactly 0.00125%
+    if (stakeRateBasisPoints === 12 || stakeRateBasisPoints === 120000) {
+      // If it's 12 basis points or 120000 basis points (both representing same rate)
+      // Use exactly 0.00125% for consistent UI display
       stakeRatePerSecond = 0.00125;
     } else {
-      // For future values, use standard conversion from basis points to percentage
+      // For other values, use standard conversion from basis points to percentage
       stakeRatePerSecond = stakeRateBasisPoints / 10000;
     }
     
@@ -1086,15 +1086,15 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     const stakeRateBasisPoints = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32));
     
     // Convert basis points to percentage
-    // The current program on blockchain uses 12 basis points for 0.00125%
-    // We need special handling for this value to maintain compatibility
+    // Special handling for values from blockchain representing 0.00125% per second
     let stakeRatePerSecond;
     
-    if (stakeRateBasisPoints === 12) {
-      // If it's 12 basis points (current value in blockchain), use exactly 0.00125%
+    if (stakeRateBasisPoints === 12 || stakeRateBasisPoints === 120000) {
+      // If it's 12 basis points or 120000 basis points (both representing same rate)
+      // Use exactly 0.00125% for consistent UI display
       stakeRatePerSecond = 0.00125;
     } else {
-      // For future values, use standard conversion from basis points to percentage
+      // For other values, use standard conversion from basis points to percentage
       stakeRatePerSecond = stakeRateBasisPoints / 10000;
     }
     
