@@ -599,7 +599,7 @@ export async function unstakeYOTTokens(
     
     // Find program state address
     const [programStateAddress] = PublicKey.findProgramAddressSync(
-      [Buffer.from("state")],
+      [Buffer.from("program_state")],
       STAKING_PROGRAM_ID
     );
     
@@ -710,7 +710,7 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     
     // Find program state address
     const [programStateAddress] = PublicKey.findProgramAddressSync(
-      [Buffer.from("state")],
+      [Buffer.from("program_state")],
       STAKING_PROGRAM_ID
     );
     
@@ -808,7 +808,7 @@ export async function updateStakingParameters(
     
     // Find program state address
     const [programStateAddress] = PublicKey.findProgramAddressSync(
-      [Buffer.from("state")],
+      [Buffer.from("program_state")],
       STAKING_PROGRAM_ID
     );
     
