@@ -1012,6 +1012,48 @@ export async function unstakeYOTTokens(
     } else {
       console.log('User YOS token account exists for unstake operation');
     }
+    
+    // Also check if program YOS token account exists, create if needed
+    console.log('Checking if program YOS token account exists...');
+    const programYosTokenAccountInfo = await connection.getAccountInfo(programYosTokenAccount);
+    if (!programYosTokenAccountInfo) {
+      console.log('Program YOS token account does not exist. Creating it during unstake...');
+      transaction.add(
+        createAssociatedTokenAccountInstruction(
+          userPublicKey,
+          programYosTokenAccount,
+          programAuthorityAddress,
+          yosMintAddress
+        )
+      );
+      toast({
+        title: "Setting Up Program YOS Account",
+        description: "Creating program YOS token account required for rewards."
+      });
+    } else {
+      // Check if the program YOS token account has sufficient tokens for potential rewards
+      try {
+        const stakingInfo = await getStakingInfo(userPublicKey.toString());
+        const pendingRewards = stakingInfo.rewardsEarned;
+        
+        const yosAccountInfo = await connection.getTokenAccountBalance(programYosTokenAccount);
+        const programYosBalance = yosAccountInfo.value.uiAmount || 0;
+        console.log(`Program YOS token account balance: ${programYosBalance} YOS`);
+        console.log(`User has approximately ${pendingRewards} YOS pending rewards`);
+        
+        // Check if the program has enough YOS tokens for rewards
+        if (programYosBalance < pendingRewards) {
+          console.error(`Insufficient YOS tokens in program account for rewards. Available: ${programYosBalance}, Needed: ~${pendingRewards}`);
+          toast({
+            title: "Warning: Rewards May Not Transfer",
+            description: `Program has insufficient YOS (${programYosBalance}) for your rewards (${pendingRewards.toFixed(2)}). You may get back YOT but not all rewards.`,
+            variant: "destructive"
+          });
+        }
+      } catch (error) {
+        console.error("Error checking program YOS token balance:", error);
+      }
+    }
 
     // CRITICAL UPDATE: Account order EXACTLY matches process_unstake function in Rust program
     // Get accounts from process_unstake function (line ~339):
