@@ -621,7 +621,7 @@ export function useStaking() {
         const totalHarvested = stakingInfo?.totalHarvested || 0;
         
         setGlobalStats({
-          totalStaked: totalStaked * 5, // Simulating total from all users (would be actual sum)
+          totalStaked: totalStaked, // Use actual staked amount from blockchain
           totalStakers,
           totalHarvested
         });
