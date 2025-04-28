@@ -377,6 +377,10 @@ export default function Liquidity() {
                       <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
                       <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1} />
                     </linearGradient>
+                    <linearGradient id="colorSOL" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#d97706" stopOpacity={0.8} />
+                      <stop offset="95%" stopColor="#d97706" stopOpacity={0.1} />
+                    </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
                   <XAxis 
@@ -387,7 +391,11 @@ export default function Liquidity() {
                   <YAxis 
                     tick={{ fill: '#9ca3af', fontSize: 10 }}
                     axisLine={{ stroke: '#4b5563' }}
-                    tickFormatter={(value) => `$${value}`}
+                    tickFormatter={(value) => {
+                      if (selectedTimeframe === "YOT") return `${value.toLocaleString()}`;
+                      if (selectedTimeframe === "SOL") return `${value}`;
+                      return `$${value}`;
+                    }}
                   />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: 'white' }}
