@@ -603,51 +603,55 @@ export function useStaking() {
 
   const isLoading = isLoadingStakingInfo || isLoadingRates;
   
-  // Use useEffect to fetch global staking stats
-  useEffect(() => {
-    // Function to fetch global staking statistics from blockchain
-    const fetchGlobalStats = async () => {
+  // Use React Query to fetch global stats to ensure consistency
+  const {
+    data: globalStatsData,
+    isLoading: isLoadingGlobalStats,
+    refetch: refetchGlobalStats
+  } = useQuery<GlobalStakingStats>({
+    queryKey: ['staking', 'globalStats'],
+    queryFn: async () => {
       try {
+        console.log("Fetching global stats with React Query...");
         // Get global stats directly from blockchain using our function
-        const stats = await getGlobalStakingStats();
-        
-        // Update state with actual blockchain data
-        setGlobalStats({
-          totalStaked: stats.totalStaked,
-          totalStakers: stats.totalStakers,
-          totalHarvested: stats.totalHarvested
-        });
-        
-      } catch (error: any) {
-        console.error("Error fetching global staking stats:", error);
-        
-        // Handle error case, but still provide valid data structure
-        // Don't use hardcoded values - our UI components will handle empty/zero states
-        setGlobalStats({
+        return await getGlobalStakingStats();
+      } catch (error) {
+        console.error("Error in global stats query:", error);
+        // Return default structure instead of throwing
+        return {
           totalStaked: 0,
-          totalStakers: 0, 
+          totalStakers: 0,
           totalHarvested: 0
-        });
-        
-        // Show error toast for transparency
-        toast({
-          title: "Blockchain Data Error",
-          description: "Could not fetch staking data from blockchain. Retrying...",
-          variant: "destructive"
-        });
+        };
       }
-    };
-    
-    // Fetch global stats when staking info changes
-    if (stakingInfo) {
-      fetchGlobalStats();
+    },
+    refetchInterval: 60000, // Refetch every minute to keep data fresh
+  });
+  
+  // Keep backwards compatibility with the setState pattern
+  // This ensures existing components using globalStats continue to work
+  useEffect(() => {
+    if (globalStatsData) {
+      // Update state with the query data
+      setGlobalStats({
+        totalStaked: globalStatsData.totalStaked,
+        totalStakers: globalStatsData.totalStakers,
+        totalHarvested: globalStatsData.totalHarvested
+      });
+      
+      // Log for debugging
+      console.log("Updated global stats from query:", globalStatsData);
     }
-  }, [stakingInfo]);
+  }, [globalStatsData]);
   
   // Function to refresh staking info
   const refreshStakingInfo = useCallback(async () => {
-    await Promise.all([refetchStakingInfo(), refetchRates()]);
-  }, [refetchStakingInfo, refetchRates]);
+    await Promise.all([
+      refetchStakingInfo(),
+      refetchRates(), 
+      refetchGlobalStats() // Add global stats refresh
+    ]);
+  }, [refetchStakingInfo, refetchRates, refetchGlobalStats]);
 
   return {
     stakingInfo: stakingInfo || {
