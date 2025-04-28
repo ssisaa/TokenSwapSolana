@@ -76,16 +76,19 @@ function encodeInitializeInstruction(
   });
   
   // Convert percentage per second to basis points
-  // Special case: For 0.00125%, we need to use exactly 12 basis points
+  // Special case: For 0.00125%, we either use 12 or 120000 basis points
   // to match what's already in the blockchain
   let rateInBasisPoints;
   
   if (Math.abs(stakeRatePerSecond - 0.00125) < 0.00001) {
-    // If it's 0.00125%, use exactly 12 basis points
-    rateInBasisPoints = 12;
+    // If it's 0.00125%, use 120000 basis points to match blockchain
+    // (Initially we used 12 basis points, but blockchain now has 120000)
+    rateInBasisPoints = 120000;
+    console.log("Using special encoding for initialization: 120000 basis points for 0.00125% rate");
   } else {
     // Otherwise, use the standard formula (1% = 10000 basis points)
     rateInBasisPoints = Math.round(stakeRatePerSecond * 10000);
+    console.log(`Converting ${stakeRatePerSecond}% to ${rateInBasisPoints} basis points for initialization`);
   }
   const thresholdInLamports = Math.floor(harvestThreshold * 1000000);
   
@@ -180,14 +183,20 @@ function encodeUpdateParametersInstruction(
     // If it's 0.00125%, we have two options for encoding:
     // 1. Use 12 basis points (original encoding used in the blockchain)
     // 2. Use 120000 basis points (the value currently in blockchain)
-    // For now we'll continue using 12 basis points to maintain backward compatibility
-    rateInBasisPoints = 12;
     
-    // If you need to change this in the future, uncomment and use this line instead:
-    // rateInBasisPoints = 12; // Use 12 for original encoding or 120000 for new encoding
+    // IMPORTANT: Currently the blockchain has 120000 basis points stored, so we should match that
+    // if we want to maintain the same rate
+    rateInBasisPoints = 120000;
+    
+    console.log("Using special encoding for 0.00125% rate: 120000 basis points");
+    
+    // If you need to change this in the future, you can switch between these values:
+    // rateInBasisPoints = 12;     // Original encoding (12 basis points)
+    // rateInBasisPoints = 120000; // Current encoding (120000 basis points)
   } else {
     // Otherwise, use the standard formula (1% = 10000 basis points)
     rateInBasisPoints = Math.round(stakeRatePerSecond * 10000);
+    console.log(`Converting ${stakeRatePerSecond}% to ${rateInBasisPoints} basis points`);
   }
   const thresholdInLamports = Math.floor(harvestThreshold * 1000000);
   
@@ -1116,8 +1125,16 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
       stakeRatePerSecond,
       calculationFormula: `${stakeRateBasisPoints} / 10000 = ${stakeRateBasisPoints/10000}`,
       expectedRate: 0.00125,
-      displayedInUI: stakeRatePerSecond * 100 // What gets displayed in UI
+      displayedInUI: stakeRatePerSecond * 100, // What gets displayed in UI
+      dailyPercentage: stakeRatePerSecond * 86400,
+      yearlyPercentage: stakeRatePerSecond * 86400 * 365
     });
+    
+    // Additional logging to verify calculations for transparency
+    console.log(`Rate conversion for staking rewards: ${stakeRateBasisPoints} basis points → ${stakeRatePerSecond}% per second`);
+    console.log(`This means ${stakeRatePerSecond * 86400}% per day (${stakeRatePerSecond} * 86400 seconds)`);
+    console.log(`This means ${stakeRatePerSecond * 86400 * 365}% per year (${stakeRatePerSecond} * 86400 * 365)`);
+    
     
     // For rewards calculation, convert from percentage to decimal (e.g., 0.00125% → 0.0000125)
     const stakeRateDecimal = stakeRatePerSecond / 100;
