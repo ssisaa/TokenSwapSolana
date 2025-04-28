@@ -568,7 +568,7 @@ export async function stakeYOTTokens(
       programId: STAKING_PROGRAM_ID.toString()
     });
     
-    // Get the user's token account
+    // Get the user's token account address
     const userYotTokenAccount = await getAssociatedTokenAddress(
       yotMintPubkey,
       userPublicKey
@@ -602,6 +602,9 @@ export async function stakeYOTTokens(
     console.log('User staking address:', userStakingAddress.toBase58(), 'bump:', userStakingBump);
     console.log('Program authority address:', programAuthorityAddress.toBase58(), 'bump:', programAuthorityBump);
     
+    // Create a transaction that will hold all instructions
+    const transaction = new Transaction();
+    
     // Check if program state exists first
     console.log('Checking if program state account exists...');
     const programStateInfo = await connection.getAccountInfo(programStateAddress);
@@ -616,28 +619,50 @@ export async function stakeYOTTokens(
     }
     console.log('Program state account exists with size:', programStateInfo.data.length);
     
-    // Verify the user has YOT tokens to stake
-    try {
-      const userYotBalance = await connection.getTokenAccountBalance(userYotTokenAccount);
-      console.log('User YOT balance:', userYotBalance.value.uiAmount);
+    // Check if user YOT token account exists
+    const userYotAccountInfo = await connection.getAccountInfo(userYotTokenAccount);
+    
+    // If token account doesn't exist, create it first
+    if (!userYotAccountInfo) {
+      console.log('Creating YOT token account for user...');
+      transaction.add(
+        createAssociatedTokenAccountInstruction(
+          userPublicKey,
+          userYotTokenAccount,
+          userPublicKey,
+          yotMintPubkey
+        )
+      );
       
-      if (!userYotBalance.value.uiAmount || userYotBalance.value.uiAmount < amount) {
+      toast({
+        title: "Creating YOT Token Account",
+        description: "You need a YOT token account to stake. It will be created automatically."
+      });
+    } else {
+      console.log('User YOT token account exists');
+      
+      // Verify user has enough tokens to stake
+      try {
+        const userYotBalance = await connection.getTokenAccountBalance(userYotTokenAccount);
+        console.log('User YOT balance:', userYotBalance.value.uiAmount);
+        
+        if (!userYotBalance.value.uiAmount || userYotBalance.value.uiAmount < amount) {
+          toast({
+            title: "Insufficient YOT Balance",
+            description: `You need at least ${amount} YOT to stake. Your balance: ${userYotBalance.value.uiAmount || 0} YOT`,
+            variant: "destructive"
+          });
+          throw new Error(`Insufficient YOT balance. Required: ${amount}, Available: ${userYotBalance.value.uiAmount || 0}`);
+        }
+      } catch (error) {
+        console.error('Failed to check YOT balance:', error);
         toast({
-          title: "Insufficient YOT Balance",
-          description: `You need at least ${amount} YOT to stake. Your balance: ${userYotBalance.value.uiAmount || 0} YOT`,
+          title: "Error Checking YOT Balance",
+          description: "There was an error checking your YOT balance. Please try again.",
           variant: "destructive"
         });
-        throw new Error(`Insufficient YOT balance. Required: ${amount}, Available: ${userYotBalance.value.uiAmount || 0}`);
+        throw new Error('Error checking YOT balance');
       }
-    } catch (error) {
-      console.error('Failed to check YOT balance:', error);
-      // If we can't get the balance, it probably means the token account doesn't exist
-      toast({
-        title: "YOT Token Account Not Found",
-        description: "You don't have a YOT token account. You need to acquire YOT tokens first.",
-        variant: "destructive"
-      });
-      throw new Error('YOT token account not found or inaccessible');
     }
     
     // Get program token account
@@ -680,8 +705,8 @@ export async function stakeYOTTokens(
       data: encodeStakeInstruction(amount)
     });
     
-    // Create transaction
-    let transaction = new Transaction().add(stakeInstruction);
+    // Add stake instruction to transaction
+    transaction.add(stakeInstruction);
     
     // Set recent blockhash and fee payer
     transaction.feePayer = userPublicKey;
@@ -805,8 +830,8 @@ export async function unstakeYOTTokens(
       data: encodeUnstakeInstruction(amount)
     });
     
-    // Create transaction
-    let transaction = new Transaction().add(unstakeInstruction);
+    // Create a transaction and add the unstake instruction
+    const transaction = new Transaction().add(unstakeInstruction);
     
     // Set recent blockhash and fee payer
     transaction.feePayer = userPublicKey;
@@ -860,8 +885,8 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       userPublicKey
     );
     
-    // Check if user YOS token account exists
-    let transaction = new Transaction();
+    // Create transaction to add instructions to
+    const transaction = new Transaction();
     const userAccountInfo = await connection.getAccountInfo(userYosTokenAccount);
     
     if (!userAccountInfo) {
@@ -1000,8 +1025,8 @@ export async function updateStakingParameters(
       data: encodeUpdateParametersInstruction(stakeRatePerSecond, harvestThreshold)
     });
     
-    // Create transaction
-    let transaction = new Transaction().add(updateInstruction);
+    // Create transaction and add the update instruction
+    const transaction = new Transaction().add(updateInstruction);
     
     // Set recent blockhash and fee payer
     transaction.feePayer = adminPublicKey;

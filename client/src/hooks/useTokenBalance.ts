@@ -42,7 +42,19 @@ export function useTokenBalance(tokenMintAddress: string) {
           publicKey
         );
         
-        // Fetch the account info
+        // First check if the token account exists to avoid RPC errors
+        const tokenAccountInfo = await connection.getAccountInfo(tokenAccount);
+        
+        if (!tokenAccountInfo) {
+          // Token account doesn't exist yet, set balance to 0
+          console.log(`Token account for ${tokenMintAddress.slice(0, 8)}... doesn't exist yet for this wallet`);
+          if (isMounted) {
+            setBalance(0);
+          }
+          return;
+        }
+        
+        // If account exists, fetch the token balance
         const accountInfo = await connection.getTokenAccountBalance(tokenAccount);
         
         if (accountInfo && accountInfo.value && isMounted) {
@@ -50,10 +62,12 @@ export function useTokenBalance(tokenMintAddress: string) {
           const decimals = accountInfo.value.decimals;
           const amount = parseFloat(accountInfo.value.amount) / Math.pow(10, decimals);
           setBalance(amount);
+          // Clear any errors if we successfully got the balance
+          setError(null);
         }
       } catch (err) {
         console.error('Error fetching token balance:', err);
-        // If the token account doesn't exist, that means the balance is 0
+        // If there was an error, set balance to 0 but keep the error for debugging
         if (isMounted) {
           setBalance(0);
           setError(err instanceof Error ? err : new Error('Unknown error occurred'));
