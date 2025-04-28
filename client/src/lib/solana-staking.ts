@@ -999,12 +999,9 @@ export async function stakeYOTTokens(
       }
     }
     
-    // Get program token account
-    const programYotTokenAccount = await getAssociatedTokenAddress(
-      yotMintPubkey,
-      programAuthorityAddress,
-      true // allowOwnerOffCurve
-    );
+    // Use exact known program YOT token account that has the funds
+    // Rather than deriving it programmatically, which might lead to a different account
+    const programYotTokenAccount = new PublicKey("BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE");
     console.log('Program YOT account:', programYotTokenAccount.toBase58());
     
     // Check if the program token account exists
@@ -1424,20 +1421,13 @@ export async function unstakeYOTTokens(
       STAKING_PROGRAM_ID
     );
     
-    // Get program token account for YOT
-    const programYotTokenAccount = await getAssociatedTokenAddress(
-      yotMintPubkey,
-      programAuthorityAddress,
-      true // allowOwnerOffCurve
-    );
+    // Use exact known program YOT token account that has the funds
+    // Rather than deriving it programmatically, which might lead to a different account
+    const programYotTokenAccount = new PublicKey("BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE");
     
-    // Get program token account for YOS
-    // Use the yosMintPubkey we already created
-    const programYosTokenAccount = await getAssociatedTokenAddress(
-      yosMintPubkey,
-      programAuthorityAddress,
-      true // allowOwnerOffCurve
-    );
+    // Use exact known program YOS token account that has the funds
+    // Rather than deriving it programmatically, which might lead to a different account
+    const programYosTokenAccount = new PublicKey("BLz2mfhb9qoPAtKuFNVfrj9uTEyChHKKbZsniS1eRaUB");
     
     // Create a transaction to potentially hold multiple instructions
     const transaction = new Transaction();
@@ -1863,12 +1853,9 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       });
     }
     
-    // Get program token account for YOS
-    const programYosTokenAccount = await getAssociatedTokenAddress(
-      new PublicKey(YOS_TOKEN_ADDRESS),
-      programAuthorityAddress,
-      true // allowOwnerOffCurve
-    );
+    // Use exact known program YOS token account that has the funds
+    // Rather than deriving it programmatically, which might lead to a different account
+    const programYosTokenAccount = new PublicKey("BLz2mfhb9qoPAtKuFNVfrj9uTEyChHKKbZsniS1eRaUB");
     
     // Check if the program token account exists
     console.log('Checking if program YOS token account exists...');
