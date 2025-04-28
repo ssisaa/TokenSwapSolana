@@ -145,35 +145,44 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
               <div className="bg-dark-300 rounded-lg p-4 space-y-3 border border-border">
                 <h3 className="text-base font-semibold text-white">Staking APR Rates</h3>
                 
+                <div className="mb-3">
+                  <div className="flex justify-between items-center mb-1.5">
+                    <div className="text-sm font-medium text-white">Per Second Rate:</div>
+                    <div className="text-sm font-bold text-green-400">
+                      {`${stakingRates?.stakeRatePerSecond?.toFixed(6) || '0.000000'}%`}
+                    </div>
+                  </div>
+                </div>
+                
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-dark-200 rounded-md p-3 border border-border">
-                    <div className="text-xs text-gray-300">Daily APR</div>
+                  <div className="bg-gradient-to-br from-green-900/40 to-green-800/30 rounded-md p-3 border border-green-800/40">
+                    <div className="text-xs font-medium text-green-100">Daily APR</div>
                     <div className="text-lg font-bold text-green-400">
                       {`${stakingRates?.dailyAPR?.toFixed(2) || '0.00'}%`}
                     </div>
                   </div>
-                  <div className="bg-dark-200 rounded-md p-3 border border-border">
-                    <div className="text-xs text-gray-300">Weekly APR</div>
+                  <div className="bg-gradient-to-br from-green-900/40 to-green-800/30 rounded-md p-3 border border-green-800/40">
+                    <div className="text-xs font-medium text-green-100">Weekly APR</div>
                     <div className="text-lg font-bold text-green-400">
                       {`${stakingRates?.weeklyAPR?.toFixed(2) || '0.00'}%`}
                     </div>
                   </div>
-                  <div className="bg-dark-200 rounded-md p-3 border border-border">
-                    <div className="text-xs text-gray-300">Monthly APR</div>
+                  <div className="bg-gradient-to-br from-green-900/40 to-green-800/30 rounded-md p-3 border border-green-800/40">
+                    <div className="text-xs font-medium text-green-100">Monthly APR</div>
                     <div className="text-lg font-bold text-green-400">
                       {`${stakingRates?.monthlyAPR?.toFixed(2) || '0.00'}%`}
                     </div>
                   </div>
-                  <div className="bg-dark-200 rounded-md p-3 border border-border">
-                    <div className="text-xs text-gray-300">Yearly APR</div>
+                  <div className="bg-gradient-to-br from-green-900/40 to-green-800/30 rounded-md p-3 border border-green-800/40">
+                    <div className="text-xs font-medium text-green-100">Yearly APR</div>
                     <div className="text-lg font-bold text-green-400">
                       {`${stakingRates?.yearlyAPR?.toFixed(2) || '0.00'}%`}
                     </div>
                   </div>
                 </div>
                 
-                <div className="text-xs text-gray-400 flex items-center mt-2">
-                  <InfoIcon className="h-3 w-3 mr-1" />
+                <div className="text-xs text-white/70 flex items-center mt-2">
+                  <InfoIcon className="h-3 w-3 mr-1 text-primary" />
                   Rates are set by the admin and may change
                 </div>
               </div>
