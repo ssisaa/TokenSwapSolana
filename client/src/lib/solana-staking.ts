@@ -139,8 +139,8 @@ function encodeInitializeInstruction(
     console.log(`Formula: ${stakeRatePerSecond} * (${REFERENCE_BASIS_POINTS} / ${REFERENCE_RATE}) = ${finalBasisPoints}`);
   }
   
-  // YOS token uses 6 decimals just like YOT
-  const YOS_DECIMALS = 6;
+  // YOS token uses 9 decimals just like YOT
+  const YOS_DECIMALS = 9;
   const thresholdInRawUnits = Math.floor(harvestThreshold * Math.pow(10, YOS_DECIMALS));
   
   console.log("Converted values for initialization:", {
@@ -1529,14 +1529,26 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     const owner = new PublicKey(data.slice(0, 32));
     
     // Read staked amount (8 bytes, 64-bit unsigned integer)
-    const stakedAmount = data.readBigUInt64LE(32);
+    const stakedAmountRaw = data.readBigUInt64LE(32);
+    
+    // Convert from raw to decimal using 9 decimals (important: YOT uses 9 decimals)
+    const YOT_DECIMALS = 9;
+    const stakedAmount = Number(stakedAmountRaw) / Math.pow(10, YOT_DECIMALS);
+    
+    console.log(`Raw staked amount from blockchain: ${stakedAmountRaw}, converted to decimal using ${YOT_DECIMALS} decimals: ${stakedAmount}`);
     
     // Read timestamps (8 bytes each, 64-bit signed integers)
     const startTimestamp = Number(data.readBigInt64LE(40));
     const lastHarvestTime = Number(data.readBigInt64LE(48));
     
     // Read total harvested rewards (8 bytes, 64-bit unsigned integer)
-    const totalHarvested = Number(data.readBigUInt64LE(56));
+    const totalHarvestedRaw = data.readBigUInt64LE(56);
+    
+    // Convert from raw to decimal using 9 decimals (important: YOS uses 9 decimals)
+    const YOS_DECIMALS = 9;
+    const totalHarvested = Number(totalHarvestedRaw) / Math.pow(10, YOS_DECIMALS);
+    
+    console.log(`Raw total harvested from blockchain: ${totalHarvestedRaw}, converted to decimal using ${YOS_DECIMALS} decimals: ${totalHarvested}`);
     
     // Get the staking rate from the program state
     // First read stake rate (8 bytes, 64-bit unsigned integer) from blockchain
@@ -1579,7 +1591,11 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // Calculate rewards using compound interest formula (APY)
     // Formula: principal * ((1 + rate) ^ time - 1)
     // Where rate is per-second rate and time is in seconds
-    const pendingRewards = Number(stakedAmount) * (Math.pow(1 + stakeRateDecimal, timeStakedSinceLastHarvest) - 1);
+    
+    // Note: stakedAmount is already in decimal form (was converted from raw blockchain amount using 9 decimals)
+    const pendingRewards = stakedAmount * (Math.pow(1 + stakeRateDecimal, timeStakedSinceLastHarvest) - 1);
+    
+    console.log(`Rewards calculation: ${stakedAmount} YOT tokens × (Math.pow(1 + ${stakeRateDecimal}, ${timeStakedSinceLastHarvest}) - 1) = ${pendingRewards} YOS`);
     
     console.log("Reward calculation info:", {
       stakedAmount: Number(stakedAmount),
