@@ -592,6 +592,10 @@ fn calculate_rewards(
     // Convert staking rate from basis points to decimal
     let rate_decimal = (stake_rate_per_second as f64) / 10000.0;
     
-    // Calculate rewards based on staked amount, time, and rate
-    (staked_amount as f64 * time_staked_seconds as f64 * rate_decimal) as u64
+    // Calculate rewards using compound interest formula (APY)
+    // Formula: principal * ((1 + rate)^time - 1)
+    let compound_rewards = (staked_amount as f64 * ((1.0 + rate_decimal).powf(time_staked_seconds as f64) - 1.0)) as u64;
+    
+    // Return the compound interest result
+    compound_rewards
 }
