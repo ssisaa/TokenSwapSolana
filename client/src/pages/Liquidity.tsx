@@ -14,6 +14,7 @@ import {
   YOS_TOKEN_ACCOUNT,
   YOT_TOKEN_ADDRESS
 } from "@/lib/constants";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Area, AreaChart } from 'recharts';
 import { shortenAddress, formatDollarAmount } from "@/lib/utils";
 import { 
   getAllTokenPrices, 
@@ -28,6 +29,16 @@ export default function Liquidity() {
   const { connected } = useWallet();
   const { poolData, balances, loading } = useTokenData();
   const [selectedTimeframe, setSelectedTimeframe] = useState("1W");
+  
+  // Sample historical data for the liquidity pool growth chart
+  const [liquidityChartData, setLiquidityChartData] = useState([
+    { date: 'Mar 25', yot: 600000, sol: 15, value: 2300 },
+    { date: 'Apr 01', yot: 680000, sol: 18, value: 2900 },
+    { date: 'Apr 08', yot: 702000, sol: 21, value: 3200 },
+    { date: 'Apr 15', yot: 715000, sol: 22, value: 3400 },
+    { date: 'Apr 22', yot: 725000, sol: 23, value: 3600 },
+    { date: 'Apr 27', yot: 734266, sol: 23.47, value: 3800 },
+  ]);
   
   // Default state
   const [poolStats, setPoolStats] = useState({
@@ -354,11 +365,50 @@ export default function Liquidity() {
               </Button>
             </div>
             
-            {/* Chart Placeholder */}
-            <div className="bg-dark-300 rounded-lg h-60 flex items-center justify-center">
-              <div className="text-gray-400 text-sm">
-                Liquidity growth chart will appear here with real-time data
-              </div>
+            {/* Chart Component */}
+            <div className="bg-dark-300 rounded-lg h-60">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                  data={liquidityChartData}
+                  margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                >
+                  <defs>
+                    <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                  <XAxis 
+                    dataKey="date" 
+                    tick={{ fill: '#9ca3af', fontSize: 10 }}
+                    axisLine={{ stroke: '#4b5563' }}  
+                  />
+                  <YAxis 
+                    tick={{ fill: '#9ca3af', fontSize: 10 }}
+                    axisLine={{ stroke: '#4b5563' }}
+                    tickFormatter={(value) => `$${value}`}
+                  />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: 'white' }}
+                    labelStyle={{ color: 'white' }}
+                    formatter={(value, name) => {
+                      if (name === 'value') return [`$${value}`, 'Value'];
+                      if (name === 'yot') return [`${value.toLocaleString()}`, 'YOT'];
+                      if (name === 'sol') return [`${value}`, 'SOL'];
+                      return [value, name];
+                    }}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey={selectedTimeframe === "YOT" ? "yot" : selectedTimeframe === "SOL" ? "sol" : "value"} 
+                    stroke={selectedTimeframe === "SOL" ? "#d97706" : "#3b82f6"} 
+                    fill={selectedTimeframe === "SOL" ? "url(#colorSOL)" : "url(#colorValue)"}
+                    fillOpacity={1}
+                    activeDot={{ r: 8 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
             
             <div className="flex justify-between text-xs text-gray-500 mt-2">
