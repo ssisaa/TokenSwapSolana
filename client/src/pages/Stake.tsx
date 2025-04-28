@@ -4,7 +4,6 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Loader2, 
   ArrowDown, 
@@ -131,32 +130,10 @@ export default function Stake() {
             </div>
             
             {/* Staking Actions */}
-            <div>
-              <Tabs defaultValue="stake" value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid grid-cols-3 mb-4 bg-muted/80 border border-border p-1">
-                  <TabsTrigger value="stake" className="font-medium data-[state=active]:bg-background data-[state=active]:text-foreground">
-                    <Download className="h-4 w-4 mr-2" /> Stake
-                  </TabsTrigger>
-                  <TabsTrigger value="unstake" className="font-medium data-[state=active]:bg-background data-[state=active]:text-foreground">
-                    <Upload className="h-4 w-4 mr-2" /> Unstake
-                  </TabsTrigger>
-                  <TabsTrigger value="harvest" className="font-medium data-[state=active]:bg-background data-[state=active]:text-foreground">
-                    <CheckCircle className="h-4 w-4 mr-2" /> Harvest
-                  </TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="stake" className="mt-0">
-                  <StakingCard defaultTab="stake" />
-                </TabsContent>
-                
-                <TabsContent value="unstake" className="mt-0">
-                  <StakingCard defaultTab="unstake" />
-                </TabsContent>
-                
-                <TabsContent value="harvest" className="mt-0">
-                  <StakingCard defaultTab="harvest" />
-                </TabsContent>
-              </Tabs>
+            <div className="mt-4">
+              {activeTab === "stake" && <StakingCard defaultTab="stake" />}
+              {activeTab === "unstake" && <StakingCard defaultTab="unstake" />}
+              {activeTab === "harvest" && <StakingCard defaultTab="harvest" />}
             </div>
             
             {/* FAQ Section */}
