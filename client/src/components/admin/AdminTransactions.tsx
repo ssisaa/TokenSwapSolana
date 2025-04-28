@@ -1,5 +1,16 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+
+// Define the transaction interface for type safety
+interface Transaction {
+  signature: string;
+  timestamp: number;
+  txType: string;
+  userAddress: string;
+  amount: number;
+  status: string;
+  [key: string]: string | number; // Index signature to allow string indexing
+}
 import {
   Card,
   CardContent,
@@ -198,12 +209,22 @@ export default function AdminTransactions() {
   const sortedTransactions = [...filteredTransactions].sort((a, b) => {
     const { key, direction } = sortConfig;
     
-    if (a[key] < b[key]) {
-      return direction === 'asc' ? -1 : 1;
+    // Type-safe comparison based on specific known properties
+    if (key === 'timestamp' || key === 'amount') {
+      return direction === 'asc' 
+        ? (a[key] as number) - (b[key] as number)
+        : (b[key] as number) - (a[key] as number);
     }
-    if (a[key] > b[key]) {
-      return direction === 'asc' ? 1 : -1;
+    
+    // For string comparisons
+    if (key === 'signature' || key === 'txType' || key === 'userAddress' || key === 'status') {
+      const aValue = String(a[key]);
+      const bValue = String(b[key]);
+      return direction === 'asc'
+        ? aValue.localeCompare(bValue)
+        : bValue.localeCompare(aValue);
     }
+    
     return 0;
   });
   

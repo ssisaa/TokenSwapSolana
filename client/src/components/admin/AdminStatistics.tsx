@@ -282,13 +282,13 @@ export default function AdminStatistics() {
                 <div>
                   <span className="text-sm text-muted-foreground">YOT Token</span>
                   <div className="font-mono text-xs truncate mt-1">
-                    {programState.yotMint}
+                    {YOT_TOKEN_ADDRESS}
                   </div>
                 </div>
                 <div>
                   <span className="text-sm text-muted-foreground">YOS Token</span>
                   <div className="font-mono text-xs truncate mt-1">
-                    {programState.yosMint}
+                    {YOS_TOKEN_ADDRESS}
                   </div>
                 </div>
               </div>

@@ -931,19 +931,19 @@ export async function getStakingProgramState(): Promise<{
     // Read harvest threshold (8 bytes, 64-bit unsigned integer)
     const harvestThreshold = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32 + 8)) / 1000000;
     
-    // Calculate compounded returns
-    // For simplicity, we multiply the per-second rate by the number of seconds
-    // A more precise calculation would compound: (1 + rate)^seconds - 1
+    // Calculate compounded returns using the compound interest formula
+    // Formula: (1 + rate)^periods - 1
     const secondsPerDay = 86400;
     const secondsPerWeek = secondsPerDay * 7;
     const secondsPerMonth = secondsPerDay * 30;
     const secondsPerYear = secondsPerDay * 365;
     
-    // Calculate APY for different time periods
-    const dailyAPY = stakeRatePerSecond * secondsPerDay * 100;
-    const weeklyAPY = stakeRatePerSecond * secondsPerWeek * 100;
-    const monthlyAPY = stakeRatePerSecond * secondsPerMonth * 100;
-    const yearlyAPY = stakeRatePerSecond * secondsPerYear * 100;
+    // The stakeRatePerSecond is in decimal format (e.g., 0.00000125 for 0.000125%)
+    // Calculate compound interest for different time periods
+    const dailyAPY = (Math.pow(1 + stakeRatePerSecond, secondsPerDay) - 1) * 100;
+    const weeklyAPY = (Math.pow(1 + stakeRatePerSecond, secondsPerWeek) - 1) * 100;
+    const monthlyAPY = (Math.pow(1 + stakeRatePerSecond, secondsPerMonth) - 1) * 100;
+    const yearlyAPY = (Math.pow(1 + stakeRatePerSecond, secondsPerYear) - 1) * 100;
     
     return {
       stakeRatePerSecond,
@@ -956,14 +956,26 @@ export async function getStakingProgramState(): Promise<{
   } catch (error) {
     console.error('Error fetching staking program state:', error);
     
-    // Return default values on error
+    // Return default values on error with properly calculated APY
+    const stakeRatePerSecond = 0.00000125; // 0.000125% per second
+    const secondsPerDay = 86400;
+    const secondsPerWeek = secondsPerDay * 7;
+    const secondsPerMonth = secondsPerDay * 30;
+    const secondsPerYear = secondsPerDay * 365;
+    
+    // Calculate compound interest
+    const dailyAPY = (Math.pow(1 + stakeRatePerSecond, secondsPerDay) - 1) * 100;
+    const weeklyAPY = (Math.pow(1 + stakeRatePerSecond, secondsPerWeek) - 1) * 100;
+    const monthlyAPY = (Math.pow(1 + stakeRatePerSecond, secondsPerMonth) - 1) * 100;
+    const yearlyAPY = (Math.pow(1 + stakeRatePerSecond, secondsPerYear) - 1) * 100;
+    
     return {
-      stakeRatePerSecond: 0.00125, 
+      stakeRatePerSecond,
       harvestThreshold: 1,
-      dailyAPY: 108,
-      weeklyAPY: 756,
-      monthlyAPY: 3240,
-      yearlyAPY: 39420
+      dailyAPY,
+      weeklyAPY,
+      monthlyAPY,
+      yearlyAPY
     };
   }
 }
