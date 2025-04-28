@@ -67,8 +67,8 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
         </div>
       )}
       
-      {/* Responsive grid layout */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+      {/* 4-box grid layout */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Global Total Staked */}
         <Card className="bg-dark-200 border border-slate-700">
           <CardContent className="p-4">
@@ -97,7 +97,7 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
                   <span className="text-sm font-semibold text-blue-400">YOT</span>
                 </div>
                 {globalStats && globalStats.totalStaked > 0 && stakingInfo.stakedAmount > 0 && (
-                  <div className="text-xs text-gray-400 mt-1">
+                  <div className="text-sm text-blue-400 mt-1 font-medium">
                     ({((stakingInfo.stakedAmount / globalStats.totalStaked) * 100).toFixed(2)}% of global)
                   </div>
                 )}
@@ -121,24 +121,7 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
           </CardContent>
         </Card>
         
-        {/* Your Stake % */}
-        <Card className="bg-dark-200 border border-slate-700">
-          <CardContent className="p-4">
-            <h3 className="text-sm font-medium text-gray-300 mb-2">Your Stake %</h3>
-            {isLoading ? (
-              <div className="animate-pulse bg-dark-300 h-6 w-16 rounded"></div>
-            ) : (
-              <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold text-white">
-                  {yotBalance && (yotBalance + stakingInfo.stakedAmount) > 0 ? 
-                    ((stakingInfo.stakedAmount / (yotBalance + stakingInfo.stakedAmount)) * 100).toFixed(2) : 
-                    '0.00'}
-                </span>
-                <span className="text-sm font-semibold text-blue-400">%</span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+
         
         {/* Your YOS Tokens */}
         <Card className="bg-dark-200 border border-slate-700">
