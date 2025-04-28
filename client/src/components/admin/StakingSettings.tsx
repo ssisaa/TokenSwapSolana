@@ -10,12 +10,20 @@ import { useToast } from '@/hooks/use-toast';
 
 export default function StakingSettings() {
   const { connected, publicKey } = useMultiWallet();
-  const { updateParameters, isUpdatingParameters } = useStaking();
+  const { updateParameters, isUpdatingParameters, stakingRates } = useStaking();
   const { toast } = useToast();
   
-  // State for form values
-  const [stakeRatePerSecond, setStakeRatePerSecond] = useState<string>('0.00125');
+  // State for form values - initialize with current values from blockchain
+  const [stakeRatePerSecond, setStakeRatePerSecond] = useState<string>('0.00000125');
   const [harvestThreshold, setHarvestThreshold] = useState<string>('1.0');
+  
+  // Update form state when we get rates from blockchain
+  useEffect(() => {
+    if (stakingRates) {
+      setStakeRatePerSecond(stakingRates.stakeRatePerSecond.toString());
+      setHarvestThreshold(stakingRates.harvestThreshold.toString());
+    }
+  }, [stakingRates]);
   
   // Validate admin status
   // In a real implementation, we would verify the admin's public key
@@ -35,13 +43,19 @@ export default function StakingSettings() {
     }
     
     try {
-      // Convert percentage to basis points (1/100 of 1%)
-      const rateInBasisPoints = Math.round(parseFloat(stakeRatePerSecond) * 10000);
-      const thresholdValue = Math.round(parseFloat(harvestThreshold) * 1000000); // Convert to smallest token units
+      // We need to pass the raw percentage value, not basis points
+      // Our Solana library will handle the conversion to basis points correctly
+      const ratePerSecond = parseFloat(stakeRatePerSecond);
+      const thresholdValue = parseFloat(harvestThreshold);
+      
+      console.log("Sending staking parameter update:", {
+        stakeRatePerSecond: ratePerSecond,
+        harvestThreshold: thresholdValue
+      });
       
       updateParameters({
-        stakeRatePerSecond: rateInBasisPoints,
-        harvestThreshold: thresholdValue
+        stakeRatePerSecond: ratePerSecond, // Pass the raw percentage value
+        harvestThreshold: thresholdValue    // Pass the raw threshold value
       });
     } catch (error) {
       toast({

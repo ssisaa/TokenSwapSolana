@@ -472,8 +472,10 @@ export function useStaking() {
       const { stakeRatePerSecond, harvestThreshold } = variables;
       
       // Calculate corresponding APRs (Annual Percentage Rate, not APY)
+      // stakeRatePerSecond is already a percentage value (e.g., 0.0000125), 
+      // so we don't need to multiply by 100 again
       const secondsInDay = 86400;
-      const dailyAPR = stakeRatePerSecond * secondsInDay * 100;
+      const dailyAPR = stakeRatePerSecond * secondsInDay;
       const weeklyAPR = dailyAPR * 7;
       const monthlyAPR = dailyAPR * 30;
       const yearlyAPR = dailyAPR * 365;
