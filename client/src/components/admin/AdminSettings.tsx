@@ -31,7 +31,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, InfoIcon } from "lucide-react";
+import { 
+  Loader2, 
+  InfoIcon, 
+  ArrowUpCircleIcon,
+  RefreshCwIcon 
+} from "lucide-react";
+import { 
+  PublicKey,
+  Transaction 
+} from '@solana/web3.js';
+import { 
+  getAssociatedTokenAddress,
+  createTransferInstruction,
+  getOrCreateAssociatedTokenAccount,
+  TOKEN_PROGRAM_ID,
+  createAssociatedTokenAccountInstruction
+} from '@solana/spl-token';
+import { 
+  YOS_TOKEN_ADDRESS, 
+  STAKING_PROGRAM_ID 
+} from '@/lib/constants';
+import { connection } from '@/lib/solana-staking';
+import { toast } from "@/hooks/use-toast";
 
 export default function AdminSettings() {
   const { settings, isLoading, updateSettingsMutation } = useAdminSettings();
@@ -515,8 +537,213 @@ export default function AdminSettings() {
         </form>
       </CardContent>
       
-      <CardFooter className="flex justify-between pt-2">
-        <div className="text-xs text-muted-foreground">
+      <CardFooter className="flex flex-col space-y-4 pt-2">
+        {/* Add Program YOS Management Section */}
+        <div className="w-full mt-4 bg-secondary/20 p-4 rounded-lg border border-primary/20">
+          <h3 className="text-lg font-semibold mb-3 flex items-center">
+            <ArrowUpCircleIcon className="h-5 w-5 mr-2 text-primary" />
+            Program YOS Account Management
+          </h3>
+          
+          <div className="grid gap-4">
+            <div className="text-sm">
+              <p className="mb-2">To pay out staking rewards, the program needs YOS tokens in its account.</p>
+              <div className="bg-primary-foreground/50 p-2 rounded text-xs font-mono mb-3">
+                {/* Try to get program authority address */}
+                {(() => {
+                  try {
+                    const [programAuthorityAddress] = PublicKey.findProgramAddressSync(
+                      [Buffer.from('authority')],
+                      new PublicKey(STAKING_PROGRAM_ID)
+                    );
+                    return `Program Authority: ${programAuthorityAddress.toString()}`;
+                  } catch (e) {
+                    return "Unable to calculate program authority address";
+                  }
+                })()}
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <Button 
+                variant="outline" 
+                onClick={async () => {
+                  try {
+                    // Get program authority
+                    const [programAuthorityAddress] = PublicKey.findProgramAddressSync(
+                      [Buffer.from('authority')],
+                      new PublicKey(STAKING_PROGRAM_ID)
+                    );
+                    
+                    // Get program YOS token account
+                    const programYosTokenAccount = await getAssociatedTokenAddress(
+                      new PublicKey(YOS_TOKEN_ADDRESS),
+                      programAuthorityAddress,
+                      true // allowOwnerOffCurve
+                    );
+                    
+                    // Check if program token account exists
+                    const accountInfo = await connection.getAccountInfo(programYosTokenAccount);
+                    
+                    if (accountInfo) {
+                      // Get token balance
+                      const balance = await connection.getTokenAccountBalance(programYosTokenAccount);
+                      toast({
+                        title: "Program YOS Balance",
+                        description: `Program YOS account: ${programYosTokenAccount.toString()}\nBalance: ${balance.value.uiAmount || 0} YOS`
+                      });
+                    } else {
+                      toast({
+                        title: "Program YOS Account",
+                        description: `Program YOS account: ${programYosTokenAccount.toString()}\nStatus: Not yet created (will be created when funded)`
+                      });
+                    }
+                  } catch (error) {
+                    console.error("Error checking program YOS account:", error);
+                    toast({
+                      title: "Error",
+                      description: "Failed to check program YOS account",
+                      variant: "destructive"
+                    });
+                  }
+                }}
+                className="flex items-center justify-center"
+              >
+                <RefreshCwIcon className="h-4 w-4 mr-2" />
+                Check Program YOS
+              </Button>
+              
+              <Button 
+                variant="default" 
+                onClick={async () => {
+                  try {
+                    if (!wallet || !wallet.publicKey) {
+                      toast({
+                        title: "Wallet not connected",
+                        description: "Please connect your wallet first",
+                        variant: "destructive"
+                      });
+                      return;
+                    }
+                    
+                    // Define amount to send (3 YOS is enough to cover rewards of 2.55)
+                    const amountToSend = 3.0;
+                    
+                    // Get program authority
+                    const [programAuthorityAddress] = PublicKey.findProgramAddressSync(
+                      [Buffer.from('authority')],
+                      new PublicKey(STAKING_PROGRAM_ID)
+                    );
+                    
+                    // Get sender's YOS token account
+                    const senderTokenAccount = await getAssociatedTokenAddress(
+                      new PublicKey(YOS_TOKEN_ADDRESS),
+                      wallet.publicKey
+                    );
+                    
+                    // Get or create program's YOS token account
+                    const programYosTokenAccount = await getAssociatedTokenAddress(
+                      new PublicKey(YOS_TOKEN_ADDRESS),
+                      programAuthorityAddress,
+                      true // allowOwnerOffCurve
+                    );
+                    
+                    // Check if program token account exists, create if it doesn't
+                    const accountInfo = await connection.getAccountInfo(programYosTokenAccount);
+                    
+                    // Create transaction
+                    const transaction = new Transaction();
+                    
+                    // If program token account doesn't exist, add instruction to create it
+                    if (!accountInfo) {
+                      toast({
+                        title: "Creating Program YOS Account",
+                        description: "Program YOS account doesn't exist yet. It will be created automatically."
+                      });
+                      
+                      // Add create account instruction using createAssociatedTokenAccount
+                      transaction.add(
+                        Token.createAssociatedTokenAccountInstruction(
+                          TOKEN_PROGRAM_ID,
+                          wallet.publicKey,
+                          new PublicKey(YOS_TOKEN_ADDRESS),
+                          programYosTokenAccount,
+                          programAuthorityAddress,
+                          wallet.publicKey
+                        )
+                      );
+                    }
+                    
+                    // Calculate exact token amount (accounting for decimals)
+                    const amount = amountToSend * 1e9; // YOS has 9 decimals
+                    
+                    // Add transfer instruction
+                    transaction.add(
+                      createTransferInstruction(
+                        senderTokenAccount,
+                        programYosTokenAccount,
+                        wallet.publicKey,
+                        amount
+                      )
+                    );
+                    
+                    // Set recent blockhash and fee payer
+                    transaction.feePayer = wallet.publicKey;
+                    let blockhashResponse = await connection.getLatestBlockhash('finalized');
+                    transaction.recentBlockhash = blockhashResponse.blockhash;
+                    
+                    // Sign and send transaction
+                    let signed = await wallet.signTransaction(transaction);
+                    let signature = await connection.sendRawTransaction(signed.serialize());
+                    
+                    // Confirm transaction
+                    await connection.confirmTransaction({
+                      signature,
+                      blockhash: blockhashResponse.blockhash,
+                      lastValidBlockHeight: blockhashResponse.lastValidBlockHeight
+                    });
+                    
+                    toast({
+                      title: "Success!",
+                      description: `Successfully funded program YOS account with ${amountToSend} YOS. You can now harvest rewards.`
+                    });
+                    
+                    // After a short delay, show the balance
+                    setTimeout(async () => {
+                      try {
+                        const balance = await connection.getTokenAccountBalance(programYosTokenAccount);
+                        toast({
+                          title: "Program YOS Balance Updated",
+                          description: `New balance: ${balance.value.uiAmount || 0} YOS`
+                        });
+                      } catch (e) {
+                        console.error("Error checking updated balance:", e);
+                      }
+                    }, 2000);
+                    
+                  } catch (error) {
+                    console.error("Error funding program account:", error);
+                    toast({
+                      title: "Error",
+                      description: error instanceof Error ? error.message : "Failed to fund program YOS account",
+                      variant: "destructive"
+                    });
+                  }
+                }}
+                className="bg-gradient-to-r from-primary to-primary/80 hover:to-primary"
+              >
+                <ArrowUpCircleIcon className="h-4 w-4 mr-2" />
+                Fund Program YOS (3 YOS)
+              </Button>
+            </div>
+            
+            <div className="text-xs text-muted-foreground">
+              Note: After funding, users will be able to harvest their staking rewards from the Staking page.
+            </div>
+          </div>
+        </div>
+        
+        <div className="text-xs text-muted-foreground mt-2">
           Last updated: {settings?.updatedAt ? new Date(settings.updatedAt).toLocaleString() : "Never"}
         </div>
       </CardFooter>
