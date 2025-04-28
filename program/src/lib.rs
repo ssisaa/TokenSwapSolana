@@ -405,6 +405,11 @@ fn process_unstake(
     // Save updated staking data
     staking_data.serialize(&mut *user_staking_account.try_borrow_mut_data()?)?;
     
+    // IMPORTANT NOTE FOR DECIMALS:
+    // The 'amount' parameter already contains the raw token amount with 9 decimal places.
+    // For example, unstaking 10 YOT tokens means amount = 10,000,000,000 (10 * 10^9).
+    // The SPL token program handles decimals correctly, so we don't need to convert here.
+    
     // Transfer YOT tokens back to user (this should ALWAYS happen)
     invoke_signed(
         &spl_token::instruction::transfer(
@@ -413,7 +418,7 @@ fn process_unstake(
             user_yot_token_account.key,
             program_authority.key,
             &[],
-            amount,
+            amount, // This is already in the correct format with 9 decimal places
         )?,
         &[
             program_yot_token_account.clone(),
@@ -439,7 +444,9 @@ fn process_unstake(
         
         // Check if program has enough YOS tokens to transfer rewards
         if program_yos_balance >= raw_rewards {
-            // For wallet display purposes, use the raw amount as SPL tokens already account for decimals
+            // IMPORTANT FIX: We're dealing with a token that has 9 decimals
+            // This means 1.0 YOS = 1,000,000,000 raw tokens
+            // Since the token program already handles decimals, we just use the raw amount
             let ui_rewards = raw_rewards;
             
             // Only attempt to transfer rewards if the program has enough YOS tokens
@@ -450,7 +457,7 @@ fn process_unstake(
                     user_yos_token_account.key,
                     program_authority.key,
                     &[],
-                    ui_rewards,
+                    ui_rewards, // This is the raw amount with 9 decimal places
                 )?,
                 &[
                     program_yos_token_account.clone(),
@@ -568,7 +575,9 @@ fn process_harvest(
     
     staking_data.serialize(&mut *user_staking_account.try_borrow_mut_data()?)?;
     
-    // For wallet display purposes, use the raw amount as SPL tokens already account for decimals
+    // IMPORTANT FIX FOR DECIMAL DISPLAY ISSUE:
+    // raw_rewards is already in the correct format with 9 decimals
+    // We use this directly for token operations as SPL tokens understand decimals
     let ui_rewards = raw_rewards;
     
     // Transfer YOS rewards to user
@@ -579,7 +588,7 @@ fn process_harvest(
             user_yos_token_account.key,
             program_authority.key,
             &[],
-            ui_rewards,
+            ui_rewards, // This already has 9 decimal places (e.g., 4.35 YOS = 4,350,000,000)
         )?,
         &[
             program_yos_token_account.clone(),
