@@ -19,6 +19,13 @@ export default function StakingSettings() {
   const [stakeRatePerSecond, setStakeRatePerSecond] = useState<string>('0.0000000125');
   const [harvestThreshold, setHarvestThreshold] = useState<string>('1.0');
   
+  // Default to the requested rate (1.25e-7) if needed
+  useEffect(() => {
+    if (!stakingRates) {
+      setStakeRatePerSecond('0.0000000125');
+    }
+  }, []);
+  
   React.useEffect(() => {
     if (stakingRates) {
       setStakeRatePerSecond(stakingRates.stakeRatePerSecond.toString());
@@ -154,7 +161,7 @@ export default function StakingSettings() {
           <Button 
             type="submit" 
             className="w-full" 
-            disabled={isUpdatingParameters || !isAdmin}
+            disabled={isUpdatingParameters || isUpdatingDatabase || !isAdmin}
           >
             {isUpdatingParameters || isUpdatingDatabase ? (
               <>
