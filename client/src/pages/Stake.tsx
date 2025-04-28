@@ -126,57 +126,77 @@ export default function Stake() {
           
           {/* Right Column */}
           <div className="space-y-6">
-            {/* Staking Information */}
-            <Card className="bg-dark-200">
-              <CardContent className="pt-6">
-                <h3 className="text-xl font-bold mb-4 text-white">Staking Information</h3>
-                
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between mb-1">
-                      <span className="font-medium text-white">Current APR</span>
-                      <span className="font-semibold text-green-500">{stakingRates?.yearlyAPR?.toFixed(2) || '0.00'}%</span>
+            {/* Stats Overview */}
+            <div className="grid grid-cols-4 gap-4 mb-6">
+              {/* Total Staked */}
+              <Card className="bg-dark-200">
+                <CardContent className="p-4">
+                  <h3 className="text-sm font-medium text-white mb-1">Total Staked</h3>
+                  {isLoading ? (
+                    <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
+                  ) : (
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-xl font-bold text-white">{formatNumber(globalStats ? globalStats.totalStaked : 0)}</span>
+                      <span className="text-sm font-semibold text-primary">YOT</span>
                     </div>
-                  </div>
-                  
-                  <div>
-                    <div className="flex justify-between mb-1">
-                      <span className="font-medium text-white">Total Stakers</span>
-                      <span className="font-semibold text-white">{globalStats ? globalStats.totalStakers : '-'}</span>
+                  )}
+                </CardContent>
+              </Card>
+              
+              {/* Earned Rewards */}
+              <Card className="bg-dark-200">
+                <CardContent className="p-4">
+                  <h3 className="text-sm font-medium text-white mb-1">Earned Rewards</h3>
+                  {isLoading ? (
+                    <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
+                  ) : (
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-xl font-bold text-white">{formatNumber(stakingInfo.rewardsEarned)}</span>
+                      <span className="text-sm font-semibold text-green-500">YOS</span>
                     </div>
-                    <Progress value={globalStats ? Math.min((globalStats.totalStakers / 100) * 100, 100) : 50} className="h-2" />
-                  </div>
-                  
-                  <div>
-                    <div className="flex justify-between mb-1">
-                      <span className="font-medium text-white">Total Staked</span>
-                      <span className="font-semibold text-white">{formatNumber(globalStats ? globalStats.totalStaked : 0)} YOT</span>
+                  )}
+                </CardContent>
+              </Card>
+              
+              {/* Total Harvested */}
+              <Card className="bg-dark-200">
+                <CardContent className="p-4">
+                  <h3 className="text-sm font-medium text-white mb-1">Total Harvested</h3>
+                  {isLoading ? (
+                    <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
+                  ) : (
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-xl font-bold text-white">{formatNumber(stakingInfo.totalHarvested)}</span>
+                      <span className="text-sm font-semibold text-green-500">YOS</span>
                     </div>
-                    <Progress value={Math.min((globalStats ? globalStats.totalStaked : 0) / 10000000 * 100, 100)} className="h-2" />
-                  </div>
-                  
-                  <div className="pt-2 space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="font-medium text-white">Hourly Rate:</span>
-                      <span className="font-semibold text-green-500">{(stakingRates?.stakeRatePerSecond ? stakingRates.stakeRatePerSecond * 3600 : 0).toFixed(2) || '0.00'}%</span>
+                  )}
+                </CardContent>
+              </Card>
+              
+              {/* YOT Stake % */}
+              <Card className="bg-dark-200">
+                <CardContent className="p-4">
+                  <h3 className="text-sm font-medium text-white mb-1">Your Stake %</h3>
+                  {isLoading ? (
+                    <div className="animate-pulse bg-dark-300 h-6 w-16 rounded"></div>
+                  ) : (
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-xl font-bold text-white">
+                        {globalStats && globalStats.totalStaked ? 
+                          ((stakingInfo.stakedAmount / globalStats.totalStaked) * 100).toFixed(2) : 
+                          '0.00'}
+                      </span>
+                      <span className="text-sm font-semibold text-primary">%</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="font-medium text-white">Daily Rate:</span>
-                      <span className="font-semibold text-green-500">{stakingRates?.dailyAPR?.toFixed(2) || '0.00'}%</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="font-medium text-white">Monthly Rate:</span>
-                      <span className="font-semibold text-green-500">{stakingRates?.monthlyAPR?.toFixed(2) || '0.00'}%</span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
             
             {/* How Staking Works */}
             <Card className="bg-dark-200">
               <CardContent className="pt-6">
-                <h3 className="text-lg font-bold mb-4">How Staking Works</h3>
+                <h3 className="text-xl font-bold mb-4 text-white">How Staking Works</h3>
                 
                 <div className="space-y-4">
                   <div className="flex gap-3">
@@ -186,8 +206,8 @@ export default function Stake() {
                       </div>
                     </div>
                     <div>
-                      <h4 className="font-medium">Stake YOT</h4>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <h4 className="font-medium text-white">Stake YOT</h4>
+                      <p className="text-sm text-gray-300 mt-1">
                         Lock your YOT tokens in the staking contract to start earning rewards.
                       </p>
                     </div>
@@ -200,9 +220,9 @@ export default function Stake() {
                       </div>
                     </div>
                     <div>
-                      <h4 className="font-medium">Earn Rewards</h4>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Earn YOS rewards continuously based on your staked amount and the current APR.
+                      <h4 className="font-medium text-white">Earn Rewards</h4>
+                      <p className="text-sm text-gray-300 mt-1">
+                        Earn YOS rewards continuously based on your staked amount and the current APY.
                       </p>
                     </div>
                   </div>
@@ -214,8 +234,8 @@ export default function Stake() {
                       </div>
                     </div>
                     <div>
-                      <h4 className="font-medium">Harvest Anytime</h4>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <h4 className="font-medium text-white">Harvest Anytime</h4>
+                      <p className="text-sm text-gray-300 mt-1">
                         Claim your YOS rewards whenever you want. No lock-up period or vesting.
                       </p>
                     </div>
@@ -228,8 +248,8 @@ export default function Stake() {
                       </div>
                     </div>
                     <div>
-                      <h4 className="font-medium">Staking Security</h4>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <h4 className="font-medium text-white">Staking Security</h4>
+                      <p className="text-sm text-gray-300 mt-1">
                         All operations require your explicit wallet signature. Your funds remain secure through Solana's smart contracts.
                       </p>
                     </div>
@@ -241,10 +261,10 @@ export default function Stake() {
             {/* Staking Security */}
             <Card className="bg-dark-200">
               <CardContent className="pt-6">
-                <h3 className="text-lg font-bold mb-4">Staking Security</h3>
+                <h3 className="text-xl font-bold mb-4 text-white">Staking Security</h3>
                 
                 <div className="space-y-3">
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-gray-300">
                     Security is paramount in our staking protocol. All staking operations require your explicit wallet 
                     signature, ensuring that only you can control your staked tokens.
                   </p>
@@ -254,21 +274,21 @@ export default function Stake() {
                       <InfoIcon className="h-4 w-4 mr-2" />
                       Key Security Features
                     </h4>
-                    <ul className="mt-2 space-y-2 text-sm">
+                    <ul className="mt-2 space-y-2 text-sm text-white">
                       <li className="flex items-start">
-                        <span className="font-bold mr-2">•</span>
+                        <span className="font-bold mr-2 text-primary">•</span>
                         <span>Mandatory wallet signatures for all blockchain interactions</span>
                       </li>
                       <li className="flex items-start">
-                        <span className="font-bold mr-2">•</span>
+                        <span className="font-bold mr-2 text-primary">•</span>
                         <span>On-chain storage of staking data through Program Derived Addresses (PDAs)</span>
                       </li>
                       <li className="flex items-start">
-                        <span className="font-bold mr-2">•</span>
+                        <span className="font-bold mr-2 text-primary">•</span>
                         <span>Transparent rewards calculation visible on the blockchain</span>
                       </li>
                       <li className="flex items-start">
-                        <span className="font-bold mr-2">•</span>
+                        <span className="font-bold mr-2 text-primary">•</span>
                         <span>No client-side storage of sensitive information</span>
                       </li>
                     </ul>

@@ -141,9 +141,9 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
               
               <div className="h-px bg-border" />
               
-              {/* Staking APR Information */}
+              {/* Staking APR/APY Information */}
               <div className="bg-dark-300 rounded-lg p-4 space-y-3 border border-border">
-                <h3 className="text-base font-semibold text-white">Staking APR Rates</h3>
+                <h3 className="text-base font-semibold text-white">Staking APR/APY Rates</h3>
                 
                 <div className="mb-3">
                   <div className="flex justify-between items-center mb-1.5">

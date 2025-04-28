@@ -99,21 +99,6 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
       
       {/* Additional Stats Row */}
       <div className="grid gap-4 grid-cols-2">        
-        {/* Total Staked (All Users Combined) */}
-        <Card className="bg-dark-200 border-border">
-          <CardContent className="p-4">
-            <h3 className="text-sm font-medium text-white mb-1">Total Staked (All Users)</h3>
-            {isLoading ? (
-              <Skeleton className="h-6 w-28 bg-dark-100" />
-            ) : (
-              <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold text-white">{formatNumber(globalStats ? globalStats.totalStaked : 0)}</span>
-                <span className="text-sm font-semibold text-primary">YOT</span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        
         {/* Total Staked Percentage */}
         <Card className="bg-dark-200 border-border">
           <CardContent className="p-4">
