@@ -267,12 +267,20 @@ export default function Dashboard() {
             </Link>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <Card className="bg-dark-200 border-dark-400 p-4">
               <h3 className="text-gray-400 text-sm">Global Total Staked</h3>
               <div className="text-xl font-semibold text-white mt-1">
                 {stakingLoading ? "Loading..." : formatNumber(globalStats ? globalStats.totalStaked : 0)} 
                 <span className="text-blue-400 text-sm ml-1">YOT</span>
+              </div>
+            </Card>
+            
+            <Card className="bg-dark-200 border-dark-400 p-4">
+              <h3 className="text-gray-400 text-sm">Total Users Staked</h3>
+              <div className="text-xl font-semibold text-white mt-1">
+                {stakingLoading ? "Loading..." : formatNumber(globalStats ? globalStats.activeStakers : 0)} 
+                <span className="text-gray-400 text-sm ml-1">users</span>
               </div>
             </Card>
             
