@@ -40,7 +40,7 @@ enum StakingInstructionType {
 // Find Program Derived Addresses
 function findProgramStateAddress(): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
-    [Buffer.from('state')], // Changed to match Rust program seed
+    [Buffer.from('program_state')], // Must match exact seed in Rust program (line 165)
     STAKING_PROGRAM_ID
   );
 }
@@ -299,32 +299,21 @@ export async function initializeStakingProgram(
     }
     
     // Create main transaction instruction for program initialization
-    console.log("Creating initialization instruction");
+    // IMPORTANT: Looking at the Rust program, it only expects 3 accounts for initialization:
+    // 1. Admin account (signer)
+    // 2. Program state account (PDA)
+    // 3. System program (for creating the account)
+    console.log("Creating initialization instruction with minimal accounts required by the program");
     const initInstruction = new TransactionInstruction({
       keys: [
         // Admin is the signer and payer
         { pubkey: adminPublicKey, isSigner: true, isWritable: true },
         
-        // Program PDA accounts
+        // Program state PDA account - the only account being created during initialization
         { pubkey: programStateAddress, isSigner: false, isWritable: true },
-        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false },
-        
-        // Token mints (must be in the same order as in the instruction data)
-        { pubkey: yotMintPubkey, isSigner: false, isWritable: false },
-        { pubkey: yosMintPubkey, isSigner: false, isWritable: false },
-        
-        // Token accounts 
-        { pubkey: programYotTokenAccount, isSigner: false, isWritable: true },
-        { pubkey: programYosTokenAccount, isSigner: false, isWritable: true },
         
         // System program for account creation
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        
-        // Token program for token operations
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-        
-        // Rent program for rent exemption
-        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
       ],
       programId: STAKING_PROGRAM_ID,
       data: encodeInitializeInstruction(
@@ -445,7 +434,7 @@ export async function stakeYOTTokens(
 
     // Find program state address
     const [programStateAddress, programStateBump] = PublicKey.findProgramAddressSync(
-      [Buffer.from("state")],
+      [Buffer.from("program_state")],
       STAKING_PROGRAM_ID
     );
     
