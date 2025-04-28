@@ -115,12 +115,12 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
               <div className="grid gap-4">
                 <div className="flex justify-between">
                   <span className="text-gray-400">Total Staked:</span>
-                  <span className="font-medium text-white">{formatNumber(stakingInfo.stakedAmount)} YOT</span>
+                  <span className="font-medium text-white">{stakingInfo.stakedAmount.toLocaleString('en-US')} YOT</span>
                 </div>
                 
                 <div className="flex justify-between">
                   <span className="text-gray-400">Pending Rewards:</span>
-                  <span className="font-medium text-white">{formatNumber(stakingInfo.rewardsEarned)} YOS</span>
+                  <span className="font-medium text-white">{stakingInfo.rewardsEarned.toLocaleString('en-US')} YOS</span>
                 </div>
                 
                 <div className="flex justify-between">
@@ -135,7 +135,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                 
                 <div className="flex justify-between">
                   <span className="text-gray-400">Total Harvested:</span>
-                  <span className="font-medium text-white">{formatNumber(stakingInfo.totalHarvested)} YOS</span>
+                  <span className="font-medium text-white">{stakingInfo.totalHarvested.toLocaleString('en-US')} YOS</span>
                 </div>
               </div>
               
@@ -236,7 +236,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                     <div className="flex items-center text-sm">
                       <Wallet className="h-4 w-4 mr-1 text-gray-400" />
                       <span className="text-gray-400">Available: </span>
-                      <span className="font-medium ml-1 text-white">{formatNumber(yotBalance)} YOT</span>
+                      <span className="font-medium ml-1 text-white">{yotBalance.toLocaleString('en-US')} YOT</span>
                     </div>
                   </div>
                   <div className="flex flex-col space-y-2">
@@ -282,7 +282,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                     <h3 className="text-lg font-semibold text-white">Unstake YOT</h3>
                     <div className="flex items-center text-sm">
                       <span className="text-gray-400">Staked: </span>
-                      <span className="font-medium ml-1 text-white">{formatNumber(stakingInfo.stakedAmount)} YOT</span>
+                      <span className="font-medium ml-1 text-white">{stakingInfo.stakedAmount.toLocaleString('en-US')} YOT</span>
                     </div>
                   </div>
                   <div className="flex flex-col space-y-2">
@@ -327,7 +327,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                   <div className="flex justify-between items-center">
                     <h3 className="text-lg font-semibold text-white">Harvest Rewards</h3>
                     <span className="text-sm text-gray-400">
-                      <span className="font-medium text-white">{formatNumber(stakingInfo.rewardsEarned)}</span> YOS available
+                      <span className="font-medium text-white">{stakingInfo.rewardsEarned.toLocaleString('en-US')}</span> YOS available
                     </span>
                   </div>
                   <div className="flex flex-col space-y-2">
