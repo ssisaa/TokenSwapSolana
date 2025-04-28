@@ -653,9 +653,12 @@ export async function unstakeYOTTokens(
     return signature;
   } catch (error) {
     console.error('Error unstaking tokens:', error);
+    const errorMessage = error instanceof Error
+      ? error.message
+      : 'Unknown error during unstaking';
     toast({
       title: "Unstaking Failed",
-      description: error.message,
+      description: errorMessage,
       variant: "destructive"
     });
     throw error;
@@ -762,9 +765,12 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     return signature;
   } catch (error) {
     console.error('Error harvesting rewards:', error);
+    const errorMessage = error instanceof Error
+      ? error.message
+      : 'Unknown error during harvesting';
     toast({
       title: "Harvest Failed",
-      description: error.message,
+      description: errorMessage,
       variant: "destructive"
     });
     throw error;
@@ -833,9 +839,12 @@ export async function updateStakingParameters(
     return signature;
   } catch (error) {
     console.error('Error updating parameters:', error);
+    const errorMessage = error instanceof Error
+      ? error.message
+      : 'Unknown error during parameter update';
     toast({
       title: "Update Failed",
-      description: error.message,
+      description: errorMessage,
       variant: "destructive"
     });
     throw error;
