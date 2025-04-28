@@ -1249,7 +1249,8 @@ export async function prepareUnstakeTransaction(
     // Check program YOS token balance to ensure it has enough for rewards
     try {
       const programYosBalance = await connection.getTokenAccountBalance(programYosTokenAccount);
-      console.log("Program YOS token balance:", programYosBalance.value.uiAmount);
+      const programYosAmount = programYosBalance.value.uiAmount || 0;
+      console.log("Program YOS token balance:", programYosAmount);
       
       // Check if the user has a staking account to calculate pending rewards
       const [userStakingAddress] = PublicKey.findProgramAddressSync(
@@ -1263,12 +1264,22 @@ export async function prepareUnstakeTransaction(
         const stakingInfo = await getStakingInfo(userPublicKey.toString());
         console.log("User has pending rewards:", stakingInfo.rewardsEarned);
         
-        if (stakingInfo.rewardsEarned > 0 && (programYosBalance.value.uiAmount || 0) < stakingInfo.rewardsEarned) {
-          console.warn(`Program has insufficient YOS tokens for rewards. Available: ${programYosBalance.value.uiAmount}, Needed: ${stakingInfo.rewardsEarned}`);
-          // Continue with unstake but warn the user
+        // Check if program has absolutely zero tokens (can't process rewards at all)
+        if (stakingInfo.rewardsEarned > 0 && programYosAmount <= 0) {
+          console.error(`Program has no YOS tokens for rewards. Available: ${programYosAmount}, Needed: ${stakingInfo.rewardsEarned}`);
           toast({
-            title: "Warning: Rewards May Not Transfer",
-            description: `Program may have insufficient YOS tokens for your rewards. You'll get your YOT back but possibly not all rewards.`,
+            title: "No Program YOS Balance",
+            description: `The program has no YOS tokens to pay rewards. Your YOT will be returned but you'll get no rewards. Contact the admin to resolve this.`,
+            variant: "destructive",
+            duration: 6000
+          });
+        } 
+        // Check if program has insufficient tokens (can process partial rewards)
+        else if (stakingInfo.rewardsEarned > 0 && programYosAmount < stakingInfo.rewardsEarned) {
+          console.warn(`Program has insufficient YOS tokens for rewards. Available: ${programYosAmount}, Needed: ${stakingInfo.rewardsEarned}`);
+          toast({
+            title: "⚠️ Partial Rewards Expected",
+            description: `Program has insufficient YOS (${programYosAmount.toFixed(2)}) for your rewards (${stakingInfo.rewardsEarned.toFixed(2)}). You'll get your YOT back but receive partial rewards.`,
             variant: "destructive",
             duration: 6000
           });
@@ -1278,7 +1289,7 @@ export async function prepareUnstakeTransaction(
       console.error("Error checking program YOS balance:", error);
       // Continue with unstake but warn the user
       toast({
-        title: "Warning: Error Checking Rewards",
+        title: "⚠️ Error Checking Rewards",
         description: "Failed to verify reward token balance. Unstaking may succeed but reward transfer could fail.",
         variant: "destructive",
         duration: 6000
@@ -1299,7 +1310,7 @@ export async function prepareUnstakeTransaction(
     
     // Find program state account (global state PDA)
     const [programStateAddress] = PublicKey.findProgramAddressSync(
-      [Buffer.from("state")],
+      [Buffer.from("program_state")],
       STAKING_PROGRAM_ID
     );
     const programStateInfo = await connection.getAccountInfo(programStateAddress);
@@ -1860,26 +1871,96 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       data: encodeHarvestInstruction()
     });
     
+    // Get the actual program token account balance
+    let availableProgramBalance = 0;
+    try {
+      const programYosAccountInfo = await connection.getTokenAccountBalance(programYosTokenAccount);
+      availableProgramBalance = programYosAccountInfo.value.uiAmount || 0;
+    } catch (error) {
+      console.error("Error checking program YOS balance:", error);
+    }
+    
+    // Check if program has absolutely zero tokens
+    if (availableProgramBalance <= 0) {
+      toast({
+        title: "Harvest Not Available",
+        description: "The program has no YOS tokens available for rewards. Please contact the admin to fund the program.",
+        variant: "destructive"
+      });
+      throw new Error("Program has no YOS tokens available. Harvest cannot proceed.");
+    }
+    
     // Add harvest instruction to transaction
     transaction.add(harvestInstruction);
     
     // Set recent blockhash and fee payer
     transaction.feePayer = userPublicKey;
-    transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+    
+    // Get a fresh blockhash right before sending
+    let blockhashResponse = await connection.getLatestBlockhash('finalized');
+    transaction.recentBlockhash = blockhashResponse.blockhash;
     
     // Request signature from user (this triggers a wallet signature request)
     const signedTransaction = await wallet.signTransaction(transaction);
     
-    // Send signed transaction
-    const signature = await connection.sendRawTransaction(signedTransaction.serialize());
-    
-    // Confirm transaction
-    await connection.confirmTransaction(signature, 'confirmed');
-    
-    toast({
-      title: "Harvest Successful",
-      description: "You have harvested your YOS rewards successfully."
-    });
+    try {
+      // Send signed transaction with retry logic
+      const rawTransaction = signedTransaction.serialize();
+      
+      // Send with priority fee to help ensure it confirms
+      const signature = await connection.sendRawTransaction(rawTransaction, {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+        maxRetries: 3
+      });
+      
+      // Confirm with more robust error handling
+      try {
+        console.log("Confirming transaction:", signature);
+        const confirmation = await connection.confirmTransaction({
+          signature,
+          blockhash: blockhashResponse.blockhash,
+          lastValidBlockHeight: blockhashResponse.lastValidBlockHeight
+        }, 'confirmed');
+        
+        // Check if confirmation has errors
+        if (confirmation.value.err) {
+          throw new Error(`Transaction confirmed but failed: ${JSON.stringify(confirmation.value.err)}`);
+        }
+        
+        toast({
+          title: "Harvest Successful",
+          description: "You have harvested your YOS rewards successfully."
+        });
+        return signature;
+      } catch (confirmError) {
+        console.error("Confirmation error:", confirmError);
+        toast({
+          title: "Transaction May Have Failed",
+          description: "The transaction was sent but we couldn't confirm if it succeeded. Please check your wallet.",
+          variant: "destructive"
+        });
+        throw confirmError;
+      }
+    } catch (sendError) {
+      console.error("Error sending transaction:", sendError);
+      
+      // Handle blockhash issues specifically
+      if (sendError.message && sendError.message.includes("Blockhash not found")) {
+        toast({
+          title: "Transaction Expired",
+          description: "The transaction took too long to process. Please try again.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Harvest Failed",
+          description: sendError.message || "Unknown error sending transaction",
+          variant: "destructive"
+        });
+      }
+      throw sendError;
+    }
     
     return signature;
   } catch (error) {
