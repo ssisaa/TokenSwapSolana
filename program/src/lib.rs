@@ -328,7 +328,7 @@ fn process_stake(
     Ok(())
 }
 
-// Process unstake instruction
+// Process unstake instruction with improved reward and error handling
 fn process_unstake(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -384,29 +384,28 @@ fn process_unstake(
         .ok_or(ProgramError::InvalidArgument)?;
     
     // Convert staking rate from basis points to decimal
-    // FIXED: Now using the CURRENT rate from program_state, not a cached/stored value
     let rate_decimal = (program_state.stake_rate_per_second as f64) / 10000.0;
     
-    // Calculate rewards based on staked amount, time, and CURRENT rate
-    let rewards = (staking_data.staked_amount as f64 * time_staked_seconds as f64 * rate_decimal) as u64;
+    // Calculate raw rewards based on staked amount, time, and CURRENT rate
+    let raw_rewards = (staking_data.staked_amount as f64 * time_staked_seconds as f64 * rate_decimal) as u64;
     
     // Update staking data
     staking_data.last_harvest_time = current_time;
     
     // Only add to total harvested if there are rewards to claim
-    if rewards > 0 {
-        staking_data.total_harvested = staking_data.total_harvested.checked_add(rewards)
+    if raw_rewards > 0 {
+        staking_data.total_harvested = staking_data.total_harvested.checked_add(raw_rewards)
             .ok_or(ProgramError::InvalidArgument)?;
     }
     
     // Reduce staked amount
     staking_data.staked_amount = staking_data.staked_amount.checked_sub(amount)
-        .ok_or(ProgramError::InvalidArgument)?; // Use InvalidArgument instead of ArithmeticOverflow
+        .ok_or(ProgramError::InvalidArgument)?;
     
     // Save updated staking data
     staking_data.serialize(&mut *user_staking_account.try_borrow_mut_data()?)?;
     
-    // Transfer YOT tokens back to user
+    // Transfer YOT tokens back to user (this should ALWAYS happen)
     invoke_signed(
         &spl_token::instruction::transfer(
             token_program.key,
@@ -425,35 +424,71 @@ fn process_unstake(
         &[&[b"authority", &[authority_bump]]],
     )?;
     
-    // Transfer any pending YOS rewards if available
-    if rewards > 0 {
-        invoke_signed(
-            &spl_token::instruction::transfer(
-                token_program.key,
-                program_yos_token_account.key,
-                user_yos_token_account.key,
-                program_authority.key,
-                &[],
-                rewards,
-            )?,
-            &[
-                program_yos_token_account.clone(),
-                user_yos_token_account.clone(),
-                program_authority.clone(),
-                token_program.clone(),
-            ],
-            &[&[b"authority", &[authority_bump]]],
-        )?;
+    // Only attempt to transfer YOS rewards if there are rewards to claim
+    if raw_rewards > 0 {
+        let program_yos_info = match spl_token::state::Account::unpack(&program_yos_token_account.data.borrow()) {
+            Ok(token_account) => token_account,
+            Err(error) => {
+                msg!("Error unpacking program YOS token account: {:?}", error);
+                msg!("Unstaked {} YOT tokens but YOS rewards transfer failed", amount as f64 / 1_000_000_000.0);
+                return Ok(());
+            }
+        };
         
-        msg!("Unstaked {} YOT tokens and harvested {} YOS rewards", amount, rewards);
+        let program_yos_balance = program_yos_info.amount;
+        
+        // Check if program has enough YOS tokens to transfer rewards
+        if program_yos_balance >= raw_rewards {
+            // For wallet display purposes, use the raw amount as SPL tokens already account for decimals
+            let ui_rewards = raw_rewards;
+            
+            // Only attempt to transfer rewards if the program has enough YOS tokens
+            let transfer_result = invoke_signed(
+                &spl_token::instruction::transfer(
+                    token_program.key,
+                    program_yos_token_account.key,
+                    user_yos_token_account.key,
+                    program_authority.key,
+                    &[],
+                    ui_rewards,
+                )?,
+                &[
+                    program_yos_token_account.clone(),
+                    user_yos_token_account.clone(),
+                    program_authority.clone(),
+                    token_program.clone(),
+                ],
+                &[&[b"authority", &[authority_bump]]],
+            );
+            
+            match transfer_result {
+                Ok(_) => {
+                    msg!("Unstaked {} YOT tokens and harvested {} YOS rewards (raw amount: {})", 
+                         amount as f64 / 1_000_000_000.0, 
+                         ui_rewards as f64 / 1_000_000_000.0, 
+                         raw_rewards);
+                },
+                Err(error) => {
+                    // If YOS transfer fails, log the error but don't fail the entire unstaking process
+                    msg!("WARNING: Failed to transfer YOS rewards: {:?}", error);
+                    msg!("Unstaked {} YOT tokens but YOS rewards transfer failed", amount as f64 / 1_000_000_000.0);
+                }
+            }
+        } else {
+            // Not enough YOS in program account - log the issue but continue with unstaking
+            msg!("WARNING: Insufficient YOS tokens in program account for rewards. Available: {}, Required: {}", 
+                 program_yos_balance, raw_rewards);
+            msg!("Unstaked {} YOT tokens but YOS rewards were not transferred due to insufficient program balance", 
+                 amount as f64 / 1_000_000_000.0);
+        }
     } else {
-        msg!("Unstaked {} YOT tokens", amount);
+        msg!("Unstaked {} YOT tokens", amount as f64 / 1_000_000_000.0);
     }
     
     Ok(())
 }
 
-// Process harvest instruction
+// Process harvest instruction with improved decimal handling
 fn process_harvest(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -501,23 +536,40 @@ fn process_harvest(
         .ok_or(ProgramError::InvalidArgument)?;
     
     // Convert staking rate from basis points to decimal
-    // FIXED: Now using the CURRENT rate from program_state, not a cached/stored value
     let rate_decimal = (program_state.stake_rate_per_second as f64) / 10000.0;
     
-    // Calculate rewards based on staked amount, time, and CURRENT rate
-    let rewards = (staking_data.staked_amount as f64 * time_staked_seconds as f64 * rate_decimal) as u64;
+    // Calculate raw rewards based on staked amount, time, and CURRENT rate
+    let raw_rewards = (staking_data.staked_amount as f64 * time_staked_seconds as f64 * rate_decimal) as u64;
     
     // Check rewards meet minimum threshold
-    if rewards < program_state.harvest_threshold {
+    if raw_rewards < program_state.harvest_threshold {
+        return Err(ProgramError::InsufficientFunds);
+    }
+    
+    // Check if program has enough YOS tokens
+    let program_yos_info = match spl_token::state::Account::unpack(&program_yos_token_account.data.borrow()) {
+        Ok(token_account) => token_account,
+        Err(error) => {
+            msg!("Error unpacking program YOS token account: {:?}", error);
+            return Err(ProgramError::InvalidAccountData);
+        }
+    };
+    
+    let program_yos_balance = program_yos_info.amount;
+    
+    if program_yos_balance < raw_rewards {
         return Err(ProgramError::InsufficientFunds);
     }
     
     // Update staking data
     staking_data.last_harvest_time = current_time;
-    staking_data.total_harvested = staking_data.total_harvested.checked_add(rewards)
+    staking_data.total_harvested = staking_data.total_harvested.checked_add(raw_rewards)
         .ok_or(ProgramError::InvalidArgument)?;
     
     staking_data.serialize(&mut *user_staking_account.try_borrow_mut_data()?)?;
+    
+    // For wallet display purposes, use the raw amount as SPL tokens already account for decimals
+    let ui_rewards = raw_rewards;
     
     // Transfer YOS rewards to user
     invoke_signed(
@@ -527,7 +579,7 @@ fn process_harvest(
             user_yos_token_account.key,
             program_authority.key,
             &[],
-            rewards,
+            ui_rewards,
         )?,
         &[
             program_yos_token_account.clone(),
@@ -538,7 +590,8 @@ fn process_harvest(
         &[&[b"authority", &[authority_bump]]],
     )?;
     
-    msg!("Harvested {} YOS rewards", rewards);
+    // Log the proper decimal format for clarity
+    msg!("Harvested {} YOS rewards (raw amount: {})", ui_rewards as f64 / 1_000_000_000.0, raw_rewards);
     
     Ok(())
 }
