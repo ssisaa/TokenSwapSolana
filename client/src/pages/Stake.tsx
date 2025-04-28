@@ -129,43 +129,43 @@ export default function Stake() {
             {/* Staking Information */}
             <Card className="bg-dark-200">
               <CardContent className="pt-6">
-                <h3 className="text-lg font-bold mb-4">Staking Information</h3>
+                <h3 className="text-xl font-bold mb-4 text-white">Staking Information</h3>
                 
                 <div className="space-y-4">
                   <div>
                     <div className="flex justify-between mb-1">
-                      <span className="font-medium">Current APR</span>
+                      <span className="font-medium text-white">Current APR</span>
                       <span className="font-semibold text-green-500">{stakingRates?.yearlyAPR?.toFixed(2) || '0.00'}%</span>
                     </div>
                   </div>
                   
                   <div>
                     <div className="flex justify-between mb-1">
-                      <span className="font-medium">Total Stakers</span>
-                      <span className="font-semibold">{globalStats ? globalStats.totalStakers : '-'}</span>
+                      <span className="font-medium text-white">Total Stakers</span>
+                      <span className="font-semibold text-white">{globalStats ? globalStats.totalStakers : '-'}</span>
                     </div>
                     <Progress value={globalStats ? Math.min((globalStats.totalStakers / 100) * 100, 100) : 50} className="h-2" />
                   </div>
                   
                   <div>
                     <div className="flex justify-between mb-1">
-                      <span className="font-medium">Total Staked</span>
-                      <span className="font-semibold">{formatNumber(globalStats ? globalStats.totalStaked : 0)} YOT</span>
+                      <span className="font-medium text-white">Total Staked</span>
+                      <span className="font-semibold text-white">{formatNumber(globalStats ? globalStats.totalStaked : 0)} YOT</span>
                     </div>
                     <Progress value={Math.min((globalStats ? globalStats.totalStaked : 0) / 10000000 * 100, 100)} className="h-2" />
                   </div>
                   
                   <div className="pt-2 space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="font-medium">Hourly Rate:</span>
+                      <span className="font-medium text-white">Hourly Rate:</span>
                       <span className="font-semibold text-green-500">{(stakingRates?.stakeRatePerSecond ? stakingRates.stakeRatePerSecond * 3600 : 0).toFixed(2) || '0.00'}%</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="font-medium">Daily Rate:</span>
+                      <span className="font-medium text-white">Daily Rate:</span>
                       <span className="font-semibold text-green-500">{stakingRates?.dailyAPR?.toFixed(2) || '0.00'}%</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="font-medium">Monthly Rate:</span>
+                      <span className="font-medium text-white">Monthly Rate:</span>
                       <span className="font-semibold text-green-500">{stakingRates?.monthlyAPR?.toFixed(2) || '0.00'}%</span>
                     </div>
                   </div>

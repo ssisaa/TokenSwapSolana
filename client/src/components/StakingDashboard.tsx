@@ -98,32 +98,11 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
       </div>
       
       {/* Additional Stats Row */}
-      <div className="grid gap-4 grid-cols-3">
-        {/* Annual Rates */}
-        <Card className="bg-dark-200 border-border">
-          <CardContent className="p-4">
-            <h3 className="text-sm font-medium text-muted-foreground mb-1">Annual Rates</h3>
-            {isLoading ? (
-              <Skeleton className="h-6 w-28 bg-dark-100" />
-            ) : (
-              <div className="flex flex-col gap-1">
-                <div className="flex items-baseline justify-between">
-                  <span className="text-sm text-muted-foreground">APR:</span>
-                  <span className="text-lg font-bold text-green-400">{(stakingRates?.yearlyAPR || 0).toFixed(2)}%</span>
-                </div>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-sm text-muted-foreground">APY:</span>
-                  <span className="text-lg font-bold text-green-400">{(stakingRates?.yearlyAPY || 0).toFixed(2)}%</span>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        
+      <div className="grid gap-4 grid-cols-2">        
         {/* Total Staked (All Users Combined) */}
         <Card className="bg-dark-200 border-border">
           <CardContent className="p-4">
-            <h3 className="text-sm font-medium text-muted-foreground mb-1">Total Staked (All Users)</h3>
+            <h3 className="text-sm font-medium text-white mb-1">Total Staked (All Users)</h3>
             {isLoading ? (
               <Skeleton className="h-6 w-28 bg-dark-100" />
             ) : (
@@ -138,7 +117,7 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
         {/* Total Staked Percentage */}
         <Card className="bg-dark-200 border-border">
           <CardContent className="p-4">
-            <h3 className="text-sm font-medium text-muted-foreground mb-1">Your Stake %</h3>
+            <h3 className="text-sm font-medium text-white mb-1">Your Stake %</h3>
             {isLoading ? (
               <Skeleton className="h-6 w-16 bg-dark-100" />
             ) : (
@@ -149,21 +128,6 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
                     '0.00'}
                 </span>
                 <span className="text-sm font-semibold text-primary">%</span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        
-        {/* Total Harvested */}
-        <Card className="bg-dark-200 border-border">
-          <CardContent className="p-4">
-            <h3 className="text-sm font-medium text-muted-foreground mb-1">Total Harvested</h3>
-            {isLoading ? (
-              <Skeleton className="h-6 w-28 bg-dark-100" />
-            ) : (
-              <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold text-white">{formatNumber(stakingInfo.totalHarvested)}</span>
-                <span className="text-sm font-semibold text-green-500">YOS</span>
               </div>
             )}
           </CardContent>
