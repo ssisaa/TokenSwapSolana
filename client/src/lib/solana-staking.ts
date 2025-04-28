@@ -1580,7 +1580,7 @@ export async function unstakeYOTTokens(
           userPublicKey,
           programYosTokenAccount,
           programAuthorityAddress,
-          yosMintAddress
+          yosMintPubkey
         )
       );
       toast({
@@ -1741,7 +1741,7 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
           userPublicKey,
           userYosTokenAccount,
           userPublicKey,
-          yosMintAddress
+          new PublicKey(YOS_TOKEN_ADDRESS)
         )
       );
       toast({
@@ -1752,7 +1752,7 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     
     // Get program token account for YOS
     const programYosTokenAccount = await getAssociatedTokenAddress(
-      yosMintAddress,
+      new PublicKey(YOS_TOKEN_ADDRESS),
       programAuthorityAddress,
       true // allowOwnerOffCurve
     );
