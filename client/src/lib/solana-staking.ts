@@ -272,9 +272,24 @@ export async function stakeYOTTokens(
   amount: number
 ): Promise<string> {
   try {
-    // Validate parameters
-    if (!wallet || !wallet.publicKey) {
-      throw new Error('Wallet not connected');
+    // Validate parameters and wallet structure
+    console.log("Staking function called with wallet:", {
+      walletExists: !!wallet,
+      publicKeyExists: !!wallet?.publicKey,
+      signTransactionExists: typeof wallet?.signTransaction === 'function',
+      amount
+    });
+    
+    if (!wallet) {
+      throw new Error('Wallet object is missing');
+    }
+    
+    if (!wallet.publicKey) {
+      throw new Error('Wallet public key is not available');
+    }
+    
+    if (typeof wallet.signTransaction !== 'function') {
+      throw new Error('Wallet does not have a signTransaction method');
     }
     
     if (amount <= 0) {
@@ -283,6 +298,13 @@ export async function stakeYOTTokens(
     
     const userPublicKey = wallet.publicKey;
     const yotMintPubkey = new PublicKey(YOT_TOKEN_ADDRESS);
+    
+    console.log('Preparing to stake YOT tokens:', {
+      userPublicKey: userPublicKey.toString(),
+      yotMint: yotMintPubkey.toString(),
+      amount,
+      programId: STAKING_PROGRAM_ID.toString()
+    });
     
     // Get the user's token account
     const userYotTokenAccount = await getAssociatedTokenAddress(
@@ -319,15 +341,18 @@ export async function stakeYOTTokens(
     console.log('Program authority address:', programAuthorityAddress.toBase58(), 'bump:', programAuthorityBump);
     
     // Check if program state exists first
+    console.log('Checking if program state account exists...');
     const programStateInfo = await connection.getAccountInfo(programStateAddress);
     if (!programStateInfo) {
-      console.log('Program state account does not exist. Program may not be initialized.');
+      console.error('Program state account does not exist. Program needs to be initialized by admin.');
       toast({
         title: "Program Not Initialized",
-        description: "The staking program has not been initialized yet. Please contact an admin."
+        description: "The staking program has not been initialized yet. Please contact an admin to initialize the program first.",
+        variant: "destructive"
       });
       throw new Error('Program state account does not exist');
     }
+    console.log('Program state account exists with size:', programStateInfo.data.length);
     
     // Get program token account
     const programYotTokenAccount = await getAssociatedTokenAddress(
@@ -338,9 +363,12 @@ export async function stakeYOTTokens(
     console.log('Program YOT account:', programYotTokenAccount.toBase58());
     
     // Check if the program token account exists
+    console.log('Checking if program token account exists...');
     const programTokenAccountInfo = await connection.getAccountInfo(programYotTokenAccount);
     if (!programTokenAccountInfo) {
       console.log('Program token account does not exist. It may need to be created.');
+    } else {
+      console.log('Program token account exists with size:', programTokenAccountInfo.data.length);
     }
 
     // Create the stake instruction with more careful key order

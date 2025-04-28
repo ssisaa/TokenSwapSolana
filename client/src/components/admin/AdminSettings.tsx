@@ -373,49 +373,68 @@ export default function AdminSettings() {
             <Button
               type="button"
               variant="outline"
-              className="w-full"
+              className="w-full" 
+              disabled={!connected}
               onClick={() => {
                 // Show confirmation dialog here
                 if (window.confirm("Are you sure you want to initialize the staking program? This will reset all staking data.")) {
                   import("@/lib/solana-staking").then(({ initializeStakingProgram }) => {
-                    // Use the connected wallet from MultiWalletContext
-                    if (!wallet || !connected) {
-                      alert("Please connect your wallet first. Go to a page with the wallet connect button, connect your wallet, then return to admin settings.");
-                      return;
+                    try {
+                      // Log wallet status to help debug
+                      console.log("Wallet connection status:", {
+                        connected,
+                        walletExists: !!wallet,
+                        publicKeyExists: !!wallet?.publicKey,
+                        signTransactionExists: typeof wallet?.signTransaction === 'function'
+                      });
+                      
+                      // Use the connected wallet from MultiWalletContext
+                      if (!wallet || !connected) {
+                        alert("Please connect your wallet first. Go to a page with the wallet connect button, connect your wallet, then return to admin settings.");
+                        return;
+                      }
+                      
+                      // Use the current staking rate values
+                      const stakeRatePerSecond = parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).second);
+                      const harvestThresholdValue = parseInt(harvestThreshold);
+                      
+                      // Convert to basis points for the program (since we're working with percentages)
+                      const stakeRateInBasisPoints = Math.floor(stakeRatePerSecond * 10000);
+                      
+                      console.log("Initializing program with parameters:", {
+                        stakeRatePerSecond,
+                        stakeRateInBasisPoints,
+                        harvestThresholdValue
+                      });
+                      
+                      console.log("Using wallet:", wallet);
+                      
+                      // Call the initialization function
+                      initializeStakingProgram(
+                        wallet, 
+                        stakeRateInBasisPoints,
+                        harvestThresholdValue
+                      ).then(signature => {
+                        console.log("Program initialized successfully with signature:", signature);
+                        alert(`Program initialized successfully! Transaction: ${signature}`);
+                      }).catch(error => {
+                        console.error("Error initializing program:", error);
+                        alert(`Failed to initialize program: ${error.message}`);
+                      });
+                    } catch (error) {
+                      console.error("Error in initialization click handler:", error);
+                      // Handle error safely with proper type checking
+                      if (error instanceof Error) {
+                        alert(`Error: ${error.message}`);
+                      } else {
+                        alert(`Unknown error occurred during initialization`);
+                      }
                     }
-                    
-                    console.log("Using connected wallet for program initialization:", wallet);
-                    
-                    // Use the current staking rate values
-                    const stakeRatePerSecond = parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).second);
-                    const harvestThresholdValue = parseInt(harvestThreshold);
-                    
-                    // Convert to basis points for the program (since we're working with percentages)
-                    const stakeRateInBasisPoints = Math.floor(stakeRatePerSecond * 10000);
-                    
-                    console.log("Initializing program with parameters:", {
-                      stakeRatePerSecond,
-                      stakeRateInBasisPoints,
-                      harvestThresholdValue
-                    });
-                    
-                    // Call the initialization function
-                    initializeStakingProgram(
-                      wallet, 
-                      stakeRateInBasisPoints,
-                      harvestThresholdValue
-                    ).then(signature => {
-                      console.log("Program initialized successfully with signature:", signature);
-                      alert(`Program initialized successfully! Transaction: ${signature}`);
-                    }).catch(error => {
-                      console.error("Error initializing program:", error);
-                      alert(`Failed to initialize program: ${error.message}`);
-                    });
                   });
                 }
               }}
             >
-              Initialize Staking Program
+              {connected ? "Initialize Staking Program" : "Connect Wallet First"}
             </Button>
           </div>
         </form>
