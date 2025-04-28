@@ -84,7 +84,7 @@ export function useStaking() {
     isLoading: isLoadingRates,
     error: ratesError,
     refetch: refetchRates
-  } = useQuery<StakingRates>({
+  } = useQuery<StakingRates | null>({
     queryKey: ['staking', 'rates'],
     queryFn: async () => {
       try {

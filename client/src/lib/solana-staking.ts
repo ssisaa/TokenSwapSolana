@@ -712,6 +712,22 @@ export async function stakeYOTTokens(
       console.log('Program token account exists with size:', programTokenAccountInfo.data.length);
     }
 
+    // Check if user's staking account exists
+    console.log('Checking if user staking account exists...');
+    const userStakingAccountInfo = await connection.getAccountInfo(userStakingAddress);
+    
+    // If the staking account doesn't exist, we need to make sure it's created as part of this transaction
+    // The program will create it, but we need to make sure all accounts are properly specified
+    if (!userStakingAccountInfo) {
+      console.log('User staking account does not exist - will be created during transaction');
+      toast({
+        title: "First-time Staking",
+        description: "Creating your staking account. This will require slightly more SOL for the transaction."
+      });
+    } else {
+      console.log('User staking account exists with size:', userStakingAccountInfo.data.length);
+    }
+    
     // Create the stake instruction with more careful key order
     const stakeInstruction = new TransactionInstruction({
       keys: [
@@ -721,7 +737,7 @@ export async function stakeYOTTokens(
         { pubkey: userStakingAddress, isSigner: false, isWritable: true }, // PDA to track user staking info
         
         // Program accounts
-        { pubkey: programStateAddress, isSigner: false, isWritable: false }, // Program state PDA 
+        { pubkey: programStateAddress, isSigner: false, isWritable: true }, // Program state PDA - CHANGED TO WRITABLE to fix the serialization error
         { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }, // Program authority PDA
         { pubkey: programYotTokenAccount, isSigner: false, isWritable: true }, // Program's YOT token account
         
@@ -883,6 +899,22 @@ export async function unstakeYOTTokens(
       });
     }
     
+    // Check if user's staking account exists - users must have staked before they can unstake
+    console.log('Checking if user staking account exists...');
+    const userStakingAccountInfo = await connection.getAccountInfo(userStakingAddress);
+    
+    if (!userStakingAccountInfo) {
+      console.error('User staking account does not exist. User has not staked any tokens.');
+      toast({
+        title: "No Staked Tokens",
+        description: "You haven't staked any tokens yet. Please stake some tokens first.",
+        variant: "destructive"
+      });
+      throw new Error('No staked tokens to unstake');
+    } else {
+      console.log('User staking account exists with size:', userStakingAccountInfo.data.length);
+    }
+    
     // Create the unstake instruction with explicit accounts
     const unstakeInstruction = new TransactionInstruction({
       keys: [
@@ -893,7 +925,7 @@ export async function unstakeYOTTokens(
         { pubkey: userStakingAddress, isSigner: false, isWritable: true }, // PDA to track user staking info
         
         // Program accounts
-        { pubkey: programStateAddress, isSigner: false, isWritable: false }, // Program state PDA 
+        { pubkey: programStateAddress, isSigner: false, isWritable: true }, // Program state PDA - CHANGED TO WRITABLE to fix the serialization error
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // Token program for transfers
         { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }, // Program authority PDA
         { pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false } // Clock for timestamps
@@ -1022,6 +1054,22 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       });
     }
     
+    // Check if user's staking account exists - users must have staked before they can harvest
+    console.log('Checking if user staking account exists for harvest...');
+    const userStakingAccountInfo = await connection.getAccountInfo(userStakingAddress);
+    
+    if (!userStakingAccountInfo) {
+      console.error('User staking account does not exist. User has not staked any tokens.');
+      toast({
+        title: "No Staked Tokens",
+        description: "You haven't staked any tokens yet. Please stake some tokens first.",
+        variant: "destructive"
+      });
+      throw new Error('No staked tokens to harvest rewards from');
+    } else {
+      console.log('User staking account exists with size:', userStakingAccountInfo.data.length);
+    }
+    
     // Create the harvest instruction
     const harvestInstruction = new TransactionInstruction({
       keys: [
@@ -1029,7 +1077,7 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
         { pubkey: userYosTokenAccount, isSigner: false, isWritable: true },
         { pubkey: programYosTokenAccount, isSigner: false, isWritable: true },
         { pubkey: userStakingAddress, isSigner: false, isWritable: true },
-        { pubkey: programStateAddress, isSigner: false, isWritable: false },
+        { pubkey: programStateAddress, isSigner: false, isWritable: true }, // CHANGED TO WRITABLE to fix serialization error
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
         { pubkey: programAuthorityAddress, isSigner: false, isWritable: false },
         { pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false }
