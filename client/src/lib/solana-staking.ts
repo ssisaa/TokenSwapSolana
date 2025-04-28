@@ -1187,11 +1187,46 @@ export async function getStakingProgramState(): Promise<{
     // Get program state account data
     const programStateInfo = await connection.getAccountInfo(programStateAddress);
     
-    // If program state doesn't exist yet, throw an error
-    // This will allow UI components to properly show "not initialized" state
+    // If program state doesn't exist yet, we'll try to use default values
+    // This will allow UI components to show proper rates even if data format isn't as expected
     if (!programStateInfo) {
-      console.log("Program state doesn't exist on chain - throwing error");
-      throw new Error('Program state account does not exist');
+      console.log("Program state doesn't exist on chain - using defaults");
+      
+      // Use our corrected, smaller default rate per second
+      // This matches the expected 0.00000125% per second value (not 0.0000125%)
+      const stakeRatePerSecond = 0.00000125;
+      
+      // Simple multiplication for APR calculation (not compounding)
+      const secondsPerDay = 86400;
+      const secondsPerWeek = secondsPerDay * 7;
+      const secondsPerMonth = secondsPerDay * 30;
+      const secondsPerYear = secondsPerDay * 365;
+      
+      // Calculate linear rates (not compound)
+      // Note: 0.00000125% per second = 0.108% daily
+      const dailyAPR = stakeRatePerSecond * secondsPerDay;     // 0.108% daily (0.00000125 * 86400)
+      const weeklyAPR = stakeRatePerSecond * secondsPerWeek;   // 0.756% weekly
+      const monthlyAPR = stakeRatePerSecond * secondsPerMonth; // 3.24% monthly 
+      const yearlyAPR = stakeRatePerSecond * secondsPerYear;   // 39.42% yearly
+      
+      // Calculate APY values (compound interest)
+      const dailyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerDay) - 1) * 100;
+      const weeklyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerWeek) - 1) * 100;
+      const monthlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerMonth) - 1) * 100;
+      const yearlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerYear) - 1) * 100;
+      
+      return {
+        stakeRatePerSecond,
+        harvestThreshold: 1,         // Default 1 YOS threshold for harvesting
+        dailyAPR,                    // Simple daily rate (Annual Percentage Rate)
+        weeklyAPR,                   // Simple weekly rate
+        monthlyAPR,                  // Simple monthly rate
+        yearlyAPR,                   // Simple yearly rate
+        dailyAPY,                    // Compound daily rate (Annual Percentage Yield)
+        weeklyAPY,                   // Compound weekly rate
+        monthlyAPY,                  // Compound monthly rate
+        yearlyAPY                    // Compound yearly rate
+      };
     }
     
     // Parse program state data
