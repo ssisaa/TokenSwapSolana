@@ -961,7 +961,8 @@ export async function getStakingProgramState(): Promise<{
     
     console.log("Actual rate from blockchain:", {
       stakeRateBasisPoints,
-      stakeRatePerSecond
+      stakeRatePerSecond,
+      calculationFormula: `${stakeRateBasisPoints} / 10000 = ${stakeRateBasisPoints/10000}`
     });
     
     // Read harvest threshold (8 bytes, 64-bit unsigned integer)
@@ -1064,7 +1065,10 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     
     console.log("Rate for reward calculation:", {
       stakeRateBasisPoints,
-      stakeRatePerSecond
+      stakeRatePerSecond,
+      calculationFormula: `${stakeRateBasisPoints} / 10000 = ${stakeRateBasisPoints/10000}`,
+      expectedRate: 0.00125,
+      displayedInUI: stakeRatePerSecond * 100 // What gets displayed in UI
     });
     
     // For rewards calculation, convert from percentage to decimal (e.g., 0.00125% → 0.0000125)
