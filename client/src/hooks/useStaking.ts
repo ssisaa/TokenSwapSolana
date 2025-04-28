@@ -87,7 +87,17 @@ export function useStaking() {
   } = useQuery<StakingRates>({
     queryKey: ['staking', 'rates'],
     queryFn: async () => {
-      return await getStakingProgramState();
+      try {
+        return await getStakingProgramState();
+      } catch (error) {
+        console.error("Failed to get staking program state:", error);
+        // Only throw if it's not the expected "program state doesn't exist" error
+        // This will prevent the UI from showing an error toast for the expected case
+        if (!(error instanceof Error && error.message.includes('Program state account does not exist'))) {
+          throw error;
+        }
+        return null;
+      }
     },
     refetchInterval: 60000, // Refetch every minute
   });

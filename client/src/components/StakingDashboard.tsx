@@ -59,6 +59,14 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
         </Button>
       </div>
       
+      {/* Program not initialized warning - we check for null stakingRates */}
+      {stakingRates === null && (
+        <div className="bg-red-600 text-white p-4 rounded-md mb-6">
+          <h3 className="text-lg font-semibold mb-1">Staking Program Not Initialized</h3>
+          <p>The staking program needs to be initialized by an admin. Please check admin settings.</p>
+        </div>
+      )}
+      
       {/* 4-box stats layout */}
       <div className="grid grid-cols-4 gap-4">
         {/* Total Staked */}
