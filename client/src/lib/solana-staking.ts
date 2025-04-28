@@ -188,9 +188,9 @@ function encodeStakeInstruction(amount: number): Buffer {
   // Enhanced version with better debugging and error handling
   console.log(`Encoding stake instruction with amount: ${amount}`);
   
-  // YOT uses 6 decimals, so convert to raw units by multiplying by 10^6
+  // YOT uses 9 decimals, so convert to raw units by multiplying by 10^9
   // This is critical for proper encoding/decoding between UI and blockchain
-  const YOT_DECIMALS = 6;
+  const YOT_DECIMALS = 9;
   const amountInRawUnits = Math.floor(amount * Math.pow(10, YOT_DECIMALS));
   console.log(`Amount converted to raw units: ${amountInRawUnits} (using ${YOT_DECIMALS} decimals)`);
   
@@ -224,9 +224,9 @@ function encodeUnstakeInstruction(amount: number): Buffer {
   // Enhanced version with better debugging and error handling
   console.log(`Encoding unstake instruction with amount: ${amount}`);
   
-  // YOT uses 6 decimals, so convert to raw units by multiplying by 10^6
+  // YOT uses 9 decimals, so convert to raw units by multiplying by 10^9
   // This is critical for proper encoding/decoding between UI and blockchain
-  const YOT_DECIMALS = 6;
+  const YOT_DECIMALS = 9;
   const amountInRawUnits = Math.floor(amount * Math.pow(10, YOT_DECIMALS));
   console.log(`Unstake amount converted to raw units: ${amountInRawUnits} (using ${YOT_DECIMALS} decimals)`);
   
@@ -297,8 +297,8 @@ function encodeUpdateParametersInstruction(
     console.log(`Formula: ${stakeRatePerSecond} * (${REFERENCE_BASIS_POINTS} / ${REFERENCE_RATE}) = ${finalBasisPoints}`);
   }
   
-  // YOS also uses 6 decimals just like YOT
-  const YOS_DECIMALS = 6;
+  // YOS also uses 9 decimals just like YOT
+  const YOS_DECIMALS = 9;
   const thresholdInRawUnits = Math.floor(harvestThreshold * Math.pow(10, YOS_DECIMALS));
   
   console.log("Encoding parameters update with converted values:", {
