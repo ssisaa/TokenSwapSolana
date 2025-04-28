@@ -1015,6 +1015,30 @@ export async function unstakeYOTTokens(
     
     // Also check if program YOS token account exists, create if needed
     console.log('Checking if program YOS token account exists...');
+    console.log('Program YOS token account address:', programYosTokenAccount.toBase58());
+    
+    // Let's check ALL possible YOS program accounts
+    const programState = await getStakingProgramState();
+    console.log('Program state info:', programState);
+    
+    // Additional diagnostic: Check if the YOS token account specified in the program state exists
+    if (programState.yosMint) {
+      console.log('YOS mint from program state:', programState.yosMint);
+      
+      // Try to find ALL YOS accounts associated with the program authority
+      const programYosAccounts = await connection.getTokenAccountsByOwner(
+        programAuthorityAddress,
+        { mint: yosMintAddress }
+      );
+      
+      console.log(`Found ${programYosAccounts.value.length} YOS accounts owned by program authority`);
+      
+      for (const account of programYosAccounts.value) {
+        const info = await connection.getTokenAccountBalance(account.pubkey);
+        console.log(`YOS account ${account.pubkey.toBase58()} has balance: ${info.value.uiAmount}`);
+      }
+    }
+    
     const programYosTokenAccountInfo = await connection.getAccountInfo(programYosTokenAccount);
     if (!programYosTokenAccountInfo) {
       console.log('Program YOS token account does not exist. Creating it during unstake...');
@@ -1181,6 +1205,21 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     
     // Check if the program token account exists
     console.log('Checking if program YOS token account exists...');
+    console.log('Program YOS token account address for harvest:', programYosTokenAccount.toBase58());
+    
+    // Additional diagnostic: Try to find ALL YOS accounts associated with the program authority
+    const programYosAccounts = await connection.getTokenAccountsByOwner(
+      programAuthorityAddress,
+      { mint: yosMintAddress }
+    );
+    
+    console.log(`Found ${programYosAccounts.value.length} YOS accounts owned by program authority`);
+    
+    for (const account of programYosAccounts.value) {
+      const info = await connection.getTokenAccountBalance(account.pubkey);
+      console.log(`YOS account ${account.pubkey.toBase58()} has balance: ${info.value.uiAmount}`);
+    }
+    
     const programTokenAccountInfo = await connection.getAccountInfo(programYosTokenAccount);
     if (!programTokenAccountInfo) {
       console.log('Program YOS token account does not exist. Creating it during harvest...');
@@ -1650,6 +1689,7 @@ export async function getStakingProgramState(): Promise<{
   weeklyAPY: number;
   monthlyAPY: number;
   yearlyAPY: number;
+  yosMint?: string;  // Optional property for YOS mint address
 }> {
   try {
     // Find program state address
@@ -1716,6 +1756,10 @@ export async function getStakingProgramState(): Promise<{
     // Next 32 bytes are YOT mint pubkey
     // Next 32 bytes are YOS mint pubkey
     
+    // Extract YOS mint address
+    const yosMintBytes = programStateInfo.data.slice(32 + 32, 32 + 32 + 32);
+    const yosMint = new PublicKey(yosMintBytes).toString();
+    
     // Read stake rate (8 bytes, 64-bit unsigned integer) from blockchain
     const stakeRateBasisPoints = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32));
     
@@ -1780,7 +1824,8 @@ export async function getStakingProgramState(): Promise<{
       dailyAPY,
       weeklyAPY,
       monthlyAPY,
-      yearlyAPY
+      yearlyAPY,
+      yosMint
     };
   } catch (error) {
     console.error('Error fetching staking program state:', error);
