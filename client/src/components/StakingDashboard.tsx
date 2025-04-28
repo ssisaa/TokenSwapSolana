@@ -69,10 +69,10 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
       
       {/* 4-box stats layout */}
       <div className="grid grid-cols-4 gap-4">
-        {/* Total Staked */}
+        {/* Global Total Staked */}
         <Card className="bg-dark-200 border border-slate-700">
           <CardContent className="p-4">
-            <h3 className="text-sm font-medium text-gray-300 mb-2">Total Staked</h3>
+            <h3 className="text-sm font-medium text-gray-300 mb-2">Global Total Staked</h3>
             {isLoading ? (
               <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
             ) : (
@@ -84,10 +84,25 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
           </CardContent>
         </Card>
         
+        {/* Your Staked Amount */}
+        <Card className="bg-dark-200 border border-slate-700">
+          <CardContent className="p-4">
+            <h3 className="text-sm font-medium text-gray-300 mb-2">Your Staked Amount</h3>
+            {isLoading ? (
+              <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
+            ) : (
+              <div className="flex items-baseline gap-1">
+                <span className="text-xl font-bold text-white">{stakingInfo.stakedAmount.toLocaleString('en-US')}</span>
+                <span className="text-sm font-semibold text-blue-400">YOT</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        
         {/* Earned Rewards */}
         <Card className="bg-dark-200 border border-slate-700">
           <CardContent className="p-4">
-            <h3 className="text-sm font-medium text-gray-300 mb-2">Earned Rewards</h3>
+            <h3 className="text-sm font-medium text-gray-300 mb-2">Your Pending Rewards</h3>
             {isLoading ? (
               <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
             ) : (
@@ -102,32 +117,13 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
         {/* Total Harvested */}
         <Card className="bg-dark-200 border border-slate-700">
           <CardContent className="p-4">
-            <h3 className="text-sm font-medium text-gray-300 mb-2">Total Harvested</h3>
+            <h3 className="text-sm font-medium text-gray-300 mb-2">Your Total Harvested</h3>
             {isLoading ? (
               <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
             ) : (
               <div className="flex items-baseline gap-1">
                 <span className="text-xl font-bold text-white">{stakingInfo.totalHarvested.toLocaleString('en-US')}</span>
                 <span className="text-sm font-semibold text-green-400">YOS</span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        
-        {/* Your Stake % */}
-        <Card className="bg-dark-200 border border-slate-700">
-          <CardContent className="p-4">
-            <h3 className="text-sm font-medium text-gray-300 mb-2">Your Stake %</h3>
-            {isLoading ? (
-              <div className="animate-pulse bg-dark-300 h-6 w-16 rounded"></div>
-            ) : (
-              <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold text-white">
-                  {yotBalance && (yotBalance + stakingInfo.stakedAmount) > 0 ? 
-                    ((stakingInfo.stakedAmount / (yotBalance + stakingInfo.stakedAmount)) * 100).toFixed(2) : 
-                    '0.00'}
-                </span>
-                <span className="text-sm font-semibold text-blue-400">%</span>
               </div>
             )}
           </CardContent>

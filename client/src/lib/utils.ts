@@ -41,10 +41,12 @@ export function formatDollarAmount(amount: number): string {
     return '$' + (amount / 1_000).toFixed(2) + 'K';
   }
   
-  // Use standard formatting for smaller numbers
+  // Use standard formatting for smaller numbers - always with 2 decimal places for USD values
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
   }).format(amount);
 }
 
