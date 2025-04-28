@@ -926,10 +926,11 @@ export async function unstakeYOTTokens(
       });
     }
     
-    // Check if program token account exists, create if needed
+    // Check if program YOT token account exists, create if needed
+    console.log('Checking if program YOT token account exists...');
     const programTokenAccountInfo = await connection.getAccountInfo(programYotTokenAccount);
     if (!programTokenAccountInfo) {
-      console.log('Program token account does not exist. Creating it during unstake...');
+      console.log('Program YOT token account does not exist. Creating it during unstake...');
       transaction.add(
         createAssociatedTokenAccountInstruction(
           userPublicKey,
@@ -940,7 +941,7 @@ export async function unstakeYOTTokens(
       );
       toast({
         title: "Setting Up Program",
-        description: "Creating program token account as part of your transaction."
+        description: "Creating program YOT token account as part of your transaction."
       });
     } else {
       // Check if the program token account has sufficient tokens
