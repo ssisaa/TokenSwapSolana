@@ -1421,10 +1421,9 @@ export async function unstakeYOTTokens(
     );
     
     // Get program token account for YOS
-    // Important: reuse the same variable name across different functions
-    const yosMintAddress = new PublicKey(YOS_TOKEN_ADDRESS);
+    // Use the yosMintPubkey we already created
     const programYosTokenAccount = await getAssociatedTokenAddress(
-      yosMintAddress,
+      yosMintPubkey,
       programAuthorityAddress,
       true // allowOwnerOffCurve
     );
@@ -1562,7 +1561,7 @@ export async function unstakeYOTTokens(
       // Try to find ALL YOS accounts associated with the program authority
       const programYosAccounts = await connection.getTokenAccountsByOwner(
         programAuthorityAddress,
-        { mint: yosMintAddress }
+        { mint: yosMintPubkey }
       );
       
       console.log(`Found ${programYosAccounts.value.length} YOS accounts owned by program authority`);
