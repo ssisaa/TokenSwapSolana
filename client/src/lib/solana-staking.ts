@@ -139,11 +139,14 @@ function encodeInitializeInstruction(
     console.log(`Formula: ${stakeRatePerSecond} * (${REFERENCE_BASIS_POINTS} / ${REFERENCE_RATE}) = ${finalBasisPoints}`);
   }
   
-  const thresholdInLamports = Math.floor(harvestThreshold * 1000000);
+  // YOS token uses 6 decimals just like YOT
+  const YOS_DECIMALS = 6;
+  const thresholdInRawUnits = Math.floor(harvestThreshold * Math.pow(10, YOS_DECIMALS));
   
-  console.log("Converted values:", {
+  console.log("Converted values for initialization:", {
     finalBasisPoints,
-    thresholdInLamports
+    thresholdInRawUnits,
+    calculationDetails: `${harvestThreshold} YOS × 10^${YOS_DECIMALS} = ${thresholdInRawUnits}`
   });
   
   // Simplify the format - just use a fixed layout matching the Rust side's expectation
@@ -164,8 +167,8 @@ function encodeInitializeInstruction(
   buffer.writeBigUInt64LE(BigInt(finalBasisPoints), 65);
   
   // Write harvest threshold as little-endian u64 (8 bytes)
-  // Use the converted lamports value
-  buffer.writeBigUInt64LE(BigInt(thresholdInLamports), 73);
+  // Use the converted raw units value
+  buffer.writeBigUInt64LE(BigInt(thresholdInRawUnits), 73);
   
   // Debug logging to verify our buffer
   console.log("Encoded initialization instruction bytes:", {
@@ -185,9 +188,14 @@ function encodeStakeInstruction(amount: number): Buffer {
   // Enhanced version with better debugging and error handling
   console.log(`Encoding stake instruction with amount: ${amount}`);
   
-  // Convert to lamports for more precision (assumes amount is in standard units)
-  const amountInLamports = Math.floor(amount * 1000000);
-  console.log(`Amount converted to lamports: ${amountInLamports}`);
+  // YOT uses 6 decimals, so convert to raw units by multiplying by 10^6
+  // This is critical for proper encoding/decoding between UI and blockchain
+  const YOT_DECIMALS = 6;
+  const amountInRawUnits = Math.floor(amount * Math.pow(10, YOT_DECIMALS));
+  console.log(`Amount converted to raw units: ${amountInRawUnits} (using ${YOT_DECIMALS} decimals)`);
+  
+  // Verify the calculation
+  console.log(`Verification: ${amount} YOT × 10^${YOT_DECIMALS} = ${amountInRawUnits}`);
   
   // Create a buffer to hold all data
   // Format: 1 byte instruction discriminator + 8 bytes for amount (u64)
@@ -198,14 +206,14 @@ function encodeStakeInstruction(amount: number): Buffer {
   
   // Write amount as little-endian u64 (8 bytes)
   try {
-    buffer.writeBigUInt64LE(BigInt(amountInLamports), 1);
+    buffer.writeBigUInt64LE(BigInt(amountInRawUnits), 1);
     
     // Verify buffer content to ensure correct serialization
     console.log(`Buffer verification: discriminator=${buffer.readUInt8(0)}, amount=${buffer.readBigUInt64LE(1)}`);
   } catch (error: any) {
     console.error("Error serializing stake amount:", error);
     console.error("Input amount:", amount, "type:", typeof amount);
-    console.error("Converted lamports:", amountInLamports, "type:", typeof amountInLamports);
+    console.error("Converted to raw units:", amountInRawUnits, "type:", typeof amountInRawUnits);
     throw new Error(`Failed to serialize stake amount: ${error.message}`);
   }
   
@@ -216,9 +224,14 @@ function encodeUnstakeInstruction(amount: number): Buffer {
   // Enhanced version with better debugging and error handling
   console.log(`Encoding unstake instruction with amount: ${amount}`);
   
-  // Convert to lamports for more precision (assumes amount is in standard units)
-  const amountInLamports = Math.floor(amount * 1000000);
-  console.log(`Unstake amount converted to lamports: ${amountInLamports}`);
+  // YOT uses 6 decimals, so convert to raw units by multiplying by 10^6
+  // This is critical for proper encoding/decoding between UI and blockchain
+  const YOT_DECIMALS = 6;
+  const amountInRawUnits = Math.floor(amount * Math.pow(10, YOT_DECIMALS));
+  console.log(`Unstake amount converted to raw units: ${amountInRawUnits} (using ${YOT_DECIMALS} decimals)`);
+  
+  // Verify the calculation
+  console.log(`Verification: ${amount} YOT × 10^${YOT_DECIMALS} = ${amountInRawUnits}`);
   
   // Create a buffer to hold all data
   // Format: 1 byte instruction discriminator + 8 bytes for amount (u64)
@@ -229,14 +242,14 @@ function encodeUnstakeInstruction(amount: number): Buffer {
   
   // Write amount as little-endian u64 (8 bytes)
   try {
-    buffer.writeBigUInt64LE(BigInt(amountInLamports), 1);
+    buffer.writeBigUInt64LE(BigInt(amountInRawUnits), 1);
     
     // Verify buffer content to ensure correct serialization
     console.log(`Unstake buffer verification: discriminator=${buffer.readUInt8(0)}, amount=${buffer.readBigUInt64LE(1)}`);
   } catch (error: any) {
     console.error("Error serializing unstake amount:", error);
     console.error("Input amount:", amount, "type:", typeof amount);
-    console.error("Converted lamports:", amountInLamports, "type:", typeof amountInLamports);
+    console.error("Converted to raw units:", amountInRawUnits, "type:", typeof amountInRawUnits);
     throw new Error(`Failed to serialize unstake amount: ${error.message}`);
   }
   
@@ -284,11 +297,14 @@ function encodeUpdateParametersInstruction(
     console.log(`Formula: ${stakeRatePerSecond} * (${REFERENCE_BASIS_POINTS} / ${REFERENCE_RATE}) = ${finalBasisPoints}`);
   }
   
-  const thresholdInLamports = Math.floor(harvestThreshold * 1000000);
+  // YOS also uses 6 decimals just like YOT
+  const YOS_DECIMALS = 6;
+  const thresholdInRawUnits = Math.floor(harvestThreshold * Math.pow(10, YOS_DECIMALS));
   
   console.log("Encoding parameters update with converted values:", {
     finalBasisPoints,
-    thresholdInLamports
+    thresholdInRawUnits: thresholdInRawUnits,
+    calculationDetails: `${harvestThreshold} YOS × 10^${YOS_DECIMALS} = ${thresholdInRawUnits}`
   });
   
   // Create a buffer to hold all data
@@ -302,8 +318,8 @@ function encodeUpdateParametersInstruction(
   // We use finalBasisPoints which might have been adjusted for exact values
   buffer.writeBigUInt64LE(BigInt(finalBasisPoints), 1);
   
-  // Write threshold as little-endian u64 (8 bytes) - as lamports
-  buffer.writeBigUInt64LE(BigInt(thresholdInLamports), 9);
+  // Write threshold as little-endian u64 (8 bytes) - as raw token units
+  buffer.writeBigUInt64LE(BigInt(thresholdInRawUnits), 9);
   
   return buffer;
 }
