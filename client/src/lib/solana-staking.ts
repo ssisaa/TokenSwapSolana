@@ -148,7 +148,7 @@ export async function validateStakingAccounts(wallet: any) {
     
     // Find program state account PDA
     const [programStateAddress] = PublicKey.findProgramAddressSync(
-      [Buffer.from("state")],
+      [Buffer.from("program_state")],
       STAKING_PROGRAM_ID
     );
     results.accounts.programState = programStateAddress;
