@@ -942,6 +942,30 @@ export async function unstakeYOTTokens(
         title: "Setting Up Program",
         description: "Creating program token account as part of your transaction."
       });
+    } else {
+      // Check if the program token account has sufficient tokens
+      try {
+        const tokenAccountInfo = await connection.getTokenAccountBalance(programYotTokenAccount);
+        const programYotBalance = tokenAccountInfo.value.uiAmount;
+        console.log(`Program YOT token account balance: ${programYotBalance} YOT`);
+        
+        // Convert the requested amount to the same decimal format
+        const YOT_DECIMALS = 9;
+        const requestedAmount = amount;
+        
+        // Check if the program has enough tokens
+        if (programYotBalance < requestedAmount) {
+          console.error(`Insufficient tokens in program account. Available: ${programYotBalance}, Requested: ${requestedAmount}`);
+          toast({
+            title: "Unstaking Failed",
+            description: `The staking program doesn't have enough YOT tokens (${programYotBalance} available, ${requestedAmount} needed). Please try a smaller amount or contact the admin.`,
+            variant: "destructive"
+          });
+          throw new Error(`Insufficient tokens in program account. Available: ${programYotBalance}, Requested: ${requestedAmount}`);
+        }
+      } catch (error) {
+        console.error("Error checking program token balance:", error);
+      }
     }
     
     // Check if user's staking account exists - users must have staked before they can unstake
