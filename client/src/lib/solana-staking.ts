@@ -928,16 +928,17 @@ export async function getStakingProgramState(): Promise<{
     // Next 32 bytes are YOS mint pubkey
     
     // Read stake rate (8 bytes, 64-bit unsigned integer) from blockchain
-    // But we have a known calculation issue between on-chain and client-side interpretation
-    // where the scaling factors don't align properly
     const stakeRateBasisPoints = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32));
     
-    // IMPORTANT: We know from admin configuration that the intended rate should be 0.00125% per second
-    // This is because: 0.00125% * 86400 seconds = 108% daily APR
+    // Convert basis points to percentage
+    // The rate stored in the smart contract is in basis points (1 basis point = 0.01%)
+    // So to get percentage: basisPoints / 10000
+    const stakeRatePerSecond = stakeRateBasisPoints / 10000;
     
-    // Until the contract is re-initialized with proper scaling factors,
-    // we're using the known correct value to ensure users see accurate rates
-    const stakeRatePerSecond = 0.00125; // Hardcoded to match admin's intended rate
+    console.log("Actual rate from blockchain:", {
+      stakeRateBasisPoints,
+      stakeRatePerSecond
+    });
     
     // Read harvest threshold (8 bytes, 64-bit unsigned integer)
     const harvestThreshold = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32 + 8)) / 1000000;
@@ -948,11 +949,11 @@ export async function getStakingProgramState(): Promise<{
     const secondsPerYear = secondsPerDay * 365;
     const secondsPerHour = 3600;
     
-    // Calculate the expected rates directly
-    const dailyAPR = 108; // 0.00125% per second * 86400 seconds
-    const weeklyAPR = dailyAPR * 7;
-    const monthlyAPR = dailyAPR * 30;
-    const yearlyAPR = dailyAPR * 365;
+    // Calculate rates directly from stakeRatePerSecond read from blockchain
+    const dailyAPR = stakeRatePerSecond * secondsPerDay;
+    const weeklyAPR = stakeRatePerSecond * secondsPerWeek;
+    const monthlyAPR = stakeRatePerSecond * secondsPerMonth;
+    const yearlyAPR = stakeRatePerSecond * secondsPerYear;
     
     return {
       stakeRatePerSecond,
@@ -1026,10 +1027,17 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // Read total harvested rewards (8 bytes, 64-bit unsigned integer)
     const totalHarvested = Number(data.readBigUInt64LE(56));
     
-    // IMPORTANT: We're using a hardcoded rate to ensure consistency with getStakingProgramState
-    // This is because there's an issue with scaling factors when reading from the blockchain
-    // The admin intended for a 0.00125% per second rate (which gives 108% daily APR)
-    const stakeRatePerSecond = 0.00125; // Hardcoded to match admin's intended rate
+    // Get the staking rate from the program state
+    // First read stake rate (8 bytes, 64-bit unsigned integer) from blockchain
+    const stakeRateBasisPoints = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32));
+    
+    // Convert basis points to percentage (1 basis point = 0.01%)
+    const stakeRatePerSecond = stakeRateBasisPoints / 10000;
+    
+    console.log("Rate for reward calculation:", {
+      stakeRateBasisPoints,
+      stakeRatePerSecond
+    });
     
     // For rewards calculation, convert from percentage to decimal (e.g., 0.00125% → 0.0000125)
     const stakeRateDecimal = stakeRatePerSecond / 100;
