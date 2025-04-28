@@ -1757,19 +1757,19 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     }
     
     // Check if program has enough YOS tokens
-    const pendingRewards = await getStakingInfo(userPublicKey.toString());
-    console.log(`User has ${pendingRewards.rewardsEarned} YOS tokens pending as rewards`);
+    const userRewardsInfo = await getStakingInfo(userPublicKey.toString());
+    console.log(`User has ${userRewardsInfo.rewardsEarned} YOS tokens pending as rewards`);
     
     if (validationResult.accounts.programYosBalance !== undefined) {
       const programYosBalance = validationResult.accounts.programYosBalance;
-      console.log(`Program YOS balance: ${programYosBalance}, Rewards to pay: ${pendingRewards.rewardsEarned}`);
+      console.log(`Program YOS balance: ${programYosBalance}, Rewards to pay: ${userRewardsInfo.rewardsEarned}`);
       
-      if (programYosBalance < pendingRewards.rewardsEarned) {
+      if (programYosBalance < userRewardsInfo.rewardsEarned) {
         // Instead of throwing an error, just warn the user
-        console.warn(`Program has insufficient YOS (${programYosBalance}) for your rewards (${pendingRewards.rewardsEarned})`);
+        console.warn(`Program has insufficient YOS (${programYosBalance}) for your rewards (${userRewardsInfo.rewardsEarned})`);
         toast({
           title: "⚠️ Low Program YOS Balance",
-          description: `The program has insufficient YOS tokens (${programYosBalance.toFixed(2)}) to pay your full rewards (${pendingRewards.rewardsEarned.toFixed(2)}). You may receive partial rewards.`,
+          description: `The program has insufficient YOS tokens (${programYosBalance.toFixed(2)}) to pay your full rewards (${userRewardsInfo.rewardsEarned.toFixed(2)}). You may receive partial rewards.`,
           variant: "destructive"
         });
       }
@@ -1867,18 +1867,18 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
         console.log(`Program YOS token account balance: ${programYosBalance} YOS`);
         
         // Get the user's staking info to estimate rewards
-        const stakingInfo = await getStakingInfo(userPublicKey.toString());
-        const pendingRewards = stakingInfo.rewardsEarned;
+        const userStakingRewards = await getStakingInfo(userPublicKey.toString());
+        const calculatedRewards = userStakingRewards.rewardsEarned;
         
-        console.log(`User has approximately ${pendingRewards} YOS pending rewards`);
+        console.log(`User has approximately ${calculatedRewards} YOS pending rewards`);
         
         // Check if the program has enough tokens for the harvest
         // Only show warning if pending rewards are significant (> 0.01)
-        if (programYosBalance < pendingRewards && pendingRewards > 0.01) {
-          console.warn(`Insufficient YOS tokens in program account. Available: ${programYosBalance}, Needed: ~${pendingRewards}`);
+        if (programYosBalance < calculatedRewards && calculatedRewards > 0.01) {
+          console.warn(`Insufficient YOS tokens in program account. Available: ${programYosBalance}, Needed: ~${calculatedRewards}`);
           toast({
             title: "⚠️ Partial Rewards Expected",
-            description: `Program has insufficient YOS (${programYosBalance.toFixed(2)}) for your rewards (${pendingRewards.toFixed(2)}). You will receive what's available. Please contact admin to add more YOS tokens for full rewards.`,
+            description: `Program has insufficient YOS (${programYosBalance.toFixed(2)}) for your rewards (${calculatedRewards.toFixed(2)}). You will receive what's available. Please contact admin to add more YOS tokens for full rewards.`,
             variant: "destructive"
           });
         }
@@ -1934,12 +1934,31 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     
     // Check if program has absolutely zero tokens
     if (availableProgramBalance <= 0) {
+      console.error("Program has no YOS tokens available for rewards");
+      
+      // Show a clear error toast to the user
       toast({
-        title: "Harvest Not Available",
-        description: "The program has no YOS tokens available for rewards. Please contact the admin to fund the program.",
+        title: "Harvesting Failed",
+        description: "Program has no YOS tokens available. Harvest cannot proceed.",
         variant: "destructive"
       });
-      throw new Error("Program has no YOS tokens available. Harvest cannot proceed.");
+      
+      // Return early with a specific error code that the frontend can handle
+      throw new Error("PROGRAM_NO_TOKENS_AVAILABLE");
+    }
+    
+    // Also handle the case where program has some tokens but not enough
+    const userStakingInfo = await getStakingInfo(userPublicKey.toString());
+    if (availableProgramBalance < userStakingInfo.rewardsEarned && userStakingInfo.rewardsEarned > 0) {
+      console.warn(`Program has insufficient YOS (${availableProgramBalance.toFixed(2)}) for full rewards (${userStakingInfo.rewardsEarned.toFixed(2)})`);
+      
+      toast({
+        title: "Partial Rewards Expected",
+        description: `Program has insufficient YOS (${availableProgramBalance.toFixed(2)}) for your rewards (${userStakingInfo.rewardsEarned.toFixed(2)}). You will receive what's available. Please contact admin to add more YOS tokens for full rewards.`,
+        variant: "destructive"
+      });
+      
+      // Continue with the harvest - the program will transfer what it can
     }
     
     // Add harvest instruction to transaction
