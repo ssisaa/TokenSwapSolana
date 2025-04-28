@@ -881,10 +881,10 @@ export async function updateStakingParameters(
 export async function getStakingProgramState(): Promise<{
   stakeRatePerSecond: number;
   harvestThreshold: number;
-  dailyAPY: number;
-  weeklyAPY: number;
-  monthlyAPY: number;
-  yearlyAPY: number;
+  dailyAPR: number;
+  weeklyAPR: number;
+  monthlyAPR: number;
+  yearlyAPR: number;
 }> {
   try {
     // Find program state address
@@ -906,18 +906,18 @@ export async function getStakingProgramState(): Promise<{
       const secondsPerYear = secondsPerDay * 365;
       
       // Calculate linear rates (not compound)
-      const dailyAPY = stakeRatePerSecond * secondsPerDay;     // ~108% daily
-      const weeklyAPY = dailyAPY * 7;                          // ~756% weekly
-      const monthlyAPY = dailyAPY * 30;                        // ~3240% monthly
-      const yearlyAPY = dailyAPY * 365;                        // ~39420% yearly
+      const dailyAPR = stakeRatePerSecond * secondsPerDay;     // ~108% daily
+      const weeklyAPR = dailyAPR * 7;                          // ~756% weekly
+      const monthlyAPR = dailyAPR * 30;                        // ~3240% monthly
+      const yearlyAPR = dailyAPR * 365;                        // ~39420% yearly
       
       return {
         stakeRatePerSecond,
         harvestThreshold: 1,         // Default 1 YOS threshold for harvesting
-        dailyAPY,                    // Compounded daily rate
-        weeklyAPY,                   // Compounded weekly rate
-        monthlyAPY,                  // Compounded monthly rate
-        yearlyAPY                    // Compounded yearly rate
+        dailyAPR,                    // Simple daily rate (Annual Percentage Rate)
+        weeklyAPR,                   // Simple weekly rate
+        monthlyAPR,                  // Simple monthly rate
+        yearlyAPR                    // Simple yearly rate
       };
     }
     
@@ -959,18 +959,18 @@ export async function getStakingProgramState(): Promise<{
     
     // Simple non-compounded rates (matches admin's expected values)
     const hourlyRate = stakeRatePerSecond * secondsPerHour * 100;
-    const dailyAPY = hourlyRate * 24;  // 1.8% for 0.00125% per second
-    const weeklyAPY = dailyAPY * 7;    // 12.6% for 0.00125% per second
-    const monthlyAPY = dailyAPY * 30;  // 54.0% for 0.00125% per second
-    const yearlyAPY = dailyAPY * 365;  // 657.0% for 0.00125% per second
+    const dailyAPR = hourlyRate * 24;  // 108% for 0.00125% per second
+    const weeklyAPR = dailyAPR * 7;    // 756% for 0.00125% per second
+    const monthlyAPR = dailyAPR * 30;  // 3240% for 0.00125% per second
+    const yearlyAPR = dailyAPR * 365;  // 39420% for 0.00125% per second
     
     return {
       stakeRatePerSecond,
       harvestThreshold,
-      dailyAPY,
-      weeklyAPY,
-      monthlyAPY,
-      yearlyAPY
+      dailyAPR,
+      weeklyAPR,
+      monthlyAPR,
+      yearlyAPR
     };
   } catch (error) {
     console.error('Error fetching staking program state:', error);

@@ -141,33 +141,33 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
               
               <div className="h-px bg-border" />
               
-              {/* Staking APY Information */}
+              {/* Staking APR Information */}
               <div className="bg-dark-300 rounded-lg p-4 space-y-3 border border-border">
-                <h3 className="text-base font-semibold text-white">Staking APY Rates</h3>
+                <h3 className="text-base font-semibold text-white">Staking APR Rates</h3>
                 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-dark-200 rounded-md p-3 border border-border">
-                    <div className="text-xs text-gray-300">Daily APY</div>
+                    <div className="text-xs text-gray-300">Daily APR</div>
                     <div className="text-lg font-bold text-green-400">
-                      {`${stakingRates.dailyAPY.toFixed(2)}%`}
+                      {`${stakingRates.dailyAPR.toFixed(2)}%`}
                     </div>
                   </div>
                   <div className="bg-dark-200 rounded-md p-3 border border-border">
-                    <div className="text-xs text-gray-300">Weekly APY</div>
+                    <div className="text-xs text-gray-300">Weekly APR</div>
                     <div className="text-lg font-bold text-green-400">
-                      {`${stakingRates.weeklyAPY.toFixed(2)}%`}
+                      {`${stakingRates.weeklyAPR.toFixed(2)}%`}
                     </div>
                   </div>
                   <div className="bg-dark-200 rounded-md p-3 border border-border">
-                    <div className="text-xs text-gray-300">Monthly APY</div>
+                    <div className="text-xs text-gray-300">Monthly APR</div>
                     <div className="text-lg font-bold text-green-400">
-                      {`${stakingRates.monthlyAPY.toFixed(2)}%`}
+                      {`${stakingRates.monthlyAPR.toFixed(2)}%`}
                     </div>
                   </div>
                   <div className="bg-dark-200 rounded-md p-3 border border-border">
-                    <div className="text-xs text-gray-300">Yearly APY</div>
+                    <div className="text-xs text-gray-300">Yearly APR</div>
                     <div className="text-lg font-bold text-green-400">
-                      {`${stakingRates.yearlyAPY.toFixed(2)}%`}
+                      {`${stakingRates.yearlyAPR.toFixed(2)}%`}
                     </div>
                   </div>
                 </div>
@@ -238,7 +238,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                     <div className="flex items-start">
                       <InfoIcon className="h-4 w-4 mr-2 mt-0.5 text-primary" />
                       <p className="text-gray-300">
-                        Staking locks your YOT tokens in the smart contract and automatically begins generating YOS rewards at {stakingRates.dailyAPY.toFixed(2)}% daily APY.
+                        Staking locks your YOT tokens in the smart contract and automatically begins generating YOS rewards at {stakingRates.dailyAPR.toFixed(2)}% daily APR.
                       </p>
                     </div>
                   </div>

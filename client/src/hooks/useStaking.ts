@@ -25,10 +25,10 @@ interface StakingInfo {
 interface StakingRates {
   stakeRatePerSecond: number;
   harvestThreshold: number;
-  dailyAPY: number;
-  weeklyAPY: number;
-  monthlyAPY: number;
-  yearlyAPY: number;
+  dailyAPR: number;
+  weeklyAPR: number;
+  monthlyAPR: number;
+  yearlyAPR: number;
 }
 
 // Add interface for global staking statistics

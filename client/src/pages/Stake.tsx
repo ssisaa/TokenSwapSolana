@@ -162,11 +162,11 @@ export default function Stake() {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="font-medium">Daily Rate:</span>
-                      <span className="font-semibold text-green-500">{stakingRates.dailyAPY.toFixed(2)}%</span>
+                      <span className="font-semibold text-green-500">{stakingRates.dailyAPR.toFixed(2)}%</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="font-medium">Monthly Rate:</span>
-                      <span className="font-semibold text-green-500">{stakingRates.monthlyAPY.toFixed(2)}%</span>
+                      <span className="font-semibold text-green-500">{stakingRates.monthlyAPR.toFixed(2)}%</span>
                     </div>
                   </div>
                 </div>
