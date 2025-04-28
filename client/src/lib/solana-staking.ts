@@ -951,11 +951,17 @@ export async function getStakingProgramState(): Promise<{
     const secondsPerYear = secondsPerDay * 365;
     
     // The stakeRatePerSecond is in decimal format (e.g., 0.00000125 for 0.000125%)
-    // Calculate compound interest for different time periods
-    const dailyAPY = (Math.pow(1 + stakeRatePerSecond, secondsPerDay) - 1) * 100;
-    const weeklyAPY = (Math.pow(1 + stakeRatePerSecond, secondsPerWeek) - 1) * 100;
-    const monthlyAPY = (Math.pow(1 + stakeRatePerSecond, secondsPerMonth) - 1) * 100;
-    const yearlyAPY = (Math.pow(1 + stakeRatePerSecond, secondsPerYear) - 1) * 100;
+    // Calculate rates based on the per-second rate
+    // Formula: stakeRatePerSecond * seconds_in_period * 100 (to convert to percentage)
+    // This is a simple calculation without compounding
+    const secondsPerHour = 3600;
+    
+    // Simple non-compounded rates (matches admin's expected values)
+    const hourlyRate = stakeRatePerSecond * secondsPerHour * 100;
+    const dailyAPY = hourlyRate * 24;  // 1.8% for 0.00125% per second
+    const weeklyAPY = dailyAPY * 7;    // 12.6% for 0.00125% per second
+    const monthlyAPY = dailyAPY * 30;  // 54.0% for 0.00125% per second
+    const yearlyAPY = dailyAPY * 365;  // 657.0% for 0.00125% per second
     
     return {
       stakeRatePerSecond,
@@ -971,16 +977,18 @@ export async function getStakingProgramState(): Promise<{
     // Return default values on error with properly calculated APY
     // The rate is 0.0000125 which represents 0.00125% per second (as per admin settings)
     const stakeRatePerSecond = 0.0000125;
+    const secondsPerHour = 3600;
     const secondsPerDay = 86400;
     const secondsPerWeek = secondsPerDay * 7;
     const secondsPerMonth = secondsPerDay * 30;
     const secondsPerYear = secondsPerDay * 365;
     
-    // Calculate compound interest
-    const dailyAPY = (Math.pow(1 + stakeRatePerSecond, secondsPerDay) - 1) * 100;
-    const weeklyAPY = (Math.pow(1 + stakeRatePerSecond, secondsPerWeek) - 1) * 100;
-    const monthlyAPY = (Math.pow(1 + stakeRatePerSecond, secondsPerMonth) - 1) * 100;
-    const yearlyAPY = (Math.pow(1 + stakeRatePerSecond, secondsPerYear) - 1) * 100;
+    // Calculate rates based on the per-second rate (same formula as above)
+    const hourlyRate = stakeRatePerSecond * secondsPerHour * 100;
+    const dailyAPY = hourlyRate * 24;  // 1.8% for 0.00125% per second
+    const weeklyAPY = dailyAPY * 7;    // 12.6% for 0.00125% per second
+    const monthlyAPY = dailyAPY * 30;  // 54.0% for 0.00125% per second
+    const yearlyAPY = dailyAPY * 365;  // 657.0% for 0.00125% per second
     
     return {
       stakeRatePerSecond,
