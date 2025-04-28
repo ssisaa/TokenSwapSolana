@@ -22,7 +22,6 @@ import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS } from "@/lib/constants";
 import { useMultiWallet } from "@/context/MultiWalletContext";
 
 export default function Stake() {
-  const [activeTab, setActiveTab] = useState("stake");
   const { connected } = useMultiWallet();
   const { balance: yotBalance } = useTokenBalance(YOT_TOKEN_ADDRESS);
   const { balance: yosBalance } = useTokenBalance(YOS_TOKEN_ADDRESS);
@@ -109,31 +108,9 @@ export default function Stake() {
         <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
           {/* Left Column */}
           <div className="space-y-6">
-            {/* Action Buttons */}
-            <div className="flex gap-3 mb-6">
-              <Button 
-                variant="default" 
-                className="flex-1 flex justify-center items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 font-medium py-5" 
-                disabled={!connected}
-                onClick={() => setActiveTab("stake")}
-              >
-                <Download className="h-5 w-5" /> Stake YOT
-              </Button>
-              <Button 
-                variant="default" 
-                className="flex-1 flex justify-center items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 font-medium py-5" 
-                disabled={!connected || stakingInfo.rewardsEarned <= 0}
-                onClick={() => setActiveTab("harvest")}
-              >
-                <CheckCircle className="h-5 w-5" /> Harvest Rewards
-              </Button>
-            </div>
-            
             {/* Staking Actions */}
             <div className="mt-4">
-              {activeTab === "stake" && <StakingCard defaultTab="stake" />}
-              {activeTab === "unstake" && <StakingCard defaultTab="unstake" />}
-              {activeTab === "harvest" && <StakingCard defaultTab="harvest" />}
+              <StakingCard />
             </div>
             
             {/* FAQ Section */}
