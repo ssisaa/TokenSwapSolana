@@ -1702,7 +1702,13 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       console.log(`Program YOS balance: ${programYosBalance}, Rewards to pay: ${pendingRewards.rewardsEarned}`);
       
       if (programYosBalance < pendingRewards.rewardsEarned) {
-        throw new Error(`Program has insufficient YOS (${programYosBalance}) for your rewards (${pendingRewards.rewardsEarned}). You may get back YOT but not all rewards.`);
+        // Instead of throwing an error, just warn the user
+        console.warn(`Program has insufficient YOS (${programYosBalance}) for your rewards (${pendingRewards.rewardsEarned})`);
+        toast({
+          title: "⚠️ Low Program YOS Balance",
+          description: `The program has insufficient YOS tokens (${programYosBalance.toFixed(2)}) to pay your full rewards (${pendingRewards.rewardsEarned.toFixed(2)}). You may receive partial rewards.`,
+          variant: "destructive"
+        });
       }
     }
     
@@ -1806,10 +1812,10 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
         // Check if the program has enough tokens for the harvest
         // Only show warning if pending rewards are significant (> 0.01)
         if (programYosBalance < pendingRewards && pendingRewards > 0.01) {
-          console.error(`Insufficient YOS tokens in program account. Available: ${programYosBalance}, Needed: ~${pendingRewards}`);
+          console.warn(`Insufficient YOS tokens in program account. Available: ${programYosBalance}, Needed: ~${pendingRewards}`);
           toast({
-            title: "Warning: Rewards May Not Transfer",
-            description: `Program has insufficient YOS (${programYosBalance.toFixed(2)}) for your rewards (${pendingRewards.toFixed(2)}). Please contact admin to add more YOS tokens.`,
+            title: "⚠️ Partial Rewards Expected",
+            description: `Program has insufficient YOS (${programYosBalance.toFixed(2)}) for your rewards (${pendingRewards.toFixed(2)}). You will receive what's available. Please contact admin to add more YOS tokens for full rewards.`,
             variant: "destructive"
           });
         }
