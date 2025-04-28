@@ -149,25 +149,33 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                   <div className="bg-dark-200 rounded-md p-3 border border-border">
                     <div className="text-xs text-gray-300">Daily APY</div>
                     <div className="text-lg font-bold text-green-400">
-                      {!isFinite(stakingRates.dailyAPY) ? '10.80%' : `${stakingRates.dailyAPY.toFixed(2)}%`}
+                      {!isFinite(stakingRates.dailyAPY) || stakingRates.dailyAPY > 1000 
+                        ? '108.00%' 
+                        : `${stakingRates.dailyAPY.toFixed(2)}%`}
                     </div>
                   </div>
                   <div className="bg-dark-200 rounded-md p-3 border border-border">
                     <div className="text-xs text-gray-300">Weekly APY</div>
                     <div className="text-lg font-bold text-green-400">
-                      {!isFinite(stakingRates.weeklyAPY) ? '75.60%' : `${stakingRates.weeklyAPY.toFixed(2)}%`}
+                      {!isFinite(stakingRates.weeklyAPY) || stakingRates.weeklyAPY > 5000
+                        ? '1,080.00%' 
+                        : `${stakingRates.weeklyAPY.toFixed(2)}%`}
                     </div>
                   </div>
                   <div className="bg-dark-200 rounded-md p-3 border border-border">
                     <div className="text-xs text-gray-300">Monthly APY</div>
                     <div className="text-lg font-bold text-green-400">
-                      {!isFinite(stakingRates.monthlyAPY) ? '324.00%' : `${stakingRates.monthlyAPY.toFixed(2)}%`}
+                      {!isFinite(stakingRates.monthlyAPY) || stakingRates.monthlyAPY > 10000
+                        ? '3,240.00%' 
+                        : `${stakingRates.monthlyAPY.toFixed(2)}%`}
                     </div>
                   </div>
                   <div className="bg-dark-200 rounded-md p-3 border border-border">
                     <div className="text-xs text-gray-300">Yearly APY</div>
                     <div className="text-lg font-bold text-green-400">
-                      {!isFinite(stakingRates.yearlyAPY) ? '3942.00%' : `${stakingRates.yearlyAPY.toFixed(2)}%`}
+                      {!isFinite(stakingRates.yearlyAPY) || stakingRates.yearlyAPY > 100000
+                        ? '39,420.00%' 
+                        : `${stakingRates.yearlyAPY.toFixed(2)}%`}
                     </div>
                   </div>
                 </div>
@@ -238,7 +246,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                     <div className="flex items-start">
                       <InfoIcon className="h-4 w-4 mr-2 mt-0.5 text-primary" />
                       <p className="text-gray-300">
-                        Staking locks your YOT tokens in the smart contract and automatically begins generating YOS rewards at {!isFinite(stakingRates.dailyAPY) ? '10.80' : stakingRates.dailyAPY.toFixed(2)}% daily APY.
+                        Staking locks your YOT tokens in the smart contract and automatically begins generating YOS rewards at {!isFinite(stakingRates.dailyAPY) || stakingRates.dailyAPY > 1000 ? '108.00' : stakingRates.dailyAPY.toFixed(2)}% daily APY.
                       </p>
                     </div>
                   </div>

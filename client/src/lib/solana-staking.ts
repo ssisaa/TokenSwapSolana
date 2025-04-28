@@ -935,9 +935,10 @@ export async function getStakingProgramState(): Promise<{
     // e.g., 0.0125% becomes 0.000125 as a decimal
     stakeRatePerSecond = stakeRatePerSecond / 100;
     
-    // Apply a scaling factor to make the rate more realistic
-    // Actual on-chain rates are typically much smaller to avoid Infinity results
-    stakeRatePerSecond = Math.min(stakeRatePerSecond, 0.00000125); // Cap at a reasonable maximum
+    // No need to cap the rate - the admin has set 0.00125% per second
+    // We just need to convert it correctly for calculations
+    // 0.00125% = 0.0000125 in decimal format
+    stakeRatePerSecond = stakeRatePerSecond;
     
     // Read harvest threshold (8 bytes, 64-bit unsigned integer)
     const harvestThreshold = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32 + 8)) / 1000000;
@@ -968,9 +969,8 @@ export async function getStakingProgramState(): Promise<{
     console.error('Error fetching staking program state:', error);
     
     // Return default values on error with properly calculated APY
-    // The rate is 0.00000125 which represents 0.000125% per second
-    // This is the same cap we use for the rates in the main function
-    const stakeRatePerSecond = 0.00000125;
+    // The rate is 0.0000125 which represents 0.00125% per second (as per admin settings)
+    const stakeRatePerSecond = 0.0000125;
     const secondsPerDay = 86400;
     const secondsPerWeek = secondsPerDay * 7;
     const secondsPerMonth = secondsPerDay * 30;
@@ -1055,8 +1055,9 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // Convert from percentage to decimal for math calculations (same as in getStakingProgramState)
     stakeRatePerSecond = stakeRatePerSecond / 100;
     
-    // Apply the same scaling factor as in getStakingProgramState for consistency
-    stakeRatePerSecond = Math.min(stakeRatePerSecond, 0.00000125);
+    // No need to cap rate - keep it as is to match admin settings
+    // 0.00125% = 0.0000125 in decimal form
+    stakeRatePerSecond = stakeRatePerSecond;
     
     // Calculate current time
     const currentTime = Math.floor(Date.now() / 1000);
