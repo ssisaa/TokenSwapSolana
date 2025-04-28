@@ -638,7 +638,37 @@ export async function stakeYOTTokens(
     // Check if user YOT token account exists
     const userYotAccountInfo = await connection.getAccountInfo(userYotTokenAccount);
     
-    // If token account doesn't exist, create it first
+    // Also check for YOS token account existence - needed for receiving staking rewards
+    // This ensures users can receive rewards after they stake
+    const yosMintPubkey = new PublicKey(YOS_TOKEN_ADDRESS);
+    const userYosTokenAccount = await getAssociatedTokenAddress(
+      yosMintPubkey,
+      userPublicKey
+    );
+    console.log('User YOS token account address:', userYosTokenAccount.toBase58());
+    
+    // Check if YOS token account exists
+    const userYosAccountInfo = await connection.getAccountInfo(userYosTokenAccount);
+    if (!userYosAccountInfo) {
+      console.log('YOS token account for user does not exist. Creating it...');
+      transaction.add(
+        createAssociatedTokenAccountInstruction(
+          userPublicKey,
+          userYosTokenAccount,
+          userPublicKey,
+          yosMintPubkey
+        )
+      );
+      
+      toast({
+        title: "Creating YOS Token Account",
+        description: "You need a YOS token account to receive staking rewards. It will be created automatically."
+      });
+    } else {
+      console.log('User YOS token account exists');
+    }
+    
+    // If YOT token account doesn't exist, create it first
     if (!userYotAccountInfo) {
       console.log('Creating YOT token account for user...');
       transaction.add(
@@ -728,24 +758,27 @@ export async function stakeYOTTokens(
       console.log('User staking account exists with size:', userStakingAccountInfo.data.length);
     }
     
-    // Create the stake instruction with more careful key order
+    // Create the stake instruction with account order matching exactly what the program expects
     const stakeInstruction = new TransactionInstruction({
       keys: [
-        // User accounts
-        { pubkey: userPublicKey, isSigner: true, isWritable: true }, // User wallet, paying for transaction
-        { pubkey: userYotTokenAccount, isSigner: false, isWritable: true }, // User's YOT token account
-        { pubkey: userStakingAddress, isSigner: false, isWritable: true }, // PDA to track user staking info
+        // User accounts - MUST match the order in the Rust program
+        { pubkey: userPublicKey, isSigner: true, isWritable: true },     // Signer wallet - payer
+        { pubkey: userYotTokenAccount, isSigner: false, isWritable: true }, // User YOT token account (source)
+        { pubkey: userStakingAddress, isSigner: false, isWritable: true },  // User staking account (PDA)
         
-        // Program accounts
-        { pubkey: programStateAddress, isSigner: false, isWritable: true }, // Program state PDA - CHANGED TO WRITABLE to fix the serialization error
-        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }, // Program authority PDA
-        { pubkey: programYotTokenAccount, isSigner: false, isWritable: true }, // Program's YOT token account
+        // Program state and authority
+        { pubkey: programStateAddress, isSigner: false, isWritable: true },  // Program state with staking parameters
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }, // Authority PDA
+        { pubkey: programYotTokenAccount, isSigner: false, isWritable: true },  // Program's YOT vault
         
-        // System accounts
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // System program for account creation 
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // Token program for transfers
-        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, // Rent
-        { pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false } // Clock for timestamps
+        // YOS token accounts for rewards
+        { pubkey: userYosTokenAccount, isSigner: false, isWritable: true },  // User's YOS token account (for rewards)
+        
+        // System accounts - required by the program to create the staking account
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, 
+        { pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false }
       ],
       programId: STAKING_PROGRAM_ID,
       data: encodeStakeInstruction(amount)
@@ -915,20 +948,54 @@ export async function unstakeYOTTokens(
       console.log('User staking account exists with size:', userStakingAccountInfo.data.length);
     }
     
-    // Create the unstake instruction with explicit accounts
+    // Also check for YOS token account existence
+    const yosMintPubkey = new PublicKey(YOS_TOKEN_ADDRESS);
+    const userYosTokenAccount = await getAssociatedTokenAddress(
+      yosMintPubkey,
+      userPublicKey
+    );
+    console.log('User YOS token account address for unstake:', userYosTokenAccount.toBase58());
+    
+    // Check if YOS token account exists
+    const userYosAccountInfo = await connection.getAccountInfo(userYosTokenAccount);
+    if (!userYosAccountInfo) {
+      console.log('YOS token account for user does not exist. Creating it for unstake...');
+      transaction.add(
+        createAssociatedTokenAccountInstruction(
+          userPublicKey,
+          userYosTokenAccount,
+          userPublicKey,
+          yosMintPubkey
+        )
+      );
+      
+      toast({
+        title: "Creating YOS Token Account",
+        description: "You need a YOS token account to receive staking rewards. It will be created automatically."
+      });
+    } else {
+      console.log('User YOS token account exists for unstake operation');
+    }
+
+    // Create the unstake instruction with account order matching the Rust program
     const unstakeInstruction = new TransactionInstruction({
       keys: [
         // User accounts
-        { pubkey: userPublicKey, isSigner: true, isWritable: true }, // User wallet, paying for transaction
-        { pubkey: userYotTokenAccount, isSigner: false, isWritable: true }, // User's YOT token account
-        { pubkey: programYotTokenAccount, isSigner: false, isWritable: true }, // Program's YOT token account
-        { pubkey: userStakingAddress, isSigner: false, isWritable: true }, // PDA to track user staking info
+        { pubkey: userPublicKey, isSigner: true, isWritable: true },        // User wallet, paying for transaction
+        { pubkey: userYotTokenAccount, isSigner: false, isWritable: true }, // User's YOT token account (destination)
+        { pubkey: userStakingAddress, isSigner: false, isWritable: true },  // User staking account (PDA)
         
         // Program accounts
-        { pubkey: programStateAddress, isSigner: false, isWritable: true }, // Program state PDA - CHANGED TO WRITABLE to fix the serialization error
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // Token program for transfers
-        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }, // Program authority PDA
-        { pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false } // Clock for timestamps
+        { pubkey: programStateAddress, isSigner: false, isWritable: true },     // Program state (for rates)
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }, // Program authority (for signing)
+        { pubkey: programYotTokenAccount, isSigner: false, isWritable: true },  // Program's YOT vault (source)
+        
+        // YOS token accounts for rewards - include in unstake too
+        { pubkey: userYosTokenAccount, isSigner: false, isWritable: true },     // User's YOS token account
+        
+        // System accounts
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },       // Token program
+        { pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false }     // Clock
       ],
       programId: STAKING_PROGRAM_ID,
       data: encodeUnstakeInstruction(amount)
