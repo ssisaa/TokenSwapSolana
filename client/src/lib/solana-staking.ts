@@ -75,10 +75,10 @@ function encodeInitializeInstruction(
     harvestThreshold
   });
   
-  // Convert rates to basis points for on-chain storage
-  // We need to multiply by 10000 to convert from percentage to basis points
-  // And multiply by 100 again to account for the correction factor we found in our calculations
-  const rateInBasisPoints = Math.floor(stakeRatePerSecond * 10000 * 100);
+  // IMPORTANT: When initializing the staking program, we need to be careful with the scaling
+  // For a target rate of 0.00125% per second, we need to encode it properly
+  // The original scaling factor was 10000, which works correctly with the smart contract
+  const rateInBasisPoints = Math.floor(stakeRatePerSecond * 10000);
   const thresholdInLamports = Math.floor(harvestThreshold * 1000000);
   
   console.log("Converted values:", {
@@ -163,9 +163,9 @@ function encodeUpdateParametersInstruction(
   stakeRatePerSecond: number,
   harvestThreshold: number
 ): Buffer {
-  // Convert rates to basis points for on-chain storage
-  // Apply the same correction factor (100) as in encodeInitializeInstruction
-  const rateInBasisPoints = Math.floor(stakeRatePerSecond * 10000 * 100);
+  // IMPORTANT: Must use the same scaling factor as in encodeInitializeInstruction
+  // For the smart contract to work correctly, we need consistency
+  const rateInBasisPoints = Math.floor(stakeRatePerSecond * 10000);
   const thresholdInLamports = Math.floor(harvestThreshold * 1000000);
   
   console.log("Encoding parameters update with converted values:", {
