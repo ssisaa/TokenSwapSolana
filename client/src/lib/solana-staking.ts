@@ -75,8 +75,15 @@ function encodeInitializeInstruction(
     harvestThreshold
   });
   
-  // The Borsh serialization for the Initialize variant in Rust might look like:
-  // enum StakingInstruction { Initialize { yot_mint, yos_mint, stake_rate, threshold } }
+  // Convert rates to basis points (multiply by 10000) for on-chain storage
+  // This matches how the Rust program expects the data
+  const rateInBasisPoints = Math.floor(stakeRatePerSecond * 10000);
+  const thresholdInLamports = Math.floor(harvestThreshold * 1000000);
+  
+  console.log("Converted values:", {
+    rateInBasisPoints,
+    thresholdInLamports
+  });
   
   // Simplify the format - just use a fixed layout matching the Rust side's expectation
   // Variant discriminator (1 byte) + two public keys (32 bytes each) + two u64s (8 bytes each)
@@ -92,19 +99,21 @@ function encodeInitializeInstruction(
   buffer.set(yosMint.toBuffer(), 33);
   
   // Write stake rate as little-endian u64 (8 bytes)
-  // Convert to bigint first to handle potential large numbers
-  buffer.writeBigUInt64LE(BigInt(Math.floor(stakeRatePerSecond)), 65);
+  // Use the converted basis points value
+  buffer.writeBigUInt64LE(BigInt(rateInBasisPoints), 65);
   
   // Write harvest threshold as little-endian u64 (8 bytes)
-  buffer.writeBigUInt64LE(BigInt(Math.floor(harvestThreshold)), 73);
+  // Use the converted lamports value
+  buffer.writeBigUInt64LE(BigInt(thresholdInLamports), 73);
   
   // Debug logging to verify our buffer
   console.log("Encoded initialization instruction bytes:", {
     discriminator: buffer.readUInt8(0),
     yotMintHex: buffer.slice(1, 33).toString('hex'),
     yosMintHex: buffer.slice(33, 65).toString('hex'),
-    stakeRateBigInt: buffer.readBigUInt64LE(65),
-    harvestThresholdBigInt: buffer.readBigUInt64LE(73)
+    stakeRateBasisPoints: buffer.readBigUInt64LE(65),
+    harvestThresholdLamports: buffer.readBigUInt64LE(73),
+    bufferLength: buffer.length
   });
   
   return buffer;
@@ -153,6 +162,16 @@ function encodeUpdateParametersInstruction(
   stakeRatePerSecond: number,
   harvestThreshold: number
 ): Buffer {
+  // Convert rates to basis points for on-chain storage
+  // This matches how they're stored in the Rust program
+  const rateInBasisPoints = Math.floor(stakeRatePerSecond * 10000);
+  const thresholdInLamports = Math.floor(harvestThreshold * 1000000);
+  
+  console.log("Encoding parameters update with converted values:", {
+    rateInBasisPoints,
+    thresholdInLamports
+  });
+  
   // Create a buffer to hold all data
   // 1 byte for instruction type + 8 bytes for rate + 8 bytes for threshold
   const buffer = Buffer.alloc(1 + 8 + 8);
@@ -160,11 +179,11 @@ function encodeUpdateParametersInstruction(
   // Write instruction type to the first byte
   buffer.writeUInt8(StakingInstructionType.UpdateParameters, 0);
   
-  // Write rate as little-endian u64 (8 bytes)
-  buffer.writeBigUInt64LE(BigInt(stakeRatePerSecond), 1);
+  // Write rate as little-endian u64 (8 bytes) - as basis points
+  buffer.writeBigUInt64LE(BigInt(rateInBasisPoints), 1);
   
-  // Write threshold as little-endian u64 (8 bytes)
-  buffer.writeBigUInt64LE(BigInt(harvestThreshold), 9);
+  // Write threshold as little-endian u64 (8 bytes) - as lamports
+  buffer.writeBigUInt64LE(BigInt(thresholdInLamports), 9);
   
   return buffer;
 }
@@ -286,17 +305,17 @@ export async function initializeStakingProgram(
         // Admin is the signer and payer
         { pubkey: adminPublicKey, isSigner: true, isWritable: true },
         
-        // Program accounts
+        // Program PDA accounts
         { pubkey: programStateAddress, isSigner: false, isWritable: true },
         { pubkey: programAuthorityAddress, isSigner: false, isWritable: false },
         
-        // Token accounts
-        { pubkey: programYotTokenAccount, isSigner: false, isWritable: true },
-        { pubkey: programYosTokenAccount, isSigner: false, isWritable: true },
-        
-        // Token mints
+        // Token mints (must be in the same order as in the instruction data)
         { pubkey: yotMintPubkey, isSigner: false, isWritable: false },
         { pubkey: yosMintPubkey, isSigner: false, isWritable: false },
+        
+        // Token accounts 
+        { pubkey: programYotTokenAccount, isSigner: false, isWritable: true },
+        { pubkey: programYosTokenAccount, isSigner: false, isWritable: true },
         
         // System program for account creation
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
@@ -786,6 +805,11 @@ export async function updateStakingParameters(
   harvestThreshold: number
 ): Promise<string> {
   try {
+    console.log("Updating staking parameters:", {
+      stakeRatePerSecond,
+      harvestThreshold
+    });
+    
     // Validate parameters
     if (!adminWallet || !adminWallet.publicKey) {
       throw new Error('Admin wallet not connected');
@@ -799,12 +823,15 @@ export async function updateStakingParameters(
       STAKING_PROGRAM_ID
     );
     
-    // Convert to basis points for on-chain storage
-    // Rate: multiply by 10000 to store as basis points
-    // Threshold: multiply by 1000000 to store as lamports
-    const rateInBasisPoints = Math.floor(stakeRatePerSecond * 10000);
-    const thresholdInLamports = Math.floor(harvestThreshold * 1000000);
+    console.log("Program state address:", programStateAddress.toString());
     
+    // Check if program state exists
+    const programStateInfo = await connection.getAccountInfo(programStateAddress);
+    if (!programStateInfo) {
+      throw new Error('Program state does not exist. Initialize the program first.');
+    }
+    
+    // We don't need to convert values here because our encoding function does it
     // Create update parameters instruction
     const updateInstruction = new TransactionInstruction({
       keys: [
@@ -812,7 +839,7 @@ export async function updateStakingParameters(
         { pubkey: programStateAddress, isSigner: false, isWritable: true }
       ],
       programId: STAKING_PROGRAM_ID,
-      data: encodeUpdateParametersInstruction(rateInBasisPoints, thresholdInLamports)
+      data: encodeUpdateParametersInstruction(stakeRatePerSecond, harvestThreshold)
     });
     
     // Create transaction
@@ -822,14 +849,22 @@ export async function updateStakingParameters(
     transaction.feePayer = adminPublicKey;
     transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
     
+    console.log("Transaction created, requesting admin wallet signature...");
+    
     // Request signature from admin (this triggers a wallet signature request)
     const signedTransaction = await adminWallet.signTransaction(transaction);
+    
+    console.log("Transaction signed, sending to network...");
     
     // Send signed transaction
     const signature = await connection.sendRawTransaction(signedTransaction.serialize());
     
+    console.log("Transaction sent with signature:", signature);
+    
     // Confirm transaction
     await connection.confirmTransaction(signature, 'confirmed');
+    
+    console.log("Transaction confirmed successfully");
     
     toast({
       title: "Parameters Updated",
