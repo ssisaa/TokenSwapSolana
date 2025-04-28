@@ -767,28 +767,21 @@ export async function stakeYOTTokens(
       console.log('User staking account exists with size:', userStakingAccountInfo.data.length);
     }
     
-    // CRITICAL UPDATE: Recheck the Rust program to ensure account order matches perfectly
-    // Create the stake instruction with account order matching exactly what the program expects
+    // CRITICAL UPDATE: Account order EXACTLY matches process_stake function in Rust program
+    // Get accounts from process_stake function:
+    // user_account, user_yot_token_account, program_yot_token_account, user_staking_account,
+    // program_state_account, token_program, clock, system_program
     const stakeInstruction = new TransactionInstruction({
       keys: [
-        // User accounts - explicitly ordered to match Rust program exactly
-        { pubkey: userPublicKey, isSigner: true, isWritable: true },        // 0: User wallet (payer)
-        { pubkey: userStakingAddress, isSigner: false, isWritable: true },  // 1: User staking account (PDA)
-        { pubkey: userYotTokenAccount, isSigner: false, isWritable: true }, // 2: User YOT token account (source)
-        { pubkey: programYotTokenAccount, isSigner: false, isWritable: true }, // 3: Program YOT vault
-        
-        // Program accounts
-        { pubkey: programStateAddress, isSigner: false, isWritable: true },  // 4: Program state
-        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }, // 5: Authority PDA
-        
-        // YOS token accounts for rewards
-        { pubkey: userYosTokenAccount, isSigner: false, isWritable: true },  // 6: User's YOS token account (for rewards)
-        
-        // System accounts - required by the program
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // 7: System program
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },        // 8: Token program
-        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },      // 9: Rent sysvar
-        { pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false }     // 10: Clock sysvar
+        // Exact order from Rust program process_stake function (line ~217)
+        { pubkey: userPublicKey, isSigner: true, isWritable: true },        // user_account (payer)
+        { pubkey: userYotTokenAccount, isSigner: false, isWritable: true }, // user_yot_token_account (source)
+        { pubkey: programYotTokenAccount, isSigner: false, isWritable: true }, // program_yot_token_account (destination)
+        { pubkey: userStakingAddress, isSigner: false, isWritable: true },  // user_staking_account (PDA)
+        { pubkey: programStateAddress, isSigner: false, isWritable: true },  // program_state_account
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },    // token_program
+        { pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false }, // clock
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // system_program
       ],
       programId: STAKING_PROGRAM_ID,
       data: encodeStakeInstruction(amount)
@@ -896,9 +889,17 @@ export async function unstakeYOTTokens(
       STAKING_PROGRAM_ID
     );
     
-    // Get program token account
+    // Get program token account for YOT
     const programYotTokenAccount = await getAssociatedTokenAddress(
       yotMintPubkey,
+      programAuthorityAddress,
+      true // allowOwnerOffCurve
+    );
+    
+    // Get program token account for YOS
+    const yosMintPubkey = new PublicKey(YOS_TOKEN_ADDRESS);
+    const programYosTokenAccount = await getAssociatedTokenAddress(
+      yosMintPubkey,
       programAuthorityAddress,
       true // allowOwnerOffCurve
     );
@@ -959,9 +960,8 @@ export async function unstakeYOTTokens(
     }
     
     // Also check for YOS token account existence
-    const yosMintPubkey = new PublicKey(YOS_TOKEN_ADDRESS);
     const userYosTokenAccount = await getAssociatedTokenAddress(
-      yosMintPubkey,
+      yosMintPubkey, // Using the yosMintPubkey that we already defined
       userPublicKey
     );
     console.log('User YOS token account address for unstake:', userYosTokenAccount.toBase58());
@@ -987,25 +987,24 @@ export async function unstakeYOTTokens(
       console.log('User YOS token account exists for unstake operation');
     }
 
-    // Create the unstake instruction with account order matching the Rust program
+    // CRITICAL UPDATE: Account order EXACTLY matches process_unstake function in Rust program
+    // Get accounts from process_unstake function (line ~339):
+    // user_account, user_yot_token_account, program_yot_token_account, user_yos_token_account,
+    // program_yos_token_account, user_staking_account, program_state_account, token_program, 
+    // program_authority, clock
     const unstakeInstruction = new TransactionInstruction({
       keys: [
-        // User accounts
-        { pubkey: userPublicKey, isSigner: true, isWritable: true },        // User wallet, paying for transaction
-        { pubkey: userYotTokenAccount, isSigner: false, isWritable: true }, // User's YOT token account (destination)
-        { pubkey: userStakingAddress, isSigner: false, isWritable: true },  // User staking account (PDA)
-        
-        // Program accounts
-        { pubkey: programStateAddress, isSigner: false, isWritable: true },     // Program state (for rates)
-        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }, // Program authority (for signing)
-        { pubkey: programYotTokenAccount, isSigner: false, isWritable: true },  // Program's YOT vault (source)
-        
-        // YOS token accounts for rewards - include in unstake too
-        { pubkey: userYosTokenAccount, isSigner: false, isWritable: true },     // User's YOS token account
-        
-        // System accounts
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },       // Token program
-        { pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false }     // Clock
+        // Exact order from Rust program process_unstake function
+        { pubkey: userPublicKey, isSigner: true, isWritable: true },        // user_account
+        { pubkey: userYotTokenAccount, isSigner: false, isWritable: true }, // user_yot_token_account (destination)
+        { pubkey: programYotTokenAccount, isSigner: false, isWritable: true }, // program_yot_token_account (source)
+        { pubkey: userYosTokenAccount, isSigner: false, isWritable: true }, // user_yos_token_account
+        { pubkey: programYosTokenAccount, isSigner: false, isWritable: true }, // program_yos_token_account (source for rewards)
+        { pubkey: userStakingAddress, isSigner: false, isWritable: true },  // user_staking_account (PDA)
+        { pubkey: programStateAddress, isSigner: false, isWritable: true }, // program_state_account
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },   // token_program
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }, // program_authority
+        { pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false } // clock
       ],
       programId: STAKING_PROGRAM_ID,
       data: encodeUnstakeInstruction(amount)
@@ -1147,23 +1146,21 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       console.log('User staking account exists with size:', userStakingAccountInfo.data.length);
     }
     
-    // Create the harvest instruction with account order matching the Rust program
+    // CRITICAL UPDATE: Account order EXACTLY matches process_harvest function in Rust program
+    // Get accounts from process_harvest function (line ~460):
+    // user_account, user_yos_token_account, program_yos_token_account, user_staking_account,
+    // program_state_account, token_program, program_authority, clock
     const harvestInstruction = new TransactionInstruction({
       keys: [
-        // User accounts 
-        { pubkey: userPublicKey, isSigner: true, isWritable: true },        // User wallet
-        { pubkey: userYosTokenAccount, isSigner: false, isWritable: true }, // User's YOS token account (destination)
-        { pubkey: userStakingAddress, isSigner: false, isWritable: true },  // User staking account (PDA)
-        
-        // Program accounts
-        { pubkey: programStateAddress, isSigner: false, isWritable: true },     // Program state
-        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }, // Program authority
-        { pubkey: programYosTokenAccount, isSigner: false, isWritable: true },  // Program's YOS vault
-        
-        // System accounts
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },    // Token program
-        { pubkey: yosMintPubkey, isSigner: false, isWritable: false },       // YOS mint address
-        { pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false }  // Clock
+        // Exact order from Rust program process_harvest function
+        { pubkey: userPublicKey, isSigner: true, isWritable: true },        // user_account
+        { pubkey: userYosTokenAccount, isSigner: false, isWritable: true }, // user_yos_token_account (destination)
+        { pubkey: programYosTokenAccount, isSigner: false, isWritable: true }, // program_yos_token_account (source)
+        { pubkey: userStakingAddress, isSigner: false, isWritable: true },  // user_staking_account
+        { pubkey: programStateAddress, isSigner: false, isWritable: true }, // program_state_account
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },   // token_program
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }, // program_authority
+        { pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false } // clock
       ],
       programId: STAKING_PROGRAM_ID,
       data: encodeHarvestInstruction()
