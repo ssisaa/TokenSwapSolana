@@ -927,12 +927,11 @@ export async function getStakingProgramState(): Promise<{
     // Next 32 bytes are YOS mint pubkey
     
     // Read stake rate (8 bytes, 64-bit unsigned integer)
-    // The rate stored on-chain represents percentage (e.g., 0.00125 for 0.00125%)
-    // Need to ensure we're using the correct divisor for UI display and calculations
-    const stakeRatePerSecond = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32)) / 1000000;
+    // The rate stored on-chain represents basis points (e.g., 12.5 for 0.00125%)
+    // Must divide by 10000 to match the encoding divisor we used when initializing
+    const stakeRatePerSecond = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32)) / 10000;
     
     // The value is now in percentage form (e.g., 0.00125) and ready to use
-    // No further conversion needed - we'll convert to decimal later for calculations
     
     // Read harvest threshold (8 bytes, 64-bit unsigned integer)
     const harvestThreshold = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32 + 8)) / 1000000;
@@ -1029,9 +1028,10 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     const totalHarvested = Number(data.readBigUInt64LE(56));
     
     // Get the staking rate in decimal format (representing percentage)
-    const stakeRatePerSecond = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32)) / 1000000;
+    // Must use the same divisor as in getStakingProgramState (10000)
+    const stakeRatePerSecond = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32)) / 10000;
     
-    // For rewards calculation, convert from percentage to decimal (0.00000125 → 0.0000000125)
+    // For rewards calculation, convert from percentage to decimal (0.00125% → 0.0000125)
     const stakeRateDecimal = stakeRatePerSecond / 100;
     
     // Calculate current time
