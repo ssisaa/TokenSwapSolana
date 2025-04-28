@@ -32,11 +32,9 @@ export default function Stake() {
   const {
     stakingInfo,
     stakingRates,
-    isLoading
+    isLoading,
+    globalStats
   } = useStaking();
-  
-  // Calculate what percentage of the progress bar to fill for stakers
-  const totalStakersProgress = Math.min(100, (stakingInfo.stakedAmount / 10000000) * 100);
   
   return (
     <DashboardLayout>
@@ -46,69 +44,9 @@ export default function Stake() {
         <div className="grid gap-6 mt-8 lg:grid-cols-[2fr_1fr]">
           {/* Left Column */}
           <div className="space-y-6">
-            {/* Staking Overview */}
+            {/* Staking Dashboard */}
             <div>
-              <h2 className="text-xl font-bold mb-4">Your Staking Overview</h2>
-              <div className="grid gap-4 md:grid-cols-2">
-                <Card className="bg-dark-200">
-                  <CardContent className="pt-6">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium">Total Staked</span>
-                      <div className="flex items-end mt-1">
-                        <span className="text-3xl font-bold">
-                          {formatNumber(stakingInfo.stakedAmount)} YOT
-                        </span>
-                        <span className="text-sm font-medium text-muted-foreground ml-2 mb-1">
-                          ${formatNumber(stakingInfo.stakedAmount * 0.01)}
-                        </span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card className="bg-dark-200">
-                  <CardContent className="pt-6">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium">Earned Rewards</span>
-                      <div className="flex items-end mt-1">
-                        <span className="text-3xl font-bold">
-                          {formatNumber(stakingInfo.rewardsEarned)} YOS
-                        </span>
-                        <span className="text-sm font-medium text-muted-foreground ml-2 mb-1">
-                          ${formatNumber(stakingInfo.rewardsEarned * 0.005)}
-                        </span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-              
-              <div className="flex flex-wrap gap-3 mt-4">
-                <Button 
-                  variant="default" 
-                  className="flex gap-2 bg-primary text-primary-foreground hover:bg-primary/90 font-medium" 
-                  onClick={() => setActiveTab("stake")}
-                  disabled={!connected}
-                >
-                  <Download className="h-4 w-4" /> Stake YOT
-                </Button>
-                <Button 
-                  variant="default" 
-                  className="flex gap-2 bg-secondary text-secondary-foreground hover:bg-secondary/90 font-medium" 
-                  onClick={() => setActiveTab("unstake")}
-                  disabled={!connected || stakingInfo.stakedAmount <= 0}
-                >
-                  <Upload className="h-4 w-4" /> Unstake YOT
-                </Button>
-                <Button 
-                  variant="default" 
-                  className="flex gap-2 bg-primary/80 text-primary-foreground hover:bg-primary/70 font-medium" 
-                  onClick={() => setActiveTab("harvest")}
-                  disabled={!connected || stakingInfo.rewardsEarned <= 0}
-                >
-                  <CheckCircle className="h-4 w-4" /> Claim Rewards
-                </Button>
-              </div>
+              <StakingDashboard onTabChange={setActiveTab} />
             </div>
             
             {/* Staking Actions */}
@@ -204,17 +142,17 @@ export default function Stake() {
                   <div>
                     <div className="flex justify-between mb-1">
                       <span className="font-medium">Total Stakers</span>
-                      <span className="font-semibold">-</span>
+                      <span className="font-semibold">{globalStats?.totalStakers || '-'}</span>
                     </div>
-                    <Progress value={50} className="h-2" />
+                    <Progress value={globalStats?.totalStakers ? Math.min((globalStats.totalStakers / 100) * 100, 100) : 50} className="h-2" />
                   </div>
                   
                   <div>
                     <div className="flex justify-between mb-1">
                       <span className="font-medium">Total Staked</span>
-                      <span className="font-semibold">{formatNumber(stakingInfo.stakedAmount)} YOT</span>
+                      <span className="font-semibold">{formatNumber(globalStats?.totalStaked || 0)} YOT</span>
                     </div>
-                    <Progress value={totalStakersProgress} className="h-2" />
+                    <Progress value={Math.min((globalStats?.totalStaked || 0) / 10000000 * 100, 100)} className="h-2" />
                   </div>
                   
                   <div className="pt-2 space-y-2">

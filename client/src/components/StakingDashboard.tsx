@@ -15,7 +15,11 @@ import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS } from "@/lib/constants";
 import { useMultiWallet } from "@/context/MultiWalletContext";
 import { formatNumber } from "@/lib/utils";
 
-export default function StakingDashboard() {
+interface StakingDashboardProps {
+  onTabChange?: (tab: string) => void;
+}
+
+export default function StakingDashboard({ onTabChange }: StakingDashboardProps = {}) {
   const { connected } = useMultiWallet();
   const { balance: yotBalance } = useTokenBalance(YOT_TOKEN_ADDRESS);
   const { balance: yosBalance } = useTokenBalance(YOS_TOKEN_ADDRESS);
@@ -151,6 +155,7 @@ export default function StakingDashboard() {
           variant="default" 
           className="flex gap-2 bg-primary text-white hover:bg-primary/90 font-medium" 
           disabled={!connected}
+          onClick={() => onTabChange && onTabChange("stake")}
         >
           <Download className="h-4 w-4" /> Stake YOT
         </Button>
@@ -158,6 +163,7 @@ export default function StakingDashboard() {
           variant="default" 
           className="flex gap-2 bg-secondary text-white hover:bg-secondary/90 font-medium" 
           disabled={!connected || stakingInfo.stakedAmount <= 0}
+          onClick={() => onTabChange && onTabChange("unstake")}
         >
           <Upload className="h-4 w-4" /> Unstake YOT
         </Button>
@@ -165,6 +171,7 @@ export default function StakingDashboard() {
           variant="default" 
           className="flex gap-2 bg-gradient-to-r from-blue-600 to-green-600 text-white hover:from-blue-700 hover:to-green-700 font-medium" 
           disabled={!connected || stakingInfo.rewardsEarned <= 0}
+          onClick={() => onTabChange && onTabChange("harvest")}
         >
           <CheckCircle className="h-4 w-4" /> Harvest Rewards
         </Button>
