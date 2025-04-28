@@ -4,15 +4,17 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useWallet } from "@/hooks/useSolanaWallet";
 import { useTokenData } from "@/hooks/useTokenData";
+import { useStaking } from "@/hooks/useStaking";
 import { Link } from "wouter";
 import { ArrowRight } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatNumber } from "@/lib/utils";
 import MultiWalletConnect from "@/components/MultiWalletConnect";
 import { getExchangeRate, getPoolBalances, getSolMarketPrice } from "@/lib/solana";
 
 export default function Dashboard() {
   const { connected, wallet } = useWallet();
   const { tokenData, poolData, balances, loading, fetchTokenInfo, fetchBalances } = useTokenData();
+  const { stakingInfo, globalStats, isLoading: stakingLoading } = useStaking();
   const [priceData, setPriceData] = useState({
     yotPrice: 0.00000200,
     yosPrice: 0.00002000,
@@ -265,24 +267,28 @@ export default function Dashboard() {
             </Link>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card className="bg-dark-200 border-dark-400 p-4">
-              <h3 className="text-gray-400 text-sm">Total Staked</h3>
+              <h3 className="text-gray-400 text-sm">Global Total Staked</h3>
               <div className="text-xl font-semibold text-white mt-1">
-                {loading ? "Loading..." : formatCurrency(balances?.yot || 0)} YOT 
-                <span className="text-sm text-gray-400">
-                  ${formatCurrency((balances?.yot || 0) * priceData.yotPrice)}
-                </span>
+                {stakingLoading ? "Loading..." : formatNumber(globalStats ? globalStats.totalStaked : 0)} 
+                <span className="text-blue-400 text-sm ml-1">YOT</span>
               </div>
             </Card>
             
             <Card className="bg-dark-200 border-dark-400 p-4">
-              <h3 className="text-gray-400 text-sm">Earned Rewards</h3>
+              <h3 className="text-gray-400 text-sm">Your Staked Amount</h3>
               <div className="text-xl font-semibold text-white mt-1">
-                {loading ? "Loading..." : formatCurrency(balances?.yos || 0)} YOS 
-                <span className="text-sm text-gray-400">
-                  ${formatCurrency((balances?.yos || 0) * priceData.yosPrice)}
-                </span>
+                {stakingLoading ? "Loading..." : formatNumber(stakingInfo.stakedAmount)} 
+                <span className="text-blue-400 text-sm ml-1">YOT</span>
+              </div>
+            </Card>
+            
+            <Card className="bg-dark-200 border-dark-400 p-4">
+              <h3 className="text-gray-400 text-sm">Your Pending Rewards</h3>
+              <div className="text-xl font-semibold text-white mt-1">
+                {stakingLoading ? "Loading..." : formatNumber(stakingInfo.rewardsEarned)} 
+                <span className="text-green-400 text-sm ml-1">YOS</span>
               </div>
             </Card>
           </div>
