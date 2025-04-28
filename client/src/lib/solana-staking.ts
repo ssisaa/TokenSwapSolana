@@ -75,9 +75,11 @@ function encodeInitializeInstruction(
     harvestThreshold
   });
   
-  // Simply hardcode the value to exactly 13 for 0.00125% (slightly higher but works better)
-  // Using a fixed value without complex calculations is safer
-  const rateInBasisPoints = 13;
+  // Convert percentage per second to basis points
+  // 1% = 10000 basis points, so multiply by 10000
+  // Example: 0.00125% → 0.00125 * 10000 = 12.5 → round to 13 basis points
+  // Example: 0.0000000001% → 0.0000000001 * 10000 = 0.000001 → round to nearest integer basis point
+  const rateInBasisPoints = Math.round(stakeRatePerSecond * 10000);
   const thresholdInLamports = Math.floor(harvestThreshold * 1000000);
   
   console.log("Converted values:", {
@@ -162,19 +164,11 @@ function encodeUpdateParametersInstruction(
   stakeRatePerSecond: number,
   harvestThreshold: number
 ): Buffer {
-  // IMPORTANT: Must use the same approach as in encodeInitializeInstruction
-  // If the input rate is 0.00125%, we need to use 12 basis points
-  // For any other rate, we'll calculate it but provide a safety check
-  let rateInBasisPoints;
-  
-  if (Math.abs(stakeRatePerSecond - 0.00125) < 0.00001) {
-    // If the rate is very close to 0.00125%, use exactly 12 basis points
-    rateInBasisPoints = 12;
-  } else {
-    // Otherwise calculate it using the current approach
-    rateInBasisPoints = Math.floor(stakeRatePerSecond * 10000);
-  }
-  
+  // Convert percentage per second to basis points
+  // 1% = 10000 basis points, so multiply by 10000
+  // Example: 0.00125% → 0.00125 * 10000 = 12.5 → round to 13 basis points
+  // Example: 0.0000000001% → 0.0000000001 * 10000 = 0.000001 → round to nearest integer basis point
+  const rateInBasisPoints = Math.round(stakeRatePerSecond * 10000);
   const thresholdInLamports = Math.floor(harvestThreshold * 1000000);
   
   console.log("Encoding parameters update with converted values:", {
@@ -959,17 +953,11 @@ export async function getStakingProgramState(): Promise<{
     const stakeRateBasisPoints = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32));
     
     // Convert basis points to percentage
-    // For a value of 13 basis points, we want 0.00125% per second
-    // We need to do a specific conversion based on the expected value
-    let stakeRatePerSecond;
+    // We'll use a single consistent conversion factor for any basis point value
+    // This makes the system flexible for any rate, including very small rates like 0.0000000001%
     
-    if (stakeRateBasisPoints === 13) {
-      // If it's 13 basis points, use exactly 0.00125%
-      stakeRatePerSecond = 0.00125;
-    } else {
-      // Otherwise, use the general conversion (basis points / 10000)
-      stakeRatePerSecond = stakeRateBasisPoints / 10000;
-    }
+    // Convert from basis points (where 10000 = 1%) to percentage
+    const stakeRatePerSecond = stakeRateBasisPoints / 10000;
     
     console.log("Actual rate from blockchain:", {
       stakeRateBasisPoints,
@@ -1068,17 +1056,11 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     const stakeRateBasisPoints = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32));
     
     // Convert basis points to percentage
-    // For a value of 12 basis points, we want 0.00125% per second
-    // We need to do a specific conversion based on the expected value
-    let stakeRatePerSecond;
+    // We'll use a single consistent conversion factor for any basis point value
+    // This makes the system flexible for any rate, including very small rates like 0.0000000001%
     
-    if (stakeRateBasisPoints === 12) {
-      // If it's 12 basis points, use exactly 0.00125%
-      stakeRatePerSecond = 0.00125;
-    } else {
-      // Otherwise, use the general conversion (basis points / 10000)
-      stakeRatePerSecond = stakeRateBasisPoints / 10000;
-    }
+    // Convert from basis points (where 10000 = 1%) to percentage
+    const stakeRatePerSecond = stakeRateBasisPoints / 10000;
     
     console.log("Rate for reward calculation:", {
       stakeRateBasisPoints,
