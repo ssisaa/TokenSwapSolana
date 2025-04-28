@@ -526,12 +526,14 @@ function encodeUnstakeInstruction(amount: number): Buffer {
   // Enhanced version with better debugging and error handling
   console.log(`Encoding unstake instruction with amount: ${amount}`);
   
-  // Use our utility function to convert UI amount to raw blockchain units
+  // Use our utility function to convert UI amount to raw blockchain units with proper decimals
+  // This ensures the amount properly accounts for token decimals on the contract side
   const amountInRawUnits = uiToRawTokenAmount(amount, YOT_DECIMALS);
   console.log(`Unstake amount converted to raw units: ${amountInRawUnits} (using ${YOT_DECIMALS} decimals)`);
   
-  // Verify the calculation
+  // Verify the calculation for debugging
   console.log(`Verification: ${amount} YOT × 10^${YOT_DECIMALS} = ${amountInRawUnits}`);
+  console.log(`Expected amount to receive back: ${amount} YOT`);
   
   // Create a buffer to hold all data
   // Format: 1 byte instruction discriminator + 8 bytes for amount (u64)
