@@ -974,30 +974,8 @@ export async function getStakingProgramState(): Promise<{
   } catch (error) {
     console.error('Error fetching staking program state:', error);
     
-    // Return default values on error with properly calculated APY
-    // The rate is 0.0000125 which represents 0.00125% per second (as per admin settings)
-    const stakeRatePerSecond = 0.0000125;
-    const secondsPerHour = 3600;
-    const secondsPerDay = 86400;
-    const secondsPerWeek = secondsPerDay * 7;
-    const secondsPerMonth = secondsPerDay * 30;
-    const secondsPerYear = secondsPerDay * 365;
-    
-    // Calculate rates based on the per-second rate (same formula as above)
-    const hourlyRate = stakeRatePerSecond * secondsPerHour * 100;
-    const dailyAPY = hourlyRate * 24;  // 1.8% for 0.00125% per second
-    const weeklyAPY = dailyAPY * 7;    // 12.6% for 0.00125% per second
-    const monthlyAPY = dailyAPY * 30;  // 54.0% for 0.00125% per second
-    const yearlyAPY = dailyAPY * 365;  // 657.0% for 0.00125% per second
-    
-    return {
-      stakeRatePerSecond,
-      harvestThreshold: 1,
-      dailyAPY,
-      weeklyAPY,
-      monthlyAPY,
-      yearlyAPY
-    };
+    // Instead of providing fallback values, make an explicit note that we rely on blockchain data
+    throw new Error('Failed to fetch staking program state from blockchain. Please try again later.');
   }
 }
 
@@ -1086,13 +1064,19 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
   } catch (error) {
     console.error('Error getting staking info:', error);
     
-    // Return empty data on error
-    return {
-      stakedAmount: 0,
-      startTimestamp: 0,
-      lastHarvestTime: 0,
-      totalHarvested: 0,
-      rewardsEarned: 0
-    };
+    // For existing users who have no staking account, returning zero values is appropriate
+    // This is not a fallback or mock - it accurately represents that the user hasn't staked yet
+    if (error.message && error.message.includes('Account does not exist')) {
+      return {
+        stakedAmount: 0,
+        startTimestamp: 0,
+        lastHarvestTime: 0,
+        totalHarvested: 0,
+        rewardsEarned: 0
+      };
+    }
+    
+    // For actual errors, throw the error instead of returning synthetic data
+    throw new Error('Failed to fetch staking information from blockchain. Please try again later.');
   }
 }
