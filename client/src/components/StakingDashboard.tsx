@@ -46,7 +46,7 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold text-white">Staking Dashboard</h2>
+        <h2 className="text-2xl font-bold text-white">Your Staking Dashboard</h2>
         <Button 
           onClick={handleRefresh} 
           variant="outline" 
@@ -67,8 +67,8 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
         </div>
       )}
       
-      {/* 4-box stats layout */}
-      <div className="grid grid-cols-4 gap-4">
+      {/* 5-box stats layout */}
+      <div className="grid grid-cols-5 gap-4">
         {/* Global Total Staked */}
         <Card className="bg-dark-200 border border-slate-700">
           <CardContent className="p-4">
@@ -77,7 +77,7 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
               <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
             ) : (
               <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold text-white">{(globalStats ? globalStats.totalStaked : 0).toLocaleString('en-US')}</span>
+                <span className="text-xl font-bold text-white">{formatNumber(globalStats ? globalStats.totalStaked : 0)}</span>
                 <span className="text-sm font-semibold text-blue-400">YOT</span>
               </div>
             )}
@@ -92,14 +92,29 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
               <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
             ) : (
               <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold text-white">{stakingInfo.stakedAmount.toLocaleString('en-US')}</span>
+                <span className="text-xl font-bold text-white">{formatNumber(stakingInfo.stakedAmount)}</span>
                 <span className="text-sm font-semibold text-blue-400">YOT</span>
               </div>
             )}
           </CardContent>
         </Card>
         
-        {/* Earned Rewards */}
+        {/* Your YOS Tokens */}
+        <Card className="bg-dark-200 border border-slate-700">
+          <CardContent className="p-4">
+            <h3 className="text-sm font-medium text-gray-300 mb-2">Your YOS Tokens</h3>
+            {isLoading ? (
+              <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
+            ) : (
+              <div className="flex items-baseline gap-1">
+                <span className="text-xl font-bold text-white">{formatNumber(yosBalance)}</span>
+                <span className="text-sm font-semibold text-green-400">YOS</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        
+        {/* Pending Rewards */}
         <Card className="bg-dark-200 border border-slate-700">
           <CardContent className="p-4">
             <h3 className="text-sm font-medium text-gray-300 mb-2">Your Pending Rewards</h3>
@@ -107,7 +122,7 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
               <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
             ) : (
               <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold text-white">{stakingInfo.rewardsEarned.toLocaleString('en-US')}</span>
+                <span className="text-xl font-bold text-white">{formatNumber(stakingInfo.rewardsEarned)}</span>
                 <span className="text-sm font-semibold text-green-400">YOS</span>
               </div>
             )}
@@ -122,7 +137,7 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
               <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
             ) : (
               <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold text-white">{stakingInfo.totalHarvested.toLocaleString('en-US')}</span>
+                <span className="text-xl font-bold text-white">{formatNumber(stakingInfo.totalHarvested)}</span>
                 <span className="text-sm font-semibold text-green-400">YOS</span>
               </div>
             )}
