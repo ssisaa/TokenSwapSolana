@@ -617,7 +617,7 @@ export function useStaking() {
         
         // Placeholder values that would be fetched from blockchain
         const totalStaked = stakingInfo?.stakedAmount || 0;
-        const totalStakers = 1; // Would be calculated from number of PDA accounts
+        const totalStakers = 3; // Fixed to show 3 stakers (2/3) as requested
         const totalHarvested = stakingInfo?.totalHarvested || 0;
         
         setGlobalStats({
