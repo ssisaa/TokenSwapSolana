@@ -45,13 +45,13 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
   
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Your Staking Dashboard</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold text-white">Staking Dashboard</h2>
         <Button 
           onClick={handleRefresh} 
           variant="outline" 
           size="sm" 
-          className="gap-2"
+          className="gap-2 border-slate-600 text-white"
           disabled={refreshing}
         >
           <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
@@ -59,38 +59,67 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
         </Button>
       </div>
       
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Total Staked (Individual) */}
-        <Card className="bg-dark-200 border-border">
-          <CardContent className="p-6">
-            <h3 className="text-md font-medium text-muted-foreground mb-2">Total Staked</h3>
+      {/* 4-box stats layout */}
+      <div className="grid grid-cols-4 gap-4">
+        {/* Total Staked */}
+        <Card className="bg-dark-200 border border-slate-700">
+          <CardContent className="p-4">
+            <h3 className="text-sm font-medium text-gray-300 mb-2">Total Staked</h3>
             {isLoading ? (
-              <Skeleton className="h-9 w-40 bg-dark-100" />
+              <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
             ) : (
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-white">{formatNumber(stakingInfo.stakedAmount)}</span>
-                <span className="text-lg font-semibold text-primary">YOT</span>
-                <span className="text-sm text-muted-foreground ml-1">
-                  ${formatNumber(stakingInfo.stakedAmount * 0.01)}
-                </span>
+              <div className="flex items-baseline gap-1">
+                <span className="text-xl font-bold text-white">{formatNumber(globalStats ? globalStats.totalStaked : 0)}</span>
+                <span className="text-sm font-semibold text-blue-400">YOT</span>
               </div>
             )}
           </CardContent>
         </Card>
         
         {/* Earned Rewards */}
-        <Card className="bg-dark-200 border-border">
-          <CardContent className="p-6">
-            <h3 className="text-md font-medium text-muted-foreground mb-2">Earned Rewards</h3>
+        <Card className="bg-dark-200 border border-slate-700">
+          <CardContent className="p-4">
+            <h3 className="text-sm font-medium text-gray-300 mb-2">Earned Rewards</h3>
             {isLoading ? (
-              <Skeleton className="h-9 w-40 bg-dark-100" />
+              <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
             ) : (
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-white">{formatNumber(stakingInfo.rewardsEarned)}</span>
-                <span className="text-lg font-semibold text-green-500">YOS</span>
-                <span className="text-sm text-muted-foreground ml-1">
-                  ${formatNumber(stakingInfo.rewardsEarned * 0.005)}
+              <div className="flex items-baseline gap-1">
+                <span className="text-xl font-bold text-white">{formatNumber(stakingInfo.rewardsEarned)}</span>
+                <span className="text-sm font-semibold text-green-400">YOS</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        
+        {/* Total Harvested */}
+        <Card className="bg-dark-200 border border-slate-700">
+          <CardContent className="p-4">
+            <h3 className="text-sm font-medium text-gray-300 mb-2">Total Harvested</h3>
+            {isLoading ? (
+              <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
+            ) : (
+              <div className="flex items-baseline gap-1">
+                <span className="text-xl font-bold text-white">{formatNumber(stakingInfo.totalHarvested)}</span>
+                <span className="text-sm font-semibold text-green-400">YOS</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        
+        {/* Your Stake % */}
+        <Card className="bg-dark-200 border border-slate-700">
+          <CardContent className="p-4">
+            <h3 className="text-sm font-medium text-gray-300 mb-2">Your Stake %</h3>
+            {isLoading ? (
+              <div className="animate-pulse bg-dark-300 h-6 w-16 rounded"></div>
+            ) : (
+              <div className="flex items-baseline gap-1">
+                <span className="text-xl font-bold text-white">
+                  {globalStats && globalStats.totalStaked ? 
+                    ((stakingInfo.stakedAmount / globalStats.totalStaked) * 100).toFixed(2) : 
+                    '0.00'}
                 </span>
+                <span className="text-sm font-semibold text-blue-400">%</span>
               </div>
             )}
           </CardContent>
@@ -103,7 +132,7 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
       <div className="flex gap-3 mt-4">
         <Button 
           variant="default" 
-          className="flex-1 flex justify-center items-center gap-2 bg-primary text-white hover:bg-primary/90 font-medium py-5" 
+          className="flex-1 flex justify-center items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 font-medium py-5" 
           disabled={!connected}
           onClick={() => onTabChange && onTabChange("stake")}
         >
@@ -111,7 +140,7 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
         </Button>
         <Button 
           variant="default" 
-          className="flex-1 flex justify-center items-center gap-2 bg-gradient-to-r from-blue-600 to-green-600 text-white hover:from-blue-700 hover:to-green-700 font-medium py-5" 
+          className="flex-1 flex justify-center items-center gap-2 bg-blue-600 text-white hover:bg-blue-700 font-medium py-5" 
           disabled={!connected || stakingInfo.rewardsEarned <= 0}
           onClick={() => onTabChange && onTabChange("harvest")}
         >

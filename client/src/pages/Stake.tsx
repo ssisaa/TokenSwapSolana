@@ -126,83 +126,16 @@ export default function Stake() {
           
           {/* Right Column */}
           <div className="space-y-6">
-            {/* Stats Overview */}
-            <div className="grid grid-cols-4 gap-4 mb-6">
-              {/* Total Staked */}
-              <Card className="bg-dark-200 border border-slate-700">
-                <CardContent className="p-4">
-                  <h3 className="text-sm font-medium text-gray-300 mb-2">Total Staked</h3>
-                  {isLoading ? (
-                    <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
-                  ) : (
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-xl font-bold text-white">{formatNumber(globalStats ? globalStats.totalStaked : 0)}</span>
-                      <span className="text-sm font-semibold text-blue-400">YOT</span>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-              
-              {/* Earned Rewards */}
-              <Card className="bg-dark-200 border border-slate-700">
-                <CardContent className="p-4">
-                  <h3 className="text-sm font-medium text-gray-300 mb-2">Earned Rewards</h3>
-                  {isLoading ? (
-                    <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
-                  ) : (
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-xl font-bold text-white">{formatNumber(stakingInfo.rewardsEarned)}</span>
-                      <span className="text-sm font-semibold text-green-400">YOS</span>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-              
-              {/* Total Harvested */}
-              <Card className="bg-dark-200 border border-slate-700">
-                <CardContent className="p-4">
-                  <h3 className="text-sm font-medium text-gray-300 mb-2">Total Harvested</h3>
-                  {isLoading ? (
-                    <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
-                  ) : (
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-xl font-bold text-white">{formatNumber(stakingInfo.totalHarvested)}</span>
-                      <span className="text-sm font-semibold text-green-400">YOS</span>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-              
-              {/* YOT Stake % */}
-              <Card className="bg-dark-200 border border-slate-700">
-                <CardContent className="p-4">
-                  <h3 className="text-sm font-medium text-gray-300 mb-2">Your Stake %</h3>
-                  {isLoading ? (
-                    <div className="animate-pulse bg-dark-300 h-6 w-16 rounded"></div>
-                  ) : (
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-xl font-bold text-white">
-                        {globalStats && globalStats.totalStaked ? 
-                          ((stakingInfo.stakedAmount / globalStats.totalStaked) * 100).toFixed(2) : 
-                          '0.00'}
-                      </span>
-                      <span className="text-sm font-semibold text-blue-400">%</span>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-            
             {/* How Staking Works */}
-            <Card className="bg-dark-200">
+            <Card className="bg-dark-200 h-full">
               <CardContent className="pt-6">
                 <h3 className="text-xl font-bold mb-4 text-white">How Staking Works</h3>
                 
                 <div className="space-y-4">
                   <div className="flex gap-3">
                     <div className="mt-1">
-                      <div className="bg-primary/20 p-2 rounded-full">
-                        <Download className="h-4 w-4 text-primary" />
+                      <div className="bg-blue-600/20 p-2 rounded-full">
+                        <Download className="h-4 w-4 text-blue-400" />
                       </div>
                     </div>
                     <div>
@@ -215,8 +148,8 @@ export default function Stake() {
                   
                   <div className="flex gap-3">
                     <div className="mt-1">
-                      <div className="bg-primary/20 p-2 rounded-full">
-                        <Clock className="h-4 w-4 text-primary" />
+                      <div className="bg-blue-600/20 p-2 rounded-full">
+                        <Clock className="h-4 w-4 text-blue-400" />
                       </div>
                     </div>
                     <div>
@@ -229,8 +162,8 @@ export default function Stake() {
                   
                   <div className="flex gap-3">
                     <div className="mt-1">
-                      <div className="bg-primary/20 p-2 rounded-full">
-                        <CheckCircle className="h-4 w-4 text-primary" />
+                      <div className="bg-blue-600/20 p-2 rounded-full">
+                        <CheckCircle className="h-4 w-4 text-blue-400" />
                       </div>
                     </div>
                     <div>
@@ -243,8 +176,8 @@ export default function Stake() {
                   
                   <div className="flex gap-3">
                     <div className="mt-1">
-                      <div className="bg-primary/20 p-2 rounded-full">
-                        <Shield className="h-4 w-4 text-primary" />
+                      <div className="bg-blue-600/20 p-2 rounded-full">
+                        <Shield className="h-4 w-4 text-blue-400" />
                       </div>
                     </div>
                     <div>
@@ -253,45 +186,6 @@ export default function Stake() {
                         All operations require your explicit wallet signature. Your funds remain secure through Solana's smart contracts.
                       </p>
                     </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            {/* Staking Security */}
-            <Card className="bg-dark-200">
-              <CardContent className="pt-6">
-                <h3 className="text-xl font-bold mb-4 text-white">Staking Security</h3>
-                
-                <div className="space-y-3">
-                  <p className="text-sm text-gray-300">
-                    Security is paramount in our staking protocol. All staking operations require your explicit wallet 
-                    signature, ensuring that only you can control your staked tokens.
-                  </p>
-                  
-                  <div className="bg-primary/10 p-4 rounded-lg">
-                    <h4 className="font-medium text-primary flex items-center">
-                      <InfoIcon className="h-4 w-4 mr-2" />
-                      Key Security Features
-                    </h4>
-                    <ul className="mt-2 space-y-2 text-sm text-white">
-                      <li className="flex items-start">
-                        <span className="font-bold mr-2 text-primary">•</span>
-                        <span>Mandatory wallet signatures for all blockchain interactions</span>
-                      </li>
-                      <li className="flex items-start">
-                        <span className="font-bold mr-2 text-primary">•</span>
-                        <span>On-chain storage of staking data through Program Derived Addresses (PDAs)</span>
-                      </li>
-                      <li className="flex items-start">
-                        <span className="font-bold mr-2 text-primary">•</span>
-                        <span>Transparent rewards calculation visible on the blockchain</span>
-                      </li>
-                      <li className="flex items-start">
-                        <span className="font-bold mr-2 text-primary">•</span>
-                        <span>No client-side storage of sensitive information</span>
-                      </li>
-                    </ul>
                   </div>
                 </div>
               </CardContent>
