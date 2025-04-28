@@ -52,10 +52,10 @@ function findProgramStateAddress(): [PublicKey, number] {
  * @returns The corresponding percentage per second
  */
 function convertBasisPointsToRatePerSecond(basisPoints: number): number {
-  // CRITICAL FIX: The correct reference value is 12000 basis points = 0.00000125% per second 
-  // (not 120000 basis points = 0.0000125% as previously used)
-  const REFERENCE_RATE = 0.00000125;
-  const REFERENCE_BASIS_POINTS = 12000;
+  // IMPORTANT: We need to match the smart contract's expected values
+  // The contract is using 120000 basis points = 0.0000125% per second
+  const REFERENCE_RATE = 0.0000125;
+  const REFERENCE_BASIS_POINTS = 120000;
   
   // Special case handling for certain values
   if (basisPoints === 120000) {
@@ -119,8 +119,8 @@ function encodeInitializeInstruction(
   // Convert percentage per second to basis points using our reference ratio
   // IMPORTANT: Must use the same reference values as convertBasisPointsToRatePerSecond 
   // for consistent encoding/decoding between UI and blockchain
-  const REFERENCE_RATE = 0.00000125;
-  const REFERENCE_BASIS_POINTS = 12000;
+  const REFERENCE_RATE = 0.0000125;
+  const REFERENCE_BASIS_POINTS = 120000;
 
   // Handle specific string cases first to ensure accurate value detection
   let finalBasisPoints: number;
@@ -231,8 +231,8 @@ function encodeUpdateParametersInstruction(
   // Convert percentage per second to basis points using our reference ratio
   // IMPORTANT: Must use the same reference values as convertBasisPointsToRatePerSecond 
   // for consistent encoding/decoding between UI and blockchain
-  const REFERENCE_RATE = 0.00000125;
-  const REFERENCE_BASIS_POINTS = 12000;
+  const REFERENCE_RATE = 0.0000125;
+  const REFERENCE_BASIS_POINTS = 120000;
   
   // Handle specific string cases first to ensure accurate value detection
   let finalBasisPoints: number;
