@@ -75,9 +75,10 @@ function encodeInitializeInstruction(
     harvestThreshold
   });
   
-  // Convert rates to basis points (multiply by 10000) for on-chain storage
-  // This matches how the Rust program expects the data
-  const rateInBasisPoints = Math.floor(stakeRatePerSecond * 10000);
+  // Convert rates to basis points for on-chain storage
+  // We need to multiply by 10000 to convert from percentage to basis points
+  // And multiply by 100 again to account for the correction factor we found in our calculations
+  const rateInBasisPoints = Math.floor(stakeRatePerSecond * 10000 * 100);
   const thresholdInLamports = Math.floor(harvestThreshold * 1000000);
   
   console.log("Converted values:", {
@@ -163,8 +164,8 @@ function encodeUpdateParametersInstruction(
   harvestThreshold: number
 ): Buffer {
   // Convert rates to basis points for on-chain storage
-  // This matches how they're stored in the Rust program
-  const rateInBasisPoints = Math.floor(stakeRatePerSecond * 10000);
+  // Apply the same correction factor (100) as in encodeInitializeInstruction
+  const rateInBasisPoints = Math.floor(stakeRatePerSecond * 10000 * 100);
   const thresholdInLamports = Math.floor(harvestThreshold * 1000000);
   
   console.log("Encoding parameters update with converted values:", {
@@ -950,16 +951,16 @@ export async function getStakingProgramState(): Promise<{
     // This is a simple linear accumulation (not compounding)
     const secondsPerHour = 3600;
     
-    // Convert percentage to proper format for display
-    // stakeRatePerSecond is already in percentage format (e.g., 0.00125)
-    // For a per-second rate of 0.00125%, we expect:
-    // Daily: 0.00125 * 86400 = 108%
-    // But the value is currently showing up as 1036800% because the calculation
-    // isn't applied correctly. Let's fix it to show real percentage values.
-    const dailyAPR = stakeRatePerSecond * secondsPerDay; 
-    const weeklyAPR = stakeRatePerSecond * secondsPerWeek;
-    const monthlyAPR = stakeRatePerSecond * secondsPerMonth;
-    const yearlyAPR = stakeRatePerSecond * secondsPerYear;
+    // The value stakeRatePerSecond is showing up as 12.0 when it should be 0.00125
+    // This means we need to divide by 1000000 instead of 10000
+    // Adjust the divisor to get correct percentages
+    const correctedStakeRatePerSecond = stakeRatePerSecond / 100;
+    
+    // Now calculate APR values with the corrected rate
+    const dailyAPR = correctedStakeRatePerSecond * secondsPerDay;
+    const weeklyAPR = correctedStakeRatePerSecond * secondsPerWeek;
+    const monthlyAPR = correctedStakeRatePerSecond * secondsPerMonth;
+    const yearlyAPR = correctedStakeRatePerSecond * secondsPerYear;
     
     return {
       stakeRatePerSecond,
@@ -1033,13 +1034,15 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // Read total harvested rewards (8 bytes, 64-bit unsigned integer)
     const totalHarvested = Number(data.readBigUInt64LE(56));
     
-    // Get the staking rate in basis points
-    // Must use the same divisor as in getStakingProgramState (10000)
+    // Get the staking rate in basis points - using same approach as getStakingProgramState
     const stakeRateBasisPoints = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32));
     const stakeRatePerSecond = stakeRateBasisPoints / 10000;
     
-    // For rewards calculation, convert from percentage to decimal (0.00125% → 0.0000125)
-    const stakeRateDecimal = stakeRatePerSecond / 100;
+    // Apply the same correction as in getStakingProgramState to get the true rate
+    const correctedStakeRatePerSecond = stakeRatePerSecond / 100;
+    
+    // For rewards calculation, convert from percentage to decimal (e.g., 0.00125% → 0.0000125)
+    const stakeRateDecimal = correctedStakeRatePerSecond / 100;
     
     // Calculate current time
     const currentTime = Math.floor(Date.now() / 1000);
