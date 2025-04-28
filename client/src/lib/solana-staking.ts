@@ -45,6 +45,24 @@ function findProgramStateAddress(): [PublicKey, number] {
   );
 }
 
+/**
+ * Convert basis points to percentage rate per second using a universal formula
+ * This function handles any staking rate magnitude consistently
+ * @param basisPoints The basis points value from blockchain
+ * @returns The corresponding percentage per second
+ */
+function convertBasisPointsToRatePerSecond(basisPoints: number): number {
+  // Reference: 120 basis points = 0.00000125% per second
+  const REFERENCE_RATE = 0.00000125;
+  const REFERENCE_BASIS_POINTS = 120;
+  
+  // Calculate rate using the same ratio for all values
+  const ratePerSecond = basisPoints * (REFERENCE_RATE / REFERENCE_BASIS_POINTS);
+  
+  // Ensure we never have a zero rate
+  return Math.max(ratePerSecond, 0.0000000001);
+}
+
 function findStakingAccountAddress(walletAddress: PublicKey): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
     [Buffer.from('staking'), walletAddress.toBuffer()],
@@ -1005,26 +1023,9 @@ export async function getStakingProgramState(): Promise<{
     // Read stake rate (8 bytes, 64-bit unsigned integer) from blockchain
     const stakeRateBasisPoints = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32));
     
-    // Convert basis points to percentage
-    // Special handling for values from blockchain representing different rates
-    let stakeRatePerSecond;
-    
-    if (stakeRateBasisPoints === 120000) {
-      // Special case for 120000 basis points (0.00125%)
-      stakeRatePerSecond = 0.00125;
-    } else if (stakeRateBasisPoints === 120) {
-      // Special case for 120 basis points (0.00000125%)
-      stakeRatePerSecond = 0.00000125;
-    } else if (stakeRateBasisPoints < 10) {
-      // For very small values (potentially using scaling)
-      stakeRatePerSecond = stakeRateBasisPoints / 100000000;
-    } else if (stakeRateBasisPoints < 100) {
-      // For small values (potentially using scaling)
-      stakeRatePerSecond = stakeRateBasisPoints / 10000000;
-    } else {
-      // For standard values, use the regular conversion
-      stakeRatePerSecond = stakeRateBasisPoints / 10000;
-    }
+    // Convert basis points to percentage using our universal dynamic formula
+    // This handles any staking rate consistently, from extremely small to large values
+    const stakeRatePerSecond = convertBasisPointsToRatePerSecond(stakeRateBasisPoints);
     
     console.log("Actual rate from blockchain:", {
       stakeRateBasisPoints,
@@ -1141,26 +1142,9 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // First read stake rate (8 bytes, 64-bit unsigned integer) from blockchain
     const stakeRateBasisPoints = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32));
     
-    // Convert basis points to percentage
-    // Special handling for values from blockchain representing different rates
-    let stakeRatePerSecond;
-    
-    if (stakeRateBasisPoints === 120000) {
-      // Special case for 120000 basis points (0.00125%)
-      stakeRatePerSecond = 0.00125;
-    } else if (stakeRateBasisPoints === 120) {
-      // Special case for 120 basis points (0.00000125%)
-      stakeRatePerSecond = 0.00000125;
-    } else if (stakeRateBasisPoints < 10) {
-      // For very small values (potentially using scaling)
-      stakeRatePerSecond = stakeRateBasisPoints / 100000000;
-    } else if (stakeRateBasisPoints < 100) {
-      // For small values (potentially using scaling)
-      stakeRatePerSecond = stakeRateBasisPoints / 10000000;
-    } else {
-      // For standard values, use the regular conversion
-      stakeRatePerSecond = stakeRateBasisPoints / 10000;
-    }
+    // Convert basis points to percentage using our universal dynamic formula
+    // This handles any staking rate consistently, from extremely small to large values
+    const stakeRatePerSecond = convertBasisPointsToRatePerSecond(stakeRateBasisPoints);
     
     console.log("Rate for reward calculation:", {
       stakeRateBasisPoints,
