@@ -933,8 +933,8 @@ export async function getStakingProgramState(): Promise<{
     // If program state doesn't exist yet, return default values
     if (!programStateInfo) {
       // Calculate realistic APY values based on the rate per second
-      // This is the decimal value for 0.00125% per second
-      const stakeRatePerSecond = 0.00000125;
+      // This is the percentage value for 0.00125% per second
+      const stakeRatePerSecond = 0.00125;
       
       // Simple multiplication for APY calculation (not compounding)
       const secondsPerDay = 86400;
@@ -943,10 +943,11 @@ export async function getStakingProgramState(): Promise<{
       const secondsPerYear = secondsPerDay * 365;
       
       // Calculate linear rates (not compound)
-      const dailyAPR = stakeRatePerSecond * secondsPerDay;     // ~108% daily
-      const weeklyAPR = dailyAPR * 7;                          // ~756% weekly
-      const monthlyAPR = dailyAPR * 30;                        // ~3240% monthly
-      const yearlyAPR = dailyAPR * 365;                        // ~39420% yearly
+      // Note: 0.00125% per second = 108% daily
+      const dailyAPR = stakeRatePerSecond * secondsPerDay;     // 108% daily (0.00125 * 86400)
+      const weeklyAPR = stakeRatePerSecond * secondsPerWeek;   // 756% weekly
+      const monthlyAPR = stakeRatePerSecond * secondsPerMonth; // 3240% monthly 
+      const yearlyAPR = stakeRatePerSecond * secondsPerYear;   // 39420% yearly
       
       return {
         stakeRatePerSecond,
@@ -995,10 +996,18 @@ export async function getStakingProgramState(): Promise<{
     const secondsPerHour = 3600;
     
     // Calculate rates directly from stakeRatePerSecond read from blockchain
+    // For UI display, we need to convert the percentage (0.00125%) properly
+    // Note: stakeRatePerSecond is already in percentage form (0.00125% = 0.00125)
     const dailyAPR = stakeRatePerSecond * secondsPerDay;
     const weeklyAPR = stakeRatePerSecond * secondsPerWeek;
     const monthlyAPR = stakeRatePerSecond * secondsPerMonth;
     const yearlyAPR = stakeRatePerSecond * secondsPerYear;
+    
+    console.log("Rate calculation:", {
+      stakeRatePerSecond,
+      secondsPerDay,
+      daily: `${stakeRatePerSecond} * ${secondsPerDay} = ${dailyAPR}`
+    });
     
     return {
       stakeRatePerSecond,

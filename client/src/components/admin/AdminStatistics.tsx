@@ -213,9 +213,9 @@ export default function AdminStatistics() {
             ) : (
               <div className="text-3xl font-bold">
                 {programState ? 
-                  // Convert rate to APY percentage (basis points to percentage)
-                  // The calculation depends on how your rate is structured
-                  `${((programState.stakeRatePerSecond * 3600 * 24 * 365) * 100).toFixed(2)}%` 
+                  // Convert rate to APY percentage 
+                  // With 0.00125% per second, this should be close to 39,420% per year
+                  `${programState.yearlyAPR.toFixed(2)}%` 
                   : "0.00%"}
               </div>
             )}
