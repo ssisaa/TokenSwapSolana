@@ -19,7 +19,8 @@ import { toast } from '@/hooks/use-toast';
 import { connection } from '@/lib/completeSwap';
 import { 
   YOT_TOKEN_ADDRESS, 
-  YOS_TOKEN_ADDRESS
+  YOS_TOKEN_ADDRESS,
+  ENDPOINT
 } from '@/lib/constants';
 
 // Import the staking program ID from constants
@@ -27,6 +28,221 @@ import { STAKING_PROGRAM_ID as PROGRAM_ID_STRING } from '@/lib/constants';
 
 // Convert the program ID string to a PublicKey object
 const STAKING_PROGRAM_ID = new PublicKey(PROGRAM_ID_STRING);
+
+/**
+ * Validates all token accounts and PDAs required for staking operations
+ * @param wallet The connected wallet
+ * @returns Object containing all validated accounts and any warnings/errors
+ */
+export async function validateStakingAccounts(wallet: any) {
+  if (!wallet || !wallet.publicKey) {
+    throw new Error('Wallet not connected');
+  }
+  
+  console.log("=== VALIDATING STAKING ACCOUNTS ===");
+  console.log("Wallet address:", wallet.publicKey.toString());
+  
+  const connection = new Connection(ENDPOINT, 'confirmed');
+  const userPublicKey = wallet.publicKey;
+  const results: any = {
+    accounts: {},
+    errors: [],
+    warnings: [],
+    isValid: true,
+    needsInit: false
+  };
+  
+  try {
+    // Token addresses
+    const yotMintPubkey = new PublicKey(YOT_TOKEN_ADDRESS);
+    const yosMintPubkey = new PublicKey(YOS_TOKEN_ADDRESS);
+    
+    // Check if YOT mint exists
+    const yotMintInfo = await connection.getAccountInfo(yotMintPubkey);
+    if (!yotMintInfo) {
+      results.errors.push("YOT token mint does not exist");
+      results.isValid = false;
+    } else {
+      console.log("YOT mint exists:", yotMintPubkey.toString());
+    }
+    
+    // Check if YOS mint exists
+    const yosMintInfo = await connection.getAccountInfo(yosMintPubkey);
+    if (!yosMintInfo) {
+      results.errors.push("YOS token mint does not exist");
+      results.isValid = false;
+    } else {
+      console.log("YOS mint exists:", yosMintPubkey.toString());
+    }
+    
+    // Find program authority PDA
+    const [programAuthorityAddress] = PublicKey.findProgramAddressSync(
+      [Buffer.from("authority")],
+      STAKING_PROGRAM_ID
+    );
+    results.accounts.programAuthority = programAuthorityAddress;
+    console.log("Program authority PDA:", programAuthorityAddress.toString());
+    
+    // Find program state account PDA
+    const [programStateAddress] = PublicKey.findProgramAddressSync(
+      [Buffer.from("state")],
+      STAKING_PROGRAM_ID
+    );
+    results.accounts.programState = programStateAddress;
+    
+    // Check if program state exists
+    const programStateInfo = await connection.getAccountInfo(programStateAddress);
+    if (!programStateInfo) {
+      results.errors.push("Program state account does not exist. Admin must initialize the program.");
+      results.needsInit = true;
+      results.isValid = false;
+    } else {
+      console.log("Program state exists, size:", programStateInfo.data.length);
+    }
+    
+    // Check user's YOT token account
+    const userYotTokenAccount = await getAssociatedTokenAddress(
+      yotMintPubkey,
+      userPublicKey
+    );
+    results.accounts.userYotToken = userYotTokenAccount;
+    
+    const userYotAccountInfo = await connection.getAccountInfo(userYotTokenAccount);
+    console.log("User YOT account:", userYotTokenAccount.toString(), "exists:", !!userYotAccountInfo);
+    
+    if (!userYotAccountInfo) {
+      results.warnings.push("User YOT token account doesn't exist. It will be created during the transaction.");
+    } else {
+      // Check YOT balance if account exists
+      try {
+        const yotBalance = await connection.getTokenAccountBalance(userYotTokenAccount);
+        console.log("User YOT balance:", yotBalance.value.uiAmount);
+        results.accounts.userYotBalance = yotBalance.value.uiAmount || 0;
+      } catch (error) {
+        results.warnings.push("Could not get user YOT token balance");
+        console.error("Error getting YOT balance:", error);
+      }
+    }
+    
+    // Check user's YOS token account
+    const userYosTokenAccount = await getAssociatedTokenAddress(
+      yosMintPubkey,
+      userPublicKey
+    );
+    results.accounts.userYosToken = userYosTokenAccount;
+    
+    const userYosAccountInfo = await connection.getAccountInfo(userYosTokenAccount);
+    console.log("User YOS account:", userYosTokenAccount.toString(), "exists:", !!userYosAccountInfo);
+    
+    if (!userYosAccountInfo) {
+      results.warnings.push("User YOS token account doesn't exist. It will be created during the transaction.");
+    } else {
+      // Check YOS balance if account exists
+      try {
+        const yosBalance = await connection.getTokenAccountBalance(userYosTokenAccount);
+        console.log("User YOS balance:", yosBalance.value.uiAmount);
+        results.accounts.userYosBalance = yosBalance.value.uiAmount || 0;
+      } catch (error) {
+        results.warnings.push("Could not get user YOS token balance");
+        console.error("Error getting YOS balance:", error);
+      }
+    }
+    
+    // Check program's YOT token account
+    const programYotTokenAccount = await getAssociatedTokenAddress(
+      yotMintPubkey,
+      programAuthorityAddress,
+      true // allowOwnerOffCurve
+    );
+    results.accounts.programYotToken = programYotTokenAccount;
+    
+    const programYotAccountInfo = await connection.getAccountInfo(programYotTokenAccount);
+    console.log("Program YOT account:", programYotTokenAccount.toString(), "exists:", !!programYotAccountInfo);
+    
+    if (!programYotAccountInfo) {
+      results.errors.push("Program YOT token account doesn't exist. Admin needs to create and fund it.");
+      results.isValid = false;
+    } else {
+      // Check program YOT balance
+      try {
+        const programYotBalance = await connection.getTokenAccountBalance(programYotTokenAccount);
+        console.log("Program YOT balance:", programYotBalance.value.uiAmount);
+        results.accounts.programYotBalance = programYotBalance.value.uiAmount || 0;
+      } catch (error) {
+        results.errors.push("Could not get program YOT token balance");
+        results.isValid = false;
+        console.error("Error getting program YOT balance:", error);
+      }
+    }
+    
+    // Check program's YOS token account
+    const programYosTokenAccount = await getAssociatedTokenAddress(
+      yosMintPubkey,
+      programAuthorityAddress,
+      true // allowOwnerOffCurve
+    );
+    results.accounts.programYosToken = programYosTokenAccount;
+    
+    const programYosAccountInfo = await connection.getAccountInfo(programYosTokenAccount);
+    console.log("Program YOS account:", programYosTokenAccount.toString(), "exists:", !!programYosAccountInfo);
+    
+    if (!programYosAccountInfo) {
+      results.errors.push("Program YOS token account doesn't exist. Admin needs to create and fund it.");
+      results.isValid = false;
+    } else {
+      // Check program YOS balance
+      try {
+        const programYosBalance = await connection.getTokenAccountBalance(programYosTokenAccount);
+        console.log("Program YOS balance:", programYosBalance.value.uiAmount);
+        results.accounts.programYosBalance = programYosBalance.value.uiAmount || 0;
+      } catch (error) {
+        results.errors.push("Could not get program YOS token balance");
+        results.isValid = false;
+        console.error("Error getting program YOS balance:", error);
+      }
+    }
+    
+    // Check user's staking account
+    const [userStakingAddress] = PublicKey.findProgramAddressSync(
+      [Buffer.from("staking"), userPublicKey.toBuffer()],
+      STAKING_PROGRAM_ID
+    );
+    results.accounts.userStaking = userStakingAddress;
+    
+    const userStakingAccountInfo = await connection.getAccountInfo(userStakingAddress);
+    console.log("User staking account:", userStakingAddress.toString(), "exists:", !!userStakingAccountInfo);
+    
+    if (!userStakingAccountInfo) {
+      results.warnings.push("User staking account doesn't exist yet. First stake operation will create it.");
+    } else {
+      // Get current staking info
+      try {
+        const stakingInfo = await getStakingInfo(userPublicKey.toString());
+        results.accounts.stakingInfo = stakingInfo;
+        console.log("User staking info:", stakingInfo);
+      } catch (error) {
+        results.warnings.push("Could not decode user staking info");
+        console.error("Error decoding staking info:", error);
+      }
+    }
+    
+    console.log("=== ACCOUNT VALIDATION COMPLETE ===");
+    console.log("Valid:", results.isValid);
+    if (results.errors.length > 0) {
+      console.log("Errors:", results.errors);
+    }
+    if (results.warnings.length > 0) {
+      console.log("Warnings:", results.warnings);
+    }
+    
+    return results;
+  } catch (error) {
+    console.error("Error validating staking accounts:", error);
+    results.errors.push(error instanceof Error ? error.message : String(error));
+    results.isValid = false;
+    return results;
+  }
+}
 
 // Instructions enum matching our Rust program
 enum StakingInstructionType {
@@ -864,7 +1080,7 @@ export async function prepareUnstakeTransaction(
       throw new Error('Amount must be greater than 0');
     }
     
-    const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
+    const connection = new Connection(ENDPOINT, 'confirmed');
     const userPublicKey = wallet.publicKey;
     
     console.log("=== PREPARING UNSTAKE TRANSACTION ===");

@@ -14,7 +14,7 @@ import {
   getGlobalStakingStats
 } from '@/lib/solana-staking';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { SOLANA_RPC_URL, YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, STAKING_PROGRAM_ID } from '@/lib/constants';
+import { ENDPOINT, YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, STAKING_PROGRAM_ID } from '@/lib/constants';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
 
 // Define utility functions internally since they're not exported by solana-staking.ts
