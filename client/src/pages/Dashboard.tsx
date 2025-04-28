@@ -279,7 +279,7 @@ export default function Dashboard() {
             <Card className="bg-dark-200 border-dark-400 p-4">
               <h3 className="text-gray-400 text-sm">Total Users Staked</h3>
               <div className="text-xl font-semibold text-white mt-1">
-                {stakingLoading ? "Loading..." : formatNumber(globalStats ? globalStats.activeStakers : 0)} 
+                {stakingLoading ? "Loading..." : formatNumber(globalStats ? globalStats.totalStakers || 0 : 0)} 
                 <span className="text-gray-400 text-sm ml-1">users</span>
               </div>
             </Card>
@@ -289,6 +289,11 @@ export default function Dashboard() {
               <div className="text-xl font-semibold text-white mt-1">
                 {stakingLoading ? "Loading..." : formatNumber(stakingInfo.stakedAmount)} 
                 <span className="text-blue-400 text-sm ml-1">YOT</span>
+                {!stakingLoading && globalStats && globalStats.totalStaked > 0 && (
+                  <span className="text-gray-400 text-xs ml-2">
+                    ({((stakingInfo.stakedAmount / globalStats.totalStaked) * 100).toFixed(2)}% of global)
+                  </span>
+                )}
               </div>
             </Card>
             
