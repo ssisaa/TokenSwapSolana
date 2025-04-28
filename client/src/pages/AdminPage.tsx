@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, LogOut } from "lucide-react";
 import AdminLogin from "@/components/admin/AdminLogin";
 import AdminSettings from "@/components/admin/AdminSettings";
+import StakingSettings from "@/components/admin/StakingSettings";
 import AdminStatistics from "@/components/admin/AdminStatistics";
 import AdminTransactions from "@/components/admin/AdminTransactions";
 
@@ -66,13 +67,27 @@ export default function AdminPage() {
       
       <Tabs defaultValue="settings" value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-6">
-          <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger value="settings">Database Settings</TabsTrigger>
+          <TabsTrigger value="blockchain">Blockchain Settings</TabsTrigger>
           <TabsTrigger value="statistics" disabled>Statistics</TabsTrigger>
           <TabsTrigger value="transactions" disabled>Transactions</TabsTrigger>
         </TabsList>
         
         <TabsContent value="settings">
           <AdminSettings />
+        </TabsContent>
+        
+        <TabsContent value="blockchain">
+          <div className="space-y-6">
+            <StakingSettings />
+            <div className="bg-amber-50 border border-amber-200 p-4 rounded-md">
+              <p className="text-amber-800 font-semibold">Important Note:</p>
+              <p className="text-amber-700 text-sm mt-1">
+                Changes made here are written directly to the blockchain and require your admin wallet signature.
+                Rate changes will affect all users immediately upon their next action (stake, unstake, or harvest).
+              </p>
+            </div>
+          </div>
         </TabsContent>
         
         <TabsContent value="statistics">
