@@ -105,9 +105,16 @@ export default function Stake() {
               {isLoading ? (
                 <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
               ) : (
-                <div className="flex items-baseline gap-1">
-                  <span className="text-xl font-bold text-white">{formatNumber(stakingInfo.stakedAmount)}</span>
-                  <span className="text-sm font-semibold text-blue-400">YOT</span>
+                <div className="flex flex-col">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-xl font-bold text-white">{formatNumber(stakingInfo.stakedAmount)}</span>
+                    <span className="text-sm font-semibold text-blue-400">YOT</span>
+                  </div>
+                  {globalStats && globalStats.totalStaked > 0 && stakingInfo.stakedAmount > 0 && (
+                    <div className="text-sm text-blue-400 mt-1 font-medium">
+                      ({((stakingInfo.stakedAmount / globalStats.totalStaked) * 100).toFixed(2)}% of global)
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
