@@ -149,7 +149,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                   <div className="flex justify-between items-center mb-1.5">
                     <div className="text-sm font-medium text-white">Per Second Rate:</div>
                     <div className="text-sm font-bold text-green-400">
-                      {`${((stakingRates?.stakeRatePerSecond || 0) / 100).toFixed(5)}%`}
+                      {`${(stakingRates?.stakeRatePerSecond || 0).toFixed(8)}%`}
                     </div>
                   </div>
                 </div>
