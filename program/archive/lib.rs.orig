@@ -161,21 +161,26 @@ fn process_initialize(
         return Err(ProgramError::MissingRequiredSignature);
     }
     
-    // Calculate PDA for program state account
-    let (pda, bump_seed) = Pubkey::find_program_address(&[b"program_state"], program_id);
+    // Create program state account with PDA
+    let (pda, bump_seed) = Pubkey::find_program_address(
+        &[b"program_state"],
+        program_id,
+    );
+    
+    // Verify PDA matches account
     if pda != *program_state_account.key {
         return Err(ProgramError::InvalidAccountData);
     }
     
-    // Create program state account
+    // Calculate rent
     let rent = Rent::get()?;
     let rent_lamports = rent.minimum_balance(std::mem::size_of::<ProgramState>());
     
-    // Create account
+    // Create program state account
     invoke_signed(
         &system_instruction::create_account(
             admin_account.key,
-            program_state_account.key,
+            &pda,
             rent_lamports,
             std::mem::size_of::<ProgramState>() as u64,
             program_id,
@@ -252,7 +257,7 @@ fn process_stake(
     
     // Calculate staking account PDA
     let seeds = [
-        b"staking", 
+        b"staking_account", 
         user_account.key.as_ref(),
     ];
     let (staking_pda, bump_seed) = Pubkey::find_program_address(&seeds, program_id);
@@ -276,7 +281,7 @@ fn process_stake(
                 user_staking_account.clone(),
                 system_program.clone(),
             ],
-            &[&[b"staking", user_account.key.as_ref(), &[bump_seed]]],
+            &[&[b"staking_account", user_account.key.as_ref(), &[bump_seed]]],
         )?;
         
         // Initialize new staking account
@@ -340,13 +345,10 @@ fn process_unstake(
     let user_account = next_account_info(account_info_iter)?;
     let user_yot_token_account = next_account_info(account_info_iter)?;
     let program_yot_token_account = next_account_info(account_info_iter)?;
-    let user_yos_token_account = next_account_info(account_info_iter)?;
-    let program_yos_token_account = next_account_info(account_info_iter)?;
     let user_staking_account = next_account_info(account_info_iter)?;
     let program_state_account = next_account_info(account_info_iter)?;
     let token_program = next_account_info(account_info_iter)?;
     let program_authority = next_account_info(account_info_iter)?;
-    let clock = next_account_info(account_info_iter)?;
     
     // Verify user signature (mandatory signature verification)
     if !user_account.is_signer {
@@ -372,41 +374,13 @@ fn process_unstake(
         return Err(ProgramError::InsufficientFunds);
     }
     
-    // Get program state - IMPORTANT: We need this to get the CURRENT staking rate
-    let program_state = ProgramState::try_from_slice(&program_state_account.data.borrow())?;
-    
-    // Get current time
-    let clock = Clock::from_account_info(clock)?;
-    let current_time = clock.unix_timestamp;
-    
-    // Calculate pending rewards using CURRENT rate from program state
-    let time_staked_seconds = current_time.checked_sub(staking_data.last_harvest_time)
-        .ok_or(ProgramError::InvalidArgument)?;
-    
-    // Convert staking rate from basis points to decimal
-    // FIXED: Now using the CURRENT rate from program_state, not a cached/stored value
-    let rate_decimal = (program_state.stake_rate_per_second as f64) / 10000.0;
-    
-    // Calculate rewards based on staked amount, time, and CURRENT rate
-    let rewards = (staking_data.staked_amount as f64 * time_staked_seconds as f64 * rate_decimal) as u64;
-    
-    // Update staking data
-    staking_data.last_harvest_time = current_time;
-    
-    // Only add to total harvested if there are rewards to claim
-    if rewards > 0 {
-        staking_data.total_harvested = staking_data.total_harvested.checked_add(rewards)
-            .ok_or(ProgramError::InvalidArgument)?;
-    }
-    
-    // Reduce staked amount
+    // Update staking account
     staking_data.staked_amount = staking_data.staked_amount.checked_sub(amount)
         .ok_or(ProgramError::InvalidArgument)?; // Use InvalidArgument instead of ArithmeticOverflow
     
-    // Save updated staking data
     staking_data.serialize(&mut *user_staking_account.try_borrow_mut_data()?)?;
     
-    // Transfer YOT tokens back to user
+    // Transfer tokens from program to user
     invoke_signed(
         &spl_token::instruction::transfer(
             token_program.key,
@@ -425,30 +399,7 @@ fn process_unstake(
         &[&[b"authority", &[authority_bump]]],
     )?;
     
-    // Transfer any pending YOS rewards if available
-    if rewards > 0 {
-        invoke_signed(
-            &spl_token::instruction::transfer(
-                token_program.key,
-                program_yos_token_account.key,
-                user_yos_token_account.key,
-                program_authority.key,
-                &[],
-                rewards,
-            )?,
-            &[
-                program_yos_token_account.clone(),
-                user_yos_token_account.clone(),
-                program_authority.clone(),
-                token_program.clone(),
-            ],
-            &[&[b"authority", &[authority_bump]]],
-        )?;
-        
-        msg!("Unstaked {} YOT tokens and harvested {} YOS rewards", amount, rewards);
-    } else {
-        msg!("Unstaked {} YOT tokens", amount);
-    }
+    msg!("Unstaked {} YOT tokens", amount);
     
     Ok(())
 }
@@ -489,23 +440,25 @@ fn process_harvest(
         return Err(ProgramError::InvalidAccountData);
     }
     
-    // Get program state - IMPORTANT: We need this to get the CURRENT staking rate
+    // Get program state
     let program_state = ProgramState::try_from_slice(&program_state_account.data.borrow())?;
     
     // Get current time
     let clock = Clock::from_account_info(clock)?;
     let current_time = clock.unix_timestamp;
     
-    // Calculate rewards using CURRENT rate from program state
+    // Calculate rewards
     let time_staked_seconds = current_time.checked_sub(staking_data.last_harvest_time)
-        .ok_or(ProgramError::InvalidArgument)?;
+        .ok_or(ProgramError::InvalidArgument)?; // Use InvalidArgument instead of ArithmeticOverflow
     
     // Convert staking rate from basis points to decimal
-    // FIXED: Now using the CURRENT rate from program_state, not a cached/stored value
     let rate_decimal = (program_state.stake_rate_per_second as f64) / 10000.0;
     
-    // Calculate rewards based on staked amount, time, and CURRENT rate
-    let rewards = (staking_data.staked_amount as f64 * time_staked_seconds as f64 * rate_decimal) as u64;
+    // Calculate rewards using compound interest formula (APY)
+    // Formula: principal * ((1 + rate)^time - 1)
+    let rewards = (staking_data.staked_amount as f64 * ((1.0 + rate_decimal).powf(time_staked_seconds as f64) - 1.0)) as u64;
+    msg!("APY Calculation: {} YOT staked * ((1 + {})^{} - 1) = {} YOS", 
+        staking_data.staked_amount, rate_decimal, time_staked_seconds, rewards);
     
     // Check rewards meet minimum threshold
     if rewards < program_state.harvest_threshold {
@@ -515,7 +468,7 @@ fn process_harvest(
     // Update staking data
     staking_data.last_harvest_time = current_time;
     staking_data.total_harvested = staking_data.total_harvested.checked_add(rewards)
-        .ok_or(ProgramError::InvalidArgument)?;
+        .ok_or(ProgramError::InvalidArgument)?; // Use InvalidArgument instead of ArithmeticOverflow
     
     staking_data.serialize(&mut *user_staking_account.try_borrow_mut_data()?)?;
     
@@ -583,19 +536,21 @@ fn process_update_parameters(
     Ok(())
 }
 
-// Helper function to calculate rewards
-fn calculate_rewards(
-    staked_amount: u64,
-    time_staked_seconds: i64,
-    stake_rate_per_second: u64
-) -> u64 {
-    // Convert staking rate from basis points to decimal
-    let rate_decimal = (stake_rate_per_second as f64) / 10000.0;
+// Error types
+#[derive(Debug, thiserror::Error)]
+pub enum StakingError {
+    #[error("Invalid instruction")]
+    InvalidInstruction,
     
-    // Calculate rewards using compound interest formula (APY)
-    // Formula: principal * ((1 + rate)^time - 1)
-    let compound_rewards = (staked_amount as f64 * ((1.0 + rate_decimal).powf(time_staked_seconds as f64) - 1.0)) as u64;
+    #[error("Not enough tokens staked")]
+    InsufficientStake,
     
-    // Return the compound interest result
-    compound_rewards
+    #[error("Rewards below harvest threshold")]
+    RewardsBelowThreshold,
+}
+
+impl From<StakingError> for ProgramError {
+    fn from(e: StakingError) -> Self {
+        ProgramError::Custom(e as u32)
+    }
 }
