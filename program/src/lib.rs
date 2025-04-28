@@ -406,9 +406,10 @@ fn process_unstake(
     staking_data.serialize(&mut *user_staking_account.try_borrow_mut_data()?)?;
     
     // CRITICAL FIX FOR DECIMAL TRANSFER ISSUE:
-    // We need to DIVIDE the amount by 10^9 to get the correct token amount for transfer
-    // Raw amount has 9 decimal places (e.g., 10 YOT = 10,000,000,000 raw units)
-    let transfer_amount = amount / 1_000_000_000;
+    // REMOVED incorrect division by 10^9 - SPL tokens already account for decimals
+    // Raw amount already has 9 decimal places (e.g., 10 YOT = 10,000,000,000 raw units)
+    // Use the raw amount directly without division
+    let transfer_amount = amount; // No division - use raw amount directly
     
     // Transfer YOT tokens back to user (this should ALWAYS happen)
     invoke_signed(
