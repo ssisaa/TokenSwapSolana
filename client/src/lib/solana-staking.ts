@@ -848,15 +848,12 @@ export async function getStakingProgramState(): Promise<{
         daily: `${stakeRatePerSecond} * ${secondsPerDay} = ${dailyAPR}`
       });
       
-      // Calculate LINEAR interest rates based on actual staking program behavior
-      // stakeRatePerSecond * seconds * 10000 (scaling factor)
-      const scalingFactor = 10000; // Match the multiplier in the Solana program
-      
-      // Linear interest calculation (rate * time * scaling)
-      const dailyAPY = stakeRatePerSecond * secondsPerDay * scalingFactor;
-      const weeklyAPY = stakeRatePerSecond * secondsPerWeek * scalingFactor;
-      const monthlyAPY = stakeRatePerSecond * secondsPerMonth * scalingFactor;
-      const yearlyAPY = stakeRatePerSecond * secondsPerYear * scalingFactor;
+      // Calculate APY values (compound interest) - this is the correct compound interest formula
+      // Formula: (1 + r)^t - 1, where r is rate as decimal and t is time periods
+      const dailyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerDay) - 1) * 100;
+      const weeklyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerWeek) - 1) * 100;
+      const monthlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerMonth) - 1) * 100;
+      const yearlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerYear) - 1) * 100;
       
       return {
         stakeRatePerSecond,
@@ -893,15 +890,12 @@ export async function getStakingProgramState(): Promise<{
     const monthlyAPR = stakeRatePerSecond * secondsPerMonth;
     const yearlyAPR = stakeRatePerSecond * secondsPerYear;
     
-    // Calculate LINEAR interest rates based on actual staking program behavior
-    // stakeRatePerSecond * seconds * 10000 (scaling factor)
-    const scalingFactor = 10000; // Match the multiplier in the Solana program
-    
-    // Linear interest calculation (rate * time * scaling)
-    const dailyAPY = stakeRatePerSecond * secondsPerDay * scalingFactor;
-    const weeklyAPY = stakeRatePerSecond * secondsPerWeek * scalingFactor;
-    const monthlyAPY = stakeRatePerSecond * secondsPerMonth * scalingFactor;
-    const yearlyAPY = stakeRatePerSecond * secondsPerYear * scalingFactor;
+    // Calculate APY values (compound interest) - this is the correct compound interest formula
+    // Formula: (1 + r)^t - 1, where r is rate as decimal and t is time periods
+    const dailyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerDay) - 1) * 100;
+    const weeklyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerWeek) - 1) * 100;
+    const monthlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerMonth) - 1) * 100;
+    const yearlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerYear) - 1) * 100;
     
     return {
       stakeRatePerSecond,
