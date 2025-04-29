@@ -28,10 +28,14 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
   const {
     stakingInfo,
     stakingRates,
-    isLoading,
+    isLoadingStakingInfo,
+    isLoadingRates,
     globalStats,
-    refreshStakingInfo
+    refetchStakingInfo
   } = useStaking();
+  
+  // Create a combined loading state
+  const isLoading = isLoadingStakingInfo || isLoadingRates;
   
   // Local state
   const [refreshing, setRefreshing] = useState(false);
@@ -39,7 +43,7 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
   // Handle manual refresh
   const handleRefresh = async () => {
     setRefreshing(true);
-    await refreshStakingInfo();
+    await refetchStakingInfo();
     setTimeout(() => setRefreshing(false), 1000); // Visual feedback
   };
   
