@@ -131,20 +131,16 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                 <div className="flex justify-between">
                   <span className="text-gray-400">Pending Rewards:</span>
                   <div className="text-right">
-                    <span className="font-medium text-white">{(stakingInfo.rewardsEarned / 1000000).toLocaleString('en-US')} YOS</span>
-                    <div className="text-xs text-amber-400">
-                      (wallet will show: {formatNumber(stakingInfo.rewardsEarned)} YOS)
-                    </div>
+                    <span className="font-medium text-white">{formatNumber(stakingInfo.rewardsEarned)} YOS</span>
                   </div>
                 </div>
-                <Alert className="mt-2 bg-amber-950/30 border-amber-700">
-                  <AlertTriangle className="h-4 w-4 text-amber-500" />
-                  <AlertTitle className="text-amber-400 text-xs font-medium">Million-fold Multiplier Issue</AlertTitle>
-                  <AlertDescription className="text-amber-200 text-xs">
-                    <strong>Important:</strong> Due to multiple issues in the Solana program 
-                    (incorrect rate precision and missing token unit conversions), your wallet will show rewards 
-                    as approximately 1,000,000× larger than the displayed amount. For example, if you see 0.01 YOS here, 
-                    your wallet will show around 10,000 YOS.
+                <Alert className="mt-2 bg-blue-950/30 border-blue-700">
+                  <InfoIcon className="h-4 w-4 text-blue-500" />
+                  <AlertTitle className="text-blue-400 text-xs font-medium">Updated Reward Calculation</AlertTitle>
+                  <AlertDescription className="text-blue-200 text-xs">
+                    <strong>Rewards Update:</strong> We've improved reward calculation to use simple linear interest 
+                    which aligns exactly with the Solana program. The displayed amount is what you'll receive in your wallet 
+                    when harvesting.
                   </AlertDescription>
                 </Alert>
                 
@@ -161,10 +157,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                 <div className="flex justify-between">
                   <span className="text-gray-400">Total Harvested:</span>
                   <div className="text-right">
-                    <span className="font-medium text-white">{(stakingInfo.totalHarvested / 1000000).toLocaleString('en-US')} YOS</span>
-                    <div className="text-xs text-amber-400">
-                      (wallet received: {formatNumber(stakingInfo.totalHarvested)} YOS)
-                    </div>
+                    <span className="font-medium text-white">{formatNumber(stakingInfo.totalHarvested)} YOS</span>
                   </div>
                 </div>
               </div>
@@ -357,8 +350,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                       <Bell className="h-4 w-4 text-blue-500" />
                       <AlertTitle className="text-blue-400 text-xs font-medium">Pending Rewards</AlertTitle>
                       <AlertDescription className="text-blue-200 text-xs">
-                        You have <strong>{(stakingInfo.rewardsEarned / 1000000).toFixed(6)} YOS</strong> in unclaimed rewards
-                        (your wallet will show this as <strong>{formatNumber(stakingInfo.rewardsEarned)} YOS</strong> due to the million-fold multiplier).
+                        You have <strong>{formatNumber(stakingInfo.rewardsEarned)} YOS</strong> in unclaimed rewards.
                         Consider harvesting your rewards before unstaking to avoid losing them.
                       </AlertDescription>
                     </Alert>
@@ -378,7 +370,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                   <div className="flex justify-between items-center">
                     <h3 className="text-lg font-semibold text-white">Harvest Rewards</h3>
                     <span className="text-sm text-gray-400">
-                      <span className="font-medium text-white">{(stakingInfo.rewardsEarned / 1000000).toLocaleString('en-US')}</span> YOS available
+                      <span className="font-medium text-white">{formatNumber(stakingInfo.rewardsEarned)}</span> YOS available
                     </span>
                   </div>
                   <div className="flex flex-col space-y-2">
@@ -391,13 +383,12 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                       Harvest Rewards
                     </Button>
                   </div>
-                  <Alert className="mt-4 bg-amber-950/30 border-amber-700">
-                    <AlertTriangle className="h-4 w-4 text-amber-500" />
-                    <AlertTitle className="text-amber-400 text-xs font-medium">Million-fold Multiplier Issue</AlertTitle>
-                    <AlertDescription className="text-amber-200 text-xs">
-                      <strong>Important:</strong> When you harvest, your wallet will receive {formatNumber(stakingInfo.rewardsEarned)} YOS tokens 
-                      (approximately 1,000,000× the displayed amount of {formatNumber(stakingInfo.rewardsEarned / 1000000)} YOS). 
-                      This is due to multiple issues in the Solana program including incorrect rate precision and conversion handling.
+                  <Alert className="mt-4 bg-blue-950/30 border-blue-700">
+                    <InfoIcon className="h-4 w-4 text-blue-500" />
+                    <AlertTitle className="text-blue-400 text-xs font-medium">Updated Reward Calculation</AlertTitle>
+                    <AlertDescription className="text-blue-200 text-xs">
+                      <strong>Rewards Update:</strong> We've improved the reward calculation to use simple linear interest that matches
+                      the Solana program. The displayed amount is exactly what you'll receive in your wallet when harvesting.
                     </AlertDescription>
                   </Alert>
                   

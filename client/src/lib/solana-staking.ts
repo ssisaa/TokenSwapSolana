@@ -1582,9 +1582,9 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     const secondsInDay = 86400;
     const secondsInYear = secondsInDay * 365;
     
-    // CRITICAL FIX: Use our standardized calculatePendingRewards function
-    // that implements SIMPLE LINEAR INTEREST matching the Solana program exactly
-    console.log("Using standardized calculatePendingRewards function with simple linear interest");
+    // CRITICAL FIX: Using the updated linear interest calculation
+    // This matches exactly what the Solana program calculates without any multiplier adjustments
+    console.log("Using exact linear interest calculation matching Solana program");
     
     // Calculate rewards using the consistent function - this is the ONLY correct calculation
     // that exactly matches what the Solana program does
@@ -1597,19 +1597,18 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // Calculate yearly rate for display purposes
     const yearlyRateDisplay = stakeRateDecimal * 86400 * 365 * 100; // Convert to percentage for display
     
-    console.log(`FINAL REWARDS CALCULATION:`);
+    console.log(`FINAL REWARDS CALCULATION (LINEAR INTEREST):`);
     console.log(`- YOT staked: ${stakedAmount} tokens`);
     console.log(`- Yearly rate: ${yearlyRateDisplay.toFixed(2)}%`);
     console.log(`- Time staked: ${timeStakedSinceLastHarvest} seconds`);
-    console.log(`- Adjusted rewards: ${pendingRewards / 10000} YOS (what user should receive theoretically)`);
-    console.log(`- Actual rewards: ${pendingRewards} YOS (what blockchain will transfer due to 10,000× multiplier)`);
+    console.log(`- Linear rewards: ${pendingRewards} YOS (matches blockchain calculation exactly)`);
     
     // For user experience, we'll show expected daily rewards
     const dailyReward = stakedAmount * (stakeRateDecimal * secondsInDay);
-    console.log(`At current rate, you should earn ~${dailyReward.toFixed(6)} YOS per day (blockchain will show ${dailyReward * 10000})`);
+    console.log(`At current rate, you should earn ~${dailyReward.toFixed(6)} YOS per day`);
     
-    // CRITICAL FIX: Return the display value that users will actually receive
-    // This ensures the UI shows the correct amount (with multiplier) and the component will divide by 10,000 for display
+    // CRITICAL FIX: Return the actual value that users will receive with the updated linear calculation
+    // This ensures the UI displays the exact amount that will be transferred
     return {
       stakedAmount: Number(stakedAmount),
       startTimestamp: startTimestamp,
