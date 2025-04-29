@@ -769,36 +769,39 @@ export function useStaking() {
         // Don't do any conversions or transformations - keep it simple
         console.log("Harvest threshold (direct value):", harvestThreshold);
         
-        // Use default values if stake/unstake thresholds are not provided
-        const stakeThresholdValue = stakeThreshold ?? 10;
-        const unstakeThresholdValue = unstakeThreshold ?? 10;
+        // IMPORTANT: The Solana program only supports stake_rate_per_second and harvest_threshold
+        // in the UpdateParameters instruction. It doesn't have fields for stake_threshold and unstake_threshold.
+        // We've updated our client code to match what the program actually supports.
         
         // Log the values we're sending
         console.log("Sending direct values to blockchain:", {
           basisPoints,
           harvestThreshold,
-          stakeThresholdValue,
-          unstakeThresholdValue
+          // Note: stakeThreshold and unstakeThreshold are saved in the UI but NOT sent to blockchain
+          // since the Solana program doesn't support these parameters in UpdateParameters
         });
         
         // Call the blockchain function to update parameters
+        // Note: We still pass stakeThreshold and unstakeThreshold to maintain the function signature,
+        // but these values aren't used in the actual transaction data.
         const signature = await updateStakingParameters(
           wallet, 
           basisPoints,                // basis points
-          harvestThreshold,           // harvest threshold (direct value)
-          stakeThresholdValue,        // stake threshold (direct value)
-          unstakeThresholdValue       // unstake threshold (direct value)
+          harvestThreshold            // harvest threshold (direct value)
+          // stakeThreshold and unstakeThreshold are handled by the function but not sent to blockchain
         );
         
         console.log("Update parameters transaction signature:", signature);
         
         // Return signature and new values for processing in onSuccess
+        // We still include stakeThreshold and unstakeThreshold in the result
+        // for consistent interface with the rest of the app
         return { 
           signature,
           ratePerSecond,
           harvestThreshold,
-          stakeThreshold: stakeThresholdValue,
-          unstakeThreshold: unstakeThresholdValue
+          stakeThreshold: stakeThreshold ?? 10,
+          unstakeThreshold: unstakeThreshold ?? 10
         };
       } catch (err) {
         console.error("Error updating staking parameters:", err);
