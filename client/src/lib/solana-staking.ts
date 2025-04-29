@@ -66,10 +66,14 @@ export async function validateStakingAccounts(wallet: any) {
   }
   
   const walletPublicKey = wallet.publicKey;
+  const errors: string[] = [];
   
   try {
     // Check SOL balance
     const solBalance = await connection.getBalance(walletPublicKey);
+    if (solBalance < 0.01 * LAMPORTS_PER_SOL) {
+      errors.push("Insufficient SOL balance for transaction fees");
+    }
     
     // Get token addresses
     const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
@@ -109,10 +113,16 @@ export async function validateStakingAccounts(wallet: any) {
     // Check program state
     const programStateInfo = await connection.getAccountInfo(programState);
     const isInitialized = !!programStateInfo && programStateInfo.data.length > 0;
+    if (!isInitialized) {
+      errors.push("Program state not initialized");
+    }
     
     // Check staking account
     const stakingAccountInfo = await connection.getAccountInfo(stakingAccount);
     const hasStakingAccount = !!stakingAccountInfo;
+    if (!hasStakingAccount) {
+      errors.push("No staking account found - stake tokens first");
+    }
     
     // Result
     return {
@@ -135,7 +145,9 @@ export async function validateStakingAccounts(wallet: any) {
         programInitialized: isInitialized,
         hasStakingAccount,
         hasSufficientSol: solBalance > 0.01 * LAMPORTS_PER_SOL,
-      }
+      },
+      isValid: errors.length === 0,
+      errors: errors
     };
   } catch (error) {
     console.error('Error validating staking accounts:', error);
@@ -600,16 +612,17 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       );
     }
     
-    // Add harvest instruction
+    // Add harvest instruction - key order MUST match program expectations!
     transaction.add({
       keys: [
-        { pubkey: walletPublicKey, isSigner: true, isWritable: true },
-        { pubkey: programState, isSigner: false, isWritable: false },
-        { pubkey: stakingAccount, isSigner: false, isWritable: true },
-        { pubkey: programAuthority, isSigner: false, isWritable: false },
-        { pubkey: userYosATA, isSigner: false, isWritable: true },
-        { pubkey: programYosATA, isSigner: false, isWritable: true },
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: walletPublicKey, isSigner: true, isWritable: true },         // user_account
+        { pubkey: userYosATA, isSigner: false, isWritable: true },             // user_yos_token_account
+        { pubkey: programYosATA, isSigner: false, isWritable: true },          // program_yos_token_account
+        { pubkey: stakingAccount, isSigner: false, isWritable: true },         // user_staking_account
+        { pubkey: programState, isSigner: false, isWritable: false },          // program_state_account
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },      // token_program
+        { pubkey: programAuthority, isSigner: false, isWritable: false },      // program_authority
+        { pubkey: new PublicKey('SysvarC1ock11111111111111111111111111111111'), isSigner: false, isWritable: false }, // clock sysvar
       ],
       programId: new PublicKey(STAKING_PROGRAM_ID),
       data: encodeHarvestInstruction()
