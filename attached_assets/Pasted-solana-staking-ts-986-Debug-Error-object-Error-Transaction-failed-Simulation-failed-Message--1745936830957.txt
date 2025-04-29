@@ -1,0 +1,78 @@
+solana-staking.ts:986 Debug - Error object: Error: Transaction failed: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 2: Failed to serialize or deserialize account data: Unknown. 
+Logs: 
+[
+  "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+  "Program ComputeBudget111111111111111111111111111111 success",
+  "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+  "Program ComputeBudget111111111111111111111111111111 success",
+  "Program 6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6 invoke [1]",
+  "Program 6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6 consumed 1612 of 199700 compute units",
+  "Program 6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6 failed: Failed to serialize or deserialize account data: Unknown"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at updateStakingParameters (solana-staking.ts:931:21)
+    at async Object.mutationFn (useStaking.ts:785:27)
+solana-staking.ts:987 Debug - Error properties: Array(2)
+solana-staking.ts:988 Debug - Error name: Error
+solana-staking.ts:989 Debug - Error message: Transaction failed: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 2: Failed to serialize or deserialize account data: Unknown. 
+Logs: 
+[
+  "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+  "Program ComputeBudget111111111111111111111111111111 success",
+  "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+  "Program ComputeBudget111111111111111111111111111111 success",
+  "Program 6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6 invoke [1]",
+  "Program 6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6 consumed 1612 of 199700 compute units",
+  "Program 6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6 failed: Failed to serialize or deserialize account data: Unknown"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+solana-staking.ts:1001 Error updating staking parameters: Error: Wallet error: Transaction failed: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 2: Failed to serialize or deserialize account data: Unknown. 
+Logs: 
+[
+  "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+  "Program ComputeBudget111111111111111111111111111111 success",
+  "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+  "Program ComputeBudget111111111111111111111111111111 success",
+  "Program 6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6 invoke [1]",
+  "Program 6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6 consumed 1612 of 199700 compute units",
+  "Program 6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6 failed: Failed to serialize or deserialize account data: Unknown"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at updateStakingParameters (solana-staking.ts:992:17)
+    at async Object.mutationFn (useStaking.ts:785:27)
+updateStakingParameters @ solana-staking.ts:1001Understand this error
+useStaking.ts:804 Error updating staking parameters: Error: Wallet error: Transaction failed: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 2: Failed to serialize or deserialize account data: Unknown. 
+Logs: 
+[
+  "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+  "Program ComputeBudget111111111111111111111111111111 success",
+  "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+  "Program ComputeBudget111111111111111111111111111111 success",
+  "Program 6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6 invoke [1]",
+  "Program 6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6 consumed 1612 of 199700 compute units",
+  "Program 6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6 failed: Failed to serialize or deserialize account data: Unknown"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at updateStakingParameters (solana-staking.ts:992:17)
+    at async Object.mutationFn (useStaking.ts:785:27)
+mutationFn @ useStaking.ts:804Understand this error
+useStaking.ts:853 Detailed parameter update error: Error: Wallet error: Transaction failed: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 2: Failed to serialize or deserialize account data: Unknown. 
+Logs: 
+[
+  "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+  "Program ComputeBudget111111111111111111111111111111 success",
+  "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+  "Program ComputeBudget111111111111111111111111111111 success",
+  "Program 6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6 invoke [1]",
+  "Program 6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6 consumed 1612 of 199700 compute units",
+  "Program 6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6 failed: Failed to serialize or deserialize account data: Unknown"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at updateStakingParameters (solana-staking.ts:992:17)
+    at async Object.mutationFn (useStaking.ts:785:27)
+onError @ useStaking.ts:853Understand this error

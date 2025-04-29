@@ -305,13 +305,16 @@ function encodeHarvestInstruction(): Buffer {
 function encodeUpdateParametersInstruction(
   stakeRateBasisPoints: number,
   harvestThreshold: number,
-  stakeThreshold: number = 10,
-  unstakeThreshold: number = 10
+  stakeThreshold: number = 10, // Not used by Solana program currently
+  unstakeThreshold: number = 10 // Not used by Solana program currently
 ): Buffer {
-  // Create buffer for instruction data
-  // First is instruction type (1 byte)
-  // Then each parameter as a 64-bit unsigned integer (8 bytes each)
-  const data = Buffer.alloc(1 + 8 + 8 + 8 + 8);
+  // IMPORTANT: Create buffer EXACTLY matching what the Solana program expects
+  // From the Rust code, UpdateParameters only has stake_rate_per_second and harvest_threshold
+  // First byte is instruction type (1)
+  // Then 8 bytes for stake_rate_per_second (u64)
+  // Then 8 bytes for harvest_threshold (u64)
+  // Total: 1 + 8 + 8 = 17 bytes
+  const data = Buffer.alloc(1 + 8 + 8);
   
   // Write instruction type
   data.writeUInt8(StakingInstructionType.UpdateParameters, 0);
@@ -319,30 +322,18 @@ function encodeUpdateParametersInstruction(
   // IMPORTANT: Use safe integer conversion with bounds checking
   // Stake rate basis points - keep as a direct integer value, no multiplier
   const safeStakeRate = Math.max(0, Math.min(1000000, Math.round(stakeRateBasisPoints)));
-  console.log(`Using basis points value: ${safeStakeRate} (from ${stakeRateBasisPoints})`);
+  console.log(`Using stake rate basis points value: ${safeStakeRate} (from ${stakeRateBasisPoints})`);
   data.writeBigUInt64LE(BigInt(safeStakeRate), 1);
   
-  // Convert harvest threshold to lamports (YOS * 1,000,000)
-  // But keep it below safe JavaScript integer limits
+  // Convert harvest threshold to raw units (YOS * 1,000,000)
   console.log(`Using harvest threshold of ${harvestThreshold} YOS`);
   const safeHarvestThreshold = Math.max(0, Math.min(Number.MAX_SAFE_INTEGER / 1000000, harvestThreshold));
   const harvestThresholdRaw = BigInt(Math.round(safeHarvestThreshold * 1000000));
   console.log(`Converted to raw units: ${harvestThresholdRaw}`);
   data.writeBigUInt64LE(harvestThresholdRaw, 1 + 8);
   
-  // Convert stake threshold to lamports (YOT * 1,000,000)
-  console.log(`Using stake threshold of ${stakeThreshold} YOT`);
-  const safeStakeThreshold = Math.max(0, Math.min(Number.MAX_SAFE_INTEGER / 1000000, stakeThreshold)); 
-  const stakeThresholdRaw = BigInt(Math.round(safeStakeThreshold * 1000000));
-  console.log(`Converted to raw units: ${stakeThresholdRaw}`);
-  data.writeBigUInt64LE(stakeThresholdRaw, 1 + 8 + 8);
-  
-  // Convert unstake threshold to lamports (YOT * 1,000,000)
-  console.log(`Using unstake threshold of ${unstakeThreshold} YOT`);
-  const safeUnstakeThreshold = Math.max(0, Math.min(Number.MAX_SAFE_INTEGER / 1000000, unstakeThreshold));
-  const unstakeThresholdRaw = BigInt(Math.round(safeUnstakeThreshold * 1000000));
-  console.log(`Converted to raw units: ${unstakeThresholdRaw}`);
-  data.writeBigUInt64LE(unstakeThresholdRaw, 1 + 8 + 8 + 8);
+  // Note: stakeThreshold and unstakeThreshold parameters are ignored 
+  // because the Solana program doesn't accept them in the UpdateParameters instruction
   
   // Log the complete buffer for debugging
   console.log(`Generated instruction data buffer: [${Array.from(data).map(b => b.toString(16).padStart(2, '0')).join(' ')}]`);
@@ -783,15 +774,12 @@ export async function updateStakingParameters(
     const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
     const yosMint = new PublicKey(YOS_TOKEN_ADDRESS);
     
-    // Create the instruction separately with complete and correct account keys
-    // This was missing keys previously which likely caused the deserialization error
+    // Create the instruction with EXACTLY the accounts the Solana program expects
+    // From the Rust code, the update_parameters handler ONLY expects these two accounts
     const updateInstruction = {
       keys: [
         { pubkey: walletPublicKey, isSigner: true, isWritable: true }, // admin account
         { pubkey: programState, isSigner: false, isWritable: true },   // program state account
-        { pubkey: programAuthority, isSigner: false, isWritable: false }, // program authority (handles tokens)
-        { pubkey: yotMint, isSigner: false, isWritable: false },      // YOT mint address
-        { pubkey: yosMint, isSigner: false, isWritable: false },      // YOS mint address
       ],
       programId: new PublicKey(STAKING_PROGRAM_ID),
       data: encodeUpdateParametersInstruction(stakeRateBasisPoints, harvestThreshold, stakeThreshold, unstakeThreshold)
