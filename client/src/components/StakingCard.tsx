@@ -8,7 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useStaking } from '@/hooks/useStaking';
 import { useMultiWallet } from '@/context/MultiWalletContext';
 import { formatNumber } from '@/lib/utils';
-import { Loader2, Wallet, Info as InfoIcon, Download, Upload, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Loader2, Wallet, Info as InfoIcon, Download, Upload, CheckCircle, AlertTriangle, Bell } from 'lucide-react';
 import { useTokenBalance } from '@/hooks/useTokenBalance';
 import { YOT_TOKEN_ADDRESS } from '@/lib/constants';
 
