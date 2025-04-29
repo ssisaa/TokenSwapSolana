@@ -12,6 +12,29 @@ import {
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getAccount } from '@solana/spl-token';
 import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, YOT_DECIMALS, YOS_DECIMALS, STAKING_PROGRAM_ID, ENDPOINT } from './constants';
 
+// GLOBAL SCALING FACTOR for all blockchain interactions
+// This is used consistently across all token operations to ensure compatibility
+// with the deployed Solana program
+const PROGRAM_SCALING_FACTOR = 10000;
+
+/**
+ * Convert UI value to raw blockchain value using the consistent 10000 scaling factor
+ * @param uiValue The value shown in UI (e.g., 5.23 tokens)
+ * @returns The scaled value for blockchain (e.g., 52300)
+ */
+export function uiToRaw(uiValue: number): number {
+  return Math.round(uiValue * PROGRAM_SCALING_FACTOR);
+}
+
+/**
+ * Convert raw blockchain value to UI value using the consistent 10000 scaling factor
+ * @param rawValue The blockchain raw value (e.g., 52300)
+ * @returns The UI display value (e.g., 5.23 tokens)
+ */
+export function rawToUi(rawValue: number): number {
+  return rawValue / PROGRAM_SCALING_FACTOR;
+}
+
 // Create a connection to the Solana devnet
 
 // Simple utility function for formatting large numbers with commas
@@ -415,12 +438,11 @@ function encodeStakeInstruction(amount: number): Buffer {
   const data = Buffer.alloc(1 + 8); // instruction type (1) + amount (8)
   data.writeUInt8(StakingInstructionType.Stake, 0);
   
-  // Apply the 10000 scaling factor for converting UI value to blockchain raw value
-  const SCALING_FACTOR = 10000;
-  const scaledAmount = Math.round(amount * SCALING_FACTOR);
+  // Use our consistent uiToRaw helper function for the conversion
+  const scaledAmount = uiToRaw(amount);
   
   console.log(`STAKING: Converting UI value ${amount} YOT to raw value ${scaledAmount}`);
-  console.log(`Applying scaling factor: ${amount} × ${SCALING_FACTOR} = ${scaledAmount}`);
+  console.log(`Applying scaling factor: ${amount} × ${PROGRAM_SCALING_FACTOR} = ${scaledAmount}`);
   
   data.writeBigUInt64LE(BigInt(scaledAmount), 1);
   
@@ -431,12 +453,11 @@ function encodeUnstakeInstruction(amount: number): Buffer {
   const data = Buffer.alloc(1 + 8); // instruction type (1) + amount (8)
   data.writeUInt8(StakingInstructionType.Unstake, 0);
   
-  // Apply the 10000 scaling factor for converting UI value to blockchain raw value
-  const SCALING_FACTOR = 10000;
-  const scaledAmount = Math.round(amount * SCALING_FACTOR);
+  // Use our consistent uiToRaw helper function for the conversion
+  const scaledAmount = uiToRaw(amount);
   
   console.log(`UNSTAKING: Converting UI value ${amount} YOT to raw value ${scaledAmount}`);
-  console.log(`Applying scaling factor: ${amount} × ${SCALING_FACTOR} = ${scaledAmount}`);
+  console.log(`Applying scaling factor: ${amount} × ${PROGRAM_SCALING_FACTOR} = ${scaledAmount}`);
   
   data.writeBigUInt64LE(BigInt(scaledAmount), 1);
   
@@ -444,7 +465,7 @@ function encodeUnstakeInstruction(amount: number): Buffer {
   // We need to ensure the YOS rewards calculation is consistent with our harvest function
   // When unstaking 110,000 YOT, the expected YOS display in the wallet should be ~226-280 YOS
   console.log(`Encoded unstake instruction for ${amount} YOT tokens`);
-  console.log(`Raw amount for blockchain: ${rawAmount} (${amount} with ${YOT_DECIMALS} decimal precision)`);
+  console.log(`Raw amount for blockchain: ${scaledAmount} (${amount} with ${PROGRAM_SCALING_FACTOR} scaling factor)`);
   console.log(`When unstaking, you'll also receive any pending YOS rewards with the proper scaling`);
   
   return data;
@@ -470,17 +491,15 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     // EXACT IMPLEMENTATION USING 10000 SCALING FACTOR
     // Per your detailed instruction - applying the scaling consistently
     
-    // Step 1: Convert UI value to raw value for blockchain transaction
-    // When sending 5.23 tokens, the raw value should be 52300
-    const SCALING_FACTOR = 10000;
+    // Use our global helper function for consistent UI to raw conversion
+    // When sending 0.0288805 YOS, the raw value will be 288.805
     
-    // Simple multiplication: 0.0288805 YOS * 10000 = 288.805 raw YOS
-    // This is the value the blockchain will receive and use
-    const scaledRewards = Math.round(rawRewards * SCALING_FACTOR);
+    // Convert using the uiToRaw helper for consistency across all operations
+    const scaledRewards = uiToRaw(rawRewards);
     
     console.log(`APPLYING SCALING: Converting UI value ${rawRewards} YOS to raw value ${scaledRewards} YOS`);
-    console.log(`This means we multiply by exactly ${SCALING_FACTOR}`);
-    console.log(`If we needed to convert back: ${scaledRewards} / ${SCALING_FACTOR} = ${scaledRewards/SCALING_FACTOR} YOS`);
+    console.log(`This means we multiply by exactly ${PROGRAM_SCALING_FACTOR}`);
+    console.log(`If we needed to convert back: ${scaledRewards} / ${PROGRAM_SCALING_FACTOR} = ${scaledRewards/PROGRAM_SCALING_FACTOR} YOS`);
     
     // Write the rewards amount as a 64-bit integer
     // NOTE: The blockchain will use this value directly for display in the wallet
@@ -492,12 +511,11 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     
     console.log(`Created harvest instruction buffer with adjusted rewards:`);
     console.log(`Original rewards value: ${rewardsAmount} YOS`);
-    console.log(`SCREENSHOT ANALYSIS: Wallet showed 2,734,644 YOS when calculation was ~0.028 YOS`);
-    console.log(`CALIBRATED CONVERSION: Using exact ratio from screenshot (${WALLET_SHOWING}/${EXPECTED_REWARDS} = ${walletDisplayFactor.toFixed(2)})`);
+    console.log(`SCALING ANALYSIS: Multiplying rewards by exactly ${PROGRAM_SCALING_FACTOR}`);
     console.log(`ACTUAL SCALING: For our calculated ${rawRewards} YOS, we're sending: ${scaledRewards}`);
-    console.log(`This should result in wallet showing: ~${EXPECTED_REWARDS} YOS`);
-    console.log(`ADDITIONAL DEBUG: from ${rawRewards} YOS -> ${scaledRewards} (factor: ${walletDisplayFactor.toFixed(2)})`);
-    console.log(`The exact ratio needed: ${exactScalingFactor.toFixed(2)}×`);
+    console.log(`This should result in proper blockchain value that matches program expectation`);
+    console.log(`Using consistent ${PROGRAM_SCALING_FACTOR} scaling factor across all operations`);
+    console.log(`The exact ratio applied: ${PROGRAM_SCALING_FACTOR}×`);
     console.log("Buffer size:", data.length, "bytes");
     return data;
   } else {
