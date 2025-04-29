@@ -33,27 +33,30 @@ const YOS_TOKEN_DECIMALS = 9;
  * @returns The scaled value for blockchain with both adjustments applied
  */
 export function uiToRawYot(uiValue: number): bigint {
-  // First convert to raw token amount by multiplying by 10^9 (Solana token standard)
-  const tokenRawAmount = uiValue * Math.pow(10, YOT_TOKEN_DECIMALS);
+  // CRITICAL FIX: We SHOULD NOT apply both token decimals and program scaling!
+  // The Solana program itself handles the token decimals
+  // We only need to apply the program's internal scaling factor
   
-  // Then apply program scaling factor
-  const programScaledAmount = Math.round(tokenRawAmount * PROGRAM_SCALING_FACTOR);
+  // Directly apply program scaling factor only - the token decimals will be handled by Solana
+  const rawAmount = Math.round(uiValue * PROGRAM_SCALING_FACTOR);
   
-  console.log(`YOT CONVERSION: UI ${uiValue} → Token raw ${tokenRawAmount} → Program scaled ${programScaledAmount}`);
+  console.log(`YOT CONVERSION (FIXED): UI ${uiValue} → Raw blockchain value ${rawAmount}`);
+  console.log(`Applied scaling factor: ${uiValue} × ${PROGRAM_SCALING_FACTOR} = ${rawAmount}`);
   
-  return BigInt(programScaledAmount);
+  return BigInt(rawAmount);
 }
 
 /**
  * Convert UI value to raw blockchain value for YOS tokens
- * Applies only the 10000 scaling factor since YOS is handled differently in the program
+ * Applies only the program's scaling factor - token decimals are handled separately
  * 
  * @param uiValue The value shown in UI (e.g., 5.23 tokens)
- * @returns The scaled value for blockchain (e.g., 52300)
+ * @returns The scaled value for blockchain compatible with the program
  */
 export function uiToRawYos(uiValue: number): bigint {
   const scaledAmount = Math.round(uiValue * PROGRAM_SCALING_FACTOR);
-  console.log(`YOS CONVERSION: UI ${uiValue} → Program scaled ${scaledAmount}`);
+  console.log(`YOS CONVERSION (FIXED): UI ${uiValue} → Raw blockchain value ${scaledAmount}`);
+  console.log(`Applied scaling factor: ${uiValue} × ${PROGRAM_SCALING_FACTOR} = ${scaledAmount}`);
   return BigInt(scaledAmount);
 }
 
@@ -477,15 +480,19 @@ function encodeStakeInstruction(amount: number): Buffer {
   const data = Buffer.alloc(1 + 8); // instruction type (1) + amount (8)
   data.writeUInt8(StakingInstructionType.Stake, 0);
   
-  // YOT TOKENS: Need to convert using token decimals AND program scaling factor
-  // For example, 745 YOT tokens would be: 
-  // 1. 745 * 10^9 = 745,000,000,000 (standard token conversion)
-  // 2. 745,000,000,000 * 10,000 = 7,450,000,000,000,000 (program scaling)
+  // CRITICAL FIX: For YOT tokens, we need to be careful about how we encode the amount
+  // We ONLY need to send the program's scaling factor (10000) without token decimals
+  // The Solana program will handle the token decimals separately
+  
   const rawAmount = uiToRawYot(amount);
   
   console.log(`STAKING: Converting UI value ${amount} YOT to raw value ${rawAmount}`);
-  console.log(`First applying token decimals: ${amount} × 10^${YOT_TOKEN_DECIMALS} = ${amount * Math.pow(10, YOT_TOKEN_DECIMALS)}`);
-  console.log(`Then applying program scaling: × ${PROGRAM_SCALING_FACTOR} = ${rawAmount}`);
+  console.log(`Applied program scaling only: ${amount} × ${PROGRAM_SCALING_FACTOR} = ${rawAmount}`);
+  
+  // Ensure we don't exceed the maximum u64 value
+  if (rawAmount > BigInt("18446744073709551615")) {
+    throw new Error("Amount too large for transaction encoding");
+  }
   
   data.writeBigUInt64LE(rawAmount, 1);
   
@@ -496,15 +503,20 @@ function encodeUnstakeInstruction(amount: number): Buffer {
   const data = Buffer.alloc(1 + 8); // instruction type (1) + amount (8)
   data.writeUInt8(StakingInstructionType.Unstake, 0);
   
-  // YOT TOKENS: Need to convert using token decimals AND program scaling factor
-  // For example, 745 YOT tokens would be: 
-  // 1. 745 * 10^9 = 745,000,000,000 (standard token conversion)
-  // 2. 745,000,000,000 * 10,000 = 7,450,000,000,000,000 (program scaling)
+  // CRITICAL FIX: For YOT tokens, we need to be careful about how we encode the amount
+  // We ONLY need to send the program's scaling factor (10000) without token decimals
+  // The Solana program will handle the token decimals separately
   const rawAmount = uiToRawYot(amount);
   
   console.log(`UNSTAKING: Converting UI value ${amount} YOT to raw value ${rawAmount}`);
-  console.log(`First applying token decimals: ${amount} × 10^${YOT_TOKEN_DECIMALS} = ${amount * Math.pow(10, YOT_TOKEN_DECIMALS)}`);
-  console.log(`Then applying program scaling: × ${PROGRAM_SCALING_FACTOR} = ${rawAmount}`);
+  console.log(`Applied program scaling only: ${amount} × ${PROGRAM_SCALING_FACTOR} = ${rawAmount}`);
+  
+  // Ensure we don't exceed the maximum u64 value
+  if (rawAmount > BigInt("18446744073709551615")) {
+    throw new Error("Amount too large for transaction encoding");
+  }
+  
+  data.writeBigUInt64LE(rawAmount, 1);
   
   // IMPORTANT NOTE: When unstaking, the program will also transfer YOS rewards
   // We need to ensure the YOS rewards calculation is consistent with our harvest function
