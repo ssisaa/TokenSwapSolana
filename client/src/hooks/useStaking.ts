@@ -164,8 +164,8 @@ export function useStaking() {
         console.log("Staking rates for threshold check:", rates);
         
         // Check if stake amount meets the minimum threshold
-        if (amount < rates.harvestThreshold) {
-          throw new Error(`Staking amount (${amount.toFixed(2)} YOT) is below the minimum threshold (${rates.harvestThreshold.toFixed(2)} YOT). Please stake more tokens.`);
+        if (amount < (rates.stakeThreshold || 10)) {
+          throw new Error(`Staking amount (${amount.toFixed(2)} YOT) is below the minimum threshold (${(rates.stakeThreshold || 10).toFixed(2)} YOT). Please stake more tokens.`);
         }
         
         // Call the staking function which shows the wallet signature prompt
@@ -355,8 +355,8 @@ export function useStaking() {
         console.log("Staking rates for threshold check:", rates);
         
         // Check if unstake amount meets the minimum threshold
-        if (amount < rates.harvestThreshold) {
-          throw new Error(`Unstake amount (${amount.toFixed(2)} YOT) is below the minimum threshold (${rates.harvestThreshold.toFixed(2)} YOT). Please unstake more tokens or leave them staked.`);
+        if (amount < (rates.unstakeThreshold || 10)) {
+          throw new Error(`Unstake amount (${amount.toFixed(2)} YOT) is below the minimum threshold (${(rates.unstakeThreshold || 10).toFixed(2)} YOT). Please unstake more tokens or leave them staked.`);
         }
         
         // Now call the actual unstake operation
@@ -564,8 +564,8 @@ export function useStaking() {
         console.log("Staking rates for threshold check:", stakingRates);
         
         // Check if rewards meet the threshold
-        if (stakingInfo.rewardsEarned < stakingRates.harvestThreshold) {
-          throw new Error(`Rewards (${stakingInfo.rewardsEarned.toFixed(6)} YOS) are below the minimum threshold (${stakingRates.harvestThreshold.toFixed(6)} YOS). Stake more or wait longer.`);
+        if (stakingInfo.rewardsEarned < (stakingRates.harvestThreshold || 0)) {
+          throw new Error(`Rewards (${stakingInfo.rewardsEarned.toFixed(6)} YOS) are below the minimum threshold (${(stakingRates.harvestThreshold || 0).toFixed(6)} YOS). Stake more or wait longer.`);
         }
         
         // Execute the harvest

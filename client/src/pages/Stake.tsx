@@ -414,7 +414,7 @@ export default function Stake() {
                       <div className="bg-dark-100 rounded-md border border-slate-700 flex justify-between items-center">
                         <input 
                           type="number"
-                          placeholder={`Min: ${stakingRates?.harvestThreshold || 0} YOT`}
+                          placeholder={`Min: ${stakingRates?.unstakeThreshold || 0} YOT`}
                           value={unstakeAmount}
                           onChange={(e) => setUnstakeAmount(e.target.value)}
                           className="border-0 bg-transparent h-14 px-4 focus:outline-none flex-1 text-white"
@@ -453,7 +453,7 @@ export default function Stake() {
                             Unstaking will return your YOT tokens to your wallet. There is no lock-up period or penalties for unstaking.
                           </p>
                           <p className="mt-2 font-medium text-amber-300">
-                            Minimum unstake amount: {stakingRates?.harvestThreshold || 0} YOT
+                            Minimum unstake amount: {stakingRates?.unstakeThreshold || 0} YOT
                           </p>
                         </div>
                       </div>
@@ -632,8 +632,8 @@ export default function Stake() {
             <div>
               <h3 className="text-lg font-semibold">Are there minimum amounts for staking operations?</h3>
               <p className="mt-2 text-muted-foreground">
-                Yes, to prevent dust attacks and ensure efficient use of network resources, all staking operations have a minimum threshold of {stakingRates?.harvestThreshold || 0} tokens. 
-                This means you need to stake or unstake at least {stakingRates?.harvestThreshold || 0} YOT tokens, and you can only harvest rewards when you've accumulated at least {stakingRates?.harvestThreshold || 0} YOS tokens.
+                Yes, to prevent dust attacks and ensure efficient use of network resources, there are minimums for each operation. 
+                You need to stake at least {stakingRates?.stakeThreshold || 0} YOT, unstake at least {stakingRates?.unstakeThreshold || 0} YOT, and you can only harvest rewards when you've accumulated at least {stakingRates?.harvestThreshold || 0} YOS.
               </p>
             </div>
             
