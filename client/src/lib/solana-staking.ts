@@ -2160,7 +2160,7 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
           toast({
             title: "Transaction Already Processed",
             description: "Your transaction may have already been processed. Please check your wallet balance before trying again.",
-            variant: "warning"
+            variant: "destructive"
           });
           
           // Return a special indicator for this case

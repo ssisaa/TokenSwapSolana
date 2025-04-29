@@ -534,11 +534,17 @@ export function useStaking() {
         }
         
         // Execute the harvest regardless of token balance - it will handle partial rewards
-        const signature = await harvestYOSRewards(wallet);
-        console.log("Harvest transaction signature:", signature);
+        const result = await harvestYOSRewards(wallet);
+        console.log("Harvest transaction result:", result);
+        
+        // Handle the special "already processed" case
+        if (result === "ALREADY_PROCESSED") {
+          console.log("Transaction was already processed, treating as success");
+          return { signature: "ALREADY_PROCESSED", alreadyProcessed: true };
+        }
         
         // Return the signature for processing in onSuccess
-        return { signature };
+        return { signature: result, alreadyProcessed: false };
       } catch (err) {
         console.error("Error during harvesting operation:", err);
         throw err;
@@ -570,10 +576,18 @@ export function useStaking() {
         queryClient.setQueryData(['staking', publicKey.toString()], updatedInfo);
       }
       
-      toast({
-        title: "Rewards Harvested",
-        description: "Successfully harvested YOS token rewards.",
-      });
+      // Check if this was an "already processed" transaction
+      if (result.signature === "ALREADY_PROCESSED") {
+        toast({
+          title: "Transaction Already Processed",
+          description: "Your rewards were already harvested in a previous transaction. Your balance has been updated.",
+        });
+      } else {
+        toast({
+          title: "Rewards Harvested",
+          description: "Successfully harvested YOS token rewards.",
+        });
+      }
     },
     onError: (error: Error) => {
       const errorMessage = error.message || "Unknown error occurred";
@@ -621,6 +635,17 @@ export function useStaking() {
           description: "The staking program state has not been created. An admin needs to initialize it first.",
           variant: 'destructive',
         });
+      } else if (errorMessage.includes("This transaction has already been processed")) {
+        toast({
+          title: "Transaction Already Processed",
+          description: "Your transaction was already processed. Please check your wallet balance before trying again.",
+        });
+        
+        // Invalidate queries to update the UI with the latest data
+        if (publicKey) {
+          queryClient.invalidateQueries({ queryKey: ['staking', publicKey.toString()] });
+          queryClient.invalidateQueries({ queryKey: ['tokens'] });
+        }
       } else {
         toast({
           title: 'Harvesting Failed',
