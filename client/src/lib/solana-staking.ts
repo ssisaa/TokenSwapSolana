@@ -684,7 +684,24 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     
     // First, get the staking info to see the actual rewards amount
     const stakingInfo = await getStakingInfo(walletPublicKey.toString());
-    console.log("Current pending rewards shown in UI:", stakingInfo.rewardsEarned);
+    
+    // Calculate the display vs actual blockchain values
+    const displayRewards = stakingInfo.rewardsEarned / 10000;
+    const blockchainRewards = stakingInfo.rewardsEarned;
+    
+    console.log(`REWARDS: UI Display: ${displayRewards.toFixed(6)} YOS, Blockchain: ${blockchainRewards} (10,000× multiplier)`);
+    
+    // Also get the harvest threshold
+    const { harvestThreshold } = await getStakingProgramState();
+    
+    // Only proceed if rewards are > 0 and >= harvest threshold
+    if (displayRewards <= 0) {
+      throw new Error("No rewards to harvest");
+    }
+    
+    if (harvestThreshold > 0 && displayRewards < harvestThreshold) {
+      throw new Error(`Rewards (${displayRewards.toFixed(6)} YOS) are below the minimum threshold (${harvestThreshold.toFixed(6)} YOS)`);
+    }
     
     // Perform safety check on program YOS token balance
     try {
@@ -693,11 +710,8 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       console.log(`Program YOS balance: ${programYosBalance.toFixed(4)} YOS`);
       
       // Check if the program has enough funds to cover the rewards
-      // Note: Because of the 10,000x multiplier, we need to multiply the UI rewards
-      const estimatedRewardsToReceive = stakingInfo.rewardsEarned;
-      
-      if (programYosBalance < estimatedRewardsToReceive * 10) {
-        console.warn(`WARNING: Program YOS balance (${programYosBalance.toFixed(4)}) may be insufficient for full rewards payout`);
+      if (programYosBalance < displayRewards) {
+        console.warn(`WARNING: Program YOS balance (${programYosBalance.toFixed(4)}) may be insufficient for rewards payout of ${displayRewards.toFixed(6)} YOS`);
       }
     } catch (error) {
       console.warn("Could not check program YOS balance:", error);
