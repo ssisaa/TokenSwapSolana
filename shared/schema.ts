@@ -23,6 +23,9 @@ export const adminSettings = pgTable("admin_settings", {
   stakeRateHourly: decimal("stake_rate_hourly").notNull().default("0.004"),
   stakeRatePerSecond: decimal("stake_rate_per_second").notNull().default("0.000001"),
   harvestThreshold: decimal("harvest_threshold").notNull().default("1.0"),
+  // Adding these new fields to store threshold values that aren't supported by the Solana program
+  stakeThreshold: decimal("stake_threshold").notNull().default("10.0"),
+  unstakeThreshold: decimal("unstake_threshold").notNull().default("10.0"),
   updatedAt: timestamp("updated_at").defaultNow(),
   updatedBy: integer("updated_by").references(() => adminUsers.id)
 });
@@ -93,6 +96,8 @@ export const insertAdminSettingsSchema = createInsertSchema(adminSettings).pick(
   stakeRateHourly: true,
   stakeRatePerSecond: true,
   harvestThreshold: true,
+  stakeThreshold: true,  // Added new field
+  unstakeThreshold: true, // Added new field
   updatedBy: true
 });
 
