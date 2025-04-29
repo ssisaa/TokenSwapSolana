@@ -727,7 +727,11 @@ export function useStaking() {
         
         // Special case handling for known rate values
         let basisPoints;
-        if (ratePerSecond === 0.00000125) {
+        if (ratePerSecond === 0.0000125) {
+          // Special case: 0.0000125% per second = 120000 basis points
+          basisPoints = 120000;
+          console.log("Using special case: 0.0000125% = 120000 basis points");
+        } else if (ratePerSecond === 0.00000125) {
           // Special case: 0.00000125% per second = 12000 basis points
           basisPoints = 12000;
           console.log("Using special case: 0.00000125% = 12000 basis points");
@@ -736,10 +740,14 @@ export function useStaking() {
           basisPoints = 1200;
           console.log("Using special case: 0.000000125% = 1200 basis points");
         } else {
-          // Convert using our scaling factor: 1.25e-9 (0.00000000125%) = 12 basis points
-          // Therefore, the multiplier is 12 / 0.00000000125 = 9,600,000,000
-          basisPoints = Math.round(ratePerSecond * 9600000000);
-          console.log(`Using dynamic calculation: ${ratePerSecond}% × 9,600,000,000 = ${basisPoints} basis points`);
+          // Make sure we get a valid basis point value (between 1 and 1,000,000)
+          basisPoints = Math.round(ratePerSecond * 9600000);
+          
+          // Ensure the basis points are within valid range
+          if (basisPoints < 1) basisPoints = 1;
+          if (basisPoints > 1000000) basisPoints = 1000000;
+          
+          console.log(`Using dynamic calculation: ${ratePerSecond}% × 9,600,000 = ${basisPoints} basis points`);
         }
         
         console.log("Final basis points for blockchain:", basisPoints);
