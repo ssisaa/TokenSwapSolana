@@ -126,7 +126,9 @@ export default function AdminTransactions() {
                 if (amountLog) {
                   const match = amountLog.match(/amount: (\d+)/);
                   if (match && match[1]) {
-                    amount = parseInt(match[1]) / 1000000; // Convert from lamports
+                    // Convert from YOT raw amount (9 decimals)
+                    amount = parseInt(match[1]) / Math.pow(10, 9); 
+                    console.log("Parsed stake amount:", amount, "from log:", amountLog);
                   }
                 }
               } else if (programLogs.some(log => log.includes("Unstake"))) {
@@ -135,7 +137,9 @@ export default function AdminTransactions() {
                 if (amountLog) {
                   const match = amountLog.match(/amount: (\d+)/);
                   if (match && match[1]) {
-                    amount = parseInt(match[1]) / 1000000; // Convert from lamports
+                    // Convert from YOT raw amount (9 decimals)
+                    amount = parseInt(match[1]) / Math.pow(10, 9);
+                    console.log("Parsed unstake amount:", amount, "from log:", amountLog);
                   }
                 }
               } else if (programLogs.some(log => log.includes("Harvest"))) {
@@ -144,7 +148,9 @@ export default function AdminTransactions() {
                 if (amountLog) {
                   const match = amountLog.match(/rewards: (\d+)/);
                   if (match && match[1]) {
-                    amount = parseInt(match[1]) / 1000000; // Convert from lamports
+                    // Convert from YOS raw amount (9 decimals)
+                    amount = parseInt(match[1]) / Math.pow(10, 9);
+                    console.log("Parsed harvest amount:", amount, "from log:", amountLog);
                   }
                 }
               } else if (programLogs.some(log => log.includes("Update parameters"))) {

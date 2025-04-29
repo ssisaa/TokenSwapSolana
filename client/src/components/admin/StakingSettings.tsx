@@ -25,6 +25,8 @@ export default function StakingSettings() {
   
   // State for form values - initialize with current values from blockchain
   const [stakeRatePerSecond, setStakeRatePerSecond] = useState<string>('0.0000000125');
+  const [stakeThreshold, setStakeThreshold] = useState<string>('10.0');
+  const [unstakeThreshold, setUnstakeThreshold] = useState<string>('10.0');
   const [harvestThreshold, setHarvestThreshold] = useState<string>('1.0');
   
   // Default to the requested rate (1.25e-7) if needed
@@ -39,7 +41,12 @@ export default function StakingSettings() {
       // Format the rate with proper decimal notation instead of scientific notation (e.g., 0.00000125 instead of 1.25e-9)
       const formattedRate = stakingRates.stakeRatePerSecond.toFixed(10).replace(/\.?0+$/, '');
       setStakeRatePerSecond(formattedRate);
+      
+      // For now, we'll set all thresholds to the same harvest threshold from blockchain
+      // In a future update, these should come from database settings
       setHarvestThreshold(stakingRates.harvestThreshold.toString());
+      setStakeThreshold('10.0'); // Default values
+      setUnstakeThreshold('10.0'); // Default values
     }
   }, [stakingRates]);
   
@@ -79,17 +86,21 @@ export default function StakingSettings() {
       // We need to pass the raw percentage value, not basis points
       // Our Solana library will handle the conversion to basis points correctly
       const ratePerSecond = parseFloat(stakeRatePerSecond);
-      const thresholdValue = parseFloat(harvestThreshold);
+      const stakeThresholdValue = parseFloat(stakeThreshold);
+      const unstakeThresholdValue = parseFloat(unstakeThreshold);
+      const harvestThresholdValue = parseFloat(harvestThreshold);
       
       console.log("Sending staking parameter update:", {
         stakeRatePerSecond: ratePerSecond,
-        harvestThreshold: thresholdValue
+        stakeThreshold: stakeThresholdValue,
+        unstakeThreshold: unstakeThresholdValue,
+        harvestThreshold: harvestThresholdValue
       });
       
       // 1. Update blockchain parameters first
       updateStakingSettingsMutation.mutate({
         ratePerSecond: ratePerSecond, // Pass the raw percentage value
-        harvestThreshold: thresholdValue    // Pass the raw threshold value
+        harvestThreshold: harvestThresholdValue    // Pass the raw threshold value
       });
       
       // 2. Also update database settings to keep them in sync
@@ -98,7 +109,9 @@ export default function StakingSettings() {
         stakeRatePerSecond: stakingRates.second,
         stakeRateHourly: stakingRates.hourly,
         stakeRateDaily: stakingRates.daily,
-        harvestThreshold: thresholdValue.toString()
+        harvestThreshold: harvestThresholdValue.toString()
+        // Note: we'll store stake/unstake thresholds in the Solana program but not yet in the database
+        // until the database schema is updated
       });
       
       toast({
@@ -158,6 +171,61 @@ export default function StakingSettings() {
               </ul>
               <p className="mt-2 font-semibold text-amber-200">
                 Suggested values: 0.00000125% (standard) or 0.000000125% (1/10th) 
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="stakeThreshold">Stake Threshold (YOT)</Label>
+            <Input
+              id="stakeThreshold"
+              type="number"
+              step="1"
+              value={stakeThreshold}
+              onChange={(e) => setStakeThreshold(e.target.value)}
+              placeholder="10.0"
+              disabled={isUpdatingParameters || !isAdmin}
+            />
+            <div className="bg-blue-900 p-3 rounded-md text-sm text-white space-y-1 mt-2 shadow-md border border-blue-500">
+              <p className="font-semibold text-blue-200 text-base">STAKE THRESHOLD INFORMATION</p>
+              <p>
+                This is the minimum amount of YOT tokens a user must stake in a single transaction.
+                A higher threshold reduces network congestion from small stakes.
+              </p>
+              <ul className="list-disc pl-5 space-y-1 text-blue-100">
+                <li>Users cannot stake unless they meet this minimum threshold.</li>
+                <li>Setting too high will exclude users with small token holdings.</li>
+                <li>Setting too low may lead to network spam with many tiny stakes.</li>
+              </ul>
+              <p className="mt-2 font-semibold text-blue-200">
+                Recommended value: 10.0 YOT for most applications
+              </p>
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="unstakeThreshold">Unstake Threshold (YOT)</Label>
+            <Input
+              id="unstakeThreshold"
+              type="number"
+              step="1"
+              value={unstakeThreshold}
+              onChange={(e) => setUnstakeThreshold(e.target.value)}
+              placeholder="10.0"
+              disabled={isUpdatingParameters || !isAdmin}
+            />
+            <div className="bg-purple-900 p-3 rounded-md text-sm text-white space-y-1 mt-2 shadow-md border border-purple-500">
+              <p className="font-semibold text-purple-200 text-base">UNSTAKE THRESHOLD INFORMATION</p>
+              <p>
+                This is the minimum amount of YOT tokens a user must unstake in a single transaction.
+                A higher threshold reduces network congestion from small unstakes.
+              </p>
+              <ul className="list-disc pl-5 space-y-1 text-purple-100">
+                <li>Users cannot unstake unless they meet this minimum threshold.</li>
+                <li>Setting too high will require users to unstake large amounts at once.</li>
+                <li>Setting too low allows many small unstake transactions (network spam).</li>
+              </ul>
+              <p className="mt-2 font-semibold text-purple-200">
+                Recommended value: 10.0 YOT for most applications
               </p>
             </div>
           </div>

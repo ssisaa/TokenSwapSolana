@@ -22,7 +22,7 @@ export const adminSettings = pgTable("admin_settings", {
   stakeRateDaily: decimal("stake_rate_daily").notNull().default("0.1"),
   stakeRateHourly: decimal("stake_rate_hourly").notNull().default("0.004"),
   stakeRatePerSecond: decimal("stake_rate_per_second").notNull().default("0.000001"),
-  harvestThreshold: decimal("harvest_threshold").notNull().default("100"),
+  harvestThreshold: decimal("harvest_threshold").notNull().default("1.0"),
   updatedAt: timestamp("updated_at").defaultNow(),
   updatedBy: integer("updated_by").references(() => adminUsers.id)
 });
