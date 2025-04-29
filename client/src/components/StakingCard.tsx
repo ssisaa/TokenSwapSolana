@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useStaking } from '@/hooks/useStaking';
 import { useMultiWallet } from '@/context/MultiWalletContext';
 import { formatNumber } from '@/lib/utils';
-import { Loader2, Wallet, Info as InfoIcon, Download, Upload, CheckCircle } from 'lucide-react';
+import { Loader2, Wallet, Info as InfoIcon, Download, Upload, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useTokenBalance } from '@/hooks/useTokenBalance';
 import { YOT_TOKEN_ADDRESS } from '@/lib/constants';
 
@@ -27,14 +28,23 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
   const {
     stakingInfo,
     stakingRates,
-    isLoading,
-    stakeTokens,
-    unstakeTokens,
-    harvestRewards,
-    isStaking,
-    isUnstaking,
-    isHarvesting
+    isLoadingStakingInfo,
+    isLoadingRates,
+    stakeMutation,
+    unstakeMutation,
+    harvestMutation
   } = useStaking();
+  
+  // Aliases for clearer code
+  const isLoading = isLoadingStakingInfo || isLoadingRates;
+  const isStaking = stakeMutation.isPending;
+  const isUnstaking = unstakeMutation.isPending;
+  const isHarvesting = harvestMutation.isPending;
+  
+  // Function aliases for better readability
+  const stakeTokens = (params: { amount: number }) => stakeMutation.mutate(params);
+  const unstakeTokens = (params: { amount: number }) => unstakeMutation.mutate(params);
+  const harvestRewards = () => harvestMutation.mutate();
   
   // Update activeTab when defaultTab prop changes
   useEffect(() => {
@@ -122,7 +132,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                   <span className="text-gray-400">Pending Rewards:</span>
                   <span className="font-medium text-white">{stakingInfo.rewardsEarned.toLocaleString('en-US')} YOS</span>
                 </div>
-                <Alert variant="warning" className="mt-2 bg-amber-950/30 border-amber-700">
+                <Alert className="mt-2 bg-amber-950/30 border-amber-700">
                   <AlertTriangle className="h-4 w-4 text-amber-500" />
                   <AlertTitle className="text-amber-400 text-xs font-medium">Known Issue</AlertTitle>
                   <AlertDescription className="text-amber-200 text-xs">
@@ -321,6 +331,15 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                       {isUnstaking ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : 'Unstake'}
                     </Button>
                   </div>
+                  <Alert className="mt-4 bg-amber-950/30 border-amber-700">
+                    <AlertTriangle className="h-4 w-4 text-amber-500" />
+                    <AlertTitle className="text-amber-400 text-xs font-medium">Important Warning</AlertTitle>
+                    <AlertDescription className="text-amber-200 text-xs">
+                      Due to a contract issue, only unstake small amounts at a time (less than 10 YOT) 
+                      to avoid transaction failures. A fix will be deployed soon.
+                    </AlertDescription>
+                  </Alert>
+                  
                   <div className="bg-dark-300 border border-border p-3 rounded-lg text-sm mt-4">
                     <div className="flex items-start">
                       <InfoIcon className="h-4 w-4 mr-2 mt-0.5 text-primary" />
@@ -348,6 +367,15 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                       Harvest Rewards
                     </Button>
                   </div>
+                  <Alert className="mt-4 bg-amber-950/30 border-amber-700">
+                    <AlertTriangle className="h-4 w-4 text-amber-500" />
+                    <AlertTitle className="text-amber-400 text-xs font-medium">Important Warning</AlertTitle>
+                    <AlertDescription className="text-amber-200 text-xs">
+                      Harvesting may transfer more YOS than displayed due to a contract issue. 
+                      Small harvests recommended until the fix is deployed.
+                    </AlertDescription>
+                  </Alert>
+                  
                   <div className="bg-dark-300 border border-border p-3 rounded-lg text-sm mt-4">
                     <div className="flex items-start">
                       <InfoIcon className="h-4 w-4 mr-2 mt-0.5 text-primary" />
