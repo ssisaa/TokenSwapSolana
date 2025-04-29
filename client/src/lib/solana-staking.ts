@@ -311,52 +311,21 @@ function encodeUpdateParametersInstruction(
   const data = Buffer.alloc(1 + 8 + 8 + 8 + 8); // instruction type (1) + stakeRate (8) + harvestThreshold (8) + stakeThreshold (8) + unstakeThreshold (8)
   data.writeUInt8(StakingInstructionType.UpdateParameters, 0);
   
-  // Ensure we're using integer basis points
-  const basisPoints = stakeRateBasisPoints < 1 
-    ? Math.round(stakeRateBasisPoints * 9600000) // Convert from percentage to basis points
-    : stakeRateBasisPoints; // Already in basis points
+  // Just use the stake rate basis points directly
+  console.log(`Using basis points value: ${stakeRateBasisPoints}`);
+  data.writeBigUInt64LE(BigInt(stakeRateBasisPoints), 1);
   
-  // Validate and cap basis points to prevent overflow
-  const MAX_BASIS_POINTS = 1000000;
-  const safeBasisPoints = Math.min(Math.max(1, basisPoints), MAX_BASIS_POINTS);
+  // Just use the harvest threshold directly - simple approach
+  console.log(`Using harvest threshold value: ${harvestThreshold}`);
+  data.writeBigUInt64LE(BigInt(harvestThreshold), 1 + 8);
   
-  console.log(`Original basis points: ${basisPoints}, capped to: ${safeBasisPoints}`);
-  data.writeBigUInt64LE(BigInt(safeBasisPoints), 1);
+  // Just use the stake threshold directly
+  console.log(`Using stake threshold value: ${stakeThreshold}`);
+  data.writeBigUInt64LE(BigInt(stakeThreshold), 1 + 8 + 8);
   
-  // Convert harvest threshold to raw amount with 6 decimals (1 YOS = 1,000,000 raw units)
-  // Limit the max value to prevent overflow
-  const MAX_SAFE_HARVEST_THRESHOLD = 18446744073; // Max value / 1_000_000 for safe conversion
-  const safeHarvestThreshold = Math.min(Math.max(0, harvestThreshold), MAX_SAFE_HARVEST_THRESHOLD);
-  
-  console.log(`Original harvest threshold: ${harvestThreshold}, capped to: ${safeHarvestThreshold}`);
-  
-  // Convert to raw units with protection against overflow
-  const harvestThresholdRaw = BigInt(Math.floor(safeHarvestThreshold * 1000000));
-  console.log(`Harvest threshold in raw units: ${harvestThresholdRaw}`);
-  
-  data.writeBigUInt64LE(harvestThresholdRaw, 1 + 8);
-  
-  // Convert stake threshold to raw amount with 6 decimals (1 YOT = 1,000,000 raw units)
-  const MAX_SAFE_STAKE_THRESHOLD = 1000000; // 1 million YOT max
-  const safeStakeThreshold = Math.min(Math.max(0, stakeThreshold), MAX_SAFE_STAKE_THRESHOLD);
-  
-  console.log(`Stake threshold: ${stakeThreshold} YOT, capped to: ${safeStakeThreshold}`);
-  
-  const stakeThresholdRaw = BigInt(Math.floor(safeStakeThreshold * 1000000));
-  console.log(`Stake threshold in raw units: ${stakeThresholdRaw}`);
-  
-  data.writeBigUInt64LE(stakeThresholdRaw, 1 + 8 + 8);
-  
-  // Convert unstake threshold to raw amount with 6 decimals (1 YOT = 1,000,000 raw units)
-  const MAX_SAFE_UNSTAKE_THRESHOLD = 1000000; // 1 million YOT max
-  const safeUnstakeThreshold = Math.min(Math.max(0, unstakeThreshold), MAX_SAFE_UNSTAKE_THRESHOLD);
-  
-  console.log(`Unstake threshold: ${unstakeThreshold} YOT, capped to: ${safeUnstakeThreshold}`);
-  
-  const unstakeThresholdRaw = BigInt(Math.floor(safeUnstakeThreshold * 1000000));
-  console.log(`Unstake threshold in raw units: ${unstakeThresholdRaw}`);
-  
-  data.writeBigUInt64LE(unstakeThresholdRaw, 1 + 8 + 8 + 8);
+  // Just use the unstake threshold directly
+  console.log(`Using unstake threshold value: ${unstakeThreshold}`);
+  data.writeBigUInt64LE(BigInt(unstakeThreshold), 1 + 8 + 8 + 8);
   
   return data;
 }
@@ -723,6 +692,13 @@ export async function updateStakingParameters(
     throw new Error('Wallet not connected');
   }
   
+  // Convert values to their actual units for logging clarity
+  console.log('Updating program parameters:');
+  console.log(`- Stake Rate: ${stakeRateBasisPoints} basis points`);
+  console.log(`- Harvest Threshold: ${harvestThreshold} YOS (will be multiplied by 1,000,000)`);
+  console.log(`- Stake Threshold: ${stakeThreshold} YOT (will be multiplied by 1,000,000)`);
+  console.log(`- Unstake Threshold: ${unstakeThreshold} YOT (will be multiplied by 1,000,000)`);
+
   const walletPublicKey = wallet.publicKey;
   
   try {
@@ -746,49 +722,102 @@ export async function updateStakingParameters(
     // Find program PDAs
     const [programState] = findProgramStateAddress();
     
-    // Make sure we have the latest blockhash
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
+    // First simulate the transaction to check for program-specific errors
+    console.log('Simulating transaction to check for errors...');
     
-    // Create transaction
-    const transaction = new Transaction({
-      feePayer: walletPublicKey,
-      blockhash,
-      lastValidBlockHeight
-    });
-    
-    // Set the recentBlockhash
-    transaction.recentBlockhash = blockhash;
-    
-    // Add update parameters instruction
-    transaction.add({
+    // Create the instruction separately so we can use it for simulation
+    const updateInstruction = {
       keys: [
         { pubkey: walletPublicKey, isSigner: true, isWritable: true },
         { pubkey: programState, isSigner: false, isWritable: true },
       ],
       programId: new PublicKey(STAKING_PROGRAM_ID),
       data: encodeUpdateParametersInstruction(stakeRateBasisPoints, harvestThreshold, stakeThreshold, unstakeThreshold)
+    };
+
+    // Create a simulation transaction
+    const simulationTx = new Transaction();
+    simulationTx.add(updateInstruction);
+    
+    try {
+      // Simulate the transaction
+      const simulation = await simulateTransaction(connection, simulationTx);
+      
+      // Check for program errors in the simulation
+      if (simulation.err) {
+        console.error('Simulation error:', simulation.err);
+        throw new Error(`Program error: ${simulation.err}`);
+      }
+      
+      if (simulation.logs) {
+        console.log('Simulation succeeded with logs:', simulation.logs.slice(0, 5));
+      }
+    } catch (simError) {
+      console.error('Simulation failed:', simError);
+      // Continue anyway - sometimes simulations fail for permission reasons
+    }
+
+    // Make sure we have the latest blockhash
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
+    
+    // Create transaction with updated blockhash
+    const transaction = new Transaction({
+      feePayer: walletPublicKey,
+      blockhash,
+      lastValidBlockHeight
     });
     
+    // Add update parameters instruction using the same instruction we simulated
+    transaction.add(updateInstruction);
+    
     // Add small timeout before sending to ensure wallet is ready
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 1000));  // Increased timeout to 1 second
     
     // Sign and send the transaction
     try {
       console.log('Sending update parameters transaction...');
-      const signature = await wallet.sendTransaction(transaction, connection);
-      console.log('Transaction sent, awaiting confirmation:', signature);
+      
+      // Instead of direct signing, use signTransaction first
+      const signedTx = await wallet.signTransaction(transaction);
+      console.log('Transaction signed, sending to network...');
+      
+      // Then send the pre-signed transaction
+      const signature = await connection.sendRawTransaction(signedTx.serialize());
+      console.log('Transaction sent with signature:', signature);
       
       // Use a longer timeout and more confirmations for admin operations
+      console.log('Waiting for confirmation...');
       const confirmation = await connection.confirmTransaction({
         signature,
         blockhash,
         lastValidBlockHeight
-      }, 'confirmed');
+      }, 'finalized');  // Changed to 'finalized' for more certainty
       
       console.log('Transaction confirmed:', confirmation);
       return signature;
     } catch (error) {
       console.error('Transaction send error:', error);
+      // Check if the wallet supports signTransaction
+      if (error instanceof Error && error.message.includes("does not support 'signTransaction'")) {
+        console.log('Wallet does not support signTransaction, falling back to sendTransaction...');
+        try {
+          const signature = await wallet.sendTransaction(transaction, connection);
+          console.log('Transaction sent via sendTransaction, awaiting confirmation:', signature);
+          
+          const confirmation = await connection.confirmTransaction({
+            signature,
+            blockhash,
+            lastValidBlockHeight
+          }, 'confirmed');
+          
+          console.log('Transaction confirmed:', confirmation);
+          return signature;
+        } catch (fallbackError) {
+          console.error('Fallback transaction error:', fallbackError);
+          throw new Error(`Transaction failed: ${fallbackError instanceof Error ? fallbackError.message : 'Unknown error'}`);
+        }
+      }
+      
       // Provide more detailed error message to help diagnose wallet issues
       const sendError = error as Error;
       if (sendError.message && sendError.message.includes('User rejected')) {

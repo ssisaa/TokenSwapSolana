@@ -744,22 +744,29 @@ export function useStaking() {
         
         console.log("Final basis points for blockchain:", basisPoints);
         
-        // For the harvest threshold, we convert to YOS raw units (micro-YOS)
-        // YOS uses 6 decimals, so 1 YOS = 1,000,000 micro-YOS
-        const harvestThresholdRaw = Math.round(harvestThreshold * 1000000);
-        console.log("Harvest threshold in micro-YOS:", harvestThresholdRaw);
+        // Just pass the values directly to the blockchain function
+        // Don't do any conversions or transformations - keep it simple
+        console.log("Harvest threshold (direct value):", harvestThreshold);
         
         // Use default values if stake/unstake thresholds are not provided
         const stakeThresholdValue = stakeThreshold ?? 10;
         const unstakeThresholdValue = unstakeThreshold ?? 10;
         
+        // Log the values we're sending
+        console.log("Sending direct values to blockchain:", {
+          basisPoints,
+          harvestThreshold,
+          stakeThresholdValue,
+          unstakeThresholdValue
+        });
+        
         // Call the blockchain function to update parameters
         const signature = await updateStakingParameters(
           wallet, 
-          basisPoints,                // stake rate in basis points
-          harvestThreshold,           // harvest threshold in YOS
-          stakeThresholdValue,        // stake threshold in YOT
-          unstakeThresholdValue       // unstake threshold in YOT
+          basisPoints,                // basis points
+          harvestThreshold,           // harvest threshold (direct value)
+          stakeThresholdValue,        // stake threshold (direct value)
+          unstakeThresholdValue       // unstake threshold (direct value)
         );
         
         console.log("Update parameters transaction signature:", signature);
