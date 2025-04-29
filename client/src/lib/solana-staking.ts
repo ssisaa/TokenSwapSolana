@@ -809,39 +809,43 @@ export async function updateStakingParameters(
     transaction.add(updateInstruction);
     
     // Add small timeout before sending to ensure wallet is ready
-    await new Promise(resolve => setTimeout(resolve, 1000));  // Increased timeout to 1 second
+    await new Promise(resolve => setTimeout(resolve, 1500));  // Increased timeout to 1.5 seconds
     
-    // Sign and send the transaction
+    // Sign and send the transaction, with robust fallback logic
     try {
       console.log('Sending update parameters transaction...');
       
-      // Instead of direct signing, use signTransaction first
-      const signedTx = await wallet.signTransaction(transaction);
-      console.log('Transaction signed, sending to network...');
-      
-      // Then send the pre-signed transaction
-      const signature = await connection.sendRawTransaction(signedTx.serialize());
-      console.log('Transaction sent with signature:', signature);
-      
-      // Use a longer timeout and more confirmations for admin operations
-      console.log('Waiting for confirmation...');
-      const confirmation = await connection.confirmTransaction({
-        signature,
-        blockhash,
-        lastValidBlockHeight
-      }, 'finalized');  // Changed to 'finalized' for more certainty
-      
-      console.log('Transaction confirmed:', confirmation);
-      return signature;
-    } catch (error) {
-      console.error('Transaction send error:', error);
-      // Check if the wallet supports signTransaction
-      if (error instanceof Error && error.message.includes("does not support 'signTransaction'")) {
-        console.log('Wallet does not support signTransaction, falling back to sendTransaction...');
-        try {
-          const signature = await wallet.sendTransaction(transaction, connection);
-          console.log('Transaction sent via sendTransaction, awaiting confirmation:', signature);
+      // Try with sendTransaction first, which is better supported by all wallets
+      try {
+        const signature = await wallet.sendTransaction(transaction, connection);
+        console.log('Transaction sent with signature:', signature);
+        
+        // Use a shorter confirmation commitment to avoid timeouts
+        console.log('Waiting for confirmation...');
+        const confirmation = await connection.confirmTransaction({
+          signature,
+          blockhash, 
+          lastValidBlockHeight
+        }, 'confirmed');  // Use 'confirmed' instead of 'finalized' for faster feedback
+        
+        console.log('Transaction confirmed:', confirmation);
+        return signature;
+      } catch (sendError) {
+        // Only log the error, then try the fallback approach
+        console.error('Initial sendTransaction failed:', sendError);
+        
+        // Try with signTransaction as fallback
+        if (wallet.signTransaction) {
+          console.log('Trying fallback with signTransaction...');
+          const signedTx = await wallet.signTransaction(transaction);
+          console.log('Transaction signed, sending to network...');
           
+          const signature = await connection.sendRawTransaction(signedTx.serialize(), {
+            skipPreflight: true, // Skip preflight to avoid blockhash issues
+            maxRetries: 5
+          });
+          
+          console.log('Transaction sent with signature:', signature);
           const confirmation = await connection.confirmTransaction({
             signature,
             blockhash,
@@ -850,16 +854,20 @@ export async function updateStakingParameters(
           
           console.log('Transaction confirmed:', confirmation);
           return signature;
-        } catch (fallbackError) {
-          console.error('Fallback transaction error:', fallbackError);
-          throw new Error(`Transaction failed: ${fallbackError instanceof Error ? fallbackError.message : 'Unknown error'}`);
+        } else {
+          // Re-throw the original error if fallback isn't available
+          throw sendError;
         }
       }
+    } catch (error) {
+      console.error('All transaction methods failed:', error);
       
       // Provide more detailed error message to help diagnose wallet issues
       const sendError = error as Error;
       if (sendError.message && sendError.message.includes('User rejected')) {
         throw new Error('Transaction was rejected by the wallet. Please try again.');
+      } else if (sendError.message && sendError.message.includes('Blockhash not found')) {
+        throw new Error('Transaction failed: Blockhash not found. Please try again in a few seconds, Solana network may be congested.');
       } else {
         throw new Error(`Wallet error: ${sendError.message || 'Unknown error'}`);
       }
