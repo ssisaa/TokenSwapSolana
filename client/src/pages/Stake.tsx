@@ -491,7 +491,8 @@ export default function Stake() {
                         <div className="flex justify-between items-center text-xs">
                           <span className="text-gray-400">0</span>
                           <span className={`font-medium ${(stakingInfo.rewardsEarned / 10000) >= (stakingRates?.harvestThreshold || 0) ? 'text-green-400' : 'text-amber-400'}`}>
-                            Threshold: {stakingRates?.harvestThreshold || 0} YOS
+                            Threshold: {typeof stakingRates?.harvestThreshold === 'number' ? 
+                              stakingRates.harvestThreshold.toLocaleString('en-US', {maximumFractionDigits: 0}) : '0'} YOS
                           </span>
                         </div>
                       </div>
@@ -508,7 +509,8 @@ export default function Stake() {
                       {(stakingInfo.rewardsEarned / 10000) < (stakingRates?.harvestThreshold || 0) && (
                         <div className="text-xs text-amber-400 flex items-center">
                           <span className="mr-1">⚠️</span>
-                          Need at least {stakingRates?.harvestThreshold || 0} YOS to harvest (you have {formatNumber(stakingInfo.rewardsEarned / 10000)})
+                          Need at least {typeof stakingRates?.harvestThreshold === 'number' ? 
+                              stakingRates.harvestThreshold.toLocaleString('en-US', {maximumFractionDigits: 0}) : '0'} YOS to harvest (you have {formatNumber(stakingInfo.rewardsEarned / 10000)})
                         </div>
                       )}
                     </div>
@@ -521,7 +523,8 @@ export default function Stake() {
                             Harvesting will claim your earned YOS rewards and send them to your wallet. You can harvest anytime rewards are available.
                           </p>
                           <p className="mt-2 font-medium text-amber-300">
-                            Minimum harvest amount: {stakingRates?.harvestThreshold || 0} YOS
+                            Minimum harvest amount: {typeof stakingRates?.harvestThreshold === 'number' ? 
+                              stakingRates.harvestThreshold.toLocaleString('en-US', {maximumFractionDigits: 0}) : '0'} YOS
                           </p>
                         </div>
                       </div>
@@ -633,7 +636,8 @@ export default function Stake() {
               <h3 className="text-lg font-semibold">Are there minimum amounts for staking operations?</h3>
               <p className="mt-2 text-muted-foreground">
                 Yes, to prevent dust attacks and ensure efficient use of network resources, there are minimums for each operation. 
-                You need to stake at least {stakingRates?.stakeThreshold || 0} YOT, unstake at least {stakingRates?.unstakeThreshold || 0} YOT, and you can only harvest rewards when you've accumulated at least {stakingRates?.harvestThreshold || 0} YOS.
+                You need to stake at least {stakingRates?.stakeThreshold || 0} YOT, unstake at least {stakingRates?.unstakeThreshold || 0} YOT, and you can only harvest rewards when you've accumulated at least {typeof stakingRates?.harvestThreshold === 'number' ? 
+                              stakingRates.harvestThreshold.toLocaleString('en-US', {maximumFractionDigits: 0}) : '0'} YOS.
               </p>
             </div>
             

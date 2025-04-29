@@ -709,6 +709,36 @@ export async function updateStakingParameters(
   const walletPublicKey = wallet.publicKey;
   
   try {
+    // Verify wallet connection first
+    if (!wallet) {
+      throw new Error('Wallet is not connected');
+    }
+    
+    if (!wallet.publicKey) {
+      throw new Error('Wallet does not have a public key available');
+    }
+    
+    // Validate connection to Solana network
+    try {
+      const blockHeight = await connection.getBlockHeight();
+      console.log('Connected to Solana network, current block height:', blockHeight);
+    } catch (connError) {
+      console.error('Failed to connect to Solana network:', connError);
+      throw new Error('Could not connect to Solana network. Please check your internet connection and try again.');
+    }
+    
+    // Check that wallet has SOL for transaction fees
+    try {
+      const balance = await connection.getBalance(wallet.publicKey);
+      if (balance < 1000000) {  // 0.001 SOL minimum for transaction fees
+        console.warn('Wallet has low SOL balance:', balance / 1000000000);
+        // We won't throw here, just warn - transaction might still succeed
+      }
+    } catch (balanceError) {
+      console.warn('Failed to check wallet balance:', balanceError);
+      // Continue anyway, don't block the transaction just because we can't check balance
+    }
+    
     // Validate inputs to prevent numeric overflow
     if (stakeRateBasisPoints <= 0 || stakeRateBasisPoints > 1000000) {
       throw new Error('Invalid stake rate: must be between 1 and 1,000,000 basis points');
@@ -876,7 +906,19 @@ export async function updateStakingParameters(
           throw new Error('Transaction failed: Blockhash expired. We tried again with a fresh blockhash but it still failed. Please try again in a few moments when the Solana network is less congested.');
         }
       } else {
-        throw new Error(`Wallet error: ${sendError.message || 'Unknown error'}`);
+        // Better error logging for debugging
+        console.log('Debug - Error object:', sendError);
+        console.log('Debug - Error properties:', Object.getOwnPropertyNames(sendError));
+        console.log('Debug - Error name:', sendError.name);
+        console.log('Debug - Error message:', sendError.message);
+        
+        if (sendError.message) {
+          throw new Error(`Wallet error: ${sendError.message}`);
+        } else if (sendError.name) {
+          throw new Error(`Wallet error: ${sendError.name}`);
+        } else {
+          throw new Error('Wallet transaction failed. Please check your wallet connection and try again.');
+        }
       }
     }
   } catch (error) {
