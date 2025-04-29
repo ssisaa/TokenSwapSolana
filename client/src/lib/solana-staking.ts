@@ -1377,20 +1377,33 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // but keep it in the actual transaction for compatibility with the deployed program
     const scalingFactor = 10000;
     
-    // Staking earnings should match the APY shown to the user
-    // Calculate rewards correctly using APY-based calculation
+    // IMPORTANT: The contract gives rewards based on the stated APR
+    // For example, with 394.2% APR, a user with 100 YOT should earn 394.2 YOS per year
+    
+    // Get the daily APR based on the per-second rate
     const secondsInDay = 86400;
-    const secondsInYear = 86400 * 365;
+    const secondsInYear = secondsInDay * 365;
+    const dailyRatePercentage = stakeRateDecimal * secondsInDay * 100; // As percentage
+    const yearlyRatePercentage = dailyRatePercentage * 365; // As percentage
     
-    // Convert to yearly rate
-    const yearlyRate = stakeRateDecimal * secondsInYear;
+    console.log(`Daily rate: ${dailyRatePercentage.toFixed(6)}%, Yearly rate: ${yearlyRatePercentage.toFixed(2)}%`);
     
-    // Calculate rewards based on fraction of year staked
+    // Calculate rewards: (staked amount) * (yearly rate as decimal) * (fraction of year elapsed)
+    const yearlyRateDecimal = yearlyRatePercentage / 100; // Convert from percentage to decimal
     const yearFraction = timeStakedSinceLastHarvest / secondsInYear;
-    const normalizedRewards = stakedAmount * yearlyRate * yearFraction;
     
-    // The blockchain applies a 10,000x multiplier we need to account for
+    // Apply the calculation using the exact interest formula from the contract
+    const normalizedRewards = stakedAmount * yearlyRateDecimal * yearFraction;
+    
+    // Final rewards value (this is what the user should actually receive)
     const rewardsValue = normalizedRewards;
+    
+    console.log(`DETAILED REWARDS CALCULATION:
+    - YOT staked: ${stakedAmount} 
+    - Yearly rate: ${yearlyRatePercentage.toFixed(2)}%
+    - Time staked: ${timeStakedSinceLastHarvest} seconds (${(yearFraction * 100).toFixed(6)}% of a year)
+    - Raw calculation: ${stakedAmount} * ${yearlyRateDecimal} * ${yearFraction} = ${normalizedRewards}
+    - Final YOS rewards: ${rewardsValue}`);
     
     // Format the rewards value to display with normal decimals instead of scientific notation
     let formattedRewardsValue: string;
