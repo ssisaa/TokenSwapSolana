@@ -289,7 +289,17 @@ function encodeUpdateParametersInstruction(
   data.writeBigUInt64LE(BigInt(basisPoints), 1);
   
   // Convert harvest threshold to raw amount with 6 decimals (1 YOS = 1,000,000 raw units)
-  data.writeBigUInt64LE(BigInt(harvestThreshold * 1000000), 1 + 8);
+  // Limit the max value to prevent overflow
+  const MAX_SAFE_THRESHOLD = 18446744073; // Max value / 1_000_000 for safe conversion
+  const safeHarvestThreshold = Math.min(harvestThreshold, MAX_SAFE_THRESHOLD);
+  
+  console.log(`Original harvest threshold: ${harvestThreshold}, capped to: ${safeHarvestThreshold}`);
+  
+  // Convert to raw units with protection against overflow
+  const harvestThresholdRaw = BigInt(Math.floor(safeHarvestThreshold * 1000000));
+  console.log(`Harvest threshold in raw units: ${harvestThresholdRaw}`);
+  
+  data.writeBigUInt64LE(harvestThresholdRaw, 1 + 8);
   return data;
 }
 

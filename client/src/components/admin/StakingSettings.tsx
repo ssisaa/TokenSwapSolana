@@ -189,8 +189,23 @@ export default function StakingSettings() {
               id="stakeThreshold"
               type="number"
               step="1"
+              min="0"
+              max="1000000" 
               value={stakeThreshold}
-              onChange={(e) => setStakeThreshold(e.target.value)}
+              onChange={(e) => {
+                // Limit to a safe range
+                const value = parseFloat(e.target.value);
+                if (value > 1000000) {
+                  setStakeThreshold("1000000");
+                  toast({
+                    title: "Value Too Large",
+                    description: "Maximum stake threshold is 1,000,000 YOT",
+                    variant: "destructive",
+                  });
+                } else {
+                  setStakeThreshold(e.target.value);
+                }
+              }}
               placeholder="10.0"
               disabled={isUpdatingParameters || !isAdmin}
             />
@@ -217,8 +232,23 @@ export default function StakingSettings() {
               id="unstakeThreshold"
               type="number"
               step="1"
+              min="0"
+              max="1000000" 
               value={unstakeThreshold}
-              onChange={(e) => setUnstakeThreshold(e.target.value)}
+              onChange={(e) => {
+                // Limit to a safe range
+                const value = parseFloat(e.target.value);
+                if (value > 1000000) {
+                  setUnstakeThreshold("1000000");
+                  toast({
+                    title: "Value Too Large",
+                    description: "Maximum unstake threshold is 1,000,000 YOT",
+                    variant: "destructive",
+                  });
+                } else {
+                  setUnstakeThreshold(e.target.value);
+                }
+              }}
               placeholder="10.0"
               disabled={isUpdatingParameters || !isAdmin}
             />
@@ -245,8 +275,23 @@ export default function StakingSettings() {
               id="harvestThreshold"
               type="number"
               step="0.1"
+              min="0"
+              max="1000000000" 
               value={harvestThreshold}
-              onChange={(e) => setHarvestThreshold(e.target.value)}
+              onChange={(e) => {
+                // Limit to a safe range to prevent overflow errors
+                const value = parseFloat(e.target.value);
+                if (value > 1000000000) {
+                  setHarvestThreshold("1000000000");
+                  toast({
+                    title: "Value Too Large",
+                    description: "Maximum harvest threshold is 1,000,000,000 YOS",
+                    variant: "destructive",
+                  });
+                } else {
+                  setHarvestThreshold(e.target.value);
+                }
+              }}
               placeholder="1.0"
               disabled={isUpdatingParameters || !isAdmin}
             />
