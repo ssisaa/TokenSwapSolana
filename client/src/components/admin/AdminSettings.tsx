@@ -462,7 +462,7 @@ export default function AdminSettings() {
               disabled={!connected}
               onClick={() => {
                 // Show confirmation dialog here
-                if (window.confirm("Are you sure you want to initialize the staking program? This will reset all staking data.")) {
+                if (window.confirm("Are you sure you want to initialize or update the staking program? If already initialized, this will update the parameters.")) {
                   import("@/lib/solana-staking").then(({ initializeStakingProgram }) => {
                     try {
                       // Log wallet status to help debug
@@ -530,7 +530,7 @@ export default function AdminSettings() {
                 }
               }}
             >
-              {connected ? "Initialize Staking Program" : "Connect Wallet First"}
+              {connected ? "Initialize/Update Staking Program" : "Connect Wallet First"}
             </Button>
           </div>
         </form>

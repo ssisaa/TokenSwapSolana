@@ -301,6 +301,15 @@ export async function initializeStakingProgram(
     const [programState, programStateBump] = findProgramStateAddress();
     const [programAuthority, authorityBump] = findProgramAuthorityAddress();
     
+    // Check if program is already initialized
+    const programStateInfo = await connection.getAccountInfo(programState);
+    console.log("Program state account exists:", !!programStateInfo);
+    
+    if (programStateInfo) {
+      // Program is already initialized - check if we need to update parameters
+      return await updateStakingParameters(wallet, stakeRateBasisPoints, harvestThreshold);
+    }
+    
     // Get program authority's token addresses
     const programYotATA = await getAssociatedTokenAddress(yotMint, programAuthority, true);
     const programYosATA = await getAssociatedTokenAddress(yosMint, programAuthority, true);
@@ -334,13 +343,6 @@ export async function initializeStakingProgram(
         )
       );
     }
-    
-    // Create the program state account if it doesn't exist
-    const programStateInfo = await connection.getAccountInfo(programState);
-    console.log("Program state account exists:", !!programStateInfo);
-    
-    // NOTE: We'll let the program create its state account internally
-    // This is a common pattern in Solana - the program handles PDA creation
     
     // Add initialize instruction - key order MUST match program expectations!
     transaction.add({
