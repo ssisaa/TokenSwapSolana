@@ -29,46 +29,62 @@ export default function StakingSettings() {
   const [unstakeThreshold, setUnstakeThreshold] = useState<string>('10.0');
   const [harvestThreshold, setHarvestThreshold] = useState<string>('1.0');
   
-  // Default to the requested rate (1.25e-7) if needed
+  // Default to the requested rate (1.25e-7) if needed and log what we're doing
   useEffect(() => {
     if (!stakingRates) {
+      console.log('No staking rates available yet, using default rate: 0.0000000125');
       setStakeRatePerSecond('0.0000000125');
+    } else {
+      console.log('Staking rates available:', stakingRates);
     }
-  }, []);
+  }, [stakingRates]);
   
-  // Load initial values from blockchain once, but don't override user inputs
-  const [initialValuesLoaded, setInitialValuesLoaded] = useState(false);
+  // Track if staking rates have changed
+  const [lastRatesSnapshot, setLastRatesSnapshot] = useState<string>('');
   
   React.useEffect(() => {
-    if (stakingRates && !initialValuesLoaded) {
-      // Format the rate with proper decimal notation instead of scientific notation (e.g., 0.00000125 instead of 1.25e-9)
-      const formattedRate = stakingRates.stakeRatePerSecond.toFixed(10).replace(/\.?0+$/, '');
-      setStakeRatePerSecond(formattedRate);
+    if (stakingRates) {
+      // Create a snapshot of current rates to detect changes
+      const currentSnapshot = JSON.stringify({
+        rate: stakingRates.stakeRatePerSecond,
+        harvest: stakingRates.harvestThreshold,
+        stake: stakingRates.stakeThreshold,
+        unstake: stakingRates.unstakeThreshold
+      });
       
-      // Set the harvest threshold from blockchain values
-      setHarvestThreshold(stakingRates.harvestThreshold.toString());
-      
-      // Set stake/unstake thresholds from blockchain values if available
-      if (stakingRates.stakeThreshold !== undefined) {
-        setStakeThreshold(stakingRates.stakeThreshold.toString());
-        console.log(`Setting stake threshold from blockchain: ${stakingRates.stakeThreshold}`);
-      } else {
-        setStakeThreshold('10.0');
-        console.log('Using default stake threshold: 10.0');
+      // If rates have changed from blockchain, update form values
+      if (currentSnapshot !== lastRatesSnapshot) {
+        console.log('Staking rates changed, updating form values:', stakingRates);
+        
+        // Format the rate with proper decimal notation instead of scientific notation
+        const formattedRate = stakingRates.stakeRatePerSecond.toFixed(10).replace(/\.?0+$/, '');
+        setStakeRatePerSecond(formattedRate);
+        
+        // Set the harvest threshold from blockchain values
+        setHarvestThreshold(stakingRates.harvestThreshold.toString());
+        
+        // Set stake/unstake thresholds from blockchain values if available
+        if (stakingRates.stakeThreshold !== undefined) {
+          setStakeThreshold(stakingRates.stakeThreshold.toString());
+          console.log(`Setting stake threshold from blockchain: ${stakingRates.stakeThreshold}`);
+        } else {
+          setStakeThreshold('10.0');
+          console.log('Using default stake threshold: 10.0');
+        }
+        
+        if (stakingRates.unstakeThreshold !== undefined) {
+          setUnstakeThreshold(stakingRates.unstakeThreshold.toString());
+          console.log(`Setting unstake threshold from blockchain: ${stakingRates.unstakeThreshold}`);
+        } else {
+          setUnstakeThreshold('10.0');
+          console.log('Using default unstake threshold: 10.0');
+        }
+        
+        // Update snapshot so we don't repeatedly update for same values
+        setLastRatesSnapshot(currentSnapshot);
       }
-      
-      if (stakingRates.unstakeThreshold !== undefined) {
-        setUnstakeThreshold(stakingRates.unstakeThreshold.toString());
-        console.log(`Setting unstake threshold from blockchain: ${stakingRates.unstakeThreshold}`);
-      } else {
-        setUnstakeThreshold('10.0');
-        console.log('Using default unstake threshold: 10.0');
-      }
-      
-      // Mark as loaded so we don't overwrite user changes
-      setInitialValuesLoaded(true);
     }
-  }, [stakingRates, initialValuesLoaded]);
+  }, [stakingRates, lastRatesSnapshot]);
   
   // Validate admin status
   // In a real implementation, we would verify the admin's public key

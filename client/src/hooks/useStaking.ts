@@ -129,8 +129,11 @@ export function useStaking() {
   } = useQuery<StakingRates | null>({
     queryKey: ['staking', 'rates'],
     queryFn: async () => {
+      console.log('Fetching staking rates from blockchain...');
       try {
-        return await getStakingProgramState();
+        const rates = await getStakingProgramState();
+        console.log('Successfully fetched staking rates:', rates);
+        return rates;
       } catch (error) {
         console.error("Failed to get staking program state:", error);
         // The getStakingProgramState function now handles errors internally
@@ -803,7 +806,9 @@ export function useStaking() {
       }
     },
     onSuccess: (result) => {
+      console.log('Staking settings updated successfully:', result);
       // Invalidate queries to trigger refetch
+      console.log('Invalidating staking rates cache to trigger refetch');
       queryClient.invalidateQueries({ queryKey: ['staking', 'rates'] });
       
       // Construct a complete message with all the updated parameters
