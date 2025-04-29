@@ -1,16 +1,14 @@
-// This is a proposed fix for the decimal issue in the process_harvest function
-// The problem is that the contract calculates rewards correctly but transfers the raw amount
-// without considering token decimals, causing wallet displays to show large numbers.
+// Improved harvest function that fixes the decimal issue
+// The original function divides by 1_000_000_000 when transferring, causing a decimal mismatch
+// This version uses raw_rewards directly for token transfer, ensuring UI & wallet values match
 
-// Replace the existing process_harvest function with this updated version:
-
-fn process_harvest(
+fn process_harvest_fixed(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     
-    // Get accounts
+    // Get accounts (keep same order as original)
     let user_account = next_account_info(account_info_iter)?;
     let user_yos_token_account = next_account_info(account_info_iter)?;
     let program_yos_token_account = next_account_info(account_info_iter)?;
@@ -20,7 +18,7 @@ fn process_harvest(
     let program_authority = next_account_info(account_info_iter)?;
     let clock = next_account_info(account_info_iter)?;
     
-    // Verify user signature (mandatory signature verification)
+    // Verify user signature (mandatory)
     if !user_account.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
     }
@@ -39,21 +37,21 @@ fn process_harvest(
         return Err(ProgramError::InvalidAccountData);
     }
     
-    // Get program state - IMPORTANT: We need this to get the CURRENT staking rate
+    // Get program state for current staking rate
     let program_state = ProgramState::try_from_slice(&program_state_account.data.borrow())?;
     
     // Get current time
     let clock = Clock::from_account_info(clock)?;
     let current_time = clock.unix_timestamp;
     
-    // Calculate rewards using CURRENT rate from program state
+    // Calculate rewards using current rate
     let time_staked_seconds = current_time.checked_sub(staking_data.last_harvest_time)
         .ok_or(ProgramError::InvalidArgument)?;
     
     // Convert staking rate from basis points to decimal
     let rate_decimal = (program_state.stake_rate_per_second as f64) / 10000.0;
     
-    // Calculate raw rewards based on staked amount, time, and CURRENT rate
+    // Calculate raw rewards - this is in token raw units already (includes decimals)
     let raw_rewards = (staking_data.staked_amount as f64 * time_staked_seconds as f64 * rate_decimal) as u64;
     
     // Check rewards meet minimum threshold
@@ -61,18 +59,33 @@ fn process_harvest(
         return Err(ProgramError::InsufficientFunds);
     }
     
-    // Update staking data - always store the raw amount in staking data
+    // Check if program has enough YOS tokens
+    let program_yos_info = match spl_token::state::Account::unpack(&program_yos_token_account.data.borrow()) {
+        Ok(token_account) => token_account,
+        Err(error) => {
+            msg!("Error unpacking program YOS token account: {:?}", error);
+            return Err(ProgramError::InvalidAccountData);
+        }
+    };
+    
+    let program_yos_balance = program_yos_info.amount;
+    
+    if program_yos_balance < raw_rewards {
+        return Err(ProgramError::InsufficientFunds);
+    }
+    
+    // Update staking data
     staking_data.last_harvest_time = current_time;
     staking_data.total_harvested = staking_data.total_harvested.checked_add(raw_rewards)
         .ok_or(ProgramError::InvalidArgument)?;
     
     staking_data.serialize(&mut *user_staking_account.try_borrow_mut_data()?)?;
     
-    // For wallet display purposes, convert rewards to proper decimal format
-    // This is the actual amount to transfer with the token's 9 decimals applied
-    let ui_rewards = raw_rewards;
+    // CRITICAL FIX: Use raw_rewards directly without division
+    // Previous implementation divided by 10^9, causing decimal mismatch:
+    // let ui_rewards = raw_rewards / 1_000_000_000;
     
-    // Transfer rewards to user - use the raw amount as SPL tokens already account for decimals
+    // Transfer YOS rewards to user using full precision
     invoke_signed(
         &spl_token::instruction::transfer(
             token_program.key,
@@ -80,7 +93,7 @@ fn process_harvest(
             user_yos_token_account.key,
             program_authority.key,
             &[],
-            ui_rewards,
+            raw_rewards, // FIXED: Use raw amount directly instead of dividing
         )?,
         &[
             program_yos_token_account.clone(),
@@ -91,16 +104,8 @@ fn process_harvest(
         &[&[b"authority", &[authority_bump]]],
     )?;
     
-    // Log the proper decimal format for clarity
-    msg!("Harvested {} YOS rewards (raw amount: {})", ui_rewards as f64 / 1_000_000_000.0, raw_rewards);
+    // Log with correct decimal formatting
+    msg!("Harvested {} YOS rewards", raw_rewards as f64 / 1_000_000_000.0);
     
     Ok(())
 }
-
-// NOTE: The key changes are:
-// 1. We now consistently use raw_rewards for internal calculations and storage
-// 2. For token transfers, we use ui_rewards (same as raw_rewards since SPL tokens already handle decimals)
-// 3. In logs, we show both the user-friendly amount (divided by 10^9) and the raw amount
-
-// This approach ensures consistency between internal calculations, stored values,
-// and what users see in their wallets.
