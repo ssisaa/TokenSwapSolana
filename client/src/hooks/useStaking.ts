@@ -59,6 +59,8 @@ interface StakingInfo {
   lastHarvestTime: number;
   totalHarvested: number;
   rewardsEarned: number;
+  // Internal value used by blockchain transactions (10000x multiplier)
+  _rewardsEarnedInternal?: number;
 }
 
 interface StakingRates {

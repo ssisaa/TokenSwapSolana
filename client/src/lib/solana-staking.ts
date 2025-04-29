@@ -1372,34 +1372,42 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // but keep it in the actual transaction for compatibility with the deployed program
     const scalingFactor = 10000;
     
-    // For display purposes, we'll show what SHOULD be earned (without the scaling)
+    // Calculate rewards correctly using linear interest (matches Solana program)
     const normalizedRewards = stakedAmount * stakeRateDecimal * timeStakedSinceLastHarvest;
     
-    // For blockchain compatibility, we'll return the scaled amount to match what will be received
-    const pendingRewards = normalizedRewards * scalingFactor;
+    // CRITICAL FIX: Separate UI display value from blockchain transaction value
+    // The UI should show the normalized amount a user will actually receive
+    // The internal calculations should match what the blockchain expects
+    const pendingRewardsDisplay = normalizedRewards; // For UI display - what users will actually receive
+    const pendingRewardsInternal = normalizedRewards * scalingFactor; // Internal value used by blockchain
     
     console.log(`LINEAR REWARDS CALCULATION WITH CORRECT NORMALIZATION:`);
     console.log(`- Staked amount: ${stakedAmount} YOT tokens`);
     console.log(`- Rate: ${ratePercentage}% per second (${stakeRateDecimal} as decimal)`);
     console.log(`- Time staked: ${timeStakedSinceLastHarvest} seconds`);
-    console.log(`- WHAT SHOULD BE EARNED: ${normalizedRewards} YOS (without scaling)`);
-    console.log(`- WHAT WILL ACTUALLY BE RECEIVED FROM BLOCKCHAIN: ${pendingRewards} YOS (with ${scalingFactor}x scaling)`);
-    console.log(`- NOTE: The Solana program has an artificial ${scalingFactor}x multiplier built in!`);
+    console.log(`- DISPLAY VALUE (ACTUAL YOS TO RECEIVE): ${pendingRewardsDisplay} YOS`);
+    console.log(`- INTERNAL VALUE (USED BY BLOCKCHAIN): ${pendingRewardsInternal} YOS (with ${scalingFactor}x scaling)`);
+    console.log(`- NOTE: The UI now correctly shows what users will receive, not the internal blockchain value`);
     
     console.log("Reward calculation info:", {
       stakedAmount: Number(stakedAmount),
       timeStakedSinceLastHarvest,
       stakeRateDecimal,
       method: "LINEAR (matches Solana program)",
-      pendingRewards
+      pendingRewardsDisplay,
+      pendingRewardsInternal
     });
     
+    // CRITICAL FIX: Return the display value that users will actually receive
+    // This ensures the UI shows the correct amount and prevents confusion
     return {
       stakedAmount: Number(stakedAmount),
       startTimestamp: startTimestamp,
       lastHarvestTime: lastHarvestTime,
       totalHarvested: totalHarvested,
-      rewardsEarned: pendingRewards
+      rewardsEarned: pendingRewardsDisplay, // Use the display value for UI, not the internal value
+      // Add the internal value as a separate property for use in blockchain transactions
+      _rewardsEarnedInternal: pendingRewardsInternal // Prefixed with underscore to indicate it's internal
     };
   } catch (error) {
     console.error('Error getting staking info:', error);
