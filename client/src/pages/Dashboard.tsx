@@ -300,7 +300,7 @@ export default function Dashboard() {
             <Card className="bg-dark-200 border-dark-400 p-4">
               <h3 className="text-gray-400 text-sm">Your Pending Rewards</h3>
               <div className="text-xl font-semibold text-white mt-1">
-                {stakingLoading ? "Loading..." : formatNumber(stakingInfo.rewardsEarned)} 
+                {stakingLoading ? "Loading..." : formatNumber(stakingInfo.rewardsEarned / 10000)} 
                 <span className="text-green-400 text-sm ml-1">YOS</span>
               </div>
             </Card>
