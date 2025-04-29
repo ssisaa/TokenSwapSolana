@@ -747,27 +747,58 @@ export async function updateStakingParameters(
     simulationTx.add(updateInstruction);
     
     try {
-      // Simulate the transaction
-      const simulation = await simulateTransaction(connection, simulationTx);
+      console.log('Simulating transaction before sending...');
+      // Use a more reliable approach by running transaction simulation directly
+      const simulation = await connection.simulateTransaction(simulationTx);
+      
+      // Log simulation results for debugging
+      console.log('Simulation result:', simulation);
       
       // Check for program errors in the simulation
-      if (simulation.err) {
-        console.error('Simulation error:', simulation.err);
-        throw new Error(`Program error: ${simulation.err}`);
+      if (simulation.value && simulation.value.err) {
+        console.error('Simulation error:', simulation.value.err);
+        throw new Error(`Program error: ${simulation.value.err}`);
       }
       
-      if (simulation.logs) {
-        console.log('Simulation succeeded with logs:', simulation.logs.slice(0, 5));
+      if (simulation.value && simulation.value.logs) {
+        console.log('Simulation succeeded with logs:', simulation.value.logs.slice(0, 5));
       }
     } catch (simError) {
       console.error('Simulation failed:', simError);
-      // Continue anyway - sometimes simulations fail for permission reasons
+      // Log but continue - some wallets don't properly support simulation
     }
 
-    // Make sure we have the latest blockhash
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
+    // Important: Add retry logic for getting a fresh blockhash
+    let blockhash = '';
+    let lastValidBlockHeight = 0;
     
-    // Create transaction with updated blockhash
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        console.log(`Getting latest blockhash (attempt ${attempt}/3)...`);
+        // Make sure we have the latest blockhash - use 'confirmed' instead of 'finalized' for faster response
+        const blockHashInfo = await connection.getLatestBlockhash('confirmed');
+        blockhash = blockHashInfo.blockhash;
+        lastValidBlockHeight = blockHashInfo.lastValidBlockHeight;
+        
+        if (blockhash) {
+          console.log(`Successfully obtained blockhash: ${blockhash}`);
+          break;
+        } else {
+          console.warn('Empty blockhash received, retrying...');
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      } catch (e) {
+        console.error(`Error getting blockhash (attempt ${attempt}/3):`, e);
+        if (attempt === 3) throw e;
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+    
+    if (!blockhash) {
+      throw new Error('Failed to obtain a valid blockhash after multiple attempts');
+    }
+    
+    // Create transaction with the obtained blockhash
     const transaction = new Transaction({
       feePayer: walletPublicKey,
       blockhash,

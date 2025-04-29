@@ -36,8 +36,11 @@ export default function StakingSettings() {
     }
   }, []);
   
+  // Load initial values from blockchain once, but don't override user inputs
+  const [initialValuesLoaded, setInitialValuesLoaded] = useState(false);
+  
   React.useEffect(() => {
-    if (stakingRates) {
+    if (stakingRates && !initialValuesLoaded) {
       // Format the rate with proper decimal notation instead of scientific notation (e.g., 0.00000125 instead of 1.25e-9)
       const formattedRate = stakingRates.stakeRatePerSecond.toFixed(10).replace(/\.?0+$/, '');
       setStakeRatePerSecond(formattedRate);
@@ -45,17 +48,14 @@ export default function StakingSettings() {
       // Set the harvest threshold from blockchain values
       setHarvestThreshold(stakingRates.harvestThreshold.toString());
       
-      // Keep current values for stake/unstake thresholds to avoid resetting them
-      // if they already have values (which means user has set them)
-      if (!stakeThreshold || stakeThreshold === '0' || stakeThreshold === '0.0') {
-        setStakeThreshold('10.0'); // Only set default if not already set
-      }
+      // Set default values for stake/unstake thresholds
+      setStakeThreshold('10.0'); 
+      setUnstakeThreshold('10.0');
       
-      if (!unstakeThreshold || unstakeThreshold === '0' || unstakeThreshold === '0.0') {
-        setUnstakeThreshold('10.0'); // Only set default if not already set
-      }
+      // Mark as loaded so we don't overwrite user changes
+      setInitialValuesLoaded(true);
     }
-  }, [stakingRates, stakeThreshold, unstakeThreshold]);
+  }, [stakingRates, initialValuesLoaded]);
   
   // Validate admin status
   // In a real implementation, we would verify the admin's public key
