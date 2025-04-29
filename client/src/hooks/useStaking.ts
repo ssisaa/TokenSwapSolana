@@ -552,13 +552,23 @@ export function useStaking() {
           try {
             const programYosBalance = await connection.getTokenAccountBalance(programYosAccount);
             const availableYos = programYosBalance.value.uiAmount || 0;
-            const pendingRewards = stakingInfo.rewardsEarned;
             
-            console.log(`Program YOS balance: ${availableYos}, User pending rewards: ${pendingRewards}`);
+            // CRITICAL FIX: Apply the 10,000× divisor to get the true UI amount
+            const pendingRewardsRaw = stakingInfo.rewardsEarned;
+            const pendingRewardsUI = pendingRewardsRaw / 10000;
             
-            if (availableYos < pendingRewards && pendingRewards > 0.01) {
+            console.log(`
+            ========== HARVEST REWARDS DEBUG ==========
+            Program YOS balance: ${availableYos} YOS
+            User pending rewards (UI display): ${pendingRewardsUI} YOS
+            User pending rewards (blockchain): ${pendingRewardsRaw}
+            10,000× multiplier ratio: ${pendingRewardsRaw / pendingRewardsUI}
+            =========================================`);
+            
+            // Compare the UI amount with available YOS
+            if (availableYos < pendingRewardsUI && pendingRewardsUI > 0.01) {
               // Just log a warning - don't prevent harvesting
-              console.warn(`Program has insufficient YOS tokens (${availableYos}) for full rewards (${pendingRewards})`);
+              console.warn(`Program has insufficient YOS tokens (${availableYos}) for full rewards (${pendingRewardsUI} YOS)`);
               // The actual harvest function (harvestYOSRewards) will also show a toast warning
             }
           } catch (e) {
@@ -581,10 +591,14 @@ export function useStaking() {
         }
         
         // Log reward values for clarity and debugging
-        console.log("REWARDS CHECK PASSED:");
-        console.log(`- User UI reward amount: ${stakingInfo.rewardsEarned} YOS`);
-        console.log(`- Harvest threshold: ${stakingRates.harvestThreshold || 0} YOS`);
-        // No need to log internal values
+        console.log(`
+        ========== HARVEST TRANSACTION DEBUG ==========
+        User blockchain reward amount: ${stakingInfo.rewardsEarned}
+        User display reward amount: ${stakingInfo.rewardsEarned / 10000} YOS
+        Harvest threshold: ${stakingRates.harvestThreshold || 0} YOS
+        Multiplier ratio: 10,000×
+        ==============================================`);
+        
         
         // Execute the harvest
         const result = await harvestYOSRewards(wallet);
