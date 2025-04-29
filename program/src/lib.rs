@@ -577,11 +577,11 @@ fn process_harvest(
     staking_data.serialize(&mut *user_staking_account.try_borrow_mut_data()?)?;
     
     // CRITICAL FIX FOR DECIMAL TRANSFER ISSUE:
-    // We need to DIVIDE the raw rewards by 10^9 to get the correct token amount
-    // because 1 token = 10^9 raw units in Solana's SPL token standard
-    let ui_rewards = raw_rewards / 1_000_000_000;
+    // REMOVED incorrect division by 10^9 - SPL tokens already account for decimals
+    // Raw amount already has 9 decimal places (e.g., 10 YOS = 10,000,000,000 raw units)
+    // Use the raw amount directly without division
     
-    // Transfer YOS rewards to user (using the corrected amount)
+    // Transfer YOS rewards to user (using the FULL raw amount)
     invoke_signed(
         &spl_token::instruction::transfer(
             token_program.key,
@@ -589,7 +589,7 @@ fn process_harvest(
             user_yos_token_account.key,
             program_authority.key,
             &[],
-            ui_rewards, // Now this is the actual token amount (e.g., 4.35 YOS becomes just 4)
+            raw_rewards, // FIXED: Use raw amount directly instead of dividing
         )?,
         &[
             program_yos_token_account.clone(),
@@ -601,7 +601,7 @@ fn process_harvest(
     )?;
     
     // Log the proper decimal format for clarity
-    msg!("Harvested {} YOS rewards (raw amount: {})", ui_rewards as f64 / 1_000_000_000.0, raw_rewards);
+    msg!("Harvested {} YOS rewards (raw amount: {})", raw_rewards as f64 / 1_000_000_000.0, raw_rewards);
     
     Ok(())
 }
