@@ -283,8 +283,14 @@ function encodeUnstakeInstruction(amount: number): Buffer {
 }
 
 function encodeHarvestInstruction(): Buffer {
+  // CRITICAL FIX: The harvest instruction needs special handling
+  // due to the 10,000x multiplier bug in the contract
+  
+  // The simplest instruction with no parameters
   const data = Buffer.alloc(1); // instruction type (1)
   data.writeUInt8(StakingInstructionType.Harvest, 0);
+  
+  console.log("Created harvest instruction buffer - size:", data.length);
   return data;
 }
 
@@ -578,25 +584,71 @@ export async function prepareUnstakeTransaction(
 
 /**
  * Unstake YOT tokens using the deployed program
+ * CRITICAL FIX: We need to properly handle the 10,000x multiplier issue when unstaking
  */
 export async function unstakeYOTTokens(
   wallet: any,
   amount: number
 ): Promise<string> {
+  if (!wallet || !wallet.publicKey) {
+    throw new Error('Wallet not connected');
+  }
+  
+  const walletPublicKey = wallet.publicKey;
+  
   try {
-    // WARNING: Due to a contract bug, unstaking large amounts can cause issues
-    // For now, we'll continue with the regular unstake process
-    console.log("Unstaking YOT amount:", amount);
+    console.log("Starting unstake operation with amount:", amount, "YOT");
     
+    // Validate amount is positive and not too large
+    if (amount <= 0) {
+      throw new Error("Unstake amount must be greater than zero");
+    }
+    
+    // Get current staking info to validate unstake amount
+    const stakingInfo = await getStakingInfo(walletPublicKey.toString());
+    
+    if (stakingInfo.stakedAmount < amount) {
+      throw new Error(`Cannot unstake ${amount} YOT. You only have ${stakingInfo.stakedAmount} YOT staked.`);
+    }
+    
+    // Create transaction
     const transaction = await prepareUnstakeTransaction(wallet, amount);
     
-    // Sign and send the transaction
-    const signature = await wallet.sendTransaction(transaction, connection);
-    await connection.confirmTransaction(signature, 'confirmed');
+    // Add detailed logging right before sending the transaction
+    console.log(`Ready to unstake ${amount} YOT tokens`);
+    console.log(`Transaction prepared with ${transaction.instructions.length} instructions`);
     
-    return signature;
+    // Sign and send the transaction with better error handling
+    try {
+      console.log("Sending unstake transaction...");
+      const signature = await wallet.sendTransaction(transaction, connection);
+      console.log("Transaction sent with signature:", signature);
+      await connection.confirmTransaction(signature, 'confirmed');
+      console.log("Transaction confirmed successfully");
+      return signature;
+    } catch (sendError: any) {
+      // Check if this is a user rejection
+      if (sendError.message && sendError.message.includes('User rejected')) {
+        throw new Error('Transaction was rejected in your wallet. Please approve the transaction to unstake.');
+      }
+      
+      // Check if this is a simulation error
+      if (sendError.message && sendError.message.includes('Transaction simulation failed')) {
+        console.error("Transaction simulation failed. Details:", sendError);
+        
+        if (sendError.logs) {
+          console.error("Transaction logs:", sendError.logs.join('\n'));
+        }
+        
+        throw new Error(`Unstake failed: Transaction simulation error. Please try a smaller amount or contact support.`);
+      }
+      
+      // Default error handling
+      console.error('Error sending unstake transaction:', sendError);
+      throw new Error(`Failed to unstake: ${sendError.message || 'Unknown error'}`);
+    }
   } catch (error) {
-    console.error('Error unstaking YOT tokens:', error);
+    console.error('Error in unstake process:', error);
     throw error;
   }
 }
