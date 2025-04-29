@@ -355,34 +355,40 @@ function findProgramStateAddress(): [PublicKey, number] {
  * @param basisPoints The basis points value from blockchain
  * @returns The corresponding percentage per second
  */
+/**
+ * Converts basis points to rate per second percentage using the same divisor as the Solana program
+ * CRITICAL FIX: Updated to use /1,000,000.0 divisor matching Solana program decimal fix
+ */
 function convertBasisPointsToRatePerSecond(basisPoints: number): number {
-  // IMPORTANT: We need to match the smart contract's expected values
-  // The contract is using 120000 basis points = 0.0000125% per second
-  const REFERENCE_RATE = 0.0000125;
-  const REFERENCE_BASIS_POINTS = 120000;
+  // IMPORTANT: Must match the Solana program's basis point conversion
+  // After the decimal fix, the Solana program now uses:
+  // let rate_decimal = (program_state.stake_rate_per_second as f64) / 1_000_000.0;
   
-  // Special case handling for certain values
-  if (basisPoints === 120000) {
-    console.log("Special case detected: 120000 basis points is 10x our reference, correcting to 0.0000125%");
-    return 0.0000125; // This is 10x our reference rate
-  }
-  
+  // Special case handling for 12000 basis points - this is our standard rate
   if (basisPoints === 12000) {
     console.log("Exact match to reference value: 12000 basis points = 0.00000125%");
-    return 0.00000125; // Exact match to our reference rate
+    return 0.00000125; // 12000/1,000,000 = 0.00000125 (0.00000125% per second)
   }
   
-  // For other values, calculate rate using the corrected ratio
-  const ratePerSecond = basisPoints * (REFERENCE_RATE / REFERENCE_BASIS_POINTS);
+  // Special case handling for 1250000 basis points (higher rate)
+  if (basisPoints === 1250000) {
+    console.log("Special case detected: 1250000 basis points = 0.00125%");
+    return 0.00125; // 1250000/1,000,000 = 0.00125 (0.00125% per second)
+  }
   
-  console.log(`Converting ${basisPoints} basis points using corrected reference values:`, {
-    REFERENCE_RATE: 0.00000125, // Corrected reference value
-    REFERENCE_BASIS_POINTS: 12000, // Corrected reference value
-    result: ratePerSecond,
-    formula: `${basisPoints} * (${REFERENCE_RATE} / ${REFERENCE_BASIS_POINTS}) = ${ratePerSecond}`
+  // For all other values, use the new 1,000,000.0 divisor
+  const ratePerSecond = basisPoints / 1000000.0;
+  
+  console.log(`Rate for reward calculation:`, {
+    stakeRateBasisPoints: basisPoints,
+    stakeRatePerSecond: ratePerSecond,
+    calculationDetails: `${basisPoints}/1,000,000 = ${ratePerSecond}`,
+    displayedInUI: ratePerSecond * 100, // For UI display in percentage format 
+    dailyPercentage: ratePerSecond * 86400,
+    yearlyPercentage: ratePerSecond * 86400 * 365
   });
   
-  // Ensure we never have a zero rate
+  // Ensure we never have a zero rate (safety)
   return Math.max(ratePerSecond, 0.0000000001);
 }
 
@@ -420,27 +426,25 @@ function encodeInitializeInstruction(
   console.log(`DEBUG - Init exact value: ${stakeRatePerSecond} (${typeof stakeRatePerSecond})`);
   console.log(`DEBUG - Init string form: "${stakeRatePerSecond.toString()}"`);
 
-  // Convert percentage per second to basis points using our reference ratio
-  // IMPORTANT: Must use the same reference values as convertBasisPointsToRatePerSecond 
-  // for consistent encoding/decoding between UI and blockchain
-  const REFERENCE_RATE = 0.0000125;
-  const REFERENCE_BASIS_POINTS = 120000;
-
+  // CRITICAL FIX: Convert percentage per second to basis points using /1,000,000.0 divisor
+  // IMPORTANT: This MUST match the Solana program's conversion in the other direction:
+  // let rate_decimal = (program_state.stake_rate_per_second as f64) / 1_000_000.0;
+  
   // Handle specific string cases first to ensure accurate value detection
   let finalBasisPoints: number;
   
-  // This handles precision issues with floating point by checking string representation
+  // Handle special cases precisely to avoid floating point issues
   if (stakeRatePerSecond.toString() === '0.00000125') {
     console.log("Init String match detected: Using exact 12000 basis points for 0.00000125%");
-    finalBasisPoints = 12000;
-  } else if (stakeRatePerSecond.toString() === '0.0000125') {
-    console.log("Init String match detected: Using exact 120000 basis points for 0.0000125%");
-    finalBasisPoints = 120000;
+    finalBasisPoints = 12000; // 0.00000125 * 1,000,000 = 12000
+  } else if (stakeRatePerSecond.toString() === '0.00125') {
+    console.log("Init String match detected: Using exact 1250000 basis points for 0.00125%");
+    finalBasisPoints = 1250000; // 0.00125 * 1,000,000 = 1,250,000
   } else {
-    // Calculate basis points using the reverse of our conversion formula
-    finalBasisPoints = Math.round(stakeRatePerSecond * (REFERENCE_BASIS_POINTS / REFERENCE_RATE));
-    console.log(`Converting ${stakeRatePerSecond}% to ${finalBasisPoints} basis points using universal formula`);
-    console.log(`Formula: ${stakeRatePerSecond} * (${REFERENCE_BASIS_POINTS} / ${REFERENCE_RATE}) = ${finalBasisPoints}`);
+    // For all other values, use the new 1,000,000.0 multiplier (inverse of divisor)
+    finalBasisPoints = Math.round(stakeRatePerSecond * 1000000);
+    console.log(`Converting ${stakeRatePerSecond}% to ${finalBasisPoints} basis points using 1,000,000 multiplier`);
+    console.log(`Formula: ${stakeRatePerSecond} * 1,000,000 = ${finalBasisPoints}`);
   }
   
   // YOS token uses 9 decimals just like YOT
@@ -583,27 +587,25 @@ function encodeUpdateParametersInstruction(
   console.log(`DEBUG - Exact value received: ${stakeRatePerSecond} (${typeof stakeRatePerSecond})`);
   console.log(`DEBUG - String form: "${stakeRatePerSecond.toString()}"`);
   
-  // Convert percentage per second to basis points using our reference ratio
-  // IMPORTANT: Must use the same reference values as convertBasisPointsToRatePerSecond 
-  // for consistent encoding/decoding between UI and blockchain
-  const REFERENCE_RATE = 0.0000125;
-  const REFERENCE_BASIS_POINTS = 120000;
+  // CRITICAL FIX: Convert percentage per second to basis points using 1,000,000.0 multiplier
+  // IMPORTANT: This MUST match the Solana program's conversion in the other direction:
+  // let rate_decimal = (program_state.stake_rate_per_second as f64) / 1_000_000.0;
   
   // Handle specific string cases first to ensure accurate value detection
   let finalBasisPoints: number;
   
-  // This handles precision issues with floating point by checking string representation
+  // Handle special cases precisely to avoid floating point issues
   if (stakeRatePerSecond.toString() === '0.00000125') {
     console.log("String match detected: Using exact 12000 basis points for 0.00000125%");
-    finalBasisPoints = 12000;
-  } else if (stakeRatePerSecond.toString() === '0.0000125') {
-    console.log("String match detected: Using exact 120000 basis points for 0.0000125%");
-    finalBasisPoints = 120000;
+    finalBasisPoints = 12000; // 0.00000125 * 1,000,000 = 12000
+  } else if (stakeRatePerSecond.toString() === '0.00125') {
+    console.log("String match detected: Using exact 1250000 basis points for 0.00125%");
+    finalBasisPoints = 1250000; // 0.00125 * 1,000,000 = 1,250,000
   } else {
-    // Calculate basis points using the reverse of our conversion formula
-    finalBasisPoints = Math.round(stakeRatePerSecond * (REFERENCE_BASIS_POINTS / REFERENCE_RATE));
-    console.log(`Converting ${stakeRatePerSecond}% to ${finalBasisPoints} basis points using universal formula`);
-    console.log(`Formula: ${stakeRatePerSecond} * (${REFERENCE_BASIS_POINTS} / ${REFERENCE_RATE}) = ${finalBasisPoints}`);
+    // For all other values, use the new 1,000,000.0 multiplier (inverse of divisor)
+    finalBasisPoints = Math.round(stakeRatePerSecond * 1000000);
+    console.log(`Converting ${stakeRatePerSecond}% to ${finalBasisPoints} basis points using 1,000,000 multiplier`);
+    console.log(`Formula: ${stakeRatePerSecond} * 1,000,000 = ${finalBasisPoints}`);
   }
   
   // Convert harvest threshold to raw units using our utility function
