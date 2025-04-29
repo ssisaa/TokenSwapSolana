@@ -44,8 +44,9 @@ function calculatePendingRewards(staking: {
   // Convert from percentage (0.00000125%) to decimal (0.0000000125)
   const rateDecimal = stakeRatePerSecond / 100;
   
-  // Define the exact scaling factor used by the Solana program (confirmed to be 10,000)
-  const scalingFactor = 10000;
+  // YOS token uses 9 decimal places for proper scaling
+  const YOS_DECIMALS = 9;
+  const scalingFactor = Math.pow(10, YOS_DECIMALS);
   
   // SIMPLE LINEAR INTEREST: principal * rate * time
   const linearRewards = stakedAmount * rateDecimal * timeStakedSinceLastHarvest;
@@ -53,7 +54,7 @@ function calculatePendingRewards(staking: {
   console.log(`LINEAR REWARDS CALCULATION: ${stakedAmount} × ${rateDecimal} × ${timeStakedSinceLastHarvest} = ${linearRewards}`);
   
   // CRITICAL: We need to address the discrepancy between program and UI calculations.
-  // The Solana program uses a 10,000× multiplier for rewards.
+  // The Solana program uses the token's decimal places (9) for scaling rewards.
   
   // For UI display, we show the normalized amount (what users will actually receive)
   const displayRewards = linearRewards / scalingFactor;
