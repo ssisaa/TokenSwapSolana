@@ -1,0 +1,56 @@
+  // Convert staking rate from decimal to percentage (for clarity in logging)
+    const ratePercentage = stakeRateDecimal * 100;
+    
+    // CRITICAL ISSUE: SOLANA PROGRAM HAS AN ARTIFICIALLY HIGH SCALING FACTOR
+    // We need to divide by this factor in the UI to show actual normalized rates
+    // but keep it in the actual transaction for compatibility with the deployed program
+    const scalingFactor = 10000;
+    
+    // For display purposes, we'll show what SHOULD be earned (without the scaling)
+    const normalizedRewards = stakedAmount * stakeRateDecimal * timeStakedSinceLastHarvest;
+    
+    // For blockchain compatibility, we'll return the scaled amount to match what will be received
+    const pendingRewards = normalizedRewards * scalingFactor;
+    
+    console.log(`LINEAR REWARDS CALCULATION WITH CORRECT NORMALIZATION:`);
+    console.log(`- Staked amount: ${stakedAmount} YOT tokens`);
+    console.log(`- Rate: ${ratePercentage}% per second (${stakeRateDecimal} as decimal)`);
+    console.log(`- Time staked: ${timeStakedSinceLastHarvest} seconds`);
+    console.log(`- WHAT SHOULD BE EARNED: ${normalizedRewards} YOS (without scaling)`);
+    console.log(`- WHAT WILL ACTUALLY BE RECEIVED FROM BLOCKCHAIN: ${pendingRewards} YOS (with ${scalingFactor}x scaling)`);
+    console.log(`- NOTE: The Solana program has an artificial ${scalingFactor}x multiplier built in!`);
+    
+    console.log("Reward calculation info:", {
+      stakedAmount: Number(stakedAmount),
+      timeStakedSinceLastHarvest,
+      stakeRateDecimal,
+      method: "LINEAR (matches Solana program)",
+      pendingRewards
+    });
+    
+    return {
+      stakedAmount: Number(stakedAmount),
+      startTimestamp: startTimestamp,
+      lastHarvestTime: lastHarvestTime,
+      totalHarvested: totalHarvested,
+      rewardsEarned: pendingRewards
+    };
+  } catch (error) {
+    console.error('Error getting staking info:', error);
+    
+    // For existing users who have no staking account, returning zero values is appropriate
+    // This is not a fallback or mock - it accurately represents that the user hasn't staked yet
+    if (error && (error as any).message && (error as any).message.includes('Account does not exist')) {
+      return {
+        stakedAmount: 0,
+        startTimestamp: 0,
+        lastHarvestTime: 0,
+        totalHarvested: 0,
+        rewardsEarned: 0
+      };
+    }
+    
+    // For actual errors, throw the error instead of returning synthetic data
+    throw new Error('Failed to fetch staking information from blockchain. Please try again later.');
+  }
+}

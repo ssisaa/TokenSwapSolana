@@ -28,7 +28,11 @@ function formatNumber(num: number | bigint): string {
  */
 /**
  * Calculate pending rewards using SIMPLE LINEAR INTEREST
- * This matches exactly what the Solana program calculates by including the 10000 scaling factor
+ * This function calculates rewards exactly as the Solana program does,
+ * including the 10,000× scaling factor built into the contract.
+ * 
+ * @param staking Object containing staked amount, time staked, and rate
+ * @returns Scaled rewards value that matches what the blockchain will transfer
  */
 function calculatePendingRewards(staking: {
   stakedAmount: number;
@@ -40,22 +44,25 @@ function calculatePendingRewards(staking: {
   // Convert from percentage (0.0000125%) to decimal (0.000000125)
   const rateDecimal = stakeRatePerSecond / 100;
   
-  // CRITICAL FIX: MULTIPLY BY 10,000 TO MATCH SOLANA PROGRAM CALCULATION
-  // This scaling factor ensures the UI displays what the user will actually receive
+  // CRITICAL ISSUE: SOLANA PROGRAM HAS AN ARTIFICIALLY HIGH SCALING FACTOR
+  // This scaling factor must be applied to match what the blockchain calculates
   const scalingFactor = 10000;
   
-  // SIMPLE LINEAR INTEREST: principal * rate * time * scalingFactor
-  const linearRewards = stakedAmount * rateDecimal * timeStakedSinceLastHarvest * scalingFactor;
+  // Step 1: Calculate the theoretical rewards (what should be earned without the scaling)
+  const normalizedRewards = stakedAmount * rateDecimal * timeStakedSinceLastHarvest;
+  
+  // Step 2: Apply the scaling factor to match what the blockchain will transfer
+  const pendingRewards = normalizedRewards * scalingFactor;
   
   console.log(`LINEAR REWARDS CALCULATION WITH SCALING FACTOR:`);
   console.log(`- Staked amount: ${stakedAmount} YOT tokens`);
   console.log(`- Rate: ${stakeRatePerSecond}% per second (${rateDecimal} as decimal)`);
   console.log(`- Time staked: ${timeStakedSinceLastHarvest} seconds`);
-  console.log(`- Scaling factor: ${scalingFactor} (matches blockchain calculation)`);
-  console.log(`- Formula: ${stakedAmount} × ${rateDecimal} × ${timeStakedSinceLastHarvest} × ${scalingFactor}`);
-  console.log(`- Result: ${linearRewards} YOS tokens`);
+  console.log(`- Theoretical rewards: ${normalizedRewards} YOS (without scaling)`);
+  console.log(`- Actual blockchain rewards: ${pendingRewards} YOS (with ${scalingFactor}x multiplier)`);
   
-  return linearRewards;
+  // Return the actual value that will be transferred by the blockchain
+  return pendingRewards;
 }
 export const connection = new Connection(ENDPOINT, 'confirmed');
 
@@ -1603,39 +1610,19 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // Calculate yearly rate for display purposes
     const yearlyRateDisplay = stakeRateDecimal * 86400 * 365 * 100; // Convert to percentage for display
     
-    console.log(`REWARDS CALCULATION:
-    - YOT staked: ${stakedAmount} 
-    - Yearly rate: ${yearlyRateDisplay.toFixed(2)}%
-    - Time staked: ${timeStakedSinceLastHarvest} seconds
-    - YOS rewards: ${pendingRewards}`);
+    console.log(`FINAL REWARDS CALCULATION:`);
+    console.log(`- YOT staked: ${stakedAmount} tokens`);
+    console.log(`- Yearly rate: ${yearlyRateDisplay.toFixed(2)}%`);
+    console.log(`- Time staked: ${timeStakedSinceLastHarvest} seconds`);
+    console.log(`- Adjusted rewards: ${pendingRewards / 10000} YOS (what user should receive theoretically)`);
+    console.log(`- Actual rewards: ${pendingRewards} YOS (what blockchain will transfer due to 10,000× multiplier)`);
     
-    // For logging, we'll also show what these values mean
-    const dailyReward = stakedAmount * (stakeRateDecimal * secondsInDay * 100) / 100;
-    console.log(`At current rate, you earn approximately ${dailyReward.toFixed(6)} YOS per day per ${stakedAmount} YOT staked`);
-    
-    // Format the rewards value to display with normal decimals instead of scientific notation
-    let formattedRewardsValue: string;
-    
-    // Handle scientific notation formatting for small numbers
-    if (pendingRewards < 0.0001 && pendingRewards > 0) {
-      // For extremely small numbers, show more decimal places
-      formattedRewardsValue = pendingRewards.toFixed(10);
-    } else {
-      // For regular numbers, show fewer decimal places
-      formattedRewardsValue = pendingRewards.toFixed(6);
-    }
-    
-    // Remove trailing zeros after the decimal point
-    formattedRewardsValue = formattedRewardsValue.replace(/\.?0+$/, "");
-    
-    console.log(`Reward calculation:
-    - Staked amount: ${stakedAmount} YOT tokens
-    - Rate: ${ratePercentage}% per second
-    - Time staked: ${timeStakedSinceLastHarvest} seconds
-    - Rewards: ${formattedRewardsValue} YOS`);
+    // For user experience, we'll show expected daily rewards
+    const dailyReward = stakedAmount * (stakeRateDecimal * secondsInDay);
+    console.log(`At current rate, you should earn ~${dailyReward.toFixed(6)} YOS per day (blockchain will show ${dailyReward * 10000})`);
     
     // CRITICAL FIX: Return the display value that users will actually receive
-    // This ensures the UI shows the correct amount and prevents confusion
+    // This ensures the UI shows the correct amount (with multiplier) and the component will divide by 10,000 for display
     return {
       stakedAmount: Number(stakedAmount),
       startTimestamp: startTimestamp,
