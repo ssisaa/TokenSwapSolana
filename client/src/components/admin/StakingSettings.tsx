@@ -13,9 +13,10 @@ import { fundProgramYosAccount, checkProgramYosBalance } from '@/lib/helpers/fun
 
 export default function StakingSettings() {
   const { connected, publicKey, wallet } = useMultiWallet();
-  const { updateParameters, isUpdatingParameters, stakingRates } = useStaking();
+  const { updateStakingSettingsMutation, stakingRates } = useStaking();
   const { toast } = useToast();
   const { updateSettings, isUpdating: isUpdatingDatabase } = useAdminSettings();
+  const isUpdatingParameters = updateStakingSettingsMutation.isPending;
   const [isInitializing, setIsInitializing] = useState(false);
   const [isFunding, setIsFunding] = useState(false);
   const [isCheckingBalance, setIsCheckingBalance] = useState(false);
@@ -84,8 +85,8 @@ export default function StakingSettings() {
       });
       
       // 1. Update blockchain parameters first
-      updateParameters({
-        stakeRatePerSecond: ratePerSecond, // Pass the raw percentage value
+      updateStakingSettingsMutation.mutate({
+        ratePerSecond: ratePerSecond, // Pass the raw percentage value
         harvestThreshold: thresholdValue    // Pass the raw threshold value
       });
       
