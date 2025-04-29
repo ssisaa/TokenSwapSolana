@@ -2891,20 +2891,26 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // Calculate pending rewards
     const timeStakedSinceLastHarvest = currentTime - lastHarvestTime;
     
-    // Calculate rewards using compound interest formula (APY)
-    // Formula: principal * ((1 + rate) ^ time - 1)
-    // Where rate is per-second rate and time is in seconds
+    // EMERGENCY LINEAR FIX: Using linear interest calculation to match Solana program
+    // Convert staking rate from decimal to percentage (for clarity in logging)
+    const ratePercentage = stakeRateDecimal * 100;
     
-    // Note: stakedAmount is already in decimal form (was converted from raw blockchain amount using 9 decimals)
-    const pendingRewards = stakedAmount * (Math.pow(1 + stakeRateDecimal, timeStakedSinceLastHarvest) - 1);
+    // SIMPLE LINEAR INTEREST: principal * rate * time
+    // No exponentiation, no compounding - matches exactly what the Solana program calculates
+    const pendingRewards = stakedAmount * stakeRateDecimal * timeStakedSinceLastHarvest;
     
-    console.log(`Rewards calculation: ${stakedAmount} YOT tokens × (Math.pow(1 + ${stakeRateDecimal}, ${timeStakedSinceLastHarvest}) - 1) = ${pendingRewards} YOS`);
+    console.log(`LINEAR REWARDS CALCULATION:`);
+    console.log(`- Staked amount: ${stakedAmount} YOT tokens`);
+    console.log(`- Rate: ${ratePercentage}% per second (${stakeRateDecimal} as decimal)`);
+    console.log(`- Time staked: ${timeStakedSinceLastHarvest} seconds`);
+    console.log(`- Formula: ${stakedAmount} × ${stakeRateDecimal} × ${timeStakedSinceLastHarvest}`);
+    console.log(`- Result: ${pendingRewards} YOS tokens`);
     
     console.log("Reward calculation info:", {
       stakedAmount: Number(stakedAmount),
       timeStakedSinceLastHarvest,
       stakeRateDecimal,
-      method: "APY (compound)",
+      method: "LINEAR (matches Solana program)",
       pendingRewards
     });
     
