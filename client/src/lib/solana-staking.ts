@@ -819,48 +819,98 @@ export async function updateStakingParameters(
     try {
       console.log('Sending update parameters transaction...');
       
+      // First check if the wallet is still properly connected
+      if (!wallet.publicKey || !wallet.publicKey.toString()) {
+        console.error('Wallet public key missing or invalid');
+        throw new Error('Wallet connection issue detected. Please disconnect and reconnect your wallet.');
+      }
+      
+      // Wait a moment for wallet to be ready (important for proper transaction handling)
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       // Try with sendTransaction first, which is better supported by all wallets
       try {
-        const signature = await wallet.sendTransaction(transaction, connection);
-        console.log('Transaction sent with signature:', signature);
+        // Set transaction properties for newer Solana versions
+        transaction.feePayer = walletPublicKey;
+        
+        console.log('Attempting direct wallet transaction with:', {
+          feePayer: walletPublicKey.toString(),
+          blockhash: blockhash,
+          lastValidBlockHeight: lastValidBlockHeight
+        });
+        
+        const signature = await wallet.sendTransaction(transaction, connection, {
+          skipPreflight: false,
+          preflightCommitment: 'confirmed',
+          maxRetries: 3
+        });
+        
+        console.log('Transaction sent successfully with signature:', signature);
         
         // Use a shorter confirmation commitment to avoid timeouts
-        console.log('Waiting for confirmation...');
+        console.log('Waiting for transaction confirmation...');
         const confirmation = await connection.confirmTransaction({
           signature,
           blockhash, 
           lastValidBlockHeight
         }, 'confirmed');  // Use 'confirmed' instead of 'finalized' for faster feedback
         
-        console.log('Transaction confirmed:', confirmation);
+        console.log('Transaction confirmed successfully:', confirmation);
         return signature;
       } catch (sendError) {
         // Only log the error, then try the fallback approach
         console.error('Initial sendTransaction failed:', sendError);
         
+        // First check if the wallet error is a user rejection
+        if (sendError.message && sendError.message.includes('User rejected')) {
+          throw new Error('Transaction was rejected in your wallet. Please approve the transaction to update settings.');
+        }
+        
         // Try with signTransaction as fallback
         if (wallet.signTransaction) {
-          console.log('Trying fallback with signTransaction...');
-          const signedTx = await wallet.signTransaction(transaction);
-          console.log('Transaction signed, sending to network...');
+          console.log('Trying alternative transaction method (signTransaction)...');
           
-          const signature = await connection.sendRawTransaction(signedTx.serialize(), {
-            skipPreflight: true, // Skip preflight to avoid blockhash issues
-            maxRetries: 5
-          });
-          
-          console.log('Transaction sent with signature:', signature);
-          const confirmation = await connection.confirmTransaction({
-            signature,
-            blockhash,
-            lastValidBlockHeight
-          }, 'confirmed');
-          
-          console.log('Transaction confirmed:', confirmation);
-          return signature;
+          try {
+            // Create a fresh transaction to avoid any issues
+            const retryTx = new Transaction({
+              feePayer: walletPublicKey,
+              blockhash,
+              lastValidBlockHeight
+            }).add(updateInstruction);
+            
+            const signedTx = await wallet.signTransaction(retryTx);
+            console.log('Transaction signed successfully, sending to network...');
+            
+            const signature = await connection.sendRawTransaction(signedTx.serialize(), {
+              skipPreflight: false, // Turn preflight back on for better error messages
+              maxRetries: 3
+            });
+            
+            console.log('Transaction sent with signature:', signature);
+            const confirmation = await connection.confirmTransaction({
+              signature,
+              blockhash,
+              lastValidBlockHeight
+            }, 'confirmed');
+            
+            console.log('Transaction confirmed successfully:', confirmation);
+            return signature;
+          } catch (fallbackError: any) {
+            console.error('Alternative transaction method failed:', fallbackError);
+            
+            // Improve error handling for fallback attempt
+            if (fallbackError.message && fallbackError.message.includes('User rejected')) {
+              throw new Error('Transaction was rejected in your wallet. Please approve the transaction to update settings.');
+            } else if (fallbackError.message) {
+              throw new Error(`Transaction failed: ${fallbackError.message}`);
+            } else {
+              // Include original error for context
+              throw new Error(`Transaction failed: ${sendError.message || 'Unknown wallet error'}`);
+            }
+          }
         } else {
-          // Re-throw the original error if fallback isn't available
-          throw sendError;
+          // Re-throw the original error with better message if fallback isn't available
+          throw new Error(`Wallet transaction failed: ${sendError.message || 'Unknown wallet error'}`);
         }
       }
     } catch (error) {
