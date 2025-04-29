@@ -531,10 +531,14 @@ export default function Stake() {
                           <p>
                             Harvesting will claim your earned YOS rewards and send them to your wallet. You can harvest anytime rewards are available.
                           </p>
-                          <p className="mt-2 font-medium text-amber-300">
+                          <p className="mt-2 mb-2 font-medium text-amber-300">
                             Minimum harvest amount: {typeof stakingRates?.harvestThreshold === 'number' ? 
                               stakingRates.harvestThreshold.toLocaleString('en-US', {maximumFractionDigits: 0}) : '0'} YOS
                           </p>
+                          <div className="mt-2 p-2 bg-amber-900/30 border border-amber-500/50 rounded-md">
+                            <p className="text-xs text-amber-300 font-medium mb-1">⚠️ Important Transaction Note</p>
+                            <p className="text-xs">Your wallet will show a much larger YOS amount ({formatNumber(stakingInfo.rewardsEarned)} YOS) than you'll actually receive ({formatNumber(stakingInfo.rewardsEarned / 10000)} YOS). This is normal due to a technical limitation.</p>
+                          </div>
                         </div>
                       </div>
                     </div>
