@@ -370,7 +370,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                   <div className="flex justify-between items-center">
                     <h3 className="text-lg font-semibold text-white">Harvest Rewards</h3>
                     <span className="text-sm text-gray-400">
-                      <span className="font-medium text-white">{formatNumber(stakingInfo.rewardsEarned)}</span> YOS available
+                      <span className="font-medium text-white">{formatNumber(stakingInfo.rewardsEarned, 8)}</span> YOS available
                     </span>
                   </div>
                   <div className="flex flex-col space-y-2">

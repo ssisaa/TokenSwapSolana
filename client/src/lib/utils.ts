@@ -78,9 +78,11 @@ export function formatNumber(value: number, decimals: number = 4): string {
   // For amounts less than 10,000, we show exact values with appropriate decimals
   const absValue = Math.abs(value);
   
-  // For very small numbers (below 0.0001), use scientific notation to avoid too many zeros
-  if (absValue < 0.0001) {
-    return value.toExponential(4);
+  // For very small numbers (below 0.0001), display in a more user-friendly way
+  // Instead of scientific notation, show the actual small number with fixed precision
+  if (absValue < 0.0001 && absValue > 0) {
+    // Force 8 digits to show very small numbers properly
+    return absValue.toFixed(8).replace(/\.?0+$/, '');
   }
   
   // Regular formatting for all numbers - show exact values, not abbreviations

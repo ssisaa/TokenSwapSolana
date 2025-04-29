@@ -134,12 +134,14 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
             ) : (
               <div className="flex flex-col">
                 <div className="flex items-baseline gap-1">
-                  <span className="text-xl font-bold text-white">{formatNumber(stakingInfo.rewardsEarned / 10000)}</span>
+                  <span className="text-xl font-bold text-white">{formatNumber(stakingInfo.rewardsEarned, 8)}</span>
                   <span className="text-sm font-semibold text-green-400">YOS</span>
                 </div>
-                <div className="text-xs text-amber-500 mt-1">
-                  <span className="font-medium">⚠️ Note:</span> Your wallet will show {formatNumber(stakingInfo.rewardsEarned)} YOS (10,000× larger)
-                </div>
+                {stakingInfo.rewardsEarned > 0 && (
+                  <div className="text-xs text-blue-400 mt-1">
+                    <span className="font-medium">ℹ️ Updated display:</span> Shows actual YOS value with proper decimals
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
