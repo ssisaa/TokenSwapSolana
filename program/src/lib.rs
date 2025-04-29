@@ -446,9 +446,9 @@ fn process_unstake(
         // Check if program has enough YOS tokens to transfer rewards
         if program_yos_balance >= raw_rewards {
             // CRITICAL FIX FOR DECIMAL TRANSFER ISSUE: 
-            // We need to DIVIDE the raw rewards by 10^9 to get the correct token amount
-            // because 1 token = 10^9 raw units in Solana's SPL token standard
-            let ui_rewards = raw_rewards / 1_000_000_000;
+            // REMOVED incorrect division by 10^9 - SPL tokens already account for decimals
+            // Raw amount already has 9 decimal places (e.g., 10 YOS = 10,000,000,000 raw units)
+            // Use the raw amount directly without division
             
             // Only attempt to transfer rewards if the program has enough YOS tokens
             let transfer_result = invoke_signed(
@@ -458,7 +458,7 @@ fn process_unstake(
                     user_yos_token_account.key,
                     program_authority.key,
                     &[],
-                    ui_rewards, // Now this is the proper token amount (e.g., 4.35 YOS becomes just 4)
+                    raw_rewards, // FIXED: Use raw amount directly instead of dividing
                 )?,
                 &[
                     program_yos_token_account.clone(),
@@ -473,7 +473,7 @@ fn process_unstake(
                 Ok(_) => {
                     msg!("Unstaked {} YOT tokens and harvested {} YOS rewards (raw amount: {})", 
                          amount as f64 / 1_000_000_000.0, 
-                         ui_rewards as f64 / 1_000_000_000.0, 
+                         raw_rewards as f64 / 1_000_000_000.0, 
                          raw_rewards);
                 },
                 Err(error) => {
