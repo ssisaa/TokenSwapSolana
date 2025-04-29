@@ -510,18 +510,19 @@ export async function prepareUnstakeTransaction(
     );
   }
   
-  // Add unstake instruction
+  // Add unstake instruction - key order MUST match program expectations!
   transaction.add({
     keys: [
-      { pubkey: walletPublicKey, isSigner: true, isWritable: true },
-      { pubkey: programState, isSigner: false, isWritable: false },
-      { pubkey: stakingAccount, isSigner: false, isWritable: true },
-      { pubkey: programAuthority, isSigner: false, isWritable: false },
-      { pubkey: userYotATA, isSigner: false, isWritable: true },
-      { pubkey: userYosATA, isSigner: false, isWritable: true },
-      { pubkey: programYotATA, isSigner: false, isWritable: true },
-      { pubkey: programYosATA, isSigner: false, isWritable: true },
-      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: walletPublicKey, isSigner: true, isWritable: true },         // user_account
+      { pubkey: userYotATA, isSigner: false, isWritable: true },             // user_yot_token_account
+      { pubkey: programYotATA, isSigner: false, isWritable: true },          // program_yot_token_account 
+      { pubkey: userYosATA, isSigner: false, isWritable: true },             // user_yos_token_account
+      { pubkey: programYosATA, isSigner: false, isWritable: true },          // program_yos_token_account
+      { pubkey: stakingAccount, isSigner: false, isWritable: true },         // user_staking_account
+      { pubkey: programState, isSigner: false, isWritable: false },          // program_state_account
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },      // token_program
+      { pubkey: programAuthority, isSigner: false, isWritable: false },      // program_authority
+      { pubkey: new PublicKey('SysvarC1ock11111111111111111111111111111111'), isSigner: false, isWritable: false }, // clock sysvar
     ],
     programId: new PublicKey(STAKING_PROGRAM_ID),
     data: encodeUnstakeInstruction(amount)
