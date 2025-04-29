@@ -130,7 +130,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                 
                 <div className="flex justify-between">
                   <span className="text-gray-400">Pending Rewards:</span>
-                  <span className="font-medium text-white">{stakingInfo.rewardsEarned.toLocaleString('en-US')} YOS</span>
+                  <span className="font-medium text-white">{(stakingInfo.rewardsEarned / 10000).toLocaleString('en-US')} YOS</span>
                 </div>
                 <Alert className="mt-2 bg-amber-950/30 border-amber-700">
                   <AlertTriangle className="h-4 w-4 text-amber-500" />
@@ -155,7 +155,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                 
                 <div className="flex justify-between">
                   <span className="text-gray-400">Total Harvested:</span>
-                  <span className="font-medium text-white">{stakingInfo.totalHarvested.toLocaleString('en-US')} YOS</span>
+                  <span className="font-medium text-white">{(stakingInfo.totalHarvested / 10000).toLocaleString('en-US')} YOS</span>
                 </div>
               </div>
               
@@ -356,7 +356,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                   <div className="flex justify-between items-center">
                     <h3 className="text-lg font-semibold text-white">Harvest Rewards</h3>
                     <span className="text-sm text-gray-400">
-                      <span className="font-medium text-white">{stakingInfo.rewardsEarned.toLocaleString('en-US')}</span> YOS available
+                      <span className="font-medium text-white">{(stakingInfo.rewardsEarned / 10000).toLocaleString('en-US')}</span> YOS available
                     </span>
                   </div>
                   <div className="flex flex-col space-y-2">
@@ -371,10 +371,11 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                   </div>
                   <Alert className="mt-4 bg-amber-950/30 border-amber-700">
                     <AlertTriangle className="h-4 w-4 text-amber-500" />
-                    <AlertTitle className="text-amber-400 text-xs font-medium">Important Warning</AlertTitle>
+                    <AlertTitle className="text-amber-400 text-xs font-medium">10,000× Multiplier Issue</AlertTitle>
                     <AlertDescription className="text-amber-200 text-xs">
-                      Harvesting may transfer more YOS than displayed due to a contract issue. 
-                      Small harvests recommended until the fix is deployed.
+                      <strong>Important:</strong> When you harvest, your wallet will receive {formatNumber(stakingInfo.rewardsEarned)} YOS tokens 
+                      (10,000× the displayed amount of {formatNumber(stakingInfo.rewardsEarned / 10000)} YOS). 
+                      This is a known Solana program issue where the harvest function uses a different divisor.
                     </AlertDescription>
                   </Alert>
                   
