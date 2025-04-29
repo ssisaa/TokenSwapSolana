@@ -33,17 +33,21 @@ const YOS_TOKEN_DECIMALS = 9;
  * @returns The scaled value for blockchain with both adjustments applied
  */
 export function uiToRawYot(uiValue: number): bigint {
-  // CRITICAL FIX: We SHOULD NOT apply both token decimals and program scaling!
-  // The Solana program itself handles the token decimals
-  // We only need to apply the program's internal scaling factor
+  // CRITICAL FIX TAKE 2:
+  // We've identified that we DO need to apply token decimals for display in the wallet
+  // But we need to be extremely careful about handling large numbers
   
-  // Directly apply program scaling factor only - the token decimals will be handled by Solana
-  const rawAmount = Math.round(uiValue * PROGRAM_SCALING_FACTOR);
+  // For YOT, we need to apply both decimals (10^9) and program scaling (10000)
+  // But in a way that preserves the original value
+  // So we'll use decimals * 0.0001 instead of * 10000
+  const amountWithDecimals = uiValue * Math.pow(10, YOT_TOKEN_DECIMALS);
+  const programScaled = Math.round(amountWithDecimals * 0.0001); 
   
-  console.log(`YOT CONVERSION (FIXED): UI ${uiValue} → Raw blockchain value ${rawAmount}`);
-  console.log(`Applied scaling factor: ${uiValue} × ${PROGRAM_SCALING_FACTOR} = ${rawAmount}`);
+  console.log(`YOT CONVERSION (FIXED v2): UI ${uiValue} → Raw blockchain value ${programScaled}`);
+  console.log(`Step 1: Applied token decimals: ${uiValue} × 10^${YOT_TOKEN_DECIMALS} = ${amountWithDecimals}`);
+  console.log(`Step 2: Applied inverse program scaling: ${amountWithDecimals} × 0.0001 = ${programScaled}`);
   
-  return BigInt(rawAmount);
+  return BigInt(programScaled);
 }
 
 /**
@@ -54,10 +58,20 @@ export function uiToRawYot(uiValue: number): bigint {
  * @returns The scaled value for blockchain compatible with the program
  */
 export function uiToRawYos(uiValue: number): bigint {
-  const scaledAmount = Math.round(uiValue * PROGRAM_SCALING_FACTOR);
-  console.log(`YOS CONVERSION (FIXED): UI ${uiValue} → Raw blockchain value ${scaledAmount}`);
-  console.log(`Applied scaling factor: ${uiValue} × ${PROGRAM_SCALING_FACTOR} = ${scaledAmount}`);
-  return BigInt(scaledAmount);
+  // CRITICAL FIX TAKE 2:
+  // For YOS tokens we need a similar approach to YOT
+  
+  // For YOS, we need to apply both decimals (10^9) and program scaling (10000)
+  // But in a way that preserves the original value
+  // So we'll use decimals * 0.0001 instead of * 10000
+  const amountWithDecimals = uiValue * Math.pow(10, YOS_TOKEN_DECIMALS);
+  const programScaled = Math.round(amountWithDecimals * 0.0001);
+  
+  console.log(`YOS CONVERSION (FIXED v2): UI ${uiValue} → Raw blockchain value ${programScaled}`);
+  console.log(`Step 1: Applied token decimals: ${uiValue} × 10^${YOS_TOKEN_DECIMALS} = ${amountWithDecimals}`);
+  console.log(`Step 2: Applied inverse program scaling: ${amountWithDecimals} × 0.0001 = ${programScaled}`);
+  
+  return BigInt(programScaled);
 }
 
 /**
@@ -550,23 +564,25 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     // Use our global helper function for consistent UI to raw conversion
     // When sending 0.0288805 YOS, the raw value will be 288.805
     
-    // CRITICAL FIX: For YOS tokens, we now understand that we've been incorrectly scaling
-    // The Solana program expects YOS amounts to be scaled down by the program scaling factor
-    // to display them correctly, but the token decimals are handled by Solana separately
+    // CRITICAL FIX (TAKE 2): For YOS tokens, we need to apply both token decimals and program scaling
+    // But in a way that preserves the original value
     
-    // We only need to apply the program scaling factor (10000)
-    const scaledAmount = uiToRawYos(rawRewards);
+    // For YOS, we need to apply both decimals (10^9) and program scaling (10000)
+    // But in a way that preserves the original value
+    const amountWithDecimals = rawRewards * Math.pow(10, YOS_TOKEN_DECIMALS);
+    const programScaled = Math.round(amountWithDecimals * 0.0001);
     
-    console.log(`YOS CONVERSION (FIXED) - HARVEST REWARDS: ${rawRewards} YOS`);
-    console.log(`Applied program scaling only: ${rawRewards} × ${PROGRAM_SCALING_FACTOR} = ${scaledAmount}`);
+    console.log(`YOS CONVERSION (FIXED v2) - HARVEST REWARDS: ${rawRewards} YOS`);
+    console.log(`Step 1: Applied token decimals: ${rawRewards} × 10^${YOS_TOKEN_DECIMALS} = ${amountWithDecimals}`);
+    console.log(`Step 2: Applied inverse program scaling: ${amountWithDecimals} × 0.0001 = ${programScaled}`);
     
     // Ensure we don't exceed the maximum u64 value
-    if (scaledAmount > BigInt("18446744073709551615")) {
+    if (programScaled > Number.MAX_SAFE_INTEGER) {
       throw new Error("Amount too large for transaction encoding");
     }
     
     // Write the amount to the data buffer
-    data.writeBigUInt64LE(scaledAmount, 1);
+    data.writeBigUInt64LE(BigInt(programScaled), 1);
     
     // Calculate the scaling value to get from our calculated amount to 226 YOS
     const targetYOS = 226;
@@ -574,11 +590,11 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     
     console.log(`Created harvest instruction buffer with adjusted rewards:`);
     console.log(`Original rewards value: ${rewardsAmount} YOS`);
-    console.log(`SCALING ANALYSIS: Now applying only program scaling (${PROGRAM_SCALING_FACTOR})`);
-    console.log(`ACTUAL SCALING: For our calculated ${rawRewards} YOS, we're sending: ${scaledAmount}`);
+    console.log(`SCALING ANALYSIS: Applying token decimals then program scaling adjustment`);
+    console.log(`ACTUAL SCALING: For our calculated ${rawRewards} YOS, we're sending: ${programScaled}`);
     console.log(`This should result in proper blockchain value that matches program expectation`);
-    console.log(`Using consistent program scaling across all operations`);
-    console.log(`The exact ratio applied: ${PROGRAM_SCALING_FACTOR}×`);
+    console.log(`Using consistent token + program scaling across all operations`);
+    console.log(`Token decimals applied: 10^${YOS_TOKEN_DECIMALS}, then scaled by 0.0001`);
     console.log("Buffer size:", data.length, "bytes");
     return data;
   } else {
