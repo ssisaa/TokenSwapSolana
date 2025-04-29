@@ -334,16 +334,18 @@ export default function StakingSettings() {
             <div className="bg-blue-900 p-3 rounded-md text-sm text-white space-y-1 mt-2 shadow-md border border-blue-500">
               <p className="font-semibold text-blue-200 text-base">STAKE THRESHOLD INFORMATION</p>
               <p>
-                This is the minimum amount of YOT tokens a user must stake in a single transaction.
-                A higher threshold reduces network congestion from small stakes.
+                This is the exact minimum YOT amount required to stake.
+              </p>
+              <p className="text-amber-300 font-semibold">
+                SIMPLE: If set to 100, users cannot stake less than 100 YOT.
               </p>
               <ul className="list-disc pl-5 space-y-1 text-blue-100">
-                <li>Users cannot stake unless they meet this minimum threshold.</li>
-                <li>Setting too high will exclude users with small token holdings.</li>
-                <li>Setting too low may lead to network spam with many tiny stakes.</li>
+                <li><b>Example:</b> If set to 100, a transaction with 99 YOT will fail.</li>
+                <li>Lower values (like 10) allow more users to participate.</li>
+                <li>Higher values (like 1000) restrict staking to larger holders.</li>
               </ul>
               <p className="mt-2 font-semibold text-blue-200">
-                Recommended value: 10.0 YOT for most applications
+                Recommended value: 10 to 100 YOT
               </p>
             </div>
           </div>
@@ -405,16 +407,18 @@ export default function StakingSettings() {
             <div className="bg-purple-900 p-3 rounded-md text-sm text-white space-y-1 mt-2 shadow-md border border-purple-500">
               <p className="font-semibold text-purple-200 text-base">UNSTAKE THRESHOLD INFORMATION</p>
               <p>
-                This is the minimum amount of YOT tokens a user must unstake in a single transaction.
-                A higher threshold reduces network congestion from small unstakes.
+                This is the exact minimum YOT amount required to unstake.
+              </p>
+              <p className="text-amber-300 font-semibold">
+                SIMPLE: If set to 100, users cannot unstake less than 100 YOT.
               </p>
               <ul className="list-disc pl-5 space-y-1 text-purple-100">
-                <li>Users cannot unstake unless they meet this minimum threshold.</li>
-                <li>Setting too high will require users to unstake large amounts at once.</li>
-                <li>Setting too low allows many small unstake transactions (network spam).</li>
+                <li><b>Example:</b> If set to 100, a transaction with 99 YOT will fail.</li>
+                <li>Lower values (like 10) allow users to withdraw smaller amounts.</li>
+                <li>Higher values (like 1000) require larger withdrawal amounts.</li>
               </ul>
               <p className="mt-2 font-semibold text-purple-200">
-                Recommended value: 10.0 YOT for most applications
+                Recommended value: 10 to 100 YOT
               </p>
             </div>
           </div>
@@ -476,18 +480,18 @@ export default function StakingSettings() {
             <div className="bg-indigo-900 p-3 rounded-md text-sm text-white space-y-1 mt-2 shadow-md border border-indigo-500">
               <p className="font-semibold text-indigo-200 text-base">HARVEST THRESHOLD INFORMATION</p>
               <p>
-                This is the minimum amount of YOS rewards a user must earn before they can harvest.
-                A higher threshold reduces network congestion from small harvests.</p>
+                This is the exact YOS amount a user must earn before they can harvest.
+              </p>
               <p className="text-amber-300 font-semibold">
-                IMPORTANT: Remember the 10,000x multiplier! For example, setting 100 here means users need 100 × 10,000 = 1,000,000 displayed rewards to harvest.
+                IMPORTANT: The value you enter here is the EXACT amount needed! If you set 10, users need 10 YOS to harvest.
               </p>
               <ul className="list-disc pl-5 space-y-1 text-indigo-100">
-                <li>Users cannot harvest until their rewards exceed this threshold.</li>
-                <li>Setting too high will frustrate users with small stakes.</li>
-                <li>Setting too low allows frequent tiny harvests (network spam).</li>
+                <li><b>Example:</b> If set to 100, users need exactly 100 YOS to harvest.</li>
+                <li>Lower values (like 10) let users harvest more frequently.</li>
+                <li>Higher values (like 1000) make users wait longer between harvests.</li>
               </ul>
               <p className="mt-2 font-semibold text-indigo-200">
-                Recommended value: 1.0 YOS for most applications
+                Recommended value: 10 to 100 YOS for most applications
               </p>
             </div>
           </div>
