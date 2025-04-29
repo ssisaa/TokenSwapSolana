@@ -477,7 +477,9 @@ export default function StakingSettings() {
               <p className="font-semibold text-indigo-200 text-base">HARVEST THRESHOLD INFORMATION</p>
               <p>
                 This is the minimum amount of YOS rewards a user must earn before they can harvest.
-                A higher threshold reduces network congestion from small harvests.
+                A higher threshold reduces network congestion from small harvests.</p>
+              <p className="text-amber-300 font-semibold">
+                IMPORTANT: Remember the 10,000x multiplier! For example, setting 100 here means users need 100 × 10,000 = 1,000,000 displayed rewards to harvest.
               </p>
               <ul className="list-disc pl-5 space-y-1 text-indigo-100">
                 <li>Users cannot harvest until their rewards exceed this threshold.</li>

@@ -14,7 +14,7 @@ import { getExchangeRate, getPoolBalances, getSolMarketPrice } from "@/lib/solan
 export default function Dashboard() {
   const { connected, wallet } = useWallet();
   const { tokenData, poolData, balances, loading, fetchTokenInfo, fetchBalances } = useTokenData();
-  const { stakingInfo, globalStats, isLoading: stakingLoading } = useStaking();
+  const { stakingInfo, globalStats, isLoadingStakingInfo: stakingLoading } = useStaking();
   const [priceData, setPriceData] = useState({
     yotPrice: 0.00000200,
     yosPrice: 0.00002000,
