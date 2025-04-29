@@ -311,21 +311,28 @@ function encodeUpdateParametersInstruction(
   const data = Buffer.alloc(1 + 8 + 8 + 8 + 8); // instruction type (1) + stakeRate (8) + harvestThreshold (8) + stakeThreshold (8) + unstakeThreshold (8)
   data.writeUInt8(StakingInstructionType.UpdateParameters, 0);
   
-  // Just use the stake rate basis points directly
+  // Use the stake rate basis points directly as u64
   console.log(`Using basis points value: ${stakeRateBasisPoints}`);
-  data.writeBigUInt64LE(BigInt(stakeRateBasisPoints), 1);
+  data.writeBigUInt64LE(BigInt(Math.round(stakeRateBasisPoints)), 1);
   
-  // Just use the harvest threshold directly - simple approach
-  console.log(`Using harvest threshold value: ${harvestThreshold}`);
-  data.writeBigUInt64LE(BigInt(harvestThreshold), 1 + 8);
+  // Convert harvest threshold to raw units (YOS * 1,000,000)
+  // Ensure we're sending what the program expects
+  console.log(`Using harvest threshold of ${harvestThreshold} YOS`);
+  const harvestThresholdRaw = BigInt(Math.round(harvestThreshold * 1000000));
+  console.log(`Converted to raw units: ${harvestThresholdRaw}`);
+  data.writeBigUInt64LE(harvestThresholdRaw, 1 + 8);
   
-  // Just use the stake threshold directly
-  console.log(`Using stake threshold value: ${stakeThreshold}`);
-  data.writeBigUInt64LE(BigInt(stakeThreshold), 1 + 8 + 8);
+  // Convert stake threshold to raw units (YOT * 1,000,000)
+  console.log(`Using stake threshold of ${stakeThreshold} YOT`);
+  const stakeThresholdRaw = BigInt(Math.round(stakeThreshold * 1000000));
+  console.log(`Converted to raw units: ${stakeThresholdRaw}`);
+  data.writeBigUInt64LE(stakeThresholdRaw, 1 + 8 + 8);
   
-  // Just use the unstake threshold directly
-  console.log(`Using unstake threshold value: ${unstakeThreshold}`);
-  data.writeBigUInt64LE(BigInt(unstakeThreshold), 1 + 8 + 8 + 8);
+  // Convert unstake threshold to raw units (YOT * 1,000,000)
+  console.log(`Using unstake threshold of ${unstakeThreshold} YOT`);
+  const unstakeThresholdRaw = BigInt(Math.round(unstakeThreshold * 1000000));
+  console.log(`Converted to raw units: ${unstakeThresholdRaw}`);
+  data.writeBigUInt64LE(unstakeThresholdRaw, 1 + 8 + 8 + 8);
   
   return data;
 }

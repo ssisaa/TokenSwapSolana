@@ -337,7 +337,7 @@ export default function StakingSettings() {
                 This is the exact minimum YOT amount required to stake.
               </p>
               <p className="text-amber-300 font-semibold">
-                SIMPLE: If set to 100, users cannot stake less than 100 YOT.
+                SIMPLE: Enter the exact YOT tokens (not raw units). If set to 100, users cannot stake less than 100 YOT.
               </p>
               <ul className="list-disc pl-5 space-y-1 text-blue-100">
                 <li><b>Example:</b> If set to 100, a transaction with 99 YOT will fail.</li>
@@ -410,7 +410,7 @@ export default function StakingSettings() {
                 This is the exact minimum YOT amount required to unstake.
               </p>
               <p className="text-amber-300 font-semibold">
-                SIMPLE: If set to 100, users cannot unstake less than 100 YOT.
+                SIMPLE: Enter the exact YOT tokens (not raw units). If set to 100, users cannot unstake less than 100 YOT.
               </p>
               <ul className="list-disc pl-5 space-y-1 text-purple-100">
                 <li><b>Example:</b> If set to 100, a transaction with 99 YOT will fail.</li>
@@ -483,7 +483,7 @@ export default function StakingSettings() {
                 This is the exact YOS amount a user must earn before they can harvest.
               </p>
               <p className="text-amber-300 font-semibold">
-                IMPORTANT: The value you enter here is the EXACT amount needed! If you set 10, users need 10 YOS to harvest.
+                IMPORTANT: Enter the exact YOS tokens (not raw units). If you set 10, users need 10 YOS tokens to harvest.
               </p>
               <ul className="list-disc pl-5 space-y-1 text-indigo-100">
                 <li><b>Example:</b> If set to 100, users need exactly 100 YOS to harvest.</li>
