@@ -100,6 +100,25 @@ export function rawToUiTokenAmount(rawAmount: bigint | number, decimals: number)
 }
 
 /**
+ * Properly fetches and converts token balance with correct decimal handling
+ * Uses the official token account balance method that properly handles decimals
+ * @param connection Solana connection
+ * @param tokenAccount The token account to check balance for
+ * @returns Human-readable UI token amount with proper decimal handling
+ */
+export async function getTokenBalance(connection: Connection, tokenAccount: PublicKey): Promise<number> {
+  try {
+    const balanceInfo = await connection.getTokenAccountBalance(tokenAccount);
+    const uiAmount = Number(balanceInfo.value.uiAmount);
+    console.log(`Token balance: ${uiAmount}, decimals: ${balanceInfo.value.decimals}`);
+    return uiAmount;
+  } catch (error) {
+    console.error('Error fetching token balance:', error);
+    return 0;
+  }
+}
+
+/**
  * Simulates a transaction and returns detailed logs to diagnose issues
  * @param connection Solana connection
  * @param transaction Transaction to simulate
