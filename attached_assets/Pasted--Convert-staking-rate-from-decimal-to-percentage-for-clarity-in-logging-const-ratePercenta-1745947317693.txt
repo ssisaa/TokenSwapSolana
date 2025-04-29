@@ -1,0 +1,52 @@
+  // Convert staking rate from decimal to percentage (for clarity in logging)
+    const ratePercentage = stakeRateDecimal * 100;
+    
+    // CRITICAL FIX: MULTIPLY BY 10,000 TO MATCH SOLANA PROGRAM CALCULATION
+    // This scaling factor ensures the UI displays what the user will actually receive
+    const scalingFactor = 10000;
+    
+    // SIMPLE LINEAR INTEREST: principal * rate * time * scalingFactor
+    const pendingRewards = stakedAmount * stakeRateDecimal * timeStakedSinceLastHarvest * scalingFactor;
+    
+    console.log(`LINEAR REWARDS CALCULATION WITH SCALING FACTOR:`);
+    console.log(`- Staked amount: ${stakedAmount} YOT tokens`);
+    console.log(`- Rate: ${ratePercentage}% per second (${stakeRateDecimal} as decimal)`);
+    console.log(`- Time staked: ${timeStakedSinceLastHarvest} seconds`);
+    console.log(`- Scaling factor: ${scalingFactor} (matches blockchain calculation)`);
+    console.log(`- Formula: ${stakedAmount} × ${stakeRateDecimal} × ${timeStakedSinceLastHarvest} × ${scalingFactor}`);
+    console.log(`- Result: ${pendingRewards} YOS tokens`);
+    
+    console.log("Reward calculation info:", {
+      stakedAmount: Number(stakedAmount),
+      timeStakedSinceLastHarvest,
+      stakeRateDecimal,
+      method: "LINEAR (matches Solana program)",
+      pendingRewards
+    });
+    
+    return {
+      stakedAmount: Number(stakedAmount),
+      startTimestamp: startTimestamp,
+      lastHarvestTime: lastHarvestTime,
+      totalHarvested: totalHarvested,
+      rewardsEarned: pendingRewards
+    };
+  } catch (error) {
+    console.error('Error getting staking info:', error);
+    
+    // For existing users who have no staking account, returning zero values is appropriate
+    // This is not a fallback or mock - it accurately represents that the user hasn't staked yet
+    if (error && (error as any).message && (error as any).message.includes('Account does not exist')) {
+      return {
+        stakedAmount: 0,
+        startTimestamp: 0,
+        lastHarvestTime: 0,
+        totalHarvested: 0,
+        rewardsEarned: 0
+      };
+    }
+    
+    // For actual errors, throw the error instead of returning synthetic data
+    throw new Error('Failed to fetch staking information from blockchain. Please try again later.');
+  }
+}

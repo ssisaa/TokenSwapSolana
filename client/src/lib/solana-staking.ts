@@ -26,6 +26,10 @@ function formatNumber(num: number | bigint): string {
  * @param staking Object containing staked amount, time staked, and rate
  * @returns Calculated rewards
  */
+/**
+ * Calculate pending rewards using SIMPLE LINEAR INTEREST
+ * This matches exactly what the Solana program calculates by including the 10000 scaling factor
+ */
 function calculatePendingRewards(staking: {
   stakedAmount: number;
   timeStakedSinceLastHarvest: number;
@@ -36,14 +40,19 @@ function calculatePendingRewards(staking: {
   // Convert from percentage (0.0000125%) to decimal (0.000000125)
   const rateDecimal = stakeRatePerSecond / 100;
   
-  // SIMPLE LINEAR INTEREST: principal * rate * time
-  const linearRewards = stakedAmount * rateDecimal * timeStakedSinceLastHarvest;
+  // CRITICAL FIX: MULTIPLY BY 10,000 TO MATCH SOLANA PROGRAM CALCULATION
+  // This scaling factor ensures the UI displays what the user will actually receive
+  const scalingFactor = 10000;
   
-  console.log(`LINEAR REWARDS CALCULATION:`);
+  // SIMPLE LINEAR INTEREST: principal * rate * time * scalingFactor
+  const linearRewards = stakedAmount * rateDecimal * timeStakedSinceLastHarvest * scalingFactor;
+  
+  console.log(`LINEAR REWARDS CALCULATION WITH SCALING FACTOR:`);
   console.log(`- Staked amount: ${stakedAmount} YOT tokens`);
   console.log(`- Rate: ${stakeRatePerSecond}% per second (${rateDecimal} as decimal)`);
   console.log(`- Time staked: ${timeStakedSinceLastHarvest} seconds`);
-  console.log(`- Formula: ${stakedAmount} × ${rateDecimal} × ${timeStakedSinceLastHarvest}`);
+  console.log(`- Scaling factor: ${scalingFactor} (matches blockchain calculation)`);
+  console.log(`- Formula: ${stakedAmount} × ${rateDecimal} × ${timeStakedSinceLastHarvest} × ${scalingFactor}`);
   console.log(`- Result: ${linearRewards} YOS tokens`);
   
   return linearRewards;
@@ -1583,8 +1592,9 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // that implements SIMPLE LINEAR INTEREST matching the Solana program exactly
     console.log("Using standardized calculatePendingRewards function with simple linear interest");
     
-    // Calculate rewards using the consistent function
-    const rewardsValue = calculatePendingRewards({
+    // Calculate rewards using the consistent function - this is the ONLY correct calculation
+    // that exactly matches what the Solana program does
+    const pendingRewards = calculatePendingRewards({
       stakedAmount,
       timeStakedSinceLastHarvest,
       stakeRatePerSecond
@@ -1597,7 +1607,7 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     - YOT staked: ${stakedAmount} 
     - Yearly rate: ${yearlyRateDisplay.toFixed(2)}%
     - Time staked: ${timeStakedSinceLastHarvest} seconds
-    - YOS rewards: ${rewardsValue}`);
+    - YOS rewards: ${pendingRewards}`);
     
     // For logging, we'll also show what these values mean
     const dailyReward = stakedAmount * (stakeRateDecimal * secondsInDay * 100) / 100;
@@ -1607,12 +1617,12 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     let formattedRewardsValue: string;
     
     // Handle scientific notation formatting for small numbers
-    if (rewardsValue < 0.0001 && rewardsValue > 0) {
+    if (pendingRewards < 0.0001 && pendingRewards > 0) {
       // For extremely small numbers, show more decimal places
-      formattedRewardsValue = rewardsValue.toFixed(10);
+      formattedRewardsValue = pendingRewards.toFixed(10);
     } else {
       // For regular numbers, show fewer decimal places
-      formattedRewardsValue = rewardsValue.toFixed(6);
+      formattedRewardsValue = pendingRewards.toFixed(6);
     }
     
     // Remove trailing zeros after the decimal point
@@ -1631,7 +1641,7 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
       startTimestamp: startTimestamp,
       lastHarvestTime: lastHarvestTime,
       totalHarvested: totalHarvested,
-      rewardsEarned: rewardsValue // Use properly scaled value that matches blockchain
+      rewardsEarned: pendingRewards // Use properly scaled value that matches blockchain
     };
   } catch (error) {
     console.error('Error getting staking info:', error);
