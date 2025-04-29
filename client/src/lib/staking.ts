@@ -396,6 +396,18 @@ async function getAdminSettings() {
 }
 
 // Function to calculate rewards
+/**
+ * Calculate staking rewards with proper decimal precision
+ * 
+ * This matches the same calculation in the Solana program to ensure UI consistency
+ * The key change is using proper token decimal handling:
+ *   - ratePerSecond is already in the correct format (e.g., 0.00000125)
+ *   - stakedAmount is in token units (e.g., 100 YOT)
+ *   - Result is also in token units (e.g., 3.5 YOS)
+ */
 function calculateRewards(stakedAmount: number, timeInSeconds: number, ratePerSecond: number): number {
+  // Calculate rewards directly in token units - this matches the Solana program's math
+  // without needing to convert between raw and token units since the frontend already
+  // works with token units (with decimals) 
   return stakedAmount * timeInSeconds * ratePerSecond;
 }

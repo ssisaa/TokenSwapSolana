@@ -483,18 +483,16 @@ export default function AdminSettings() {
                       const stakeRatePerSecond = parseFloat(convertStakingRate(stakingRate, selectedStakingRateType).second);
                       const harvestThresholdValue = parseInt(harvestThreshold);
                       
-                      // Using same basis point logic as in solana-staking.ts
+                      // CRITICAL FIX FOR DECIMAL PRECISION
+                      // Using 1,000,000.0 as the basis point divisor in the Solana program
                       let stakeRateInBasisPoints;
                       if (Math.abs(stakeRatePerSecond - 0.00125) < 0.00001) {
-                        stakeRateInBasisPoints = 120000; // Special case for 0.00125%
+                        stakeRateInBasisPoints = 1250000; // Special case for 0.00125% (increased precision)
                       } else if (Math.abs(stakeRatePerSecond - 0.00000125) < 0.000000001) {
-                        stakeRateInBasisPoints = 120; // Special case for 0.00000125%
-                      } else if (stakeRatePerSecond < 0.0000001) {
-                        stakeRateInBasisPoints = Math.max(Math.round(stakeRatePerSecond * 100000000), 1);
-                      } else if (stakeRatePerSecond < 0.0001) {
-                        stakeRateInBasisPoints = Math.max(Math.round(stakeRatePerSecond * 10000), 1);
+                        stakeRateInBasisPoints = 12000; // Special case for 0.00000125% (use 12000 for better precision)
                       } else {
-                        stakeRateInBasisPoints = Math.round(stakeRatePerSecond * 10000);
+                        // Convert percentage rate to basis points using the new denominator of 1,000,000.0
+                        stakeRateInBasisPoints = Math.max(Math.round(stakeRatePerSecond * 1000000), 1);
                       }
                       
                       console.log("Initializing program with parameters:", {
