@@ -379,22 +379,32 @@ fn process_unstake(
     let clock = Clock::from_account_info(clock)?;
     let current_time = clock.unix_timestamp;
     
-    // Calculate pending rewards using CURRENT rate from program state
+    // Calculate time staked since last harvest
     let time_staked_seconds = current_time.checked_sub(staking_data.last_harvest_time)
         .ok_or(ProgramError::InvalidArgument)?;
     
-    // CRITICAL FIX FOR DECIMAL OVERFLOW
-    // Convert staking rate from basis points to decimal (12000 basis points = 0.00000125%)
-    // We need much more precision here to avoid huge overflow
-    let rate_decimal = (program_state.stake_rate_per_second as f64) / 1_000_000.0;
+    // EMERGENCY LINEAR FIX: Using linear interest calculation
+    // Convert staking rate from basis points to percentage
+    let rate_percentage = (program_state.stake_rate_per_second as f64) / 1_000_000.0;
     
-    // Calculate rewards in token units first (e.g., 3.5 YOS)
-    let rewards_token_units = (staking_data.staked_amount as f64 / 1_000_000_000.0) * 
-                             (time_staked_seconds as f64) * 
-                             rate_decimal;
+    // Convert from percentage to decimal
+    let rate_decimal = rate_percentage / 100.0;
     
-    // Convert token units to raw units for storage and transfer
+    // Convert raw amount to token units for calculation
+    let principal_tokens = staking_data.staked_amount as f64 / 1_000_000_000.0;
+    
+    // SIMPLE LINEAR INTEREST: principal * rate * time
+    // No exponentiation, no compounding
+    let rewards_token_units = principal_tokens * rate_decimal * time_staked_seconds as f64;
+    
+    // Convert back to raw token units for blockchain storage - this is critical for proper results
     let raw_rewards = (rewards_token_units * 1_000_000_000.0) as u64;
+    
+    // Log all values for transparency and debugging
+    msg!("Unstake: Staked amount: {} tokens ({} raw units)", principal_tokens, staking_data.staked_amount);
+    msg!("Unstake: Rate: {}% per second ({} decimal)", rate_percentage, rate_decimal);
+    msg!("Unstake: Time staked: {} seconds", time_staked_seconds);
+    msg!("Unstake: Calculated rewards: {} tokens ({} raw units)", rewards_token_units, raw_rewards);
     
     // Update staking data
     staking_data.last_harvest_time = current_time;
@@ -412,10 +422,7 @@ fn process_unstake(
     // Save updated staking data
     staking_data.serialize(&mut *user_staking_account.try_borrow_mut_data()?)?;
     
-    // CRITICAL FIX FOR DECIMAL TRANSFER ISSUE:
-    // REMOVED incorrect division by 10^9 - SPL tokens already account for decimals
-    // Raw amount already has 9 decimal places (e.g., 10 YOT = 10,000,000,000 raw units)
-    // Use the raw amount directly without division
+    // Transfer YOT tokens back to user (this should ALWAYS happen)
     let transfer_amount = amount; // No division - use raw amount directly
     
     // Transfer YOT tokens back to user (this should ALWAYS happen)
@@ -546,22 +553,32 @@ fn process_harvest(
     let clock = Clock::from_account_info(clock)?;
     let current_time = clock.unix_timestamp;
     
-    // Calculate rewards using CURRENT rate from program state
+    // Calculate time staked since last harvest
     let time_staked_seconds = current_time.checked_sub(staking_data.last_harvest_time)
         .ok_or(ProgramError::InvalidArgument)?;
     
-    // CRITICAL FIX FOR DECIMAL OVERFLOW
-    // Convert staking rate from basis points to decimal (12000 basis points = 0.00000125%)
-    // We need much more precision here to avoid huge overflow
-    let rate_decimal = (program_state.stake_rate_per_second as f64) / 1_000_000.0;
+    // EMERGENCY LINEAR FIX: Using linear interest calculation
+    // Convert staking rate from basis points to percentage
+    let rate_percentage = (program_state.stake_rate_per_second as f64) / 1_000_000.0;
     
-    // Calculate rewards in token units first (e.g., 3.5 YOS)
-    let rewards_token_units = (staking_data.staked_amount as f64 / 1_000_000_000.0) * 
-                             (time_staked_seconds as f64) * 
-                             rate_decimal;
+    // Convert from percentage to decimal
+    let rate_decimal = rate_percentage / 100.0;
     
-    // Convert token units to raw units for storage and transfer
+    // Convert raw amount to token units for calculation
+    let principal_tokens = staking_data.staked_amount as f64 / 1_000_000_000.0;
+    
+    // SIMPLE LINEAR INTEREST: principal * rate * time
+    // No exponentiation, no compounding
+    let rewards_token_units = principal_tokens * rate_decimal * time_staked_seconds as f64;
+    
+    // Convert back to raw token units for blockchain storage - this is critical for proper results
     let raw_rewards = (rewards_token_units * 1_000_000_000.0) as u64;
+    
+    // Log all values for transparency and debugging
+    msg!("Harvest: Staked amount: {} tokens ({} raw units)", principal_tokens, staking_data.staked_amount);
+    msg!("Harvest: Rate: {}% per second ({} decimal)", rate_percentage, rate_decimal);
+    msg!("Harvest: Time staked: {} seconds", time_staked_seconds);
+    msg!("Harvest: Calculated rewards: {} tokens ({} raw units)", rewards_token_units, raw_rewards);
     
     // Check rewards meet minimum threshold
     if raw_rewards < program_state.harvest_threshold {
