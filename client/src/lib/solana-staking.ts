@@ -109,11 +109,42 @@ export function rawToUiTokenAmount(rawAmount: bigint | number, decimals: number)
 export async function getTokenBalance(connection: Connection, tokenAccount: PublicKey): Promise<number> {
   try {
     const balanceInfo = await connection.getTokenAccountBalance(tokenAccount);
-    const uiAmount = Number(balanceInfo.value.uiAmount);
-    console.log(`Token balance: ${uiAmount}, decimals: ${balanceInfo.value.decimals}`);
+    const decimals = balanceInfo.value.decimals;
+    const amount = parseFloat(balanceInfo.value.amount);
+    const uiAmount = amount / Math.pow(10, decimals); // FIX: Adjust raw amount using decimals
+    console.log(`Token balance raw: ${amount}, decimals: ${decimals}, UI amount: ${uiAmount}`);
     return uiAmount;
   } catch (error) {
     console.error('Error fetching token balance:', error);
+    return 0;
+  }
+}
+
+/**
+ * Get parsed token balance for a specific mint using getParsedTokenAccountsByOwner
+ * This is useful when you want to find token accounts by owner and mint
+ * @param connection Solana connection
+ * @param owner The owner's public key
+ * @param mint The mint address of the token
+ * @returns Human-readable UI token amount with proper decimal handling
+ */
+export async function getParsedTokenBalance(
+  connection: Connection,
+  owner: PublicKey,
+  mint: PublicKey
+): Promise<number> {
+  try {
+    const accounts = await connection.getParsedTokenAccountsByOwner(owner, { mint });
+    if (accounts.value.length === 0) return 0;
+
+    const tokenInfo = accounts.value[0].account.data.parsed.info;
+    const amount = parseFloat(tokenInfo.tokenAmount.amount);
+    const decimals = tokenInfo.tokenAmount.decimals;
+    const uiAmount = amount / Math.pow(10, decimals); // FIX: Adjust raw amount using decimals
+    console.log(`Parsed token balance raw: ${amount}, decimals: ${decimals}, UI amount: ${uiAmount}`);
+    return uiAmount;
+  } catch (error) {
+    console.error('Error fetching parsed token balance:', error);
     return 0;
   }
 }
@@ -170,22 +201,24 @@ export async function validateStakingAccounts(wallet: any) {
     const programYotATA = await getAssociatedTokenAddress(yotMint, programAuthority, true);
     const programYosATA = await getAssociatedTokenAddress(yosMint, programAuthority, true);
     
-    // Check if associated token accounts exist and get balances
+    // Check if associated token accounts exist and get balances with proper decimal handling
     let yotBalance = 0;
     let yosBalance = 0;
     
     try {
-      const yotAccountInfo = await getAccount(connection, yotATA);
-      yotBalance = Number(yotAccountInfo.amount);
+      // Use getParsedTokenBalance which properly handles token decimals
+      yotBalance = await getParsedTokenBalance(connection, walletPublicKey, yotMint);
+      console.log(`YOT balance with proper decimal handling: ${yotBalance}`);
     } catch (error) {
-      console.log('YOT token account does not exist yet');
+      console.log('YOT token account does not exist yet or error fetching balance');
     }
     
     try {
-      const yosAccountInfo = await getAccount(connection, yosATA);
-      yosBalance = Number(yosAccountInfo.amount);
+      // Use getParsedTokenBalance which properly handles token decimals
+      yosBalance = await getParsedTokenBalance(connection, walletPublicKey, yosMint);
+      console.log(`YOS balance with proper decimal handling: ${yosBalance}`);
     } catch (error) {
-      console.log('YOS token account does not exist yet');
+      console.log('YOS token account does not exist yet or error fetching balance');
     }
     
     // Check program state
@@ -216,8 +249,8 @@ export async function validateStakingAccounts(wallet: any) {
       },
       balances: {
         sol: solBalance / LAMPORTS_PER_SOL,
-        yot: rawToUiTokenAmount(BigInt(yotBalance), YOT_DECIMALS),
-        yos: rawToUiTokenAmount(BigInt(yosBalance), YOS_DECIMALS)
+        yot: yotBalance, // Already properly converted with decimal handling
+        yos: yosBalance  // Already properly converted with decimal handling
       },
       status: {
         programInitialized: isInitialized,
@@ -814,9 +847,9 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     
     // Perform safety check on program YOS token balance
     try {
-      const programYosAccountInfo = await getAccount(connection, programYosATA);
-      const programYosBalance = Number(programYosAccountInfo.amount) / Math.pow(10, YOS_DECIMALS);
-      console.log(`Program YOS balance: ${programYosBalance.toFixed(4)} YOS`);
+      // Use the new getTokenBalance function to get the correct UI amount with proper decimals
+      const programYosBalance = await getTokenBalance(connection, programYosATA);
+      console.log(`Program YOS balance (with proper decimals): ${programYosBalance.toFixed(4)} YOS`);
       
       // Compare program balance with programRewards (actual amount needed by the contract)
       if (programYosBalance < programRewards) {
