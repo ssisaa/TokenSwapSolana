@@ -543,11 +543,18 @@ fn process_harvest(
     let time_staked_seconds = current_time.checked_sub(staking_data.last_harvest_time)
         .ok_or(ProgramError::InvalidArgument)?;
     
-    // Convert staking rate from basis points to decimal
-    let rate_decimal = (program_state.stake_rate_per_second as f64) / 10000.0;
+    // CRITICAL FIX FOR DECIMAL OVERFLOW
+    // Convert staking rate from basis points to decimal (12000 basis points = 0.00000125%)
+    // We need much more precision here to avoid huge overflow
+    let rate_decimal = (program_state.stake_rate_per_second as f64) / 1_000_000.0;
     
-    // Calculate raw rewards based on staked amount, time, and CURRENT rate
-    let raw_rewards = (staking_data.staked_amount as f64 * time_staked_seconds as f64 * rate_decimal) as u64;
+    // Calculate rewards in token units first (e.g., 3.5 YOS)
+    let rewards_token_units = (staking_data.staked_amount as f64 / 1_000_000_000.0) * 
+                             (time_staked_seconds as f64) * 
+                             rate_decimal;
+    
+    // Convert token units to raw units for storage and transfer
+    let raw_rewards = (rewards_token_units * 1_000_000_000.0) as u64;
     
     // Check rewards meet minimum threshold
     if raw_rewards < program_state.harvest_threshold {
