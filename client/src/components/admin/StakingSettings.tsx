@@ -42,13 +42,20 @@ export default function StakingSettings() {
       const formattedRate = stakingRates.stakeRatePerSecond.toFixed(10).replace(/\.?0+$/, '');
       setStakeRatePerSecond(formattedRate);
       
-      // For now, we'll set all thresholds to the same harvest threshold from blockchain
-      // In a future update, these should come from database settings
+      // Set the harvest threshold from blockchain values
       setHarvestThreshold(stakingRates.harvestThreshold.toString());
-      setStakeThreshold('10.0'); // Default values
-      setUnstakeThreshold('10.0'); // Default values
+      
+      // Keep current values for stake/unstake thresholds to avoid resetting them
+      // if they already have values (which means user has set them)
+      if (!stakeThreshold || stakeThreshold === '0' || stakeThreshold === '0.0') {
+        setStakeThreshold('10.0'); // Only set default if not already set
+      }
+      
+      if (!unstakeThreshold || unstakeThreshold === '0' || unstakeThreshold === '0.0') {
+        setUnstakeThreshold('10.0'); // Only set default if not already set
+      }
     }
-  }, [stakingRates]);
+  }, [stakingRates, stakeThreshold, unstakeThreshold]);
   
   // Validate admin status
   // In a real implementation, we would verify the admin's public key
@@ -100,7 +107,9 @@ export default function StakingSettings() {
       // 1. Update blockchain parameters first
       updateStakingSettingsMutation.mutate({
         ratePerSecond: ratePerSecond, // Pass the raw percentage value
-        harvestThreshold: harvestThresholdValue    // Pass the raw threshold value
+        harvestThreshold: harvestThresholdValue,   // Pass the raw threshold value
+        stakeThreshold: stakeThresholdValue,       // Add stake threshold
+        unstakeThreshold: unstakeThresholdValue    // Add unstake threshold
       });
       
       // 2. Also update database settings to keep them in sync

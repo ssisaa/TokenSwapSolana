@@ -701,10 +701,14 @@ export function useStaking() {
   const updateStakingSettingsMutation = useMutation({
     mutationFn: async ({ 
       ratePerSecond,
-      harvestThreshold
+      harvestThreshold,
+      stakeThreshold,
+      unstakeThreshold
     }: { 
       ratePerSecond: number,
-      harvestThreshold: number
+      harvestThreshold: number,
+      stakeThreshold?: number,
+      unstakeThreshold?: number
     }) => {
       if (!wallet || !connected) {
         throw new Error('Wallet not connected');
@@ -718,6 +722,8 @@ export function useStaking() {
         console.log("Updating staking parameters...");
         console.log("New rate per second:", ratePerSecond);
         console.log("New harvest threshold:", harvestThreshold);
+        console.log("New stake threshold:", stakeThreshold);
+        console.log("New unstake threshold:", unstakeThreshold);
         
         // Special case handling for known rate values
         let basisPoints;
@@ -743,11 +749,15 @@ export function useStaking() {
         const harvestThresholdRaw = Math.round(harvestThreshold * 1000000);
         console.log("Harvest threshold in micro-YOS:", harvestThresholdRaw);
         
+        // Use default values if stake/unstake thresholds are not provided
+        const stakeThresholdValue = stakeThreshold ?? 10;
+        const unstakeThresholdValue = unstakeThreshold ?? 10;
+        
         // Call the blockchain function to update parameters
         const signature = await updateStakingParameters(
           wallet, 
-          basisPoints,               // stake rate in basis points
-          harvestThresholdRaw        // minimum amount in YOS micro-units
+          basisPoints,                // stake rate in basis points
+          harvestThresholdRaw         // minimum amount in YOS micro-units
         );
         
         console.log("Update parameters transaction signature:", signature);
@@ -756,7 +766,9 @@ export function useStaking() {
         return { 
           signature,
           ratePerSecond,
-          harvestThreshold
+          harvestThreshold,
+          stakeThreshold: stakeThresholdValue,
+          unstakeThreshold: unstakeThresholdValue
         };
       } catch (err) {
         console.error("Error updating staking parameters:", err);
@@ -767,9 +779,18 @@ export function useStaking() {
       // Invalidate queries to trigger refetch
       queryClient.invalidateQueries({ queryKey: ['staking', 'rates'] });
       
+      // Construct a complete message with all the updated parameters
+      const successMessage = `
+        Successfully updated staking parameters:
+        • Rate: ${result.ratePerSecond}% per second
+        • Harvest Threshold: ${result.harvestThreshold} YOS
+        ${result.stakeThreshold ? `• Stake Threshold: ${result.stakeThreshold} YOT` : ''}
+        ${result.unstakeThreshold ? `• Unstake Threshold: ${result.unstakeThreshold} YOT` : ''}
+      `;
+      
       toast({
         title: "Staking Parameters Updated",
-        description: `Successfully updated staking rate to ${result.ratePerSecond}% per second and harvest threshold to ${result.harvestThreshold} YOS.`,
+        description: successMessage.trim(),
       });
     },
     onError: (error: Error) => {
