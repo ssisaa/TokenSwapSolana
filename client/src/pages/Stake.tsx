@@ -374,9 +374,14 @@ export default function Stake() {
                     <div className="bg-dark-300 border border-slate-700 p-3 rounded-lg text-sm">
                       <div className="flex items-start">
                         <InfoIcon className="h-4 w-4 mr-2 mt-0.5 text-blue-400" />
-                        <p className="text-gray-300">
-                          Staking locks your YOT tokens in the smart contract and automatically begins generating YOS rewards at {(stakingRates?.dailyAPY || 0).toFixed(2)}% daily APY (compound interest).
-                        </p>
+                        <div className="text-gray-300">
+                          <p>
+                            Staking locks your YOT tokens in the smart contract and automatically begins generating YOS rewards at {(stakingRates?.dailyAPY || 0).toFixed(2)}% daily APY (compound interest).
+                          </p>
+                          <p className="mt-2 font-medium text-amber-300">
+                            Minimum staking amount: {stakingRates?.harvestThreshold || 0} YOT
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </>
@@ -426,9 +431,14 @@ export default function Stake() {
                     <div className="bg-dark-300 border border-slate-700 p-3 rounded-lg text-sm">
                       <div className="flex items-start">
                         <InfoIcon className="h-4 w-4 mr-2 mt-0.5 text-blue-400" />
-                        <p className="text-gray-300">
-                          Unstaking will return your YOT tokens to your wallet. There is no lock-up period or penalties for unstaking.
-                        </p>
+                        <div className="text-gray-300">
+                          <p>
+                            Unstaking will return your YOT tokens to your wallet. There is no lock-up period or penalties for unstaking.
+                          </p>
+                          <p className="mt-2 font-medium text-amber-300">
+                            Minimum unstake amount: {stakingRates?.harvestThreshold || 0} YOT
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </>
@@ -456,9 +466,14 @@ export default function Stake() {
                     <div className="bg-dark-300 border border-slate-700 p-3 rounded-lg text-sm">
                       <div className="flex items-start">
                         <InfoIcon className="h-4 w-4 mr-2 mt-0.5 text-blue-400" />
-                        <p className="text-gray-300">
-                          Harvesting will claim your earned YOS rewards and send them to your wallet. You can harvest anytime rewards are available.
-                        </p>
+                        <div className="text-gray-300">
+                          <p>
+                            Harvesting will claim your earned YOS rewards and send them to your wallet. You can harvest anytime rewards are available.
+                          </p>
+                          <p className="mt-2 font-medium text-amber-300">
+                            Minimum harvest amount: {stakingRates?.harvestThreshold || 0} YOS
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </>
@@ -561,6 +576,14 @@ export default function Stake() {
               <h3 className="text-lg font-semibold">Is there a lock-up period?</h3>
               <p className="mt-2 text-muted-foreground">
                 No, you can unstake your YOT at any time. However, the longer you stake, the more rewards you'll accumulate.
+              </p>
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-semibold">Are there minimum amounts for staking operations?</h3>
+              <p className="mt-2 text-muted-foreground">
+                Yes, to prevent dust attacks and ensure efficient use of network resources, all staking operations have a minimum threshold of {stakingRates?.harvestThreshold || 0} tokens. 
+                This means you need to stake or unstake at least {stakingRates?.harvestThreshold || 0} YOT tokens, and you can only harvest rewards when you've accumulated at least {stakingRates?.harvestThreshold || 0} YOS tokens.
               </p>
             </div>
             
