@@ -729,10 +729,10 @@ export async function updateStakingParameters(
     // Find program PDAs
     const [programState] = findProgramStateAddress();
     
-    // First simulate the transaction to check for program-specific errors
-    console.log('Simulating transaction to check for errors...');
+    // Skip the simulation step - it's causing the wallet to prompt twice
+    console.log('Preparing update parameters transaction...');
     
-    // Create the instruction separately so we can use it for simulation
+    // Create the instruction separately 
     const updateInstruction = {
       keys: [
         { pubkey: walletPublicKey, isSigner: true, isWritable: true },
@@ -741,32 +741,6 @@ export async function updateStakingParameters(
       programId: new PublicKey(STAKING_PROGRAM_ID),
       data: encodeUpdateParametersInstruction(stakeRateBasisPoints, harvestThreshold, stakeThreshold, unstakeThreshold)
     };
-
-    // Create a simulation transaction
-    const simulationTx = new Transaction();
-    simulationTx.add(updateInstruction);
-    
-    try {
-      console.log('Simulating transaction before sending...');
-      // Use a more reliable approach by running transaction simulation directly
-      const simulation = await connection.simulateTransaction(simulationTx);
-      
-      // Log simulation results for debugging
-      console.log('Simulation result:', simulation);
-      
-      // Check for program errors in the simulation
-      if (simulation.value && simulation.value.err) {
-        console.error('Simulation error:', simulation.value.err);
-        throw new Error(`Program error: ${simulation.value.err}`);
-      }
-      
-      if (simulation.value && simulation.value.logs) {
-        console.log('Simulation succeeded with logs:', simulation.value.logs.slice(0, 5));
-      }
-    } catch (simError) {
-      console.error('Simulation failed:', simError);
-      // Log but continue - some wallets don't properly support simulation
-    }
 
     // Important: Add retry logic for getting a fresh blockhash
     let blockhash = '';
@@ -866,8 +840,41 @@ export async function updateStakingParameters(
       const sendError = error as Error;
       if (sendError.message && sendError.message.includes('User rejected')) {
         throw new Error('Transaction was rejected by the wallet. Please try again.');
-      } else if (sendError.message && sendError.message.includes('Blockhash not found')) {
-        throw new Error('Transaction failed: Blockhash not found. Please try again in a few seconds, Solana network may be congested.');
+      } else if (sendError.message && (
+        sendError.message.includes('Blockhash not found') || 
+        sendError.message.includes('block height exceeded') ||
+        sendError.message.includes('expired')
+      )) {
+        // Try one more time with a fresh blockhash
+        console.log('Blockhash expired, trying one more time with fresh blockhash...');
+        
+        try {
+          // Get a new blockhash
+          const newBlockHashInfo = await connection.getLatestBlockhash('confirmed');
+          
+          // Create a new transaction with the fresh blockhash
+          const retryTransaction = new Transaction({
+            feePayer: walletPublicKey,
+            blockhash: newBlockHashInfo.blockhash,
+            lastValidBlockHeight: newBlockHashInfo.lastValidBlockHeight
+          }).add(updateInstruction);
+          
+          // Try again
+          const signature = await wallet.sendTransaction(retryTransaction, connection);
+          console.log('Retry transaction sent with signature:', signature);
+          
+          const confirmation = await connection.confirmTransaction({
+            signature,
+            blockhash: newBlockHashInfo.blockhash,
+            lastValidBlockHeight: newBlockHashInfo.lastValidBlockHeight
+          }, 'confirmed');
+          
+          console.log('Retry transaction confirmed:', confirmation);
+          return signature;
+        } catch (retryError) {
+          console.error('Retry also failed:', retryError);
+          throw new Error('Transaction failed: Blockhash expired. We tried again with a fresh blockhash but it still failed. Please try again in a few moments when the Solana network is less congested.');
+        }
       } else {
         throw new Error(`Wallet error: ${sendError.message || 'Unknown error'}`);
       }
