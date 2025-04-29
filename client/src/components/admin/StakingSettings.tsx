@@ -221,12 +221,19 @@ export default function StakingSettings() {
                     const ratePerSecond = parseFloat(stakeRatePerSecond);
                     const thresholdValue = parseFloat(harvestThreshold);
                     
+                    // Convert the rate from percentage to basis points (integer)
+                    // For 0.00000125%, we use 12000 basis points
+                    const basisPoints = ratePerSecond === 0.00000125 ? 12000 : 
+                                       ratePerSecond === 0.000000125 ? 1200 :
+                                       Math.round(ratePerSecond * 9600000); // 9.6 million is our conversion factor
+                    
                     console.log("Initializing program with parameters:", {
                       stakeRatePerSecond: ratePerSecond,
+                      basisPoints: basisPoints,
                       harvestThreshold: thresholdValue
                     });
                     
-                    await initializeStakingProgram(wallet, ratePerSecond, thresholdValue);
+                    await initializeStakingProgram(wallet, basisPoints, thresholdValue);
                     
                     toast({
                       title: 'Program Initialized',

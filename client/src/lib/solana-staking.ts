@@ -201,9 +201,17 @@ function encodeInitializeInstruction(
 ): Buffer {
   const data = Buffer.alloc(1 + 8 + 8); // instruction type (1) + stakeRate (8) + harvestThreshold (8)
   data.writeUInt8(StakingInstructionType.Initialize, 0);
-  data.writeBigUInt64LE(BigInt(stakeRateBasisPoints), 1);
+  
+  // Ensure we're using integer basis points
+  const basisPoints = stakeRateBasisPoints < 1 
+    ? Math.round(stakeRateBasisPoints * 9600000) // Convert from percentage to basis points
+    : stakeRateBasisPoints; // Already in basis points
+  
+  console.log("Initialize with basis points:", basisPoints);
+  data.writeBigUInt64LE(BigInt(basisPoints), 1);
+  
   // Convert harvest threshold to raw amount with 6 decimals (1 YOS = 1,000,000 raw units)
-  data.writeBigUInt64LE(BigInt(harvestThreshold * 1000000), 1 + 8);
+  data.writeBigUInt64LE(BigInt(Math.round(harvestThreshold * 1000000)), 1 + 8);
   return data;
 }
 
@@ -241,7 +249,14 @@ function encodeUpdateParametersInstruction(
 ): Buffer {
   const data = Buffer.alloc(1 + 8 + 8); // instruction type (1) + stakeRate (8) + harvestThreshold (8)
   data.writeUInt8(StakingInstructionType.UpdateParameters, 0);
-  data.writeBigUInt64LE(BigInt(stakeRateBasisPoints), 1);
+  
+  // Ensure we're using integer basis points
+  const basisPoints = stakeRateBasisPoints < 1 
+    ? Math.round(stakeRateBasisPoints * 9600000) // Convert from percentage to basis points
+    : stakeRateBasisPoints; // Already in basis points
+    
+  data.writeBigUInt64LE(BigInt(basisPoints), 1);
+  
   // Convert harvest threshold to raw amount with 6 decimals (1 YOS = 1,000,000 raw units)
   data.writeBigUInt64LE(BigInt(harvestThreshold * 1000000), 1 + 8);
   return data;
