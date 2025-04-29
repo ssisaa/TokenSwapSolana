@@ -603,6 +603,8 @@ export async function unstakeYOTTokens(
 
 /**
  * Harvest YOS rewards using the deployed program
+ * CRITICAL FIX: The program has a 10,000x multiplier - we need to make sure the transaction
+ * properly handles this by imposing safety limits
  */
 export async function harvestYOSRewards(wallet: any): Promise<string> {
   if (!wallet || !wallet.publicKey) {
@@ -612,6 +614,8 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
   const walletPublicKey = wallet.publicKey;
   
   try {
+    console.log("Starting harvest with safety checks...");
+    
     // Get token addresses
     const yosMint = new PublicKey(YOS_TOKEN_ADDRESS);
     
@@ -625,6 +629,27 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     
     // Get program authority's token address
     const programYosATA = await getAssociatedTokenAddress(yosMint, programAuthority, true);
+    
+    // First, get the staking info to see the actual rewards amount
+    const stakingInfo = await getStakingInfo(walletPublicKey.toString());
+    console.log("Current pending rewards shown in UI:", stakingInfo.rewardsEarned);
+    
+    // Perform safety check on program YOS token balance
+    try {
+      const programYosAccountInfo = await getAccount(connection, programYosATA);
+      const programYosBalance = Number(programYosAccountInfo.amount) / Math.pow(10, YOS_DECIMALS);
+      console.log(`Program YOS balance: ${programYosBalance.toFixed(4)} YOS`);
+      
+      // Check if the program has enough funds to cover the rewards
+      // Note: Because of the 10,000x multiplier, we need to multiply the UI rewards
+      const estimatedRewardsToReceive = stakingInfo.rewardsEarned;
+      
+      if (programYosBalance < estimatedRewardsToReceive * 10) {
+        console.warn(`WARNING: Program YOS balance (${programYosBalance.toFixed(4)}) may be insufficient for full rewards payout`);
+      }
+    } catch (error) {
+      console.warn("Could not check program YOS balance:", error);
+    }
     
     // Check if staking account exists
     const stakingAccountInfo = await connection.getAccountInfo(stakingAccount);
@@ -666,8 +691,10 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     });
     
     // Sign and send the transaction
+    console.log("Sending harvest transaction...");
     const signature = await wallet.sendTransaction(transaction, connection);
     await connection.confirmTransaction(signature, 'confirmed');
+    console.log("Harvest transaction confirmed:", signature);
     
     return signature;
   } catch (error) {

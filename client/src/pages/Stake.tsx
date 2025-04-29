@@ -143,15 +143,24 @@ export default function Stake() {
                   </div>
                   
                   {/* Info about the program multiplier */}
-                  <div className="text-xs p-1 text-amber-400 bg-amber-950/30 rounded-sm">
+                  <div className="text-xs p-2 text-amber-400 bg-amber-950/30 rounded border border-amber-700/50 mb-1">
                     <InfoIcon className="h-3 w-3 inline mr-1" />
-                    Program has a built-in 10,000x multiplier
+                    <span className="font-semibold">IMPORTANT:</span> Program has a built-in 10,000× multiplier
                   </div>
                   
-                  {/* Show the raw blockchain value as secondary information */}
-                  <div className="flex items-baseline gap-1 border-t border-slate-700 pt-1">
-                    <span className="text-xs text-gray-400">With program multiplier:</span>
-                    <span className="text-xs font-semibold text-blue-400">{formatNumber(stakingInfo.rewardsEarned)} YOS</span>
+                  {/* Show the raw blockchain value as secondary information with clearer explanation */}
+                  <div className="flex flex-col gap-1 border border-slate-700 p-2 rounded-sm bg-slate-800/50">
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-xs text-gray-400">UI shows:</span>
+                      <span className="text-xs font-semibold text-white">{formatNumber(stakingInfo.rewardsEarned / 10000)} YOS</span>
+                    </div>
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-xs text-gray-400">Blockchain receives:</span>
+                      <span className="text-xs font-semibold text-blue-400">{formatNumber(stakingInfo.rewardsEarned)} YOS</span>
+                    </div>
+                    <div className="text-xs text-amber-500 mt-1 text-[10px]">
+                      The wallet will show the higher amount in transactions.
+                    </div>
                   </div>
                 </div>
               )}
