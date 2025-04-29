@@ -89,14 +89,7 @@ export async function getTokenBalance(
         // Token account doesn't exist yet
         console.log(`${tokenSymbol} token account not found for this wallet`);
         
-        // Special handling for YOS tokens: if this is YOS, check if we need to airdrop some to the user
-        if (tokenSymbol === "YOS") {
-          // Return a temporary test value since YOS is our rewards token
-          // This is a workaround until we implement a proper YOS token faucet
-          console.log("Returning 1000 YOS for testing purposes (will be removed in production)");
-          return 1000;
-        }
-        
+        // If token account doesn't exist, balance is 0
         return 0;
       }
       throw error;
@@ -140,10 +133,6 @@ export async function getPoolBalances() {
     // Get SOL balance of the pool
     const solBalance = await connection.getBalance(poolSolAccount);
     
-    // For testing/display in devnet, ensure we have a reasonable SOL amount
-    const minimumSolBalance = 1 * LAMPORTS_PER_SOL; // 1 SOL minimum
-    const effectiveSolBalance = solBalance < 0.001 * LAMPORTS_PER_SOL ? minimumSolBalance : solBalance;
-    
     let yotBalance = 0;
     let yosBalance = 0;
     
@@ -152,15 +141,9 @@ export async function getPoolBalances() {
       const yotAccountInfo = await getAccount(connection, yotTokenAccount);
       const yotMintInfo = await getMint(connection, yotTokenMint);
       yotBalance = Number(yotAccountInfo.amount) / Math.pow(10, yotMintInfo.decimals);
-      
-      // If the balance is unreasonably small, use a balanced test value
-      if (yotBalance < 1) {
-        yotBalance = 10000; // 10,000 YOT minimum for testing/display
-      }
     } catch (error) {
       console.error('Error getting YOT token balance:', error);
-      // If there's an error, use a sensible default for the UI
-      yotBalance = 10000; // 10,000 YOT
+      // If there's an error, we use 0 as the balance
     }
     
     try {
@@ -168,31 +151,25 @@ export async function getPoolBalances() {
       const yosAccountInfo = await getAccount(connection, yosTokenAccount);
       const yosMintInfo = await getMint(connection, yosTokenMint);
       yosBalance = Number(yosAccountInfo.amount) / Math.pow(10, yosMintInfo.decimals);
-      
-      // If the balance is unreasonably small, use a balanced test value
-      if (yosBalance < 1) {
-        yosBalance = 1000; // 1,000 YOS minimum for testing/display
-      }
     } catch (error) {
       console.error('Error getting YOS token balance:', error);
-      // If there's an error, use a sensible default for the UI
-      yosBalance = 1000; // 1,000 YOS
+      // If there's an error, we use 0 as the balance
     }
     
-    console.log(`Pool balances fetched - SOL: ${lamportsToSol(effectiveSolBalance)}, YOT: ${yotBalance}, YOS: ${yosBalance}`);
+    console.log(`Pool balances fetched - SOL: ${lamportsToSol(solBalance)}, YOT: ${yotBalance}, YOS: ${yosBalance}`);
     
     return {
-      solBalance: effectiveSolBalance,
+      solBalance: solBalance,
       yotBalance: yotBalance,
       yosBalance: yosBalance
     };
   } catch (error) {
     console.error('Error getting pool balances:', error);
-    // Return reasonable fallback values for UI display instead of throwing
+    // Return zeros to indicate error - no fallbacks or fake data
     return {
-      solBalance: 1 * LAMPORTS_PER_SOL, // 1 SOL fallback
-      yotBalance: 10000, // 10,000 YOT fallback
-      yosBalance: 1000 // 1,000 YOS fallback
+      solBalance: 0,
+      yotBalance: 0,
+      yosBalance: 0
     };
   }
 }
