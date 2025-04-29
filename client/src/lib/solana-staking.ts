@@ -304,9 +304,7 @@ function encodeHarvestInstruction(): Buffer {
 
 function encodeUpdateParametersInstruction(
   stakeRateBasisPoints: number,
-  harvestThreshold: number,
-  stakeThreshold: number = 10, // Not used by Solana program currently
-  unstakeThreshold: number = 10 // Not used by Solana program currently
+  harvestThreshold: number
 ): Buffer {
   // IMPORTANT: Create buffer EXACTLY matching what the Solana program expects
   // From the Rust code, UpdateParameters only has stake_rate_per_second and harvest_threshold
@@ -332,8 +330,8 @@ function encodeUpdateParametersInstruction(
   console.log(`Converted to raw units: ${harvestThresholdRaw}`);
   data.writeBigUInt64LE(harvestThresholdRaw, 1 + 8);
   
-  // Note: stakeThreshold and unstakeThreshold parameters are ignored 
-  // because the Solana program doesn't accept them in the UpdateParameters instruction
+  // Note: stake and unstake thresholds are managed in the database only
+  // as the Solana program doesn't support these parameters
   
   // Log the complete buffer for debugging
   console.log(`Generated instruction data buffer: [${Array.from(data).map(b => b.toString(16).padStart(2, '0')).join(' ')}]`);
@@ -370,7 +368,7 @@ export async function initializeStakingProgram(
     
     if (programStateInfo) {
       // Program is already initialized - check if we need to update parameters
-      return await updateStakingParameters(wallet, stakeRateBasisPoints, harvestThreshold, stakeThreshold, unstakeThreshold);
+      return await updateStakingParameters(wallet, stakeRateBasisPoints, harvestThreshold);
     }
     
     // Get program authority's token addresses
@@ -696,9 +694,7 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
 export async function updateStakingParameters(
   wallet: any,
   stakeRateBasisPoints: number,
-  harvestThreshold: number,
-  stakeThreshold: number = 10,
-  unstakeThreshold: number = 10
+  harvestThreshold: number
 ): Promise<string> {
   if (!wallet || !wallet.publicKey) {
     throw new Error('Wallet not connected');
@@ -708,8 +704,6 @@ export async function updateStakingParameters(
   console.log('Updating program parameters:');
   console.log(`- Stake Rate: ${stakeRateBasisPoints} basis points`);
   console.log(`- Harvest Threshold: ${harvestThreshold} YOS (will be multiplied by 1,000,000)`);
-  console.log(`- Stake Threshold: ${stakeThreshold} YOT (will be multiplied by 1,000,000)`);
-  console.log(`- Unstake Threshold: ${unstakeThreshold} YOT (will be multiplied by 1,000,000)`);
 
   const walletPublicKey = wallet.publicKey;
   
@@ -753,14 +747,6 @@ export async function updateStakingParameters(
       throw new Error('Invalid harvest threshold: must be between 0 and 1,000,000,000 YOS');
     }
     
-    if (stakeThreshold < 0 || stakeThreshold > 1000000) {
-      throw new Error('Invalid stake threshold: must be between 0 and 1,000,000 YOT');
-    }
-    
-    if (unstakeThreshold < 0 || unstakeThreshold > 1000000) {
-      throw new Error('Invalid unstake threshold: must be between 0 and 1,000,000 YOT');
-    }
-    
     // Find program PDAs
     const [programState] = findProgramStateAddress();
     
@@ -782,7 +768,7 @@ export async function updateStakingParameters(
         { pubkey: programState, isSigner: false, isWritable: true },   // program state account
       ],
       programId: new PublicKey(STAKING_PROGRAM_ID),
-      data: encodeUpdateParametersInstruction(stakeRateBasisPoints, harvestThreshold, stakeThreshold, unstakeThreshold)
+      data: encodeUpdateParametersInstruction(stakeRateBasisPoints, harvestThreshold)
     };
 
     // Important: Add retry logic for getting a fresh blockhash
