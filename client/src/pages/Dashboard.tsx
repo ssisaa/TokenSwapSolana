@@ -267,6 +267,92 @@ export default function Dashboard() {
             </Link>
           </div>
           
+          {/* First row - Current APY/APR */}
+          <div className="grid grid-cols-1 gap-6 mb-6">
+            <Card className="bg-dark-200 border-dark-400 p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* APY Card */}
+                <div className="relative overflow-hidden rounded-lg bg-gradient-to-br from-green-900/60 via-blue-900/60 to-blue-950 p-6 border border-green-700/30">
+                  <div className="flex flex-col">
+                    <div className="flex items-center">
+                      <svg
+                        className="h-6 w-6 text-green-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                        />
+                      </svg>
+                      <span className="ml-2 text-lg font-medium text-gray-200">Current APY</span>
+                    </div>
+                    <div className="mt-3">
+                      <div className="text-4xl font-bold text-white">
+                        {stakingLoading ? "Loading..." : `${(stakingInfo?.stakingRates?.yearlyAPY || 0).toFixed(2)}%`}
+                      </div>
+                      <div className="text-sm text-gray-400 mt-1">
+                        {stakingLoading ? "" : `${(stakingInfo?.stakingRates?.dailyAPY || 0).toFixed(2)}% daily`}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* APR Card */}
+                <div className="relative overflow-hidden rounded-lg bg-gradient-to-br from-blue-900/60 via-blue-950 to-indigo-950 p-6 border border-blue-700/30">
+                  <div className="flex flex-col">
+                    <div className="flex items-center">
+                      <svg
+                        className="h-6 w-6 text-blue-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                        />
+                      </svg>
+                      <span className="ml-2 text-lg font-medium text-gray-200">Current APR</span>
+                    </div>
+                    <div className="mt-3">
+                      <div className="text-4xl font-bold text-white">
+                        {stakingLoading ? "Loading..." : `${(stakingInfo?.stakingRates?.yearlyAPR || 0).toFixed(2)}%`}
+                      </div>
+                      <div className="text-sm text-gray-400 mt-1">
+                        {stakingLoading ? "" : `${(stakingInfo?.stakingRates?.dailyAPR || 0).toFixed(2)}% daily`}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-4 text-xs text-gray-400 flex items-center">
+                <svg
+                  className="h-3 w-3 mr-1 text-blue-400"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <span>APY includes compound interest, APR is the simple interest rate</span>
+              </div>
+            </Card>
+          </div>
+          
+          {/* Second row - Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <Card className="bg-dark-200 border-dark-400 p-4">
               <h3 className="text-gray-400 text-sm">Global Total Staked</h3>
