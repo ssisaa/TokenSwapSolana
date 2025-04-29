@@ -6,7 +6,8 @@ import {
   SystemProgram, 
   sendAndConfirmTransaction, 
   LAMPORTS_PER_SOL,
-  SYSVAR_CLOCK_PUBKEY
+  SYSVAR_CLOCK_PUBKEY,
+  TransactionInstruction
 } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getAccount } from '@solana/spl-token';
 import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, YOT_DECIMALS, YOS_DECIMALS, STAKING_PROGRAM_ID, ENDPOINT } from './constants';
@@ -583,6 +584,10 @@ export async function unstakeYOTTokens(
   amount: number
 ): Promise<string> {
   try {
+    // WARNING: Due to a contract bug, unstaking large amounts can cause issues
+    // For now, we'll continue with the regular unstake process
+    console.log("Unstaking YOT amount:", amount);
+    
     const transaction = await prepareUnstakeTransaction(wallet, amount);
     
     // Sign and send the transaction
