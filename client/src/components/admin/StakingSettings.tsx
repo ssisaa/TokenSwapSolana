@@ -93,9 +93,70 @@ export default function StakingSettings() {
       // We need to pass the raw percentage value, not basis points
       // Our Solana library will handle the conversion to basis points correctly
       const ratePerSecond = parseFloat(stakeRatePerSecond);
-      const stakeThresholdValue = parseFloat(stakeThreshold);
-      const unstakeThresholdValue = parseFloat(unstakeThreshold);
-      const harvestThresholdValue = parseFloat(harvestThreshold);
+      
+      // Validate and cap input values to prevent overflow errors
+      let stakeThresholdValue = parseFloat(stakeThreshold);
+      let unstakeThresholdValue = parseFloat(unstakeThreshold);
+      let harvestThresholdValue = parseFloat(harvestThreshold);
+      
+      // Safety caps for blockchain parameters
+      const MAX_STAKE_THRESHOLD = 1000000;
+      const MAX_UNSTAKE_THRESHOLD = 1000000;
+      const MAX_HARVEST_THRESHOLD = 1000000000;
+      
+      // Apply caps and validate
+      if (isNaN(stakeThresholdValue) || stakeThresholdValue <= 0) {
+        toast({
+          title: "Invalid Stake Threshold",
+          description: "Stake threshold must be a positive number",
+          variant: "destructive",
+        });
+        return;
+      } else if (stakeThresholdValue > MAX_STAKE_THRESHOLD) {
+        toast({
+          title: "Stake Threshold Too Large",
+          description: `Maximum allowed value is ${MAX_STAKE_THRESHOLD}`,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (isNaN(unstakeThresholdValue) || unstakeThresholdValue <= 0) {
+        toast({
+          title: "Invalid Unstake Threshold",
+          description: "Unstake threshold must be a positive number",
+          variant: "destructive",
+        });
+        return;
+      } else if (unstakeThresholdValue > MAX_UNSTAKE_THRESHOLD) {
+        toast({
+          title: "Unstake Threshold Too Large",
+          description: `Maximum allowed value is ${MAX_UNSTAKE_THRESHOLD}`,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (isNaN(harvestThresholdValue) || harvestThresholdValue <= 0) {
+        toast({
+          title: "Invalid Harvest Threshold",
+          description: "Harvest threshold must be a positive number",
+          variant: "destructive",
+        });
+        return;
+      } else if (harvestThresholdValue > MAX_HARVEST_THRESHOLD) {
+        toast({
+          title: "Harvest Threshold Too Large",
+          description: `Maximum allowed value is ${MAX_HARVEST_THRESHOLD}`,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Cap the values for safety
+      stakeThresholdValue = Math.min(stakeThresholdValue, MAX_STAKE_THRESHOLD);
+      unstakeThresholdValue = Math.min(unstakeThresholdValue, MAX_UNSTAKE_THRESHOLD);
+      harvestThresholdValue = Math.min(harvestThresholdValue, MAX_HARVEST_THRESHOLD);
       
       console.log("Sending staking parameter update:", {
         stakeRatePerSecond: ratePerSecond,
@@ -188,14 +249,23 @@ export default function StakingSettings() {
             <Input
               id="stakeThreshold"
               type="number"
+              inputMode="decimal"
+              pattern="[0-9]*\.?[0-9]*"
               step="1"
               min="0"
               max="1000000" 
               value={stakeThreshold}
               onChange={(e) => {
+                // Remove any non-numeric characters except decimal point
+                const sanitizedValue = e.target.value.replace(/[^0-9.]/g, '');
+                
+                // Limit to just one decimal point
+                const parts = sanitizedValue.split('.');
+                const cleanValue = parts[0] + (parts.length > 1 ? '.' + parts[1] : '');
+                
                 // Limit to a safe range
-                const value = parseFloat(e.target.value);
-                if (value > 1000000) {
+                const value = parseFloat(cleanValue);
+                if (!isNaN(value) && value > 1000000) {
                   setStakeThreshold("1000000");
                   toast({
                     title: "Value Too Large",
@@ -203,7 +273,7 @@ export default function StakingSettings() {
                     variant: "destructive",
                   });
                 } else {
-                  setStakeThreshold(e.target.value);
+                  setStakeThreshold(cleanValue);
                 }
               }}
               placeholder="10.0"
@@ -231,14 +301,23 @@ export default function StakingSettings() {
             <Input
               id="unstakeThreshold"
               type="number"
+              inputMode="decimal"
+              pattern="[0-9]*\.?[0-9]*"
               step="1"
               min="0"
               max="1000000" 
               value={unstakeThreshold}
               onChange={(e) => {
+                // Remove any non-numeric characters except decimal point
+                const sanitizedValue = e.target.value.replace(/[^0-9.]/g, '');
+                
+                // Limit to just one decimal point
+                const parts = sanitizedValue.split('.');
+                const cleanValue = parts[0] + (parts.length > 1 ? '.' + parts[1] : '');
+                
                 // Limit to a safe range
-                const value = parseFloat(e.target.value);
-                if (value > 1000000) {
+                const value = parseFloat(cleanValue);
+                if (!isNaN(value) && value > 1000000) {
                   setUnstakeThreshold("1000000");
                   toast({
                     title: "Value Too Large",
@@ -246,7 +325,7 @@ export default function StakingSettings() {
                     variant: "destructive",
                   });
                 } else {
-                  setUnstakeThreshold(e.target.value);
+                  setUnstakeThreshold(cleanValue);
                 }
               }}
               placeholder="10.0"
@@ -274,14 +353,23 @@ export default function StakingSettings() {
             <Input
               id="harvestThreshold"
               type="number"
+              inputMode="decimal"
+              pattern="[0-9]*\.?[0-9]*"
               step="0.1"
               min="0"
               max="1000000000" 
               value={harvestThreshold}
               onChange={(e) => {
+                // Remove any non-numeric characters except decimal point
+                const sanitizedValue = e.target.value.replace(/[^0-9.]/g, '');
+                
+                // Limit to just one decimal point
+                const parts = sanitizedValue.split('.');
+                const cleanValue = parts[0] + (parts.length > 1 ? '.' + parts[1] : '');
+                
                 // Limit to a safe range to prevent overflow errors
-                const value = parseFloat(e.target.value);
-                if (value > 1000000000) {
+                const value = parseFloat(cleanValue);
+                if (!isNaN(value) && value > 1000000000) {
                   setHarvestThreshold("1000000000");
                   toast({
                     title: "Value Too Large",
@@ -289,7 +377,7 @@ export default function StakingSettings() {
                     variant: "destructive",
                   });
                 } else {
-                  setHarvestThreshold(e.target.value);
+                  setHarvestThreshold(cleanValue);
                 }
               }}
               placeholder="1.0"
