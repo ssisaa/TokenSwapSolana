@@ -228,7 +228,15 @@ export default function Stake() {
                     <div className="flex justify-between items-center">
                       <div className="text-sm font-medium text-white">Per Second Rate:</div>
                       <div className="text-sm font-bold text-green-400">
-                        {`${(stakingRates?.stakeRatePerSecond || 0).toFixed(8)}%`}
+                        {stakingRates ? 
+                          // Format to avoid scientific notation (e.g., 1.25e-9)
+                          `${parseFloat((stakingRates.stakeRatePerSecond || 0).toFixed(10)).toLocaleString('en-US', {
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 10,
+                            useGrouping: false
+                          })}%` : 
+                          '0.00000000%'
+                        }
                       </div>
                     </div>
                   </div>

@@ -36,7 +36,9 @@ export default function StakingSettings() {
   
   React.useEffect(() => {
     if (stakingRates) {
-      setStakeRatePerSecond(stakingRates.stakeRatePerSecond.toString());
+      // Format the rate with proper decimal notation instead of scientific notation (e.g., 0.00000125 instead of 1.25e-9)
+      const formattedRate = stakingRates.stakeRatePerSecond.toFixed(10).replace(/\.?0+$/, '');
+      setStakeRatePerSecond(formattedRate);
       setHarvestThreshold(stakingRates.harvestThreshold.toString());
     }
   }, [stakingRates]);
