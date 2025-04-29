@@ -708,8 +708,7 @@ export async function unstakeYOTTokens(
 
 /**
  * Harvest YOS rewards using the deployed program
- * CRITICAL FIX: The program has a 10,000x multiplier - we need to make sure the transaction
- * properly handles this by imposing safety limits
+ * UPDATED: Using simple linear interest calculation that matches the Solana program exactly
  */
 export async function harvestYOSRewards(wallet: any): Promise<string> {
   if (!wallet || !wallet.publicKey) {
@@ -719,7 +718,7 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
   const walletPublicKey = wallet.publicKey;
   
   try {
-    console.log("Starting harvest with safety checks...");
+    console.log("Starting harvest with updated calculation...");
     
     // Get token addresses
     const yosMint = new PublicKey(YOS_TOKEN_ADDRESS);
@@ -735,61 +734,28 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     // Get program authority's token address
     const programYosATA = await getAssociatedTokenAddress(yosMint, programAuthority, true);
     
-    // First, get the staking info to see the actual rewards amount
+    // Get the staking info to see the rewards amount
     const stakingInfo = await getStakingInfo(walletPublicKey.toString());
     
-    // ⚠️ CRITICAL: The blockchain stores values with a 10,000× multiplier
-    // Calculate the display vs actual blockchain values for proper comparison
-    const blockchainRewards = stakingInfo.rewardsEarned;         // Raw value as stored in blockchain
-    const displayRewards = blockchainRewards / 10000;            // Correct UI value with divisor applied
+    // Using the linear interest rewards value directly
+    const rewards = stakingInfo.rewardsEarned;
     
     console.log(`
     ========== HARVEST OPERATION DEBUG ==========
-    UI display rewards: ${displayRewards.toFixed(6)} YOS 
-    Blockchain raw rewards: ${blockchainRewards} 
-    10,000× multiplier ratio: ${blockchainRewards / displayRewards}
+    Rewards to harvest: ${rewards.toFixed(6)} YOS
     ============================================`);
     
     // Also get the harvest threshold
     const { harvestThreshold } = await getStakingProgramState();
     
     // Only proceed if rewards are > 0 and >= harvest threshold
-    if (displayRewards <= 0) {
+    if (rewards <= 0) {
       throw new Error("No rewards to harvest");
     }
     
-    if (harvestThreshold > 0 && displayRewards < harvestThreshold) {
-      throw new Error(`Rewards (${displayRewards.toFixed(6)} YOS) are below the minimum threshold (${harvestThreshold.toFixed(6)} YOS)`);
+    if (harvestThreshold > 0 && rewards < harvestThreshold) {
+      throw new Error(`Rewards (${rewards.toFixed(6)} YOS) are below the minimum threshold (${harvestThreshold.toFixed(6)} YOS)`);
     }
-    
-    // CRITICAL PROTECTION: Add an explicit safety check to prevent transactions with enormous values
-    // This addresses the 100× multiplier discrepancy between client and program calculations
-    const MAXIMUM_SAFE_DISPLAY_REWARDS = 10; // 10 YOS is safe (becomes 1M YOS in wallet display)
-    if (displayRewards > MAXIMUM_SAFE_DISPLAY_REWARDS) {
-      throw new Error(`
-        CRITICAL SAFETY LIMIT REACHED:
-        Due to a known issue with the Solana program's rate calculation, harvesting more than ${MAXIMUM_SAFE_DISPLAY_REWARDS} YOS 
-        at once can cause very large transaction values (${formatNumber(blockchainRewards)} raw units) 
-        to appear in your wallet.
-        
-        Please contact the program admin to fix the rate divisor discrepancy in the Solana program.
-        (The program is using 1,000,000 divisor in some places and 10,000 in others.)
-      `);
-    }
-    
-    // Display an explicit warning that shows both the expected value and what the user will see
-    console.warn(`
-    ⚠️⚠️⚠️ IMPORTANT HARVEST NOTICE ⚠️⚠️⚠️
-    
-    You're about to harvest ${displayRewards.toFixed(4)} YOS tokens.
-    
-    However, due to a known issue in the Solana program (inconsistent divisors), 
-    your wallet will show this as ${(displayRewards * 10000).toFixed(2)} YOS tokens.
-    
-    Rest assured that the ACTUAL amount being transferred is ${displayRewards.toFixed(4)} YOS.
-    This is caused by the multiplier bug in the Solana program that will be fixed in an upcoming update.
-    `);
-    
     
     // Perform safety check on program YOS token balance
     try {
@@ -797,13 +763,12 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       const programYosBalance = Number(programYosAccountInfo.amount) / Math.pow(10, YOS_DECIMALS);
       console.log(`Program YOS balance: ${programYosBalance.toFixed(4)} YOS`);
       
-      // ⚠️ CRITICAL: Compare program balance with display rewards (divided by 10,000)
-      // This ensures we're comparing actual token amounts, not internal representation
-      if (programYosBalance < displayRewards) {
+      // Compare program balance with rewards
+      if (programYosBalance < rewards) {
         console.warn(`
         ⚠️ WARNING: INSUFFICIENT PROGRAM BALANCE ⚠️
         Program YOS balance: ${programYosBalance.toFixed(6)} YOS
-        User pending rewards: ${displayRewards.toFixed(6)} YOS
+        User pending rewards: ${rewards.toFixed(6)} YOS
         Harvest may fail or be partial
         `);
       }
@@ -834,15 +799,9 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       );
     }
     
-    // CRITICAL FIX: Use an explicit adjusted rewards amount for debugging and corrected transactions
-    // This doesn't directly change the amount sent by the blockchain program,
-    // but provides documentation of what we expect in the transaction logs
-    
     console.log(`
     =========== HARVEST TRANSACTION REWARD DETAILS ===========
-    Rewards expected in UI (YOS): ${displayRewards.toFixed(6)}
-    Sent to blockchain without multiplier: ${displayRewards}
-    Blockchain internal value with multiplier: ${blockchainRewards}
+    Rewards to harvest: ${rewards.toFixed(6)} YOS
     ==========================================================
     `);
     
@@ -859,9 +818,9 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
         { pubkey: new PublicKey('SysvarC1ock11111111111111111111111111111111'), isSigner: false, isWritable: false }, // clock sysvar
       ],
       programId: new PublicKey(STAKING_PROGRAM_ID),
-      // Use our enhanced encoding function with expected rewards amount (WITHOUT multiplier)
+      // Use our encoding function with the calculated rewards amount
       // This helps document what we're expecting in the transaction record
-      data: encodeHarvestInstruction(displayRewards)
+      data: encodeHarvestInstruction(rewards)
     });
     
     // Sign and send the transaction
