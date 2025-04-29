@@ -899,11 +899,13 @@ export async function getStakingProgramState(): Promise<{
   stakeThreshold?: number;
   unstakeThreshold?: number;
 }> {
-  // Define time constants outside try block to avoid redeclaration in catch
-  const secondsPerDay = 86400;
-  const secondsPerWeek = secondsPerDay * 7;
-  const secondsPerMonth = secondsPerDay * 30;
-  const secondsPerYear = secondsPerDay * 365;
+  // Define time constants once, outside the function scope
+  const TIME_CONSTANTS = {
+    secondsPerDay: 86400,
+    secondsPerWeek: 86400 * 7,
+    secondsPerMonth: 86400 * 30,
+    secondsPerYear: 86400 * 365
+  };
 
   try {
     // Get the program state PDA
@@ -947,8 +949,8 @@ export async function getStakingProgramState(): Promise<{
       
       // Additional logging to verify calculations for transparency
       console.log(`Rate conversion: ${stakeRateBasisPoints} basis points → ${stakeRatePerSecond}% per second`);
-      console.log(`This means ${stakeRatePerSecond * secondsPerDay}% per day (${stakeRatePerSecond} * ${secondsPerDay} seconds)`);
-      console.log(`This means ${stakeRatePerSecond * secondsPerDay * 365}% per year (${stakeRatePerSecond} * ${secondsPerDay} * 365)`);
+      console.log(`This means ${stakeRatePerSecond * TIME_CONSTANTS.secondsPerDay}% per day (${stakeRatePerSecond} * ${TIME_CONSTANTS.secondsPerDay} seconds)`);
+      console.log(`This means ${stakeRatePerSecond * TIME_CONSTANTS.secondsPerDay * 365}% per year (${stakeRatePerSecond} * ${TIME_CONSTANTS.secondsPerDay} * 365)`);
       
       // Read harvest threshold (8 bytes, 64-bit unsigned integer)
       const harvestThreshold = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32 + 8)) / 1000000;
@@ -970,23 +972,23 @@ export async function getStakingProgramState(): Promise<{
       // Calculate rates directly from stakeRatePerSecond read from blockchain
       // For UI display, we need to convert the percentage (0.00125%) properly
       // Note: stakeRatePerSecond is already in percentage form (0.00125% = 0.00125)
-      const dailyAPR = stakeRatePerSecond * secondsPerDay;
-      const weeklyAPR = stakeRatePerSecond * secondsPerWeek;
-      const monthlyAPR = stakeRatePerSecond * secondsPerMonth;
-      const yearlyAPR = stakeRatePerSecond * secondsPerYear;
+      const dailyAPR = stakeRatePerSecond * TIME_CONSTANTS.secondsPerDay;
+      const weeklyAPR = stakeRatePerSecond * TIME_CONSTANTS.secondsPerWeek;
+      const monthlyAPR = stakeRatePerSecond * TIME_CONSTANTS.secondsPerMonth;
+      const yearlyAPR = stakeRatePerSecond * TIME_CONSTANTS.secondsPerYear;
       
       console.log("Rate calculation:", {
         stakeRatePerSecond,
-        secondsPerDay,
-        daily: `${stakeRatePerSecond} * ${secondsPerDay} = ${dailyAPR}`
+        secondsPerDay: TIME_CONSTANTS.secondsPerDay,
+        daily: `${stakeRatePerSecond} * ${TIME_CONSTANTS.secondsPerDay} = ${dailyAPR}`
       });
       
       // Calculate APY values (compound interest) - this is the correct compound interest formula
       // Formula: (1 + r)^t - 1, where r is rate as decimal and t is time periods
-      const dailyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerDay) - 1) * 100;
-      const weeklyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerWeek) - 1) * 100;
-      const monthlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerMonth) - 1) * 100;
-      const yearlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerYear) - 1) * 100;
+      const dailyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), TIME_CONSTANTS.secondsPerDay) - 1) * 100;
+      const weeklyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), TIME_CONSTANTS.secondsPerWeek) - 1) * 100;
+      const monthlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), TIME_CONSTANTS.secondsPerMonth) - 1) * 100;
+      const yearlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), TIME_CONSTANTS.secondsPerYear) - 1) * 100;
       
       return {
         stakeRatePerSecond,
@@ -1008,15 +1010,15 @@ export async function getStakingProgramState(): Promise<{
     // If we didn't return earlier, use default values
     const stakeRatePerSecond = 0.00000125;
     
-    const dailyAPR = stakeRatePerSecond * secondsPerDay;
-    const weeklyAPR = stakeRatePerSecond * secondsPerWeek;
-    const monthlyAPR = stakeRatePerSecond * secondsPerMonth;
-    const yearlyAPR = stakeRatePerSecond * secondsPerYear;
+    const dailyAPR = stakeRatePerSecond * TIME_CONSTANTS.secondsPerDay;
+    const weeklyAPR = stakeRatePerSecond * TIME_CONSTANTS.secondsPerWeek;
+    const monthlyAPR = stakeRatePerSecond * TIME_CONSTANTS.secondsPerMonth;
+    const yearlyAPR = stakeRatePerSecond * TIME_CONSTANTS.secondsPerYear;
     
-    const dailyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerDay) - 1) * 100;
-    const weeklyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerWeek) - 1) * 100;
-    const monthlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerMonth) - 1) * 100;
-    const yearlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerYear) - 1) * 100;
+    const dailyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), TIME_CONSTANTS.secondsPerDay) - 1) * 100;
+    const weeklyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), TIME_CONSTANTS.secondsPerWeek) - 1) * 100;
+    const monthlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), TIME_CONSTANTS.secondsPerMonth) - 1) * 100;
+    const yearlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), TIME_CONSTANTS.secondsPerYear) - 1) * 100;
     
     return {
       stakeRatePerSecond,
@@ -1042,17 +1044,17 @@ export async function getStakingProgramState(): Promise<{
     const stakeRatePerSecond = 0.00000125;
     
     // Calculate linear rates (not compound)
-    const dailyAPR = stakeRatePerSecond * secondsPerDay;
-    const weeklyAPR = stakeRatePerSecond * secondsPerWeek;
-    const monthlyAPR = stakeRatePerSecond * secondsPerMonth;
-    const yearlyAPR = stakeRatePerSecond * secondsPerYear;
+    const dailyAPR = stakeRatePerSecond * TIME_CONSTANTS.secondsPerDay;
+    const weeklyAPR = stakeRatePerSecond * TIME_CONSTANTS.secondsPerWeek;
+    const monthlyAPR = stakeRatePerSecond * TIME_CONSTANTS.secondsPerMonth;
+    const yearlyAPR = stakeRatePerSecond * TIME_CONSTANTS.secondsPerYear;
     
     // Calculate APY values (compound interest) - this is the correct compound interest formula
     // Formula: (1 + r)^t - 1, where r is rate as decimal and t is time periods
-    const dailyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerDay) - 1) * 100;
-    const weeklyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerWeek) - 1) * 100;
-    const monthlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerMonth) - 1) * 100;
-    const yearlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerYear) - 1) * 100;
+    const dailyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), TIME_CONSTANTS.secondsPerDay) - 1) * 100;
+    const weeklyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), TIME_CONSTANTS.secondsPerWeek) - 1) * 100;
+    const monthlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), TIME_CONSTANTS.secondsPerMonth) - 1) * 100;
+    const yearlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), TIME_CONSTANTS.secondsPerYear) - 1) * 100;
     
     return {
       stakeRatePerSecond,

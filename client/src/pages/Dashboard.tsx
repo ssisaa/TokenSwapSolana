@@ -14,7 +14,7 @@ import { getExchangeRate, getPoolBalances, getSolMarketPrice } from "@/lib/solan
 export default function Dashboard() {
   const { connected, wallet } = useWallet();
   const { tokenData, poolData, balances, loading, fetchTokenInfo, fetchBalances } = useTokenData();
-  const { stakingInfo, globalStats, isLoadingStakingInfo: stakingLoading } = useStaking();
+  const { stakingInfo, stakingRates, globalStats, isLoadingStakingInfo: stakingLoading, isLoadingRates: ratesLoading } = useStaking();
   const [priceData, setPriceData] = useState({
     yotPrice: 0.00000200,
     yosPrice: 0.00002000,
@@ -293,10 +293,10 @@ export default function Dashboard() {
                     </div>
                     <div className="mt-3">
                       <div className="text-4xl font-bold text-white">
-                        {stakingLoading ? "Loading..." : `${(stakingInfo?.stakingRates?.yearlyAPY || 0).toFixed(2)}%`}
+                        {ratesLoading ? "Loading..." : `${(stakingRates?.yearlyAPY || 0).toFixed(2)}%`}
                       </div>
                       <div className="text-sm text-gray-400 mt-1">
-                        {stakingLoading ? "" : `${(stakingInfo?.stakingRates?.dailyAPY || 0).toFixed(2)}% daily`}
+                        {ratesLoading ? "" : `${(stakingRates?.dailyAPY || 0).toFixed(2)}% daily`}
                       </div>
                     </div>
                   </div>
@@ -324,10 +324,10 @@ export default function Dashboard() {
                     </div>
                     <div className="mt-3">
                       <div className="text-4xl font-bold text-white">
-                        {stakingLoading ? "Loading..." : `${(stakingInfo?.stakingRates?.yearlyAPR || 0).toFixed(2)}%`}
+                        {ratesLoading ? "Loading..." : `${(stakingRates?.yearlyAPR || 0).toFixed(2)}%`}
                       </div>
                       <div className="text-sm text-gray-400 mt-1">
-                        {stakingLoading ? "" : `${(stakingInfo?.stakingRates?.dailyAPR || 0).toFixed(2)}% daily`}
+                        {ratesLoading ? "" : `${(stakingRates?.dailyAPR || 0).toFixed(2)}% daily`}
                       </div>
                     </div>
                   </div>
