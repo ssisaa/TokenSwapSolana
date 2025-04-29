@@ -136,17 +136,22 @@ export default function Stake() {
                 <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
               ) : (
                 <div className="space-y-2">
+                  {/* Show the actual value (without multiplier) as the primary display */}
                   <div className="flex items-baseline gap-1">
-                    <span className="text-xl font-bold text-white">{formatNumber(stakingInfo.rewardsEarned)}</span>
+                    <span className="text-xl font-bold text-white">{formatNumber(stakingInfo.rewardsEarned / 10000)}</span>
                     <span className="text-sm font-semibold text-green-400">YOS</span>
                   </div>
+                  
+                  {/* Info about the program multiplier */}
                   <div className="text-xs p-1 text-amber-400 bg-amber-950/30 rounded-sm">
                     <InfoIcon className="h-3 w-3 inline mr-1" />
                     Program has a built-in 10,000x multiplier
                   </div>
+                  
+                  {/* Show the raw blockchain value as secondary information */}
                   <div className="flex items-baseline gap-1 border-t border-slate-700 pt-1">
-                    <span className="text-xs text-gray-400">Without multiplier:</span>
-                    <span className="text-xs font-semibold text-blue-400">{formatNumber(stakingInfo.rewardsEarned / 10000)} YOS</span>
+                    <span className="text-xs text-gray-400">With program multiplier:</span>
+                    <span className="text-xs font-semibold text-blue-400">{formatNumber(stakingInfo.rewardsEarned)} YOS</span>
                   </div>
                 </div>
               )}
@@ -194,7 +199,7 @@ export default function Stake() {
                     
                     <div className="flex justify-between">
                       <span className="text-gray-400">Pending Rewards:</span>
-                      <span className="font-medium text-white">{formatNumber(isLoading ? 0 : stakingInfo.rewardsEarned)} YOS</span>
+                      <span className="font-medium text-white">{formatNumber(isLoading ? 0 : stakingInfo.rewardsEarned / 10000)} YOS</span>
                     </div>
                     
                     <div className="flex justify-between">
@@ -213,7 +218,7 @@ export default function Stake() {
                     
                     <div className="flex justify-between">
                       <span className="text-gray-400">Total Harvested:</span>
-                      <span className="font-medium text-white">{formatNumber(isLoading ? 0 : stakingInfo.totalHarvested)} YOS</span>
+                      <span className="font-medium text-white">{formatNumber(isLoading ? 0 : stakingInfo.totalHarvested / 10000)} YOS</span>
                     </div>
                   </div>
                 </CardContent>
@@ -462,7 +467,7 @@ export default function Stake() {
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="text-lg font-semibold text-white">Harvest Rewards</h3>
                       <span className="text-sm text-gray-400">
-                        <span className="font-medium text-white">{formatNumber(stakingInfo.rewardsEarned)}</span> YOS available
+                        <span className="font-medium text-white">{formatNumber(stakingInfo.rewardsEarned / 10000)}</span> YOS available
                       </span>
                     </div>
 
@@ -471,21 +476,21 @@ export default function Stake() {
                       <div className="bg-dark-100 rounded-md border border-slate-700 p-4">
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-sm text-gray-300">Available rewards:</span>
-                          <span className="text-sm font-medium text-white">{formatNumber(stakingInfo.rewardsEarned)} YOS</span>
+                          <span className="text-sm font-medium text-white">{formatNumber(stakingInfo.rewardsEarned / 10000)} YOS</span>
                         </div>
                         
                         <div className="w-full bg-slate-700 rounded-full h-2.5 mb-1">
                           <div 
                             className="bg-blue-600 h-2.5 rounded-full" 
                             style={{ 
-                              width: `${Math.min(100, (stakingInfo.rewardsEarned / (stakingRates?.harvestThreshold || 1)) * 100)}%` 
+                              width: `${Math.min(100, ((stakingInfo.rewardsEarned / 10000) / (stakingRates?.harvestThreshold || 1)) * 100)}%` 
                             }}
                           ></div>
                         </div>
                         
                         <div className="flex justify-between items-center text-xs">
                           <span className="text-gray-400">0</span>
-                          <span className={`font-medium ${stakingInfo.rewardsEarned >= (stakingRates?.harvestThreshold || 0) ? 'text-green-400' : 'text-amber-400'}`}>
+                          <span className={`font-medium ${(stakingInfo.rewardsEarned / 10000) >= (stakingRates?.harvestThreshold || 0) ? 'text-green-400' : 'text-amber-400'}`}>
                             Threshold: {stakingRates?.harvestThreshold || 0} YOS
                           </span>
                         </div>
@@ -500,10 +505,10 @@ export default function Stake() {
                         Harvest Rewards
                       </Button>
                       
-                      {stakingInfo.rewardsEarned < (stakingRates?.harvestThreshold || 0) && (
+                      {(stakingInfo.rewardsEarned / 10000) < (stakingRates?.harvestThreshold || 0) && (
                         <div className="text-xs text-amber-400 flex items-center">
                           <span className="mr-1">⚠️</span>
-                          Need at least {stakingRates?.harvestThreshold || 0} YOS to harvest (you have {formatNumber(stakingInfo.rewardsEarned)})
+                          Need at least {stakingRates?.harvestThreshold || 0} YOS to harvest (you have {formatNumber(stakingInfo.rewardsEarned / 10000)})
                         </div>
                       )}
                     </div>
