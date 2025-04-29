@@ -131,7 +131,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                 <div className="flex justify-between">
                   <span className="text-gray-400">Pending Rewards:</span>
                   <div className="text-right">
-                    <span className="font-medium text-white">{(stakingInfo.rewardsEarned / 10000).toLocaleString('en-US')} YOS</span>
+                    <span className="font-medium text-white">{(stakingInfo.rewardsEarned / 1000000).toLocaleString('en-US')} YOS</span>
                     <div className="text-xs text-amber-400">
                       (wallet will show: {formatNumber(stakingInfo.rewardsEarned)} YOS)
                     </div>
@@ -139,12 +139,12 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                 </div>
                 <Alert className="mt-2 bg-amber-950/30 border-amber-700">
                   <AlertTriangle className="h-4 w-4 text-amber-500" />
-                  <AlertTitle className="text-amber-400 text-xs font-medium">10,000× Multiplier Issue</AlertTitle>
+                  <AlertTitle className="text-amber-400 text-xs font-medium">Million-fold Multiplier Issue</AlertTitle>
                   <AlertDescription className="text-amber-200 text-xs">
-                    <strong>Important:</strong> Due to an inconsistency in the Solana program 
-                    (using different divisors: 1,000,000 vs 10,000), your wallet will show rewards 
-                    as 10,000× larger than the actual amount. For example, if you earned 0.01 YOS, 
-                    your wallet will show 100 YOS. To get the real amount, divide what your wallet shows by 10,000.
+                    <strong>Important:</strong> Due to multiple issues in the Solana program 
+                    (incorrect rate precision and missing token unit conversions), your wallet will show rewards 
+                    as approximately 1,000,000× larger than the displayed amount. For example, if you see 0.01 YOS here, 
+                    your wallet will show around 10,000 YOS.
                   </AlertDescription>
                 </Alert>
                 
@@ -161,7 +161,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                 <div className="flex justify-between">
                   <span className="text-gray-400">Total Harvested:</span>
                   <div className="text-right">
-                    <span className="font-medium text-white">{(stakingInfo.totalHarvested / 10000).toLocaleString('en-US')} YOS</span>
+                    <span className="font-medium text-white">{(stakingInfo.totalHarvested / 1000000).toLocaleString('en-US')} YOS</span>
                     <div className="text-xs text-amber-400">
                       (wallet received: {formatNumber(stakingInfo.totalHarvested)} YOS)
                     </div>
@@ -357,8 +357,8 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                       <Bell className="h-4 w-4 text-blue-500" />
                       <AlertTitle className="text-blue-400 text-xs font-medium">Pending Rewards</AlertTitle>
                       <AlertDescription className="text-blue-200 text-xs">
-                        You have <strong>{(stakingInfo.rewardsEarned / 10000).toFixed(6)} YOS</strong> in unclaimed rewards
-                        (your wallet will show this as <strong>{formatNumber(stakingInfo.rewardsEarned)} YOS</strong> due to the 10,000× multiplier).
+                        You have <strong>{(stakingInfo.rewardsEarned / 1000000).toFixed(6)} YOS</strong> in unclaimed rewards
+                        (your wallet will show this as <strong>{formatNumber(stakingInfo.rewardsEarned)} YOS</strong> due to the million-fold multiplier).
                         Consider harvesting your rewards before unstaking to avoid losing them.
                       </AlertDescription>
                     </Alert>
@@ -378,7 +378,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                   <div className="flex justify-between items-center">
                     <h3 className="text-lg font-semibold text-white">Harvest Rewards</h3>
                     <span className="text-sm text-gray-400">
-                      <span className="font-medium text-white">{(stakingInfo.rewardsEarned / 10000).toLocaleString('en-US')}</span> YOS available
+                      <span className="font-medium text-white">{(stakingInfo.rewardsEarned / 1000000).toLocaleString('en-US')}</span> YOS available
                     </span>
                   </div>
                   <div className="flex flex-col space-y-2">
@@ -393,11 +393,11 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                   </div>
                   <Alert className="mt-4 bg-amber-950/30 border-amber-700">
                     <AlertTriangle className="h-4 w-4 text-amber-500" />
-                    <AlertTitle className="text-amber-400 text-xs font-medium">10,000× Multiplier Issue</AlertTitle>
+                    <AlertTitle className="text-amber-400 text-xs font-medium">Million-fold Multiplier Issue</AlertTitle>
                     <AlertDescription className="text-amber-200 text-xs">
                       <strong>Important:</strong> When you harvest, your wallet will receive {formatNumber(stakingInfo.rewardsEarned)} YOS tokens 
-                      (10,000× the displayed amount of {formatNumber(stakingInfo.rewardsEarned / 10000)} YOS). 
-                      This is a known Solana program issue where the harvest function uses a different divisor.
+                      (approximately 1,000,000× the displayed amount of {formatNumber(stakingInfo.rewardsEarned / 1000000)} YOS). 
+                      This is due to multiple issues in the Solana program including incorrect rate precision and conversion handling.
                     </AlertDescription>
                   </Alert>
                   
