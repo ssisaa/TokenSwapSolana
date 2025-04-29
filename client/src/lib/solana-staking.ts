@@ -795,28 +795,12 @@ export async function stakeYOTTokens(
     // Note: We'll let the program handle account creation
     // Staking accounts are PDAs just like program state
     
-    // CRITICAL FIX FOR WALLET UI DISPLAY: We need to create a proper SPL token transfer
-    // instruction with the correct amount formatting for wallet display
+    // CRITICAL FIX: We're NOT adding a separate transfer instruction
+    // Instead, we'll rely on the program's own token transfer logic
     console.log(`Creating stake transaction for ${amount} YOT tokens`);
     
-    // Convert amount to the raw token amount for display in wallet
-    // This is the token amount with decimals applied (10^9 for YOT tokens)
-    const tokenAmount = uiToRawTokenAmount(amount, YOT_TOKEN_DECIMALS);
-    console.log(`Token amount for transfer (with decimals): ${tokenAmount}`);
-    
-    // Use createTransferInstruction from spl-token library for proper token formatting
-    const transferInstruction = createTransferInstruction(
-      userYotATA,           // source
-      programYotATA,        // destination
-      walletPublicKey,      // owner
-      tokenAmount,          // amount (with proper decimals)
-      [],                   // multisigners
-      TOKEN_PROGRAM_ID      // programId
-    );
-    
-    // Add the properly formatted transfer instruction first
-    // This will make the wallet show the correct amount
-    transaction.add(transferInstruction);
+    // We'll instruct the program directly with the correct amount
+    // This is the approach the program expects
     
     // Add stake instruction - key order MUST match program expectations!
     transaction.add({
@@ -904,31 +888,11 @@ export async function prepareUnstakeTransaction(
     );
   }
   
-  // CRITICAL FIX FOR WALLET UI DISPLAY - Add simulated transfer instructions that show the correct amounts
-  // These transfers won't actually happen (they'll be rejected by the program), but they make the wallet
-  // confirmation screen show the correct token amounts
+  // CRITICAL FIX: We're removing the separate transfer instruction
+  // The program's unstake function will handle transferring the correct amount of YOT
+  // Adding our own transfer instruction causes double transactions to be submitted
   
-  // 1. Convert amount to the raw token amount for display in wallet (YOT transfer)
-  const yotTokenAmount = uiToRawTokenAmount(amount, YOT_TOKEN_DECIMALS);
-  console.log(`YOT token amount for display in wallet: ${yotTokenAmount}`);
-  
-  // Create a transfer instruction from program to user for YOT
-  // This will make the wallet display show the correct amount being unstaked
-  const transferInstruction = createTransferInstruction(
-    programYotATA,        // source - PROGRAM is source for unstaking
-    userYotATA,           // destination - USER is destination for unstaking
-    programAuthority,     // owner (program authority owns the tokens)
-    yotTokenAmount,       // amount (with proper decimals)
-    [],                   // multisigners
-    TOKEN_PROGRAM_ID      // programId
-  );
-  
-  // Add the properly formatted transfer instruction first
-  // This makes the wallet show the correct amount
-  // Note: This instruction will fail during execution but it's needed for wallet display
-  transaction.add(transferInstruction);
-  
-  // 2. Add the unstake instruction - key order MUST match program expectations!
+  // Add the unstake instruction - key order MUST match program expectations!
   transaction.add({
     keys: [
       { pubkey: walletPublicKey, isSigner: true, isWritable: true },         // user_account
@@ -1139,28 +1103,9 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     ==========================================================
     `);
     
-    // CRITICAL FIX: Add a special transfer instruction to make the wallet display show the correct amount
-    // This instruction won't actually execute (it will be replaced by the program instruction)
-    // But it forces the wallet to display the correct token amount with proper decimals
-    
-    // Convert to raw token amount with token decimals (not program scaling)
-    const yosTokenAmount = uiToRawTokenAmount(displayRewards, YOS_TOKEN_DECIMALS);
-    console.log(`YOS token amount for display in wallet: ${yosTokenAmount}`);
-    
-    // Create a transfer instruction from program to user for YOS
-    // This is just for wallet display purposes
-    const transferInstruction = createTransferInstruction(
-      programYosATA,        // source
-      userYosATA,           // destination
-      programAuthority,     // owner
-      yosTokenAmount,       // amount with proper decimals for display
-      [],                   // multisigners
-      TOKEN_PROGRAM_ID      // programId
-    );
-    
-    // Add the transfer instruction before the harvest instruction
-    // This makes the wallet confirmation screen show the correct token amount
-    transaction.add(transferInstruction);
+    // CRITICAL FIX: We're letting the program handle token transfers directly
+    // Our earlier approach of adding separate transfer instructions was causing double transactions
+    // and incorrect token amount displays in the wallet
     
     // Add harvest instruction - key order MUST match program expectations!
     transaction.add({
