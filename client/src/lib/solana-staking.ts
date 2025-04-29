@@ -1,5 +1,13 @@
 // Import necessary modules
-import { Connection, PublicKey, Transaction, SystemProgram, sendAndConfirmTransaction, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { 
+  Connection, 
+  PublicKey, 
+  Transaction, 
+  SystemProgram, 
+  sendAndConfirmTransaction, 
+  LAMPORTS_PER_SOL,
+  SYSVAR_CLOCK_PUBKEY
+} from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getAccount } from '@solana/spl-token';
 import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, YOT_DECIMALS, YOS_DECIMALS, STAKING_PROGRAM_ID, ENDPOINT } from './constants';
 
@@ -199,8 +207,18 @@ function encodeInitializeInstruction(
   stakeRateBasisPoints: number,
   harvestThreshold: number,
 ): Buffer {
-  const data = Buffer.alloc(1 + 8 + 8); // instruction type (1) + stakeRate (8) + harvestThreshold (8)
+  const data = Buffer.alloc(1 + 32 + 32 + 8 + 8); // instruction type (1) + yotMint (32) + yosMint (32) + stakeRate (8) + harvestThreshold (8)
   data.writeUInt8(StakingInstructionType.Initialize, 0);
+  
+  let offset = 1;
+  
+  // Write YOT mint address
+  yotMint.toBuffer().copy(data, offset);
+  offset += 32;
+  
+  // Write YOS mint address
+  yosMint.toBuffer().copy(data, offset);
+  offset += 32;
   
   // Ensure we're using integer basis points
   const basisPoints = stakeRateBasisPoints < 1 
@@ -208,10 +226,11 @@ function encodeInitializeInstruction(
     : stakeRateBasisPoints; // Already in basis points
   
   console.log("Initialize with basis points:", basisPoints);
-  data.writeBigUInt64LE(BigInt(basisPoints), 1);
+  data.writeBigUInt64LE(BigInt(basisPoints), offset);
+  offset += 8;
   
   // Convert harvest threshold to raw amount with 6 decimals (1 YOS = 1,000,000 raw units)
-  data.writeBigUInt64LE(BigInt(Math.round(harvestThreshold * 1000000)), 1 + 8);
+  data.writeBigUInt64LE(BigInt(Math.round(harvestThreshold * 1000000)), offset);
   return data;
 }
 
@@ -412,7 +431,7 @@ export async function stakeYOTTokens(
         { pubkey: stakingAccount, isSigner: false, isWritable: true },      // user_staking_account
         { pubkey: programState, isSigner: false, isWritable: false },       // program_state_account 
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },   // token_program
-        { pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false },  // clock sysvar
+        { pubkey: new PublicKey('SysvarC1ock11111111111111111111111111111111'), isSigner: false, isWritable: false },  // clock sysvar
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },  // system_program
       ],
       programId: new PublicKey(STAKING_PROGRAM_ID),
