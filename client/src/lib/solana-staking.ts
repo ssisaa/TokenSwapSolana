@@ -492,18 +492,16 @@ function encodeStakeInstruction(amount: number): Buffer {
   const data = Buffer.alloc(1 + 8); // instruction type (1) + amount (8)
   data.writeUInt8(StakingInstructionType.Stake, 0);
   
-  // CRITICAL FIX: For YOT tokens, we need to use two different conversions:
-  // 1. For display in wallet UI, we need to apply token decimals (9) only
-  // 2. For the contract, we need to apply program scaling factor (10000) only
+  // CRITICAL FIX: We need to ensure the program instruction amount matches what the program expects
+  // The wallet display amount is determined by the Token Transfer instruction, not our instruction
   
-  // This converts amount to the correct raw value with program scaling factor
+  // Convert to our program's expected format (using 10000 as scaling factor)
   const contractAmount = Math.round(amount * PROGRAM_SCALING_FACTOR);
   // Convert to bigint for transaction encoding
   const rawAmount = BigInt(contractAmount);
   
-  console.log(`STAKING: Converting UI value ${amount} YOT for transaction`);
-  console.log(`For wallet display: ${amount} × 10^${YOT_TOKEN_DECIMALS} = ${amount * Math.pow(10, YOT_TOKEN_DECIMALS)}`);
-  console.log(`For contract: ${amount} × ${PROGRAM_SCALING_FACTOR} = ${contractAmount}`);
+  console.log(`STAKING: Converting UI value ${amount} YOT for contract instruction`);
+  console.log(`Contract amount: ${amount} × ${PROGRAM_SCALING_FACTOR} = ${contractAmount}`);
   
   // Ensure we don't exceed the maximum u64 value
   if (rawAmount > BigInt("18446744073709551615")) {
@@ -519,18 +517,16 @@ function encodeUnstakeInstruction(amount: number): Buffer {
   const data = Buffer.alloc(1 + 8); // instruction type (1) + amount (8)
   data.writeUInt8(StakingInstructionType.Unstake, 0);
   
-  // CRITICAL FIX: For YOT tokens, we need to use two different conversions like we do for staking:
-  // 1. For display in wallet UI, we need to apply token decimals (9) only
-  // 2. For the contract, we need to apply program scaling factor (10000) only
+  // CRITICAL FIX: We need to ensure the program instruction amount matches what the program expects
+  // The wallet display amount is determined by the Token Transfer instruction, not our instruction
   
-  // This converts amount to the correct raw value with program scaling factor
+  // Convert to our program's expected format (using 10000 as scaling factor)
   const contractAmount = Math.round(amount * PROGRAM_SCALING_FACTOR);
   // Convert to bigint for transaction encoding
   const rawAmount = BigInt(contractAmount);
   
-  console.log(`UNSTAKING: Converting UI value ${amount} YOT for transaction`);
-  console.log(`For wallet display: ${amount} × 10^${YOT_TOKEN_DECIMALS} = ${amount * Math.pow(10, YOT_TOKEN_DECIMALS)}`);
-  console.log(`For contract: ${amount} × ${PROGRAM_SCALING_FACTOR} = ${contractAmount}`);
+  console.log(`UNSTAKING: Converting UI value ${amount} YOT for contract instruction`);
+  console.log(`Contract amount: ${amount} × ${PROGRAM_SCALING_FACTOR} = ${contractAmount}`);
   
   // Ensure we don't exceed the maximum u64 value
   if (rawAmount > BigInt("18446744073709551615")) {
