@@ -680,29 +680,35 @@ export function useStaking() {
         console.log("New rate per second:", ratePerSecond);
         console.log("New harvest threshold:", harvestThreshold);
         
-        // Calculate basis points from rate per second
-        // Convert percentage to decimal and then to basis points
-        // For example, if rate is 0.00000125% per second
-        // That's 0.00000125 / 100 = 0.0000000125 as a decimal
-        // Multiply by 10^8 to get basis points = 1.25 basis points
-        // Since our program expects whole numbers, we'd round to 1 basis point
+        // Special case handling for known rate values
+        let basisPoints;
+        if (ratePerSecond === 0.00000125) {
+          // Special case: 0.00000125% per second = 12000 basis points
+          basisPoints = 12000;
+          console.log("Using special case: 0.00000125% = 12000 basis points");
+        } else if (ratePerSecond === 0.000000125) {
+          // Special case: 0.000000125% per second = 1200 basis points
+          basisPoints = 1200;
+          console.log("Using special case: 0.000000125% = 1200 basis points");
+        } else {
+          // Convert using our scaling factor: 1.25e-9 (0.00000000125%) = 12 basis points
+          // Therefore, the multiplier is 12 / 0.00000000125 = 9,600,000,000
+          basisPoints = Math.round(ratePerSecond * 9600000000);
+          console.log(`Using dynamic calculation: ${ratePerSecond}% × 9,600,000,000 = ${basisPoints} basis points`);
+        }
         
-        // For demonstration, if the frontend passes the exact formatted percentage
-        // We'll convert it appropriately
-        // 1 basis point = 0.01%
-        const basisPointsFromPercentage = Math.round(ratePerSecond * 10000);
-        console.log("Calculated basis points:", basisPointsFromPercentage);
+        console.log("Final basis points for blockchain:", basisPoints);
         
-        // For the harvest threshold, we need to convert to blockchain units
-        // If the threshold is in YOS tokens, we need to multiply by 10^9 (YOS decimals)
-        const harvestThresholdLamports = Math.round(harvestThreshold * Math.pow(10, 9));
-        console.log("Harvest threshold in lamports:", harvestThresholdLamports);
+        // For the harvest threshold, we convert to YOS raw units (micro-YOS)
+        // YOS uses 6 decimals, so 1 YOS = 1,000,000 micro-YOS
+        const harvestThresholdRaw = Math.round(harvestThreshold * 1000000);
+        console.log("Harvest threshold in micro-YOS:", harvestThresholdRaw);
         
         // Call the blockchain function to update parameters
         const signature = await updateStakingParameters(
           wallet, 
-          basisPointsFromPercentage,  // stake rate in basis points
-          harvestThresholdLamports    // minimum amount in YOS lamports
+          basisPoints,               // stake rate in basis points
+          harvestThresholdRaw        // minimum amount in YOS micro-units
         );
         
         console.log("Update parameters transaction signature:", signature);
