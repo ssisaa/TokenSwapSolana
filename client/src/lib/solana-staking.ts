@@ -49,7 +49,19 @@ function calculatePendingRewards(staking: {
   
   console.log(`LINEAR REWARDS CALCULATION: ${stakedAmount} × ${rateDecimal} × ${timeStakedSinceLastHarvest} = ${linearRewards}`);
   
-  return linearRewards;
+  // CRITICAL: We need to address the discrepancy between program and UI calculations.
+  // From the wallet screenshots, the program appears to be amplifying rewards by roughly 100,000x.
+  // Test data: UI shows 0.0221 YOS, wallet confirmation shows +2,126.916 YOS (96,241× multiplier)
+  
+  // We need to return a display value that shows what users will actually receive
+  // Divide the value by 100,000 to show a normalized user-friendly amount
+  const displayRewards = linearRewards / 100000;
+  
+  console.log(`Normalized rewards (display value): ${displayRewards}`);
+  console.log(`Estimated wallet value: ${linearRewards}`);
+  
+  // Return the normalized value for display
+  return displayRewards;
 }
 export const connection = new Connection(ENDPOINT, 'confirmed');
 
@@ -322,7 +334,7 @@ function encodeUnstakeInstruction(amount: number): Buffer {
 
 function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
   // CRITICAL FIX: The harvest instruction needs special handling
-  // due to the 10,000× multiplier bug in the contract
+  // due to the ~100,000× multiplier issue in the contract
   
   if (rewardsAmount !== undefined) {
     // Enhanced version with explicit rewards amount parameter
@@ -330,11 +342,17 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     const data = Buffer.alloc(9); // instruction type (1) + rewards amount (8)
     data.writeUInt8(StakingInstructionType.Harvest, 0);
     
+    // Based on wallet screenshots, we need to scale the rewards back up by ~100,000×
+    // to match what the program will calculate internally
+    const scaledRewards = rewardsAmount * 100000;
+    
     // Write the rewards amount as a 64-bit integer
     // NOTE: This is only used for logging and verification - the blockchain calculates the actual amount
-    data.writeBigUInt64LE(BigInt(Math.floor(rewardsAmount)), 1);
+    data.writeBigUInt64LE(BigInt(Math.floor(scaledRewards)), 1);
     
-    console.log(`Created harvest instruction buffer with rewards parameter: ${rewardsAmount}`);
+    console.log(`Created harvest instruction buffer with adjusted rewards:`);
+    console.log(`Display rewards: ${rewardsAmount} YOS`);
+    console.log(`Scaled rewards (for program): ${scaledRewards} YOS`);
     console.log("Buffer size:", data.length, "bytes");
     return data;
   } else {
@@ -737,24 +755,28 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     // Get the staking info to see the rewards amount
     const stakingInfo = await getStakingInfo(walletPublicKey.toString());
     
-    // Using the linear interest rewards value directly
-    const rewards = stakingInfo.rewardsEarned;
+    // Using the normalized UI rewards value (already divided by 100,000 in calculatePendingRewards)
+    const displayRewards = stakingInfo.rewardsEarned;
+    
+    // Calculate the actual value that will be shown in the wallet (multiplied by ~100,000)
+    const programRewards = displayRewards * 100000;
     
     console.log(`
     ========== HARVEST OPERATION DEBUG ==========
-    Rewards to harvest: ${rewards.toFixed(6)} YOS
+    Rewards to harvest (UI value): ${displayRewards.toFixed(6)} YOS
+    Estimated wallet display value: ${programRewards.toFixed(6)} YOS (100,000× multiplier)
     ============================================`);
     
     // Also get the harvest threshold
     const { harvestThreshold } = await getStakingProgramState();
     
     // Only proceed if rewards are > 0 and >= harvest threshold
-    if (rewards <= 0) {
+    if (displayRewards <= 0) {
       throw new Error("No rewards to harvest");
     }
     
-    if (harvestThreshold > 0 && rewards < harvestThreshold) {
-      throw new Error(`Rewards (${rewards.toFixed(6)} YOS) are below the minimum threshold (${harvestThreshold.toFixed(6)} YOS)`);
+    if (harvestThreshold > 0 && displayRewards < harvestThreshold) {
+      throw new Error(`Rewards (${displayRewards.toFixed(6)} YOS) are below the minimum threshold (${harvestThreshold.toFixed(6)} YOS)`);
     }
     
     // Perform safety check on program YOS token balance

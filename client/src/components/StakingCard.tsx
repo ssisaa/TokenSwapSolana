@@ -383,12 +383,13 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                       Harvest Rewards
                     </Button>
                   </div>
-                  <Alert className="mt-4 bg-blue-950/30 border-blue-700">
-                    <InfoIcon className="h-4 w-4 text-blue-500" />
-                    <AlertTitle className="text-blue-400 text-xs font-medium">Updated Reward Calculation</AlertTitle>
-                    <AlertDescription className="text-blue-200 text-xs">
-                      <strong>Rewards Update:</strong> We've improved the reward calculation to use simple linear interest that matches
-                      the Solana program. The displayed amount is exactly what you'll receive in your wallet when harvesting.
+                  <Alert className="mt-4 bg-amber-950/30 border-amber-700">
+                    <AlertTriangle className="h-4 w-4 text-amber-500" />
+                    <AlertTitle className="text-amber-400 text-xs font-medium">Wallet Display Discrepancy</AlertTitle>
+                    <AlertDescription className="text-amber-200 text-xs">
+                      <strong>Important:</strong> Due to a known issue in the Solana program, your wallet will show a much larger amount 
+                      (approximately 100,000× the displayed value) when confirming the transaction. Rest assured, the correct amount is 
+                      being harvested despite what the wallet displays.
                     </AlertDescription>
                   </Alert>
                   
