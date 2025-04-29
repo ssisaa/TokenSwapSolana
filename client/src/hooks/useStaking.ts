@@ -533,7 +533,16 @@ export function useStaking() {
           }
         }
         
-        // Execute the harvest regardless of token balance - it will handle partial rewards
+        // Get staking rates to check against harvest threshold
+        const stakingRates = await getStakingProgramState();
+        console.log("Staking rates for threshold check:", stakingRates);
+        
+        // Check if rewards meet the threshold
+        if (stakingInfo.rewardsEarned < stakingRates.harvestThreshold) {
+          throw new Error(`Rewards (${stakingInfo.rewardsEarned.toFixed(6)} YOS) are below the minimum threshold (${stakingRates.harvestThreshold.toFixed(6)} YOS). Stake more or wait longer.`);
+        }
+        
+        // Execute the harvest
         const result = await harvestYOSRewards(wallet);
         console.log("Harvest transaction result:", result);
         
@@ -646,6 +655,13 @@ export function useStaking() {
           queryClient.invalidateQueries({ queryKey: ['staking', publicKey.toString()] });
           queryClient.invalidateQueries({ queryKey: ['tokens'] });
         }
+      } else if (errorMessage.includes("below the minimum threshold")) {
+        // Specific handling for harvest threshold errors
+        toast({
+          title: "Rewards Below Threshold",
+          description: errorMessage,
+          variant: 'destructive',
+        });
       } else {
         toast({
           title: 'Harvesting Failed',

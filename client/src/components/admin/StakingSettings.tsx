@@ -142,18 +142,18 @@ export default function StakingSettings() {
               placeholder="0.00125"
               disabled={isUpdatingParameters || !isAdmin}
             />
-            <div className="bg-amber-950/30 p-2 rounded text-xs text-amber-400 space-y-1 mt-2">
-              <p className="font-semibold">IMPORTANT INFO ABOUT STAKING REWARDS</p>
+            <div className="bg-amber-900 p-3 rounded-md text-sm text-white space-y-1 mt-2 shadow-md border border-amber-500">
+              <p className="font-semibold text-amber-200 text-base">IMPORTANT INFO ABOUT STAKING REWARDS</p>
               <p>
                 The Solana program multiplies rewards by 10,000x as a scaling factor.
                 A rate of 0.00000125% per second actually produces:
               </p>
-              <ul className="list-disc pl-4 space-y-1">
+              <ul className="list-disc pl-5 space-y-1 text-amber-100">
                 <li>Base rate: 0.108% per day (0.00000125% × 86,400 seconds)</li>
                 <li>With 10,000x scaling: 1,080% per day in realized rewards</li>
                 <li>This is why users see thousands of YOS as rewards</li>
               </ul>
-              <p className="mt-1">
+              <p className="mt-2 font-semibold text-amber-200">
                 Suggested values: 0.00000125% (standard) or 0.000000125% (1/10th) 
               </p>
             </div>
@@ -170,9 +170,21 @@ export default function StakingSettings() {
               placeholder="1.0"
               disabled={isUpdatingParameters || !isAdmin}
             />
-            <p className="text-xs text-muted-foreground">
-              Minimum amount of YOS rewards required before harvesting is allowed.
-            </p>
+            <div className="bg-indigo-900 p-3 rounded-md text-sm text-white space-y-1 mt-2 shadow-md border border-indigo-500">
+              <p className="font-semibold text-indigo-200 text-base">HARVEST THRESHOLD INFORMATION</p>
+              <p>
+                This is the minimum amount of YOS rewards a user must earn before they can harvest.
+                A higher threshold reduces network congestion from small harvests.
+              </p>
+              <ul className="list-disc pl-5 space-y-1 text-indigo-100">
+                <li>Users cannot harvest until their rewards exceed this threshold.</li>
+                <li>Setting too high will frustrate users with small stakes.</li>
+                <li>Setting too low allows frequent tiny harvests (network spam).</li>
+              </ul>
+              <p className="mt-2 font-semibold text-indigo-200">
+                Recommended value: 1.0 YOS for most applications
+              </p>
+            </div>
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-3">
