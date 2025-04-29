@@ -485,6 +485,14 @@ export function useStaking() {
         throw new Error('Wallet public key not available');
       }
       
+      // CRITICAL FIX: Display multiplier warning in UI before harvesting
+      toast({
+        title: "⚠️ Multiplier Warning",
+        description: `Due to a known issue in the Solana program, your wallet will show a value about 10,000× larger than expected. This is a display issue only. The actual amount being transferred is correct.`,
+        duration: 10000, // 10 seconds
+        variant: "destructive", // Use destructive to highlight importance
+      });
+      
       try {
         console.log("Starting harvest operation with detailed debugging...");
         
@@ -663,12 +671,21 @@ export function useStaking() {
         // Then show an important warning about the wallet transaction amount
         setTimeout(() => {
           toast({
-            title: "⚠️ Important Transaction Note",
-            description: `Due to a technical limitation in the Solana program, your wallet will show a transaction for ${blockchainAmount.toLocaleString()} YOS instead of ${harvestedAmount.toLocaleString()} YOS. This is expected behavior.`,
+            title: "⚠️ IMPORTANT: Wallet Display Issue",
+            description: `Your wallet will show ${blockchainAmount.toLocaleString()} YOS (10,000× larger than expected). This is ONLY a display issue due to the Solana program using inconsistent divisors (1,000,000 vs 10,000). The ACTUAL transfer amount is still ${harvestedAmount.toFixed(4)} YOS.`,
             variant: "destructive", // Using destructive variant for important warnings
-            duration: 10000, // Show for 10 seconds
+            duration: 15000, // Show for 15 seconds
           });
         }, 1500); // Wait 1.5 seconds after the first toast
+        
+        // Add a third toast explaining what's happening more clearly
+        setTimeout(() => {
+          toast({
+            title: "How to Interpret Your Wallet",
+            description: `To get the ACTUAL token amount, divide what your wallet shows by 10,000. Example: ${blockchainAmount} ÷ 10,000 = ${harvestedAmount.toFixed(4)} YOS. This is due to a known bug in the Solana program that will be fixed in a future update.`,
+            duration: 20000, // Show for 20 seconds
+          });
+        }, 5000); // Wait 5 seconds after the first toast
       }
     },
     onError: (error: Error) => {

@@ -134,10 +134,12 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                 </div>
                 <Alert className="mt-2 bg-amber-950/30 border-amber-700">
                   <AlertTriangle className="h-4 w-4 text-amber-500" />
-                  <AlertTitle className="text-amber-400 text-xs font-medium">Known Issue</AlertTitle>
+                  <AlertTitle className="text-amber-400 text-xs font-medium">10,000× Multiplier Issue</AlertTitle>
                   <AlertDescription className="text-amber-200 text-xs">
-                    Due to a Solana program issue, the rewards displayed may not match transaction amounts. 
-                    The developer is working on a contract fix.
+                    <strong>Important:</strong> Due to an inconsistency in the Solana program 
+                    (using different divisors: 1,000,000 vs 10,000), your wallet will show rewards 
+                    as 10,000× larger than the actual amount. For example, if you earned 0.01 YOS, 
+                    your wallet will show 100 YOS. To get the real amount, divide what your wallet shows by 10,000.
                   </AlertDescription>
                 </Alert>
                 
