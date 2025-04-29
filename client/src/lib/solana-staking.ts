@@ -217,11 +217,12 @@ function encodeInitializeInstruction(
   yotMint: PublicKey,
   yosMint: PublicKey,
   stakeRateBasisPoints: number,
-  harvestThreshold: number,
-  stakeThreshold: number = 10,
-  unstakeThreshold: number = 10
+  harvestThreshold: number
 ): Buffer {
-  const data = Buffer.alloc(1 + 32 + 32 + 8 + 8 + 8 + 8); // instruction type (1) + yotMint (32) + yosMint (32) + stakeRate (8) + harvestThreshold (8) + stakeThreshold (8) + unstakeThreshold (8)
+  // IMPORTANT: We've simplified the initialization instruction to match what the Solana program expects
+  // The program only receives stake rate and harvest threshold from the client
+  // Stake and unstake thresholds are now managed in the database, not on the blockchain
+  const data = Buffer.alloc(1 + 32 + 32 + 8 + 8); // instruction type (1) + yotMint (32) + yosMint (32) + stakeRate (8) + harvestThreshold (8)
   data.writeUInt8(StakingInstructionType.Initialize, 0);
   
   let offset = 1;
@@ -254,22 +255,6 @@ function encodeInitializeInstruction(
   
   console.log(`Harvest threshold: ${harvestThreshold}, capped to: ${safeHarvestThreshold}`);
   data.writeBigUInt64LE(BigInt(Math.round(safeHarvestThreshold * 1000000)), offset);
-  offset += 8;
-  
-  // Convert stake threshold to raw amount with 6 decimals (1 YOT = 1,000,000 raw units)
-  const MAX_SAFE_STAKE_THRESHOLD = 1000000;
-  const safeStakeThreshold = Math.min(Math.max(0, stakeThreshold), MAX_SAFE_STAKE_THRESHOLD);
-  
-  console.log(`Stake threshold: ${stakeThreshold}, capped to: ${safeStakeThreshold}`);
-  data.writeBigUInt64LE(BigInt(Math.round(safeStakeThreshold * 1000000)), offset);
-  offset += 8;
-  
-  // Convert unstake threshold to raw amount with 6 decimals (1 YOT = 1,000,000 raw units)
-  const MAX_SAFE_UNSTAKE_THRESHOLD = 1000000;
-  const safeUnstakeThreshold = Math.min(Math.max(0, unstakeThreshold), MAX_SAFE_UNSTAKE_THRESHOLD);
-  
-  console.log(`Unstake threshold: ${unstakeThreshold}, capped to: ${safeUnstakeThreshold}`);
-  data.writeBigUInt64LE(BigInt(Math.round(safeUnstakeThreshold * 1000000)), offset);
   
   return data;
 }
@@ -343,9 +328,7 @@ function encodeUpdateParametersInstruction(
 export async function initializeStakingProgram(
   wallet: any,
   stakeRateBasisPoints: number,
-  harvestThreshold: number,
-  stakeThreshold: number = 10, 
-  unstakeThreshold: number = 10
+  harvestThreshold: number
 ): Promise<string> {
   if (!wallet || !wallet.publicKey) {
     throw new Error('Wallet not connected');
