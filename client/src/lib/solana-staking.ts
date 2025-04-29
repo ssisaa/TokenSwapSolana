@@ -308,31 +308,45 @@ function encodeUpdateParametersInstruction(
   stakeThreshold: number = 10,
   unstakeThreshold: number = 10
 ): Buffer {
-  const data = Buffer.alloc(1 + 8 + 8 + 8 + 8); // instruction type (1) + stakeRate (8) + harvestThreshold (8) + stakeThreshold (8) + unstakeThreshold (8)
+  // Create buffer for instruction data
+  // First is instruction type (1 byte)
+  // Then each parameter as a 64-bit unsigned integer (8 bytes each)
+  const data = Buffer.alloc(1 + 8 + 8 + 8 + 8);
+  
+  // Write instruction type
   data.writeUInt8(StakingInstructionType.UpdateParameters, 0);
   
-  // Use the stake rate basis points directly as u64
-  console.log(`Using basis points value: ${stakeRateBasisPoints}`);
-  data.writeBigUInt64LE(BigInt(Math.round(stakeRateBasisPoints)), 1);
+  // IMPORTANT: Use safe integer conversion with bounds checking
+  // Stake rate basis points - keep as a direct integer value, no multiplier
+  const safeStakeRate = Math.max(0, Math.min(1000000, Math.round(stakeRateBasisPoints)));
+  console.log(`Using basis points value: ${safeStakeRate} (from ${stakeRateBasisPoints})`);
+  data.writeBigUInt64LE(BigInt(safeStakeRate), 1);
   
-  // Convert harvest threshold to raw units (YOS * 1,000,000)
-  // Ensure we're sending what the program expects
+  // Convert harvest threshold to lamports (YOS * 1,000,000)
+  // But keep it below safe JavaScript integer limits
   console.log(`Using harvest threshold of ${harvestThreshold} YOS`);
-  const harvestThresholdRaw = BigInt(Math.round(harvestThreshold * 1000000));
+  const safeHarvestThreshold = Math.max(0, Math.min(Number.MAX_SAFE_INTEGER / 1000000, harvestThreshold));
+  const harvestThresholdRaw = BigInt(Math.round(safeHarvestThreshold * 1000000));
   console.log(`Converted to raw units: ${harvestThresholdRaw}`);
   data.writeBigUInt64LE(harvestThresholdRaw, 1 + 8);
   
-  // Convert stake threshold to raw units (YOT * 1,000,000)
+  // Convert stake threshold to lamports (YOT * 1,000,000)
   console.log(`Using stake threshold of ${stakeThreshold} YOT`);
-  const stakeThresholdRaw = BigInt(Math.round(stakeThreshold * 1000000));
+  const safeStakeThreshold = Math.max(0, Math.min(Number.MAX_SAFE_INTEGER / 1000000, stakeThreshold)); 
+  const stakeThresholdRaw = BigInt(Math.round(safeStakeThreshold * 1000000));
   console.log(`Converted to raw units: ${stakeThresholdRaw}`);
   data.writeBigUInt64LE(stakeThresholdRaw, 1 + 8 + 8);
   
-  // Convert unstake threshold to raw units (YOT * 1,000,000)
+  // Convert unstake threshold to lamports (YOT * 1,000,000)
   console.log(`Using unstake threshold of ${unstakeThreshold} YOT`);
-  const unstakeThresholdRaw = BigInt(Math.round(unstakeThreshold * 1000000));
+  const safeUnstakeThreshold = Math.max(0, Math.min(Number.MAX_SAFE_INTEGER / 1000000, unstakeThreshold));
+  const unstakeThresholdRaw = BigInt(Math.round(safeUnstakeThreshold * 1000000));
   console.log(`Converted to raw units: ${unstakeThresholdRaw}`);
   data.writeBigUInt64LE(unstakeThresholdRaw, 1 + 8 + 8 + 8);
+  
+  // Log the complete buffer for debugging
+  console.log(`Generated instruction data buffer: [${Array.from(data).map(b => b.toString(16).padStart(2, '0')).join(' ')}]`);
+  console.log(`Buffer length: ${data.length} bytes`);
   
   return data;
 }
@@ -762,11 +776,22 @@ export async function updateStakingParameters(
     // Skip the simulation step - it's causing the wallet to prompt twice
     console.log('Preparing update parameters transaction...');
     
-    // Create the instruction separately 
+    // Find all the relevant PDAs and accounts needed
+    const [programAuthority] = findProgramAuthorityAddress();
+    
+    // Get token addresses
+    const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
+    const yosMint = new PublicKey(YOS_TOKEN_ADDRESS);
+    
+    // Create the instruction separately with complete and correct account keys
+    // This was missing keys previously which likely caused the deserialization error
     const updateInstruction = {
       keys: [
-        { pubkey: walletPublicKey, isSigner: true, isWritable: true },
-        { pubkey: programState, isSigner: false, isWritable: true },
+        { pubkey: walletPublicKey, isSigner: true, isWritable: true }, // admin account
+        { pubkey: programState, isSigner: false, isWritable: true },   // program state account
+        { pubkey: programAuthority, isSigner: false, isWritable: false }, // program authority (handles tokens)
+        { pubkey: yotMint, isSigner: false, isWritable: false },      // YOT mint address
+        { pubkey: yosMint, isSigner: false, isWritable: false },      // YOS mint address
       ],
       programId: new PublicKey(STAKING_PROGRAM_ID),
       data: encodeUpdateParametersInstruction(stakeRateBasisPoints, harvestThreshold, stakeThreshold, unstakeThreshold)
@@ -857,8 +882,9 @@ export async function updateStakingParameters(
         
         console.log('Transaction confirmed successfully:', confirmation);
         return signature;
-      } catch (sendError) {
-        // Only log the error, then try the fallback approach
+      } catch (error) {
+        // Cast to Error type and log
+        const sendError = error as Error;
         console.error('Initial sendTransaction failed:', sendError);
         
         // First check if the wallet error is a user rejection
