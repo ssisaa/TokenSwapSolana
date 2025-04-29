@@ -221,11 +221,44 @@ export default function StakingSettings() {
             <Label htmlFor="stakeRate">Stake Rate (% per second)</Label>
             <Input
               id="stakeRate"
-              type="number"
-              step="0.00001"
+              type="text" // Changed from number to text for better control
+              inputMode="decimal"
+              pattern="[0-9]*\.?[0-9]*"
               value={stakeRatePerSecond}
-              onChange={(e) => setStakeRatePerSecond(e.target.value)}
-              placeholder="0.00125"
+              onKeyDown={(e) => {
+                // Allow only numbers, decimal point, backspace, delete, and arrow keys
+                const allowedKeys = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', 'Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab'];
+                if (!allowedKeys.includes(e.key)) {
+                  e.preventDefault();
+                }
+                
+                // Allow only one decimal point
+                if (e.key === '.' && stakeRatePerSecond.includes('.')) {
+                  e.preventDefault();
+                }
+              }}
+              onChange={(e) => {
+                // Remove any non-numeric characters except decimal point
+                const sanitizedValue = e.target.value.replace(/[^0-9.]/g, '');
+                
+                // Limit to just one decimal point
+                const parts = sanitizedValue.split('.');
+                const cleanValue = parts[0] + (parts.length > 1 ? '.' + parts[1] : '');
+                
+                // Limit the stake rate to a reasonable value
+                const value = parseFloat(cleanValue);
+                if (!isNaN(value) && value > 1) {
+                  toast({
+                    title: "Value Too Large",
+                    description: "Stake rate should be a small value (less than 1%)",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                
+                setStakeRatePerSecond(cleanValue);
+              }}
+              placeholder="0.00000125"
               disabled={isUpdatingParameters || !isAdmin}
             />
             <div className="bg-amber-900 p-3 rounded-md text-sm text-white space-y-1 mt-2 shadow-md border border-amber-500">
@@ -248,13 +281,22 @@ export default function StakingSettings() {
             <Label htmlFor="stakeThreshold">Stake Threshold (YOT)</Label>
             <Input
               id="stakeThreshold"
-              type="number"
+              type="text" // Changed from number to text for better control
               inputMode="decimal"
               pattern="[0-9]*\.?[0-9]*"
-              step="1"
-              min="0"
-              max="1000000" 
               value={stakeThreshold}
+              onKeyDown={(e) => {
+                // Allow only numbers, decimal point, backspace, delete, and arrow keys
+                const allowedKeys = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', 'Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab'];
+                if (!allowedKeys.includes(e.key)) {
+                  e.preventDefault();
+                }
+                
+                // Allow only one decimal point
+                if (e.key === '.' && stakeThreshold.includes('.')) {
+                  e.preventDefault();
+                }
+              }}
               onChange={(e) => {
                 // Remove any non-numeric characters except decimal point
                 const sanitizedValue = e.target.value.replace(/[^0-9.]/g, '');
@@ -262,6 +304,16 @@ export default function StakingSettings() {
                 // Limit to just one decimal point
                 const parts = sanitizedValue.split('.');
                 const cleanValue = parts[0] + (parts.length > 1 ? '.' + parts[1] : '');
+                
+                // Limit to maximum allowed input length
+                if (cleanValue.replace('.', '').length > 6) {
+                  toast({
+                    title: "Value Too Large",
+                    description: "Maximum stake threshold is 1,000,000 YOT",
+                    variant: "destructive",
+                  });
+                  return;
+                }
                 
                 // Limit to a safe range
                 const value = parseFloat(cleanValue);
@@ -300,13 +352,22 @@ export default function StakingSettings() {
             <Label htmlFor="unstakeThreshold">Unstake Threshold (YOT)</Label>
             <Input
               id="unstakeThreshold"
-              type="number"
+              type="text" // Changed from number to text for better control
               inputMode="decimal"
               pattern="[0-9]*\.?[0-9]*"
-              step="1"
-              min="0"
-              max="1000000" 
               value={unstakeThreshold}
+              onKeyDown={(e) => {
+                // Allow only numbers, decimal point, backspace, delete, and arrow keys
+                const allowedKeys = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', 'Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab'];
+                if (!allowedKeys.includes(e.key)) {
+                  e.preventDefault();
+                }
+                
+                // Allow only one decimal point
+                if (e.key === '.' && unstakeThreshold.includes('.')) {
+                  e.preventDefault();
+                }
+              }}
               onChange={(e) => {
                 // Remove any non-numeric characters except decimal point
                 const sanitizedValue = e.target.value.replace(/[^0-9.]/g, '');
@@ -314,6 +375,16 @@ export default function StakingSettings() {
                 // Limit to just one decimal point
                 const parts = sanitizedValue.split('.');
                 const cleanValue = parts[0] + (parts.length > 1 ? '.' + parts[1] : '');
+                
+                // Limit to maximum allowed input length
+                if (cleanValue.replace('.', '').length > 6) {
+                  toast({
+                    title: "Value Too Large",
+                    description: "Maximum unstake threshold is 1,000,000 YOT",
+                    variant: "destructive",
+                  });
+                  return;
+                }
                 
                 // Limit to a safe range
                 const value = parseFloat(cleanValue);
@@ -352,13 +423,22 @@ export default function StakingSettings() {
             <Label htmlFor="harvestThreshold">Harvest Threshold (YOS)</Label>
             <Input
               id="harvestThreshold"
-              type="number"
+              type="text" // Changed from number to text for better control
               inputMode="decimal"
               pattern="[0-9]*\.?[0-9]*"
-              step="0.1"
-              min="0"
-              max="1000000000" 
               value={harvestThreshold}
+              onKeyDown={(e) => {
+                // Allow only numbers, decimal point, backspace, delete, and arrow keys
+                const allowedKeys = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', 'Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab'];
+                if (!allowedKeys.includes(e.key)) {
+                  e.preventDefault();
+                }
+                
+                // Allow only one decimal point
+                if (e.key === '.' && harvestThreshold.includes('.')) {
+                  e.preventDefault();
+                }
+              }}
               onChange={(e) => {
                 // Remove any non-numeric characters except decimal point
                 const sanitizedValue = e.target.value.replace(/[^0-9.]/g, '');
@@ -366,6 +446,16 @@ export default function StakingSettings() {
                 // Limit to just one decimal point
                 const parts = sanitizedValue.split('.');
                 const cleanValue = parts[0] + (parts.length > 1 ? '.' + parts[1] : '');
+                
+                // Limit to maximum allowed input length
+                if (cleanValue.replace('.', '').length > 9) {
+                  toast({
+                    title: "Value Too Large",
+                    description: "Maximum harvest threshold is 1,000,000,000 YOS",
+                    variant: "destructive",
+                  });
+                  return;
+                }
                 
                 // Limit to a safe range to prevent overflow errors
                 const value = parseFloat(cleanValue);

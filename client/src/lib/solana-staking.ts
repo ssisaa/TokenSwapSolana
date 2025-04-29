@@ -655,7 +655,9 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
 export async function updateStakingParameters(
   wallet: any,
   stakeRateBasisPoints: number,
-  harvestThreshold: number
+  harvestThreshold: number,
+  stakeThreshold: number = 10,
+  unstakeThreshold: number = 10
 ): Promise<string> {
   if (!wallet || !wallet.publicKey) {
     throw new Error('Wallet not connected');
@@ -664,6 +666,23 @@ export async function updateStakingParameters(
   const walletPublicKey = wallet.publicKey;
   
   try {
+    // Validate inputs to prevent numeric overflow
+    if (stakeRateBasisPoints <= 0 || stakeRateBasisPoints > 1000000) {
+      throw new Error('Invalid stake rate: must be between 1 and 1,000,000 basis points');
+    }
+    
+    if (harvestThreshold < 0 || harvestThreshold > 1000000000) {
+      throw new Error('Invalid harvest threshold: must be between 0 and 1,000,000,000 YOS');
+    }
+    
+    if (stakeThreshold < 0 || stakeThreshold > 1000000) {
+      throw new Error('Invalid stake threshold: must be between 0 and 1,000,000 YOT');
+    }
+    
+    if (unstakeThreshold < 0 || unstakeThreshold > 1000000) {
+      throw new Error('Invalid unstake threshold: must be between 0 and 1,000,000 YOT');
+    }
+    
     // Find program PDAs
     const [programState] = findProgramStateAddress();
     
@@ -677,7 +696,7 @@ export async function updateStakingParameters(
         { pubkey: programState, isSigner: false, isWritable: true },
       ],
       programId: new PublicKey(STAKING_PROGRAM_ID),
-      data: encodeUpdateParametersInstruction(stakeRateBasisPoints, harvestThreshold)
+      data: encodeUpdateParametersInstruction(stakeRateBasisPoints, harvestThreshold, stakeThreshold, unstakeThreshold)
     });
     
     // Sign and send the transaction
@@ -782,6 +801,8 @@ export async function getStakingProgramState(): Promise<{
   monthlyAPY: number;
   yearlyAPY: number;
   yosMint?: string;
+  stakeThreshold?: number;
+  unstakeThreshold?: number;
 }> {
   try {
     // Get the program state PDA
@@ -838,6 +859,20 @@ export async function getStakingProgramState(): Promise<{
       // Read harvest threshold (8 bytes, 64-bit unsigned integer)
       const harvestThreshold = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32 + 8)) / 1000000;
       
+      // Read stake and unstake thresholds (8 bytes each, 64-bit unsigned integer)
+      let stakeThreshold = 10;
+      let unstakeThreshold = 10;
+      
+      // Check if the program state includes stake and unstake thresholds (newer program version)
+      if (programStateInfo.data.length >= 32 + 32 + 32 + 8 + 8 + 8) {
+        try {
+          stakeThreshold = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32 + 8 + 8)) / 1000000;
+          unstakeThreshold = Number(programStateInfo.data.readBigUInt64LE(32 + 32 + 32 + 8 + 8 + 8)) / 1000000;
+        } catch (e) {
+          console.warn("Error reading stake/unstake thresholds, using defaults:", e);
+        }
+      }
+      
       const secondsPerDay = 86400;
       const secondsPerWeek = secondsPerDay * 7;
       const secondsPerMonth = secondsPerDay * 30;
@@ -868,6 +903,8 @@ export async function getStakingProgramState(): Promise<{
       return {
         stakeRatePerSecond,
         harvestThreshold,
+        stakeThreshold,
+        unstakeThreshold,
         dailyAPR,
         weeklyAPR,
         monthlyAPR,
@@ -910,6 +947,8 @@ export async function getStakingProgramState(): Promise<{
     return {
       stakeRatePerSecond,
       harvestThreshold: 1,
+      stakeThreshold: 10,
+      unstakeThreshold: 10,
       dailyAPR,
       weeklyAPR,
       monthlyAPR,
