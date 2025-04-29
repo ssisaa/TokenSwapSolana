@@ -130,7 +130,12 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                 
                 <div className="flex justify-between">
                   <span className="text-gray-400">Pending Rewards:</span>
-                  <span className="font-medium text-white">{(stakingInfo.rewardsEarned / 10000).toLocaleString('en-US')} YOS</span>
+                  <div className="text-right">
+                    <span className="font-medium text-white">{(stakingInfo.rewardsEarned / 10000).toLocaleString('en-US')} YOS</span>
+                    <div className="text-xs text-amber-400">
+                      (wallet will show: {formatNumber(stakingInfo.rewardsEarned)} YOS)
+                    </div>
+                  </div>
                 </div>
                 <Alert className="mt-2 bg-amber-950/30 border-amber-700">
                   <AlertTriangle className="h-4 w-4 text-amber-500" />
@@ -155,7 +160,12 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                 
                 <div className="flex justify-between">
                   <span className="text-gray-400">Total Harvested:</span>
-                  <span className="font-medium text-white">{(stakingInfo.totalHarvested / 10000).toLocaleString('en-US')} YOS</span>
+                  <div className="text-right">
+                    <span className="font-medium text-white">{(stakingInfo.totalHarvested / 10000).toLocaleString('en-US')} YOS</span>
+                    <div className="text-xs text-amber-400">
+                      (wallet received: {formatNumber(stakingInfo.totalHarvested)} YOS)
+                    </div>
+                  </div>
                 </div>
               </div>
               
@@ -347,7 +357,8 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                       <Bell className="h-4 w-4 text-blue-500" />
                       <AlertTitle className="text-blue-400 text-xs font-medium">Pending Rewards</AlertTitle>
                       <AlertDescription className="text-blue-200 text-xs">
-                        You have <strong>{(stakingInfo.rewardsEarned / 10000).toFixed(6)} YOS</strong> in unclaimed rewards.
+                        You have <strong>{(stakingInfo.rewardsEarned / 10000).toFixed(6)} YOS</strong> in unclaimed rewards
+                        (your wallet will show this as <strong>{formatNumber(stakingInfo.rewardsEarned)} YOS</strong> due to the 10,000× multiplier).
                         Consider harvesting your rewards before unstaking to avoid losing them.
                       </AlertDescription>
                     </Alert>
