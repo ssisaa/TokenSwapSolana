@@ -122,6 +122,14 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                   <span className="text-gray-400">Pending Rewards:</span>
                   <span className="font-medium text-white">{stakingInfo.rewardsEarned.toLocaleString('en-US')} YOS</span>
                 </div>
+                <Alert variant="warning" className="mt-2 bg-amber-950/30 border-amber-700">
+                  <AlertTriangle className="h-4 w-4 text-amber-500" />
+                  <AlertTitle className="text-amber-400 text-xs font-medium">Known Issue</AlertTitle>
+                  <AlertDescription className="text-amber-200 text-xs">
+                    Due to a Solana program issue, the rewards displayed may not match transaction amounts. 
+                    The developer is working on a contract fix.
+                  </AlertDescription>
+                </Alert>
                 
                 <div className="flex justify-between">
                   <span className="text-gray-400">Staking Since:</span>
