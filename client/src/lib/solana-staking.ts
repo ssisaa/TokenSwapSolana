@@ -323,18 +323,12 @@ export async function initializeStakingProgram(
     // NOTE: We'll let the program create its state account internally
     // This is a common pattern in Solana - the program handles PDA creation
     
-    // Add initialize instruction
+    // Add initialize instruction - key order MUST match program expectations!
     transaction.add({
       keys: [
-        { pubkey: walletPublicKey, isSigner: true, isWritable: true },
-        { pubkey: programState, isSigner: false, isWritable: true }, // PDA can't be a signer
-        { pubkey: programAuthority, isSigner: false, isWritable: false },
-        { pubkey: yotMint, isSigner: false, isWritable: false },
-        { pubkey: yosMint, isSigner: false, isWritable: false },
-        { pubkey: programYotATA, isSigner: false, isWritable: false },
-        { pubkey: programYosATA, isSigner: false, isWritable: false },
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: walletPublicKey, isSigner: true, isWritable: true }, // Admin account
+        { pubkey: programState, isSigner: false, isWritable: true },   // Program state PDA
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // System program
       ],
       programId: new PublicKey(STAKING_PROGRAM_ID),
       data: encodeInitializeInstruction(yotMint, yosMint, stakeRateBasisPoints, harvestThreshold)
@@ -409,16 +403,17 @@ export async function stakeYOTTokens(
     // Note: We'll let the program handle account creation
     // Staking accounts are PDAs just like program state
     
-    // Add stake instruction
+    // Add stake instruction - key order MUST match program expectations!
     transaction.add({
       keys: [
-        { pubkey: walletPublicKey, isSigner: true, isWritable: true },
-        { pubkey: programState, isSigner: false, isWritable: false },
-        { pubkey: stakingAccount, isSigner: false, isWritable: true },
-        { pubkey: programAuthority, isSigner: false, isWritable: false },
-        { pubkey: userYotATA, isSigner: false, isWritable: true },
-        { pubkey: programYotATA, isSigner: false, isWritable: true },
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: walletPublicKey, isSigner: true, isWritable: true },      // user_account
+        { pubkey: userYotATA, isSigner: false, isWritable: true },          // user_yot_token_account 
+        { pubkey: programYotATA, isSigner: false, isWritable: true },       // program_yot_token_account
+        { pubkey: stakingAccount, isSigner: false, isWritable: true },      // user_staking_account
+        { pubkey: programState, isSigner: false, isWritable: false },       // program_state_account 
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },   // token_program
+        { pubkey: SYSVAR_CLOCK_PUBKEY, isSigner: false, isWritable: false },  // clock sysvar
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },  // system_program
       ],
       programId: new PublicKey(STAKING_PROGRAM_ID),
       data: encodeStakeInstruction(amount)
