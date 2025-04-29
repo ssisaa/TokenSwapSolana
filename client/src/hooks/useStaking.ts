@@ -650,10 +650,25 @@ export function useStaking() {
           description: "Your rewards were already harvested in a previous transaction. Your balance has been updated.",
         });
       } else {
+        // Calculate the rewards that were harvested for display
+        const harvestedAmount = currentInfo ? (currentInfo.rewardsEarned / 10000) : 0;
+        const blockchainAmount = currentInfo ? currentInfo.rewardsEarned : 0;
+        
+        // First show a success toast
         toast({
           title: "Rewards Harvested",
-          description: "Successfully harvested YOS token rewards.",
+          description: `Successfully harvested ${harvestedAmount.toFixed(6)} YOS tokens.`,
         });
+        
+        // Then show an important warning about the wallet transaction amount
+        setTimeout(() => {
+          toast({
+            title: "⚠️ Important Transaction Note",
+            description: `Due to a technical limitation in the Solana program, your wallet will show a transaction for ${blockchainAmount.toLocaleString()} YOS instead of ${harvestedAmount.toLocaleString()} YOS. This is expected behavior.`,
+            variant: "destructive", // Using destructive variant for important warnings
+            duration: 10000, // Show for 10 seconds
+          });
+        }, 1500); // Wait 1.5 seconds after the first toast
       }
     },
     onError: (error: Error) => {
