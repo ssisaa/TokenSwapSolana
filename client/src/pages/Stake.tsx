@@ -342,24 +342,30 @@ export default function Stake() {
                     </div>
                     
                     {/* Input Field */}
-                    <div className="bg-dark-100 rounded-md border border-slate-700 flex justify-between items-center mb-2">
-                      <input 
-                        type="number"
-                        placeholder="Amount to stake"
-                        value={stakeAmount}
-                        onChange={(e) => setStakeAmount(e.target.value)}
-                        className="border-0 bg-transparent h-14 px-4 focus:outline-none flex-1 text-white"
-                        disabled={!connected || isStaking}
-                      />
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="mr-2 bg-slate-700 text-white hover:bg-slate-600"
-                        onClick={handleMaxStake}
-                        disabled={!connected || isStaking}
-                      >
-                        MAX
-                      </Button>
+                    <div className="flex flex-col gap-1 mb-2">
+                      <div className="bg-dark-100 rounded-md border border-slate-700 flex justify-between items-center">
+                        <input 
+                          type="number"
+                          placeholder={`Min: ${stakingRates?.harvestThreshold || 0} YOT`}
+                          value={stakeAmount}
+                          onChange={(e) => setStakeAmount(e.target.value)}
+                          className="border-0 bg-transparent h-14 px-4 focus:outline-none flex-1 text-white"
+                          disabled={!connected || isStaking}
+                        />
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="mr-2 bg-slate-700 text-white hover:bg-slate-600"
+                          onClick={handleMaxStake}
+                          disabled={!connected || isStaking}
+                        >
+                          MAX
+                        </Button>
+                      </div>
+                      <div className="text-xs text-amber-400 flex items-center">
+                        <span className="mr-1">⚠️</span>
+                        Minimum stake: {stakingRates?.harvestThreshold || 0} YOT
+                      </div>
                     </div>
                     
                     <Button 
@@ -399,24 +405,30 @@ export default function Stake() {
                     </div>
                     
                     {/* Input Field */}
-                    <div className="bg-dark-100 rounded-md border border-slate-700 flex justify-between items-center mb-2">
-                      <input 
-                        type="number"
-                        placeholder="Amount to unstake"
-                        value={unstakeAmount}
-                        onChange={(e) => setUnstakeAmount(e.target.value)}
-                        className="border-0 bg-transparent h-14 px-4 focus:outline-none flex-1 text-white"
-                        disabled={!connected || isUnstaking}
-                      />
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="mr-2 bg-slate-700 text-white hover:bg-slate-600"
-                        onClick={handleMaxUnstake}
-                        disabled={!connected || isUnstaking}
-                      >
-                        MAX
-                      </Button>
+                    <div className="flex flex-col gap-1 mb-2">
+                      <div className="bg-dark-100 rounded-md border border-slate-700 flex justify-between items-center">
+                        <input 
+                          type="number"
+                          placeholder={`Min: ${stakingRates?.harvestThreshold || 0} YOT`}
+                          value={unstakeAmount}
+                          onChange={(e) => setUnstakeAmount(e.target.value)}
+                          className="border-0 bg-transparent h-14 px-4 focus:outline-none flex-1 text-white"
+                          disabled={!connected || isUnstaking}
+                        />
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="mr-2 bg-slate-700 text-white hover:bg-slate-600"
+                          onClick={handleMaxUnstake}
+                          disabled={!connected || isUnstaking}
+                        >
+                          MAX
+                        </Button>
+                      </div>
+                      <div className="text-xs text-amber-400 flex items-center">
+                        <span className="mr-1">⚠️</span>
+                        Minimum unstake: {stakingRates?.harvestThreshold || 0} YOT
+                      </div>
                     </div>
                     
                     <Button 
@@ -453,15 +465,48 @@ export default function Stake() {
                         <span className="font-medium text-white">{formatNumber(stakingInfo.rewardsEarned)}</span> YOS available
                       </span>
                     </div>
-                    
-                    <Button 
-                      onClick={handleHarvest}
-                      className="h-14 bg-blue-600 hover:bg-blue-700 text-white font-medium w-full mb-4"
-                      disabled={!connected || !canHarvest || isHarvesting}
-                    >
-                      {isHarvesting ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <CheckCircle className="h-5 w-5 mr-2" />}
-                      Harvest Rewards
-                    </Button>
+
+                    <div className="flex flex-col gap-2 mb-4">
+                      {/* Progress indicator for available rewards */}
+                      <div className="bg-dark-100 rounded-md border border-slate-700 p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm text-gray-300">Available rewards:</span>
+                          <span className="text-sm font-medium text-white">{formatNumber(stakingInfo.rewardsEarned)} YOS</span>
+                        </div>
+                        
+                        <div className="w-full bg-slate-700 rounded-full h-2.5 mb-1">
+                          <div 
+                            className="bg-blue-600 h-2.5 rounded-full" 
+                            style={{ 
+                              width: `${Math.min(100, (stakingInfo.rewardsEarned / (stakingRates?.harvestThreshold || 1)) * 100)}%` 
+                            }}
+                          ></div>
+                        </div>
+                        
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-gray-400">0</span>
+                          <span className={`font-medium ${stakingInfo.rewardsEarned >= (stakingRates?.harvestThreshold || 0) ? 'text-green-400' : 'text-amber-400'}`}>
+                            Threshold: {stakingRates?.harvestThreshold || 0} YOS
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <Button 
+                        onClick={handleHarvest}
+                        className="h-14 bg-blue-600 hover:bg-blue-700 text-white font-medium w-full"
+                        disabled={!connected || !canHarvest || isHarvesting}
+                      >
+                        {isHarvesting ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <CheckCircle className="h-5 w-5 mr-2" />}
+                        Harvest Rewards
+                      </Button>
+                      
+                      {stakingInfo.rewardsEarned < (stakingRates?.harvestThreshold || 0) && (
+                        <div className="text-xs text-amber-400 flex items-center">
+                          <span className="mr-1">⚠️</span>
+                          Need at least {stakingRates?.harvestThreshold || 0} YOS to harvest (you have {formatNumber(stakingInfo.rewardsEarned)})
+                        </div>
+                      )}
+                    </div>
                     
                     <div className="bg-dark-300 border border-slate-700 p-3 rounded-lg text-sm">
                       <div className="flex items-start">
