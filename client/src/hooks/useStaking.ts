@@ -73,6 +73,9 @@ interface StakingRates {
   weeklyAPY: number;
   monthlyAPY: number;
   yearlyAPY: number;
+  // Additional thresholds (optional for backward compatibility)
+  stakeThreshold?: number;
+  unstakeThreshold?: number;
 }
 
 // Add interface for global staking statistics
@@ -725,29 +728,36 @@ export function useStaking() {
         console.log("New stake threshold:", stakeThreshold);
         console.log("New unstake threshold:", unstakeThreshold);
         
-        // Special case handling for known rate values
+        // Special case handling for known rate values (to avoid floating point issues)
         let basisPoints;
-        if (ratePerSecond === 0.0000125) {
+        
+        // The values as strings to handle exact floating point comparisons
+        const rateString = ratePerSecond.toString();
+        
+        if (rateString === '0.0000125') {
           // Special case: 0.0000125% per second = 120000 basis points
           basisPoints = 120000;
           console.log("Using special case: 0.0000125% = 120000 basis points");
-        } else if (ratePerSecond === 0.00000125) {
+        } else if (rateString === '0.00000125') {
           // Special case: 0.00000125% per second = 12000 basis points
           basisPoints = 12000;
           console.log("Using special case: 0.00000125% = 12000 basis points");
-        } else if (ratePerSecond === 0.000000125) {
+        } else if (rateString === '0.000000125') {
           // Special case: 0.000000125% per second = 1200 basis points
           basisPoints = 1200;
           console.log("Using special case: 0.000000125% = 1200 basis points");
         } else {
-          // Make sure we get a valid basis point value (between 1 and 1,000,000)
-          basisPoints = Math.round(ratePerSecond * 9600000);
+          // Convert using the reference values from the library:
+          // 12000 basis points = 0.00000125% per second
+          // So multiplier is: 12000 / 0.00000125 = 9,600,000,000
+          const basisPointsExact = ratePerSecond * 9600000000;
+          basisPoints = Math.round(basisPointsExact);
           
           // Ensure the basis points are within valid range
           if (basisPoints < 1) basisPoints = 1;
           if (basisPoints > 1000000) basisPoints = 1000000;
           
-          console.log(`Using dynamic calculation: ${ratePerSecond}% × 9,600,000 = ${basisPoints} basis points`);
+          console.log(`Using dynamic calculation: ${ratePerSecond}% × 9,600,000,000 = ${basisPointsExact} → ${basisPoints} basis points`);
         }
         
         console.log("Final basis points for blockchain:", basisPoints);

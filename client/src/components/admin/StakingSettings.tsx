@@ -48,9 +48,22 @@ export default function StakingSettings() {
       // Set the harvest threshold from blockchain values
       setHarvestThreshold(stakingRates.harvestThreshold.toString());
       
-      // Set default values for stake/unstake thresholds
-      setStakeThreshold('10.0'); 
-      setUnstakeThreshold('10.0');
+      // Set stake/unstake thresholds from blockchain values if available
+      if (stakingRates.stakeThreshold !== undefined) {
+        setStakeThreshold(stakingRates.stakeThreshold.toString());
+        console.log(`Setting stake threshold from blockchain: ${stakingRates.stakeThreshold}`);
+      } else {
+        setStakeThreshold('10.0');
+        console.log('Using default stake threshold: 10.0');
+      }
+      
+      if (stakingRates.unstakeThreshold !== undefined) {
+        setUnstakeThreshold(stakingRates.unstakeThreshold.toString());
+        console.log(`Setting unstake threshold from blockchain: ${stakingRates.unstakeThreshold}`);
+      } else {
+        setUnstakeThreshold('10.0');
+        console.log('Using default unstake threshold: 10.0');
+      }
       
       // Mark as loaded so we don't overwrite user changes
       setInitialValuesLoaded(true);

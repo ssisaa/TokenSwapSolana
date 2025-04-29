@@ -1065,7 +1065,7 @@ export async function getStakingProgramState(): Promise<{
       const monthlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), TIME_CONSTANTS.secondsPerMonth) - 1) * 100;
       const yearlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), TIME_CONSTANTS.secondsPerYear) - 1) * 100;
       
-      return {
+      const result = {
         stakeRatePerSecond,
         harvestThreshold,
         stakeThreshold,
@@ -1080,10 +1080,22 @@ export async function getStakingProgramState(): Promise<{
         yearlyAPY,
         yosMint
       };
+      
+      console.log("Full staking program state loaded:", {
+        stakeRatePerSecond,
+        harvestThreshold,
+        stakeThreshold, 
+        unstakeThreshold
+      });
+      
+      return result;
     }
     
     // If we didn't return earlier, use default values
     const stakeRatePerSecond = 0.00000125;
+    const harvestThreshold = 1;
+    const stakeThreshold = 10;
+    const unstakeThreshold = 10;
     
     const dailyAPR = stakeRatePerSecond * TIME_CONSTANTS.secondsPerDay;
     const weeklyAPR = stakeRatePerSecond * TIME_CONSTANTS.secondsPerWeek;
@@ -1095,11 +1107,18 @@ export async function getStakingProgramState(): Promise<{
     const monthlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), TIME_CONSTANTS.secondsPerMonth) - 1) * 100;
     const yearlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), TIME_CONSTANTS.secondsPerYear) - 1) * 100;
     
+    console.log("Using fallback staking program state values:", {
+      stakeRatePerSecond,
+      harvestThreshold,
+      stakeThreshold,
+      unstakeThreshold
+    });
+    
     return {
       stakeRatePerSecond,
-      harvestThreshold: 1,
-      stakeThreshold: 10,
-      unstakeThreshold: 10,
+      harvestThreshold,
+      stakeThreshold,
+      unstakeThreshold,
       dailyAPR,
       weeklyAPR,
       monthlyAPR,
@@ -1117,6 +1136,9 @@ export async function getStakingProgramState(): Promise<{
     
     // Use our corrected, smaller default rate per second (0.00000125%)
     const stakeRatePerSecond = 0.00000125;
+    const harvestThreshold = 1;
+    const stakeThreshold = 10;
+    const unstakeThreshold = 10;
     
     // Calculate linear rates (not compound)
     const dailyAPR = stakeRatePerSecond * TIME_CONSTANTS.secondsPerDay;
@@ -1131,11 +1153,18 @@ export async function getStakingProgramState(): Promise<{
     const monthlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), TIME_CONSTANTS.secondsPerMonth) - 1) * 100;
     const yearlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), TIME_CONSTANTS.secondsPerYear) - 1) * 100;
     
+    console.log("Using error recovery fallback staking program values:", {
+      stakeRatePerSecond,
+      harvestThreshold,
+      stakeThreshold,
+      unstakeThreshold
+    });
+    
     return {
       stakeRatePerSecond,
-      harvestThreshold: 1,
-      stakeThreshold: 10,
-      unstakeThreshold: 10,
+      harvestThreshold,
+      stakeThreshold,
+      unstakeThreshold,
       dailyAPR,
       weeklyAPR,
       monthlyAPR,
