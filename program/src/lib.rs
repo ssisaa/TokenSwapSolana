@@ -666,20 +666,31 @@ fn calculate_rewards(
     time_staked_seconds: i64,
     stake_rate_per_second: u64
 ) -> u64 {
-    // CRITICAL FIX FOR DECIMAL OVERFLOW
-    // Convert staking rate from basis points to decimal (12000 basis points = 0.00000125%)
-    let rate_decimal = (stake_rate_per_second as f64) / 1_000_000.0;
+    // EMERGENCY FIX: SIMPLE LINEAR INTEREST CALCULATION
+    // This implementation replaces the previous compound interest calculation
+    // to fix the massive token discrepancy issue.
     
-    // Calculate rewards in token units first (principal in tokens)
+    // Convert staking rate from basis points to decimal (12000 basis points = 0.00000125%)
+    let rate_percentage = (stake_rate_per_second as f64) / 1_000_000.0;
+    
+    // Convert from percentage to decimal 
+    let rate_decimal = rate_percentage / 100.0;
+    
+    // Convert raw amount to token units for calculation
     let principal_tokens = staked_amount as f64 / 1_000_000_000.0;
     
-    // Calculate rewards using compound interest formula (APY)
-    // Formula: principal * ((1 + rate)^time - 1)
-    let compound_rewards_tokens = principal_tokens * ((1.0 + rate_decimal).powf(time_staked_seconds as f64) - 1.0);
+    // SIMPLE LINEAR INTEREST: principal * rate * time
+    // No exponentiation, no compounding
+    let rewards_tokens = principal_tokens * rate_decimal * time_staked_seconds as f64;
     
-    // Convert back to raw token units for blockchain
-    let compound_rewards = (compound_rewards_tokens * 1_000_000_000.0) as u64;
+    // Convert back to raw token units for blockchain storage - this is critical for proper results
+    let raw_rewards = (rewards_tokens * 1_000_000_000.0) as u64;
     
-    // Return the compound interest result
-    compound_rewards
+    // Log all values for transparency and debugging
+    msg!("Staked amount: {} tokens ({} raw units)", principal_tokens, staked_amount);
+    msg!("Rate: {}% per second ({} decimal)", rate_percentage, rate_decimal);
+    msg!("Time staked: {} seconds", time_staked_seconds);
+    msg!("Calculated rewards: {} tokens ({} raw units)", rewards_tokens, raw_rewards);
+    
+    raw_rewards
 }
