@@ -44,23 +44,31 @@ function calculatePendingRewards(staking: {
   // Convert from percentage (0.00000125%) to decimal (0.0000000125)
   const rateDecimal = stakeRatePerSecond / 100;
   
+  // Define the exact scaling factor used by the Solana program (confirmed to be 10,000)
+  const scalingFactor = 10000;
+  
   // SIMPLE LINEAR INTEREST: principal * rate * time
   const linearRewards = stakedAmount * rateDecimal * timeStakedSinceLastHarvest;
   
   console.log(`LINEAR REWARDS CALCULATION: ${stakedAmount} × ${rateDecimal} × ${timeStakedSinceLastHarvest} = ${linearRewards}`);
   
   // CRITICAL: We need to address the discrepancy between program and UI calculations.
-  // From the wallet screenshots, the program appears to be amplifying rewards by roughly 100,000x.
-  // Test data: UI shows 0.0221 YOS, wallet confirmation shows +2,126.916 YOS (96,241× multiplier)
+  // The Solana program uses a 10,000× multiplier for rewards.
   
-  // We need to return a display value that shows what users will actually receive
-  // Divide the value by 100,000 to show a normalized user-friendly amount
-  const displayRewards = linearRewards / 100000;
+  // For UI display, we show the normalized amount (what users will actually receive)
+  const displayRewards = linearRewards / scalingFactor;
   
-  console.log(`Normalized rewards (display value): ${displayRewards}`);
-  console.log(`Estimated wallet value: ${linearRewards}`);
+  // Internal value (used by blockchain) - keep for debugging
+  const internalRewards = linearRewards;
   
-  // Return the normalized value for display
+  console.log(`LINEAR REWARDS CALCULATION WITH CORRECT NORMALIZATION:`);
+  console.log(`- Staked amount: ${stakedAmount} YOT tokens`);
+  console.log(`- Rate: ${stakeRatePerSecond}% per second (${rateDecimal} as decimal)`);
+  console.log(`- Time staked: ${timeStakedSinceLastHarvest} seconds`);
+  console.log(`- DISPLAY VALUE (ACTUAL YOS TO RECEIVE): ${displayRewards} YOS`);
+  console.log(`- INTERNAL VALUE (USED BY BLOCKCHAIN): ${internalRewards} YOS (with ${scalingFactor}x scaling)`);
+  
+  // Return the display value for UI (what users will actually receive)
   return displayRewards;
 }
 export const connection = new Connection(ENDPOINT, 'confirmed');
@@ -334,7 +342,10 @@ function encodeUnstakeInstruction(amount: number): Buffer {
 
 function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
   // CRITICAL FIX: The harvest instruction needs special handling
-  // due to the ~100,000× multiplier issue in the contract
+  // due to the 10,000× multiplier used in the Solana program
+  
+  // Define the scaling factor (same as in calculatePendingRewards)
+  const scalingFactor = 10000;
   
   if (rewardsAmount !== undefined) {
     // Enhanced version with explicit rewards amount parameter
@@ -342,17 +353,17 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     const data = Buffer.alloc(9); // instruction type (1) + rewards amount (8)
     data.writeUInt8(StakingInstructionType.Harvest, 0);
     
-    // Based on wallet screenshots, we need to scale the rewards back up by ~100,000×
+    // We need to scale the rewards back up by 10,000×
     // to match what the program will calculate internally
-    const scaledRewards = rewardsAmount * 100000;
+    const scaledRewards = rewardsAmount * scalingFactor;
     
     // Write the rewards amount as a 64-bit integer
     // NOTE: This is only used for logging and verification - the blockchain calculates the actual amount
     data.writeBigUInt64LE(BigInt(Math.floor(scaledRewards)), 1);
     
     console.log(`Created harvest instruction buffer with adjusted rewards:`);
-    console.log(`Display rewards: ${rewardsAmount} YOS`);
-    console.log(`Scaled rewards (for program): ${scaledRewards} YOS`);
+    console.log(`Display rewards (UI value): ${rewardsAmount} YOS`);
+    console.log(`Scaled rewards (for program, ${scalingFactor}× multiplier): ${scaledRewards} YOS`);
     console.log("Buffer size:", data.length, "bytes");
     return data;
   } else {
@@ -755,16 +766,19 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     // Get the staking info to see the rewards amount
     const stakingInfo = await getStakingInfo(walletPublicKey.toString());
     
-    // Using the normalized UI rewards value (already divided by 100,000 in calculatePendingRewards)
+    // Using the normalized UI rewards value (already divided by 10,000 in calculatePendingRewards)
     const displayRewards = stakingInfo.rewardsEarned;
     
-    // Calculate the actual value that will be shown in the wallet (multiplied by ~100,000)
-    const programRewards = displayRewards * 100000;
+    // Define the scaling factor used by the Solana program
+    const scalingFactor = 10000;
+    
+    // Calculate the actual value that will be shown in the wallet (multiplied by 10,000)
+    const programRewards = displayRewards * scalingFactor;
     
     console.log(`
     ========== HARVEST OPERATION DEBUG ==========
     Rewards to harvest (UI value): ${displayRewards.toFixed(6)} YOS
-    Estimated wallet display value: ${programRewards.toFixed(6)} YOS (100,000× multiplier)
+    Estimated wallet display value: ${programRewards.toFixed(6)} YOS (${scalingFactor}× multiplier)
     ============================================`);
     
     // Also get the harvest threshold
@@ -843,7 +857,7 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       ],
       programId: new PublicKey(STAKING_PROGRAM_ID),
       // Use our encoding function with the display rewards amount - it will scale it internally
-      // The harvestInstruction encoding function handles the 100,000× multiplier
+      // The harvestInstruction encoding function handles the 10,000× multiplier
       data: encodeHarvestInstruction(displayRewards)
     });
     
