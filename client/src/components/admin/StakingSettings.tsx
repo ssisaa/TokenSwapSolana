@@ -142,10 +142,21 @@ export default function StakingSettings() {
               placeholder="0.00125"
               disabled={isUpdatingParameters || !isAdmin}
             />
-            <p className="text-xs text-muted-foreground">
-              This is the percentage of staked tokens earned as rewards per second.
-              Example: 0.00125% per second = 108% per day
-            </p>
+            <div className="bg-amber-950/30 p-2 rounded text-xs text-amber-400 space-y-1 mt-2">
+              <p className="font-semibold">IMPORTANT INFO ABOUT STAKING REWARDS</p>
+              <p>
+                The Solana program multiplies rewards by 10,000x as a scaling factor.
+                A rate of 0.00000125% per second actually produces:
+              </p>
+              <ul className="list-disc pl-4 space-y-1">
+                <li>Base rate: 0.108% per day (0.00000125% × 86,400 seconds)</li>
+                <li>With 10,000x scaling: 1,080% per day in realized rewards</li>
+                <li>This is why users see thousands of YOS as rewards</li>
+              </ul>
+              <p className="mt-1">
+                Suggested values: 0.00000125% (standard) or 0.000000125% (1/10th) 
+              </p>
+            </div>
           </div>
           
           <div className="space-y-2">

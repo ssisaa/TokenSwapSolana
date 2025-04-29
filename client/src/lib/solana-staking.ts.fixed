@@ -1,10 +1,10 @@
 // Import necessary modules
 import { Connection, PublicKey, Transaction, SystemProgram, sendAndConfirmTransaction, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getAccount } from '@solana/spl-token';
-import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, YOT_DECIMALS, YOS_DECIMALS, STAKING_PROGRAM_ID, ENDPOINT } from './constants';
+import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, YOT_DECIMALS, YOS_DECIMALS, STAKING_PROGRAM_ID, DEVNET_ENDPOINT } from './constants';
 
 // Create a connection to the Solana devnet
-export const connection = new Connection(ENDPOINT, 'confirmed');
+export const connection = new Connection(DEVNET_ENDPOINT, 'confirmed');
 
 /**
  * Utility function to convert UI token amount to raw blockchain amount
