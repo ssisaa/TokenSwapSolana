@@ -2895,20 +2895,24 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // Convert staking rate from decimal to percentage (for clarity in logging)
     const ratePercentage = stakeRateDecimal * 100;
     
-    // CRITICAL FIX: MULTIPLY BY 10,000 TO MATCH SOLANA PROGRAM CALCULATION
-    // This scaling factor ensures the UI displays what the user will actually receive
+    // CRITICAL ISSUE: SOLANA PROGRAM HAS AN ARTIFICIALLY HIGH SCALING FACTOR
+    // We need to divide by this factor in the UI to show actual normalized rates
+    // but keep it in the actual transaction for compatibility with the deployed program
     const scalingFactor = 10000;
     
-    // SIMPLE LINEAR INTEREST: principal * rate * time * scalingFactor
-    const pendingRewards = stakedAmount * stakeRateDecimal * timeStakedSinceLastHarvest * scalingFactor;
+    // For display purposes, we'll show what SHOULD be earned (without the scaling)
+    const normalizedRewards = stakedAmount * stakeRateDecimal * timeStakedSinceLastHarvest;
     
-    console.log(`LINEAR REWARDS CALCULATION WITH SCALING FACTOR:`);
+    // For blockchain compatibility, we'll return the scaled amount to match what will be received
+    const pendingRewards = normalizedRewards * scalingFactor;
+    
+    console.log(`LINEAR REWARDS CALCULATION WITH CORRECT NORMALIZATION:`);
     console.log(`- Staked amount: ${stakedAmount} YOT tokens`);
     console.log(`- Rate: ${ratePercentage}% per second (${stakeRateDecimal} as decimal)`);
     console.log(`- Time staked: ${timeStakedSinceLastHarvest} seconds`);
-    console.log(`- Scaling factor: ${scalingFactor} (matches blockchain calculation)`);
-    console.log(`- Formula: ${stakedAmount} × ${stakeRateDecimal} × ${timeStakedSinceLastHarvest} × ${scalingFactor}`);
-    console.log(`- Result: ${pendingRewards} YOS tokens`);
+    console.log(`- WHAT SHOULD BE EARNED: ${normalizedRewards} YOS (without scaling)`);
+    console.log(`- WHAT WILL ACTUALLY BE RECEIVED FROM BLOCKCHAIN: ${pendingRewards} YOS (with ${scalingFactor}x scaling)`);
+    console.log(`- NOTE: The Solana program has an artificial ${scalingFactor}x multiplier built in!`);
     
     console.log("Reward calculation info:", {
       stakedAmount: Number(stakedAmount),

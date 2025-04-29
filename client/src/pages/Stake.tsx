@@ -135,9 +135,19 @@ export default function Stake() {
               {isLoading ? (
                 <div className="animate-pulse bg-dark-300 h-6 w-24 rounded"></div>
               ) : (
-                <div className="flex items-baseline gap-1">
-                  <span className="text-xl font-bold text-white">{formatNumber(stakingInfo.rewardsEarned)}</span>
-                  <span className="text-sm font-semibold text-green-400">YOS</span>
+                <div className="space-y-2">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-xl font-bold text-white">{formatNumber(stakingInfo.rewardsEarned)}</span>
+                    <span className="text-sm font-semibold text-green-400">YOS</span>
+                  </div>
+                  <div className="text-xs p-1 text-amber-400 bg-amber-950/30 rounded-sm">
+                    <InfoIcon className="h-3 w-3 inline mr-1" />
+                    Program has a built-in 10,000x multiplier
+                  </div>
+                  <div className="flex items-baseline gap-1 border-t border-slate-700 pt-1">
+                    <span className="text-xs text-gray-400">Without multiplier:</span>
+                    <span className="text-xs font-semibold text-blue-400">{formatNumber(stakingInfo.rewardsEarned / 10000)} YOS</span>
+                  </div>
                 </div>
               )}
             </CardContent>
