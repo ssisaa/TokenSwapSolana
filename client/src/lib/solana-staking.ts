@@ -33,21 +33,18 @@ const YOS_TOKEN_DECIMALS = 9;
  * @returns The scaled value for blockchain with both adjustments applied
  */
 export function uiToRawYot(uiValue: number): bigint {
-  // CRITICAL FIX TAKE 2:
-  // We've identified that we DO need to apply token decimals for display in the wallet
-  // But we need to be extremely careful about handling large numbers
+  // CRITICAL FIX TAKE 3:
+  // We need to use only the program scaling factor (10000) for staking amount
+  // This correctly converts the UI value to the raw amount expected by the program
   
-  // For YOT, we need to apply both decimals (10^9) and program scaling (10000)
-  // But in a way that preserves the original value
-  // So we'll use decimals * 0.0001 instead of * 10000
-  const amountWithDecimals = uiValue * Math.pow(10, YOT_TOKEN_DECIMALS);
-  const programScaled = Math.round(amountWithDecimals * 0.0001); 
+  // For wallet display purposes, we multiply by 10000 - this gives the correct display in the wallet
+  // The program itself knows the tokens have 9 decimals, so we don't need to apply those here
+  const scaledAmount = Math.round(uiValue * PROGRAM_SCALING_FACTOR);
   
-  console.log(`YOT CONVERSION (FIXED v2): UI ${uiValue} → Raw blockchain value ${programScaled}`);
-  console.log(`Step 1: Applied token decimals: ${uiValue} × 10^${YOT_TOKEN_DECIMALS} = ${amountWithDecimals}`);
-  console.log(`Step 2: Applied inverse program scaling: ${amountWithDecimals} × 0.0001 = ${programScaled}`);
+  console.log(`YOT CONVERSION (FIXED v3): UI ${uiValue} → Raw blockchain value ${scaledAmount}`);
+  console.log(`Direct program scaling: ${uiValue} × ${PROGRAM_SCALING_FACTOR} = ${scaledAmount}`);
   
-  return BigInt(programScaled);
+  return BigInt(scaledAmount);
 }
 
 /**
@@ -120,7 +117,8 @@ function calculatePendingRewards(staking: {
 }): number {
   const { stakedAmount, timeStakedSinceLastHarvest, stakeRatePerSecond } = staking;
   
-  // Convert from percentage (0.00000125%) to decimal (0.0000000125)
+  // CRITICAL FIX: Rate is already in percentage form (0.0000125%)
+  // We need to convert it to decimal (0.000000125) for the calculation
   const rateDecimal = stakeRatePerSecond / 100;
   
   // IMPORTANT: The Solana program uses a 10,000× multiplier internally
@@ -132,23 +130,18 @@ function calculatePendingRewards(staking: {
   
   console.log(`LINEAR REWARDS CALCULATION: ${stakedAmount} × ${rateDecimal} × ${timeStakedSinceLastHarvest} = ${linearRewards}`);
   
-  // CRITICAL: We need to address the discrepancy between program and UI calculations.
-  // The Solana program uses a 10,000× multiplier internally for scaling rewards.
+  // For UI display, we return the actual rewards amount without dividing by scaling factor
+  // Because the staked amount is already the UI display amount
+  // This correctly shows the rewards based on APR/APY
+  const displayRewards = linearRewards;
   
-  // For UI display, we show the normalized amount (what users will actually receive)
-  const displayRewards = linearRewards / scalingFactor;
-  
-  // Internal value (used by blockchain) - keep for debugging
-  const internalRewards = linearRewards;
-  
-  console.log(`LINEAR REWARDS CALCULATION WITH CORRECT NORMALIZATION:`);
+  console.log(`LINEAR REWARDS CALCULATION (CORRECTED):`);
   console.log(`- Staked amount: ${stakedAmount} YOT tokens`);
   console.log(`- Rate: ${stakeRatePerSecond}% per second (${rateDecimal} as decimal)`);
   console.log(`- Time staked: ${timeStakedSinceLastHarvest} seconds`);
   console.log(`- DISPLAY VALUE (ACTUAL YOS TO RECEIVE): ${displayRewards} YOS`);
-  console.log(`- INTERNAL VALUE (USED BY BLOCKCHAIN): ${internalRewards} YOS (with ${scalingFactor}x scaling)`);
   
-  // Return the display value for UI (what users will actually receive)
+  // Return the properly calculated rewards value
   return displayRewards;
 }
 export const connection = new Connection(ENDPOINT, 'confirmed');
