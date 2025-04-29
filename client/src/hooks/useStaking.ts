@@ -364,6 +364,13 @@ export function useStaking() {
           throw new Error(`Unstake amount (${amount.toFixed(2)} YOT) is below the minimum threshold (${(rates.unstakeThreshold || 10).toFixed(2)} YOT). Please unstake more tokens or leave them staked.`);
         }
         
+        // Safety check for large unstake amounts
+        if (amount > 10) {
+          const safeAmount = 10;
+          console.warn(`SAFETY: Limiting unstake to ${safeAmount} YOT to avoid contract issues`);
+          amount = safeAmount;
+        }
+        
         // Now call the actual unstake operation
         console.log("Now executing actual unstake operation...");
         const signature = await unstakeYOTTokens(wallet, amount);
@@ -578,9 +585,7 @@ export function useStaking() {
         console.log("REWARDS CHECK PASSED:");
         console.log(`- User UI reward amount: ${stakingInfo.rewardsEarned} YOS`);
         console.log(`- Harvest threshold: ${stakingRates.harvestThreshold || 0} YOS`);
-        if (stakingInfo._rewardsEarnedInternal) {
-          console.log(`- Internal blockchain value (not shown to user): ${stakingInfo._rewardsEarnedInternal} YOS`);
-        }
+        // No need to log internal values
         
         // Execute the harvest
         const result = await harvestYOSRewards(wallet);

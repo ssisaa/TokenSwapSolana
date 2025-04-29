@@ -1291,8 +1291,7 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
         startTimestamp: 0,
         lastHarvestTime: 0,
         totalHarvested: 0,
-        rewardsEarned: 0,
-        _rewardsEarnedInternal: 0 // Include the internal value as well
+        rewardsEarned: 0
       };
     }
     
@@ -1411,9 +1410,7 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
       startTimestamp: startTimestamp,
       lastHarvestTime: lastHarvestTime,
       totalHarvested: totalHarvested,
-      rewardsEarned: pendingRewardsDisplay, // Use the display value for UI, not the internal value
-      // Add the internal value as a separate property for use in blockchain transactions
-      _rewardsEarnedInternal: pendingRewardsInternal // Prefixed with underscore to indicate it's internal
+      rewardsEarned: pendingRewardsDisplay // Use the display value for UI, not the internal value
     };
   } catch (error) {
     console.error('Error getting staking info:', error);
@@ -1426,8 +1423,7 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
         startTimestamp: 0,
         lastHarvestTime: 0,
         totalHarvested: 0,
-        rewardsEarned: 0,
-        _rewardsEarnedInternal: 0 // Include the internal value for consistency
+        rewardsEarned: 0
       };
     }
     
