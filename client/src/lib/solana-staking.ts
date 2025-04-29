@@ -785,12 +785,13 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       const programYosBalance = Number(programYosAccountInfo.amount) / Math.pow(10, YOS_DECIMALS);
       console.log(`Program YOS balance: ${programYosBalance.toFixed(4)} YOS`);
       
-      // Compare program balance with rewards
-      if (programYosBalance < rewards) {
+      // Compare program balance with programRewards (actual amount needed by the contract)
+      if (programYosBalance < programRewards) {
         console.warn(`
         ⚠️ WARNING: INSUFFICIENT PROGRAM BALANCE ⚠️
         Program YOS balance: ${programYosBalance.toFixed(6)} YOS
-        User pending rewards: ${rewards.toFixed(6)} YOS
+        User pending rewards (UI): ${displayRewards.toFixed(6)} YOS
+        User pending rewards (program): ${programRewards.toFixed(6)} YOS
         Harvest may fail or be partial
         `);
       }
@@ -823,7 +824,8 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     
     console.log(`
     =========== HARVEST TRANSACTION REWARD DETAILS ===========
-    Rewards to harvest: ${rewards.toFixed(6)} YOS
+    UI Rewards to harvest: ${displayRewards.toFixed(6)} YOS
+    Program Rewards value: ${programRewards.toFixed(6)} YOS
     ==========================================================
     `);
     
@@ -840,9 +842,9 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
         { pubkey: new PublicKey('SysvarC1ock11111111111111111111111111111111'), isSigner: false, isWritable: false }, // clock sysvar
       ],
       programId: new PublicKey(STAKING_PROGRAM_ID),
-      // Use our encoding function with the calculated rewards amount
-      // This helps document what we're expecting in the transaction record
-      data: encodeHarvestInstruction(rewards)
+      // Use our encoding function with the display rewards amount - it will scale it internally
+      // The harvestInstruction encoding function handles the 100,000× multiplier
+      data: encodeHarvestInstruction(displayRewards)
     });
     
     // Sign and send the transaction
