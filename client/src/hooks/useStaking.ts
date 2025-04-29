@@ -757,7 +757,9 @@ export function useStaking() {
         const signature = await updateStakingParameters(
           wallet, 
           basisPoints,                // stake rate in basis points
-          harvestThresholdRaw         // minimum amount in YOS micro-units
+          harvestThreshold,           // harvest threshold in YOS
+          stakeThresholdValue,        // stake threshold in YOT
+          unstakeThresholdValue       // unstake threshold in YOT
         );
         
         console.log("Update parameters transaction signature:", signature);
