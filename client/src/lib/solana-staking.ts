@@ -685,11 +685,17 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     // First, get the staking info to see the actual rewards amount
     const stakingInfo = await getStakingInfo(walletPublicKey.toString());
     
-    // Calculate the display vs actual blockchain values
-    const displayRewards = stakingInfo.rewardsEarned / 10000;
-    const blockchainRewards = stakingInfo.rewardsEarned;
+    // ⚠️ CRITICAL: The blockchain stores values with a 10,000× multiplier
+    // Calculate the display vs actual blockchain values for proper comparison
+    const blockchainRewards = stakingInfo.rewardsEarned;         // Raw value as stored in blockchain
+    const displayRewards = blockchainRewards / 10000;            // Correct UI value with divisor applied
     
-    console.log(`REWARDS: UI Display: ${displayRewards.toFixed(6)} YOS, Blockchain: ${blockchainRewards} (10,000× multiplier)`);
+    console.log(`
+    ========== HARVEST OPERATION DEBUG ==========
+    UI display rewards: ${displayRewards.toFixed(6)} YOS 
+    Blockchain raw rewards: ${blockchainRewards} 
+    10,000× multiplier ratio: ${blockchainRewards / displayRewards}
+    ============================================`);
     
     // Also get the harvest threshold
     const { harvestThreshold } = await getStakingProgramState();
@@ -709,9 +715,15 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       const programYosBalance = Number(programYosAccountInfo.amount) / Math.pow(10, YOS_DECIMALS);
       console.log(`Program YOS balance: ${programYosBalance.toFixed(4)} YOS`);
       
-      // Check if the program has enough funds to cover the rewards
+      // ⚠️ CRITICAL: Compare program balance with display rewards (divided by 10,000)
+      // This ensures we're comparing actual token amounts, not internal representation
       if (programYosBalance < displayRewards) {
-        console.warn(`WARNING: Program YOS balance (${programYosBalance.toFixed(4)}) may be insufficient for rewards payout of ${displayRewards.toFixed(6)} YOS`);
+        console.warn(`
+        ⚠️ WARNING: INSUFFICIENT PROGRAM BALANCE ⚠️
+        Program YOS balance: ${programYosBalance.toFixed(6)} YOS
+        User pending rewards: ${displayRewards.toFixed(6)} YOS
+        Harvest may fail or be partial
+        `);
       }
     } catch (error) {
       console.warn("Could not check program YOS balance:", error);
