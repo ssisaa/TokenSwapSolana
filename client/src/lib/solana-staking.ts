@@ -593,17 +593,19 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     // Write the contract amount to the data buffer
     data.writeBigUInt64LE(BigInt(contractAmount), 1);
     
-    // Calculate the scaling value to get from our calculated amount to 226 YOS
+    // Calculate the reference value (for historical reasons - previously targeting 226 YOS)
     const targetYOS = 226;
     const exactScalingFactor = targetYOS / rawRewards;
     
     console.log(`Created harvest instruction buffer with adjusted rewards:`);
     console.log(`Original rewards value: ${rewardsAmount} YOS`);
-    console.log(`SCALING ANALYSIS: Applying token decimals then program scaling adjustment`);
-    console.log(`ACTUAL SCALING: For our calculated ${rawRewards} YOS, we're sending: ${programScaled}`);
+    console.log(`SCALING ANALYSIS: Using two separate conversions for proper display and contract values`);
+    console.log(`ACTUAL SCALING: For our calculated ${rawRewards} YOS tokens:`);
+    console.log(`- Wallet display amount: ${walletDisplayAmount}`);
+    console.log(`- Contract calculation amount: ${contractAmount}`);
     console.log(`This should result in proper blockchain value that matches program expectation`);
     console.log(`Using consistent token + program scaling across all operations`);
-    console.log(`Token decimals applied: 10^${YOS_TOKEN_DECIMALS}, then scaled by 0.0001`);
+    console.log(`For wallet display: 10^${YOS_TOKEN_DECIMALS}, for contract: ${PROGRAM_SCALING_FACTOR}x`);
     console.log("Buffer size:", data.length, "bytes");
     return data;
   } else {
