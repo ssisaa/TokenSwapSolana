@@ -396,7 +396,7 @@ export async function initializeStakingProgram(
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // System program
       ],
       programId: new PublicKey(STAKING_PROGRAM_ID),
-      data: encodeInitializeInstruction(yotMint, yosMint, stakeRateBasisPoints, harvestThreshold, stakeThreshold, unstakeThreshold)
+      data: encodeInitializeInstruction(yotMint, yosMint, stakeRateBasisPoints, harvestThreshold)
     });
     
     // Sign and send the transaction
