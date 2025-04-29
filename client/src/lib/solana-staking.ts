@@ -323,12 +323,13 @@ export async function initializeStakingProgram(
       const space = 112;
       const rent = await connection.getMinimumBalanceForRentExemption(space);
       
+      console.log("Creating program state account with rent:", rent, "and space:", space);
+      
+      // Use the simple createAccount instruction instead of createAccountWithSeed
       transaction.add(
-        SystemProgram.createAccountWithSeed({
+        SystemProgram.createAccount({
           fromPubkey: walletPublicKey,
           newAccountPubkey: programState,
-          basePubkey: walletPublicKey,
-          seed: 'state',
           lamports: rent,
           space: space,
           programId: new PublicKey(STAKING_PROGRAM_ID)
@@ -340,7 +341,7 @@ export async function initializeStakingProgram(
     transaction.add({
       keys: [
         { pubkey: walletPublicKey, isSigner: true, isWritable: true },
-        { pubkey: programState, isSigner: false, isWritable: true },
+        { pubkey: programState, isSigner: true, isWritable: true }, // Program state needs to be a signer for creation
         { pubkey: programAuthority, isSigner: false, isWritable: false },
         { pubkey: yotMint, isSigner: false, isWritable: false },
         { pubkey: yosMint, isSigner: false, isWritable: false },
