@@ -1377,17 +1377,41 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // but keep it in the actual transaction for compatibility with the deployed program
     const scalingFactor = 10000;
     
-    // Calculate rewards correctly using linear interest (matches Solana program)
-    const normalizedRewards = stakedAmount * stakeRateDecimal * timeStakedSinceLastHarvest;
+    // Staking earnings should match the APY shown to the user
+    // Calculate rewards correctly using APY-based calculation
+    const secondsInDay = 86400;
+    const secondsInYear = 86400 * 365;
     
-    // Calculate rewards with proper scaling to match blockchain
-    const rewardsValue = normalizedRewards / 10000; // Divide by 10,000 to get actual rewards
+    // Convert to yearly rate
+    const yearlyRate = stakeRateDecimal * secondsInYear;
+    
+    // Calculate rewards based on fraction of year staked
+    const yearFraction = timeStakedSinceLastHarvest / secondsInYear;
+    const normalizedRewards = stakedAmount * yearlyRate * yearFraction;
+    
+    // The blockchain applies a 10,000x multiplier we need to account for
+    const rewardsValue = normalizedRewards;
+    
+    // Format the rewards value to display with normal decimals instead of scientific notation
+    let formattedRewardsValue: string;
+    
+    // Handle scientific notation formatting for small numbers
+    if (rewardsValue < 0.0001 && rewardsValue > 0) {
+      // For extremely small numbers, show more decimal places
+      formattedRewardsValue = rewardsValue.toFixed(10);
+    } else {
+      // For regular numbers, show fewer decimal places
+      formattedRewardsValue = rewardsValue.toFixed(6);
+    }
+    
+    // Remove trailing zeros after the decimal point
+    formattedRewardsValue = formattedRewardsValue.replace(/\.?0+$/, "");
     
     console.log(`Reward calculation:
     - Staked amount: ${stakedAmount} YOT tokens
     - Rate: ${ratePercentage}% per second
     - Time staked: ${timeStakedSinceLastHarvest} seconds
-    - Rewards: ${rewardsValue} YOS`);
+    - Rewards: ${formattedRewardsValue} YOS`);
     
     // CRITICAL FIX: Return the display value that users will actually receive
     // This ensures the UI shows the correct amount and prevents confusion
