@@ -490,11 +490,21 @@ export default function Stake() {
                         
                         <div className="w-full bg-slate-700 rounded-full h-2.5 mb-1">
                           <div 
-                            className="bg-blue-600 h-2.5 rounded-full" 
+                            className={`h-2.5 rounded-full ${(stakingInfo.rewardsEarned / 10000) >= (stakingRates?.harvestThreshold || 1) ? 'bg-green-500' : 'bg-blue-600'}`}
                             style={{ 
                               width: `${Math.min(100, ((stakingInfo.rewardsEarned / 10000) / (stakingRates?.harvestThreshold || 1)) * 100)}%` 
                             }}
                           ></div>
+                        </div>
+                        
+                        {/* Transaction value note with multiplier warning */}
+                        <div className="p-2 mt-1 mb-3 bg-amber-900/20 border border-amber-500/30 rounded-md">
+                          <div className="flex items-start">
+                            <AlertCircle className="h-3 w-3 mr-1 mt-0.5 shrink-0 text-amber-400" />
+                            <div className="text-xs text-amber-300">
+                              Due to a technical limitation, wallet transactions will show {formatNumber(stakingInfo.rewardsEarned)} YOS instead of {formatNumber(stakingInfo.rewardsEarned / 10000)} YOS
+                            </div>
+                          </div>
                         </div>
                         
                         <div className="flex justify-between items-center text-xs">
