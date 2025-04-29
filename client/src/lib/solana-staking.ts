@@ -394,10 +394,9 @@ function encodeUnstakeInstruction(amount: number): Buffer {
 
 function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
   // CRITICAL FIX: The harvest instruction needs special handling
-  // due to the 10,000× multiplier used in the Solana program
-  
-  // Define the scaling factor (same as in calculatePendingRewards)
-  const scalingFactor = 10000;
+  // YOS token uses 9 decimal places - use this for proper scaling
+  const YOS_DECIMALS = 9;
+  const scalingFactor = Math.pow(10, YOS_DECIMALS);
   
   if (rewardsAmount !== undefined) {
     // Enhanced version with explicit rewards amount parameter
@@ -405,8 +404,8 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     const data = Buffer.alloc(9); // instruction type (1) + rewards amount (8)
     data.writeUInt8(StakingInstructionType.Harvest, 0);
     
-    // We need to scale the rewards back up by 10,000×
-    // to match what the program will calculate internally
+    // Scale rewards to raw token amount using proper YOS token decimals (9)
+    // This ensures the wallet will display the correct amount
     const scaledRewards = rewardsAmount * scalingFactor;
     
     // Write the rewards amount as a 64-bit integer
@@ -821,10 +820,11 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     // Using the normalized UI rewards value (already divided by 10,000 in calculatePendingRewards)
     const displayRewards = stakingInfo.rewardsEarned;
     
-    // Define the scaling factor used by the Solana program
-    const scalingFactor = 10000;
+    // YOS token uses 9 decimal places for proper scaling
+    const YOS_DECIMALS = 9;
+    const scalingFactor = Math.pow(10, YOS_DECIMALS);
     
-    // Calculate the actual value that will be shown in the wallet (multiplied by 10,000)
+    // Calculate the actual value that will be shown in the wallet (multiplied by 10^9)
     const programRewards = displayRewards * scalingFactor;
     
     console.log(`
@@ -909,7 +909,7 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       ],
       programId: new PublicKey(STAKING_PROGRAM_ID),
       // Use our encoding function with the display rewards amount - it will scale it internally
-      // The harvestInstruction encoding function handles the 10,000× multiplier
+      // The harvestInstruction encoding function handles the scaling using YOS_DECIMALS (9)
       data: encodeHarvestInstruction(displayRewards)
     });
     
