@@ -41,28 +41,15 @@ function calculatePendingRewards(staking: {
 }): number {
   const { stakedAmount, timeStakedSinceLastHarvest, stakeRatePerSecond } = staking;
   
-  // Convert from percentage (0.0000125%) to decimal (0.000000125)
+  // Convert from percentage (0.00000125%) to decimal (0.0000000125)
   const rateDecimal = stakeRatePerSecond / 100;
   
-  // CRITICAL ISSUE: SOLANA PROGRAM HAS AN ARTIFICIALLY HIGH SCALING FACTOR
-  // This scaling factor must be applied to match what the blockchain calculates
-  const scalingFactor = 10000;
+  // SIMPLE LINEAR INTEREST: principal * rate * time
+  const linearRewards = stakedAmount * rateDecimal * timeStakedSinceLastHarvest;
   
-  // Step 1: Calculate the theoretical rewards (what should be earned without the scaling)
-  const normalizedRewards = stakedAmount * rateDecimal * timeStakedSinceLastHarvest;
+  console.log(`LINEAR REWARDS CALCULATION: ${stakedAmount} × ${rateDecimal} × ${timeStakedSinceLastHarvest} = ${linearRewards}`);
   
-  // Step 2: Apply the scaling factor to match what the blockchain will transfer
-  const pendingRewards = normalizedRewards * scalingFactor;
-  
-  console.log(`LINEAR REWARDS CALCULATION WITH SCALING FACTOR:`);
-  console.log(`- Staked amount: ${stakedAmount} YOT tokens`);
-  console.log(`- Rate: ${stakeRatePerSecond}% per second (${rateDecimal} as decimal)`);
-  console.log(`- Time staked: ${timeStakedSinceLastHarvest} seconds`);
-  console.log(`- Theoretical rewards: ${normalizedRewards} YOS (without scaling)`);
-  console.log(`- Actual blockchain rewards: ${pendingRewards} YOS (with ${scalingFactor}x multiplier)`);
-  
-  // Return the actual value that will be transferred by the blockchain
-  return pendingRewards;
+  return linearRewards;
 }
 export const connection = new Connection(ENDPOINT, 'confirmed');
 
