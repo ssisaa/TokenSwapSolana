@@ -2144,17 +2144,40 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     } catch (sendError) {
       console.error("Error sending transaction:", sendError);
       
-      // Handle blockhash issues specifically
-      if (sendError instanceof Error && sendError.message && sendError.message.includes("Blockhash not found")) {
-        toast({
-          title: "Transaction Expired",
-          description: "The transaction took too long to process. Please try again.",
-          variant: "destructive"
-        });
+      // Handle specific error cases
+      if (sendError instanceof Error && sendError.message) {
+        // Check for blockhash issues
+        if (sendError.message.includes("Blockhash not found")) {
+          toast({
+            title: "Transaction Expired",
+            description: "The transaction took too long to process. Please try again.",
+            variant: "destructive"
+          });
+        } 
+        // Handle "already processed" errors as a potential success
+        else if (sendError.message.includes("This transaction has already been processed")) {
+          console.log("Transaction was already processed - this may indicate success");
+          toast({
+            title: "Transaction Already Processed",
+            description: "Your transaction may have already been processed. Please check your wallet balance before trying again.",
+            variant: "warning"
+          });
+          
+          // Return a special indicator for this case
+          return "ALREADY_PROCESSED";
+        }
+        // General failure case
+        else {
+          toast({
+            title: "Harvest Failed",
+            description: sendError.message,
+            variant: "destructive"
+          });
+        }
       } else {
         toast({
           title: "Harvest Failed",
-          description: sendError instanceof Error ? sendError.message : "Unknown error sending transaction",
+          description: "Unknown error sending transaction",
           variant: "destructive"
         });
       }
