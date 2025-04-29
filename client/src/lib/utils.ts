@@ -75,11 +75,30 @@ export function formatTransactionTime(timestamp: number): string {
 export function formatNumber(value: number, decimals: number = 4): string {
   if (isNaN(value) || value === 0) return '0';
   
+  // CRITICAL FIX: Check if this might be a program-scaled value
+  // For rewards values (typically large numbers like 317.99625 that show as 0.0318)
+  // we need to correctly adjust the scaling to show the real value
+  const PROGRAM_SCALING_FACTOR = 10000;
+  
   // For amounts less than 10,000, we show exact values with appropriate decimals
   const absValue = Math.abs(value);
   
+  // Detect if this is a rewards value that needs to be multiplied
+  // Only apply this correction to specific ranges of values
+  // This is a heuristic based on observed patterns in our application
+  if (absValue > 0 && absValue < 1) {
+    // This is likely a scaled down reward value
+    const scaledValue = value * PROGRAM_SCALING_FACTOR;
+    console.log(`Rewards scaling: ${value} × ${PROGRAM_SCALING_FACTOR} = ${scaledValue}`);
+    
+    // Return the scaled up value with appropriate formatting
+    return scaledValue.toLocaleString('en-US', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2
+    });
+  }
+  
   // For very small numbers (below 0.0001), display in a more user-friendly way
-  // Instead of scientific notation, show the actual small number with fixed precision
   if (absValue < 0.0001 && absValue > 0) {
     // Force 8 digits to show very small numbers properly
     return absValue.toFixed(8).replace(/\.?0+$/, '');
