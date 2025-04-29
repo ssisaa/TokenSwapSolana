@@ -364,12 +364,7 @@ export function useStaking() {
           throw new Error(`Unstake amount (${amount.toFixed(2)} YOT) is below the minimum threshold (${(rates.unstakeThreshold || 10).toFixed(2)} YOT). Please unstake more tokens or leave them staked.`);
         }
         
-        // Safety check for large unstake amounts
-        if (amount > 10) {
-          const safeAmount = 10;
-          console.warn(`SAFETY: Limiting unstake to ${safeAmount} YOT to avoid contract issues`);
-          amount = safeAmount;
-        }
+        // No safety limits needed - using fixed contract
         
         // Now call the actual unstake operation
         console.log("Now executing actual unstake operation...");

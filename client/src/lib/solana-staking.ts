@@ -1380,28 +1380,14 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // Calculate rewards correctly using linear interest (matches Solana program)
     const normalizedRewards = stakedAmount * stakeRateDecimal * timeStakedSinceLastHarvest;
     
-    // CRITICAL FIX: Separate UI display value from blockchain transaction value
-    // The UI should show the normalized amount a user will actually receive
-    // The internal calculations should match what the blockchain expects
-    const pendingRewardsDisplay = normalizedRewards; // For UI display - what users will actually receive
-    const pendingRewardsInternal = normalizedRewards * scalingFactor; // Internal value used by blockchain
+    // Calculate rewards with proper scaling to match blockchain
+    const rewardsValue = normalizedRewards / 10000; // Divide by 10,000 to get actual rewards
     
-    console.log(`LINEAR REWARDS CALCULATION WITH CORRECT NORMALIZATION:`);
-    console.log(`- Staked amount: ${stakedAmount} YOT tokens`);
-    console.log(`- Rate: ${ratePercentage}% per second (${stakeRateDecimal} as decimal)`);
-    console.log(`- Time staked: ${timeStakedSinceLastHarvest} seconds`);
-    console.log(`- DISPLAY VALUE (ACTUAL YOS TO RECEIVE): ${pendingRewardsDisplay} YOS`);
-    console.log(`- INTERNAL VALUE (USED BY BLOCKCHAIN): ${pendingRewardsInternal} YOS (with ${scalingFactor}x scaling)`);
-    console.log(`- NOTE: The UI now correctly shows what users will receive, not the internal blockchain value`);
-    
-    console.log("Reward calculation info:", {
-      stakedAmount: Number(stakedAmount),
-      timeStakedSinceLastHarvest,
-      stakeRateDecimal,
-      method: "LINEAR (matches Solana program)",
-      pendingRewardsDisplay,
-      pendingRewardsInternal
-    });
+    console.log(`Reward calculation:
+    - Staked amount: ${stakedAmount} YOT tokens
+    - Rate: ${ratePercentage}% per second
+    - Time staked: ${timeStakedSinceLastHarvest} seconds
+    - Rewards: ${rewardsValue} YOS`);
     
     // CRITICAL FIX: Return the display value that users will actually receive
     // This ensures the UI shows the correct amount and prevents confusion
@@ -1410,13 +1396,12 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
       startTimestamp: startTimestamp,
       lastHarvestTime: lastHarvestTime,
       totalHarvested: totalHarvested,
-      rewardsEarned: pendingRewardsDisplay // Use the display value for UI, not the internal value
+      rewardsEarned: rewardsValue // Use properly scaled value that matches blockchain
     };
   } catch (error) {
     console.error('Error getting staking info:', error);
     
-    // For existing users who have no staking account, returning zero values is appropriate
-    // This is not a fallback or mock - it accurately represents that the user hasn't staked yet
+    // For users who have no staking account, return zero values
     if (error && (error as any).message && (error as any).message.includes('Account does not exist')) {
       return {
         stakedAmount: 0,
