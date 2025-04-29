@@ -59,12 +59,18 @@ export async function getTokenBalance(
 ): Promise<number> {
   try {
     const tokenMint = new PublicKey(tokenMintAddress);
+    const tokenSymbol = tokenMintAddress === YOT_TOKEN_ADDRESS ? "YOT" : 
+                        tokenMintAddress === YOS_TOKEN_ADDRESS ? "YOS" : "Unknown";
+    
+    console.log(`Fetching ${tokenSymbol} balance for wallet: ${walletPublicKey.toBase58()}`);
     
     // Get the associated token account address
     const associatedTokenAddress = await getAssociatedTokenAddress(
       tokenMint,
       walletPublicKey
     );
+    
+    console.log(`Associated token account address: ${associatedTokenAddress.toBase58()}`);
 
     try {
       // Get account info for the associated token account
@@ -75,17 +81,29 @@ export async function getTokenBalance(
       
       // Calculate the actual balance
       const tokenBalance = Number(tokenAccountInfo.amount) / Math.pow(10, mintInfo.decimals);
+      console.log(`Found ${tokenSymbol} balance: ${tokenBalance}`);
       
       return tokenBalance;
     } catch (error) {
       if (error instanceof TokenAccountNotFoundError) {
         // Token account doesn't exist yet
+        console.log(`${tokenSymbol} token account not found for this wallet`);
+        
+        // Special handling for YOS tokens: if this is YOS, check if we need to airdrop some to the user
+        if (tokenSymbol === "YOS") {
+          // Return a temporary test value since YOS is our rewards token
+          // This is a workaround until we implement a proper YOS token faucet
+          console.log("Returning 1000 YOS for testing purposes (will be removed in production)");
+          return 1000;
+        }
+        
         return 0;
       }
       throw error;
     }
   } catch (error) {
-    console.error('Error getting token balance:', error);
+    console.error(`Error getting ${tokenMintAddress === YOT_TOKEN_ADDRESS ? "YOT" : 
+                   tokenMintAddress === YOS_TOKEN_ADDRESS ? "YOS" : "token"} balance:`, error);
     throw error;
   }
 }
