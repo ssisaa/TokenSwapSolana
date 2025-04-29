@@ -103,18 +103,37 @@ export function rawToUiTokenAmount(rawAmount: bigint | number, decimals: number)
 /**
  * Properly fetches and converts token balance with correct decimal handling
  * Uses the official token account balance method that properly handles decimals
+ * 
  * @param connection Solana connection
  * @param tokenAccount The token account to check balance for
+ * @param isProgramScaledToken Optional flag to indicate if this is a token using our program's 10,000× scaling factor
  * @returns Human-readable UI token amount with proper decimal handling
  */
-export async function getTokenBalance(connection: Connection, tokenAccount: PublicKey): Promise<number> {
+export async function getTokenBalance(
+  connection: Connection, 
+  tokenAccount: PublicKey,
+  isProgramScaledToken?: boolean
+): Promise<number> {
   try {
     const balanceInfo = await connection.getTokenAccountBalance(tokenAccount);
     const decimals = balanceInfo.value.decimals;
     const amount = parseFloat(balanceInfo.value.amount);
-    const uiAmount = amount / Math.pow(10, decimals); // FIX: Adjust raw amount using decimals
-    console.log(`Token balance raw: ${amount}, decimals: ${decimals}, UI amount: ${uiAmount}`);
-    return uiAmount;
+    
+    let uiAmount: number;
+    
+    if (isProgramScaledToken) {
+      // If this is a program-scaled token (like YOS in our staking program),
+      // use the 10,000× scaling factor instead of token decimals
+      const PROGRAM_SCALING_FACTOR = 10000;
+      uiAmount = amount / PROGRAM_SCALING_FACTOR;
+      console.log(`Program-scaled token balance raw: ${amount}, using 10,000× scaling factor, UI amount: ${uiAmount}`);
+    } else {
+      // Standard token decimal conversion (e.g., 9 decimals for most Solana tokens)
+      uiAmount = amount / Math.pow(10, decimals);
+      console.log(`Token balance raw: ${amount}, decimals: ${decimals}, UI amount: ${uiAmount}`);
+    }
+    
+    return parseFloat(uiAmount.toFixed(9)); // Round to 9 decimal places for consistency
   } catch (error) {
     console.error('Error fetching token balance:', error);
     return 0;
@@ -124,26 +143,45 @@ export async function getTokenBalance(connection: Connection, tokenAccount: Publ
 /**
  * Get parsed token balance for a specific mint using getParsedTokenAccountsByOwner
  * This is useful when you want to find token accounts by owner and mint
+ * 
  * @param connection Solana connection
  * @param owner The owner's public key
  * @param mint The mint address of the token
+ * @param isProgramScaledToken Optional flag to indicate if this is a token using our program's 10,000× scaling factor
  * @returns Human-readable UI token amount with proper decimal handling
  */
 export async function getParsedTokenBalance(
   connection: Connection,
   owner: PublicKey,
-  mint: PublicKey
+  mint: PublicKey,
+  isProgramScaledToken?: boolean
 ): Promise<number> {
   try {
     const accounts = await connection.getParsedTokenAccountsByOwner(owner, { mint });
-    if (accounts.value.length === 0) return 0;
+    if (accounts.value.length === 0) {
+      console.warn('No token accounts found for given owner and mint');
+      return 0;
+    }
 
     const tokenInfo = accounts.value[0].account.data.parsed.info;
     const amount = parseFloat(tokenInfo.tokenAmount.amount);
     const decimals = tokenInfo.tokenAmount.decimals;
-    const uiAmount = amount / Math.pow(10, decimals); // FIX: Adjust raw amount using decimals
-    console.log(`Parsed token balance raw: ${amount}, decimals: ${decimals}, UI amount: ${uiAmount}`);
-    return uiAmount;
+    
+    let uiAmount: number;
+    
+    if (isProgramScaledToken) {
+      // If this is a program-scaled token (like YOS in our staking program),
+      // use the 10,000× scaling factor instead of token decimals
+      const PROGRAM_SCALING_FACTOR = 10000;
+      uiAmount = amount / PROGRAM_SCALING_FACTOR;
+      console.log(`Program-scaled parsed token balance raw: ${amount}, using 10,000× scaling factor, UI amount: ${uiAmount}`);
+    } else {
+      // Standard token decimal conversion (e.g., 9 decimals for most Solana tokens)
+      uiAmount = amount / Math.pow(10, decimals);
+      console.log(`Parsed token balance raw: ${amount}, decimals: ${decimals}, UI amount: ${uiAmount}`);
+    }
+    
+    return parseFloat(uiAmount.toFixed(9)); // Round to 9 decimal places for consistency
   } catch (error) {
     console.error('Error fetching parsed token balance:', error);
     return 0;
@@ -215,7 +253,9 @@ export async function validateStakingAccounts(wallet: any) {
     }
     
     try {
-      // Use getParsedTokenBalance which properly handles token decimals
+      // For YOS balance, we need to check if it's from the program (using 10,000× scaling)
+      // or a regular token account (using standard 9 decimals)
+      // For this function, we'll use standard decimals as we're checking the user's wallet
       yosBalance = await getParsedTokenBalance(connection, walletPublicKey, yosMint);
       console.log(`YOS balance with proper decimal handling: ${yosBalance}`);
     } catch (error) {
@@ -857,17 +897,18 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     
     // Perform safety check on program YOS token balance
     try {
-      // Use the new getTokenBalance function to get the correct UI amount with proper decimals
-      const programYosBalance = await getTokenBalance(connection, programYosATA);
-      console.log(`Program YOS balance (with proper decimals): ${programYosBalance.toFixed(4)} YOS`);
+      // CRITICAL FIX: Use the new getTokenBalance function with isProgramScaledToken=true
+      // This ensures we handle the program's 10,000x scaling factor correctly
+      const programYosBalance = await getTokenBalance(connection, programYosATA, true);
+      console.log(`Program YOS balance (with 10,000× program scaling): ${programYosBalance.toFixed(4)} YOS`);
       
       // Compare program balance with programRewards (actual amount needed by the contract)
-      if (programYosBalance < programRewards) {
+      if (programYosBalance < displayRewards) {
         console.warn(`
         ⚠️ WARNING: INSUFFICIENT PROGRAM BALANCE ⚠️
         Program YOS balance: ${programYosBalance.toFixed(6)} YOS
         User pending rewards (UI): ${displayRewards.toFixed(6)} YOS
-        User pending rewards (program): ${programRewards.toFixed(6)} YOS
+        User pending rewards (program scale): ${programRewards.toFixed(6)} YOS
         Harvest may fail or be partial
         `);
       }
