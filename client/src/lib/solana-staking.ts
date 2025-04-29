@@ -153,7 +153,7 @@ enum StakingInstructionType {
 
 function findProgramStateAddress(): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
-    [Buffer.from('state')],
+    [Buffer.from('program_state')],
     new PublicKey(STAKING_PROGRAM_ID)
   );
 }
