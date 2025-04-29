@@ -572,8 +572,12 @@ export function useStaking() {
         
         // CRITICAL FIX: Check if rewards meet the threshold using the UI display value (not internal)
         // This ensures consistency between what the user sees and what is required
-        if (stakingInfo.rewardsEarned < (stakingRates.harvestThreshold || 0)) {
-          throw new Error(`Rewards (${stakingInfo.rewardsEarned.toFixed(6)} YOS) are below the minimum threshold (${(stakingRates.harvestThreshold || 0).toFixed(6)} YOS). Stake more or wait longer.`);
+        // CRITICAL FIX: The UI should display the divided amount, but the comparison
+        // with the threshold needs to account for the 10,000× multiplier
+        const displayRewards = stakingInfo.rewardsEarned / 10000;
+        
+        if (displayRewards < (stakingRates.harvestThreshold || 0)) {
+          throw new Error(`Rewards (${displayRewards.toFixed(6)} YOS) are below the minimum threshold (${(stakingRates.harvestThreshold || 0).toFixed(6)} YOS). Stake more or wait longer.`);
         }
         
         // Log reward values for clarity and debugging

@@ -1456,33 +1456,24 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // but keep it in the actual transaction for compatibility with the deployed program
     const scalingFactor = 10000;
     
-    // IMPORTANT: The contract gives rewards based on the stated APR
-    // For example, with 394.2% APR, a user with 100 YOT should earn 394.2 YOS per year
-    
-    // Get the daily APR based on the per-second rate
+    // Simple linear calculation that matches the blockchain
     const secondsInDay = 86400;
     const secondsInYear = secondsInDay * 365;
-    const dailyRatePercentage = stakeRateDecimal * secondsInDay * 100; // As percentage
-    const yearlyRatePercentage = dailyRatePercentage * 365; // As percentage
     
-    console.log(`Daily rate: ${dailyRatePercentage.toFixed(6)}%, Yearly rate: ${yearlyRatePercentage.toFixed(2)}%`);
-    
-    // Calculate rewards: (staked amount) * (yearly rate as decimal) * (fraction of year elapsed)
-    const yearlyRateDecimal = yearlyRatePercentage / 100; // Convert from percentage to decimal
-    const yearFraction = timeStakedSinceLastHarvest / secondsInYear;
-    
-    // Apply the calculation using the exact interest formula from the contract
-    const normalizedRewards = stakedAmount * yearlyRateDecimal * yearFraction;
-    
-    // Final rewards value (this is what the user should actually receive)
-    const rewardsValue = normalizedRewards;
-    
-    console.log(`DETAILED REWARDS CALCULATION:
+    // Calculate rewards using the contract's formula
+    // We intentionally do NOT apply the 10,000× division here, so the UI can use the actual values
+    const yearlyRate = stakeRateDecimal * secondsInYear * 100; // As percentage
+    const rewardsValue = stakedAmount * (yearlyRate / 100) * (timeStakedSinceLastHarvest / secondsInYear);
+
+    console.log(`REWARDS CALCULATION:
     - YOT staked: ${stakedAmount} 
-    - Yearly rate: ${yearlyRatePercentage.toFixed(2)}%
-    - Time staked: ${timeStakedSinceLastHarvest} seconds (${(yearFraction * 100).toFixed(6)}% of a year)
-    - Raw calculation: ${stakedAmount} * ${yearlyRateDecimal} * ${yearFraction} = ${normalizedRewards}
-    - Final YOS rewards: ${rewardsValue}`);
+    - Yearly rate: ${yearlyRate.toFixed(2)}%
+    - Time staked: ${timeStakedSinceLastHarvest} seconds
+    - YOS rewards: ${rewardsValue}`);
+    
+    // For logging, we'll also show what these values mean
+    const dailyReward = stakedAmount * (stakeRateDecimal * secondsInDay * 100) / 100;
+    console.log(`At current rate, you earn approximately ${dailyReward.toFixed(6)} YOS per day per ${stakedAmount} YOT staked`);
     
     // Format the rewards value to display with normal decimals instead of scientific notation
     let formattedRewardsValue: string;
