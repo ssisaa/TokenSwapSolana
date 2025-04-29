@@ -806,10 +806,17 @@ export function useStaking() {
       }
     },
     onSuccess: (result) => {
+      // Delay the refresh slightly to give blockchain time to update
+      console.log("Settings update successful, refreshing staking rates...");
       console.log('Staking settings updated successfully:', result);
-      // Invalidate queries to trigger refetch
-      console.log('Invalidating staking rates cache to trigger refetch');
-      queryClient.invalidateQueries({ queryKey: ['staking', 'rates'] });
+      
+      // Add a short delay before invalidating the cache to allow blockchain to update
+      setTimeout(() => {
+        console.log('Invalidating staking rates cache to trigger refetch');
+        queryClient.invalidateQueries({ queryKey: ['staking', 'rates'] });
+        // Also force refetch explicitly
+        refetchRates();
+      }, 2000); // 2 second delay
       
       // Construct a complete message with all the updated parameters
       const successMessage = `
