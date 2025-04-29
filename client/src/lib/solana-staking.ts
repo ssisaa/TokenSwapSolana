@@ -829,17 +829,18 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     // Using the normalized UI rewards value (already divided by 10,000 in calculatePendingRewards)
     const displayRewards = stakingInfo.rewardsEarned;
     
-    // IMPORTANT: The Solana program uses a 10,000× multiplier internally
-    // We must match this exact scaling factor for compatibility with the deployed program
-    const scalingFactor = 10000;
+    // CRITICAL: The Solana program uses a 10,000× multiplier internally
+    // We must match this exact scaling factor for blockchain compatibility
+    const PROGRAM_SCALING_FACTOR = 10000;
     
     // Calculate the raw rewards value that will be used by the program (10,000× multiplier)
-    const programRewards = displayRewards * scalingFactor;
+    // This is what the blockchain will actually calculate and transfer
+    const programRewards = displayRewards * PROGRAM_SCALING_FACTOR;
     
     console.log(`
     ========== HARVEST OPERATION DEBUG ==========
     Rewards to harvest (UI value): ${displayRewards.toFixed(6)} YOS
-    Estimated wallet display value: ${programRewards.toFixed(6)} YOS (${scalingFactor}× multiplier)
+    Estimated wallet display value: ${programRewards.toFixed(6)} YOS (${PROGRAM_SCALING_FACTOR}× multiplier)
     ============================================`);
     
     // Also get the harvest threshold
@@ -1572,7 +1573,8 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // Read staked amount (8 bytes, 64-bit unsigned integer)
     const stakedAmountRaw = data.readBigUInt64LE(32);
     
-    // Convert from raw to decimal using our utility function
+    // For staked amount, we DO use token decimals (10^9) not the program's scaling factor
+    // This is because YOT tokens use the standard Solana 9 decimal places
     const stakedAmount = rawToUiTokenAmount(stakedAmountRaw, YOT_DECIMALS);
     
     console.log(`Raw staked amount from blockchain: ${stakedAmountRaw}, converted to decimal using ${YOT_DECIMALS} decimals: ${stakedAmount}`);
@@ -1584,10 +1586,12 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // Read total harvested rewards (8 bytes, 64-bit unsigned integer)
     const totalHarvestedRaw = data.readBigUInt64LE(56);
     
-    // Convert from raw to decimal using our utility function
-    const totalHarvested = rawToUiTokenAmount(totalHarvestedRaw, YOS_DECIMALS);
+    // CRITICAL FIX: The program uses a 10,000× multiplier NOT token decimals
+    // So we must divide by 10000 to get the actual token amount users receive
+    const PROGRAM_SCALING_FACTOR = 10000;
+    const totalHarvested = Number(totalHarvestedRaw) / PROGRAM_SCALING_FACTOR;
     
-    console.log(`Raw total harvested from blockchain: ${totalHarvestedRaw}, converted to decimal using ${YOS_DECIMALS} decimals: ${totalHarvested}`);
+    console.log(`Raw total harvested from blockchain: ${totalHarvestedRaw}, converted using 10,000× program scaling: ${totalHarvested} YOS`);
     
     // Get the staking rate from the program state
     // First read stake rate (8 bytes, 64-bit unsigned integer) from blockchain
