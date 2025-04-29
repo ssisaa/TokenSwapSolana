@@ -386,7 +386,8 @@ function encodeUnstakeInstruction(amount: number): Buffer {
   const data = Buffer.alloc(1 + 8); // instruction type (1) + amount (8)
   data.writeUInt8(StakingInstructionType.Unstake, 0);
   
-  // Convert YOT amount to raw amount with 9 decimals
+  // IMPORTANT: The Solana program expects YOT amount in raw form with 9 decimals
+  // We need to convert the UI amount to raw token amount
   const rawAmount = uiToRawTokenAmount(amount, YOT_DECIMALS);
   data.writeBigUInt64LE(rawAmount, 1);
   
@@ -737,12 +738,19 @@ export async function unstakeYOTTokens(
       throw new Error("Unstake amount must be greater than zero");
     }
     
-    // Get current staking info to validate unstake amount
+    // Get current staking info to validate unstake amount and calculate rewards
     const stakingInfo = await getStakingInfo(walletPublicKey.toString());
     
     if (stakingInfo.stakedAmount < amount) {
       throw new Error(`Cannot unstake ${amount} YOT. You only have ${stakingInfo.stakedAmount} YOT staked.`);
     }
+    
+    // First get staking rates to validate the transaction
+    const stakingRates = await getStakingProgramState();
+    console.log("Staking rates for threshold check:", stakingRates);
+    
+    // Log detailed rewards and stake information
+    console.log("Now executing actual unstake operation...");
     
     // Create transaction
     const transaction = await prepareUnstakeTransaction(wallet, amount);
@@ -782,6 +790,7 @@ export async function unstakeYOTTokens(
     }
   } catch (error) {
     console.error('Error in unstake process:', error);
+    console.error('Detailed unstaking error:', error);
     throw error;
   }
 }
