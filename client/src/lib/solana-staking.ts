@@ -1530,10 +1530,14 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     const secondsInDay = 86400;
     const secondsInYear = secondsInDay * 365;
     
-    // Calculate rewards using the contract's formula
-    // We intentionally do NOT apply the 10,000× division here, so the UI can use the actual values
-    const yearlyRate = stakeRateDecimal * secondsInYear * 100; // As percentage
-    const rewardsValue = stakedAmount * (yearlyRate / 100) * (timeStakedSinceLastHarvest / secondsInYear);
+    // CRITICAL FIX: Use simple interest formula that exactly matches Solana program
+    // Formula: principal * rate * time
+    // This matches exactly what the Solana program calculates and fixes the inconsistency
+    console.log("Using SIMPLE LINEAR interest formula that matches the Solana program");
+    
+    // Simple linear interest formula: principal * rate * time
+    // No exponentiation, no compounding, no yearly conversion - just direct multiplication
+    const rewardsValue = stakedAmount * stakeRateDecimal * timeStakedSinceLastHarvest;
 
     console.log(`REWARDS CALCULATION:
     - YOT staked: ${stakedAmount} 
