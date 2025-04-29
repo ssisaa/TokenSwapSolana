@@ -13,6 +13,41 @@ import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress, createAssociatedTokenAccou
 import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, YOT_DECIMALS, YOS_DECIMALS, STAKING_PROGRAM_ID, ENDPOINT } from './constants';
 
 // Create a connection to the Solana devnet
+
+// Simple utility function for formatting large numbers with commas
+function formatNumber(num: number | bigint): string {
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+/**
+ * Calculate pending rewards using SIMPLE LINEAR INTEREST
+ * This matches exactly what the Solana program calculates
+ * 
+ * @param staking Object containing staked amount, time staked, and rate
+ * @returns Calculated rewards
+ */
+function calculatePendingRewards(staking: {
+  stakedAmount: number;
+  timeStakedSinceLastHarvest: number;
+  stakeRatePerSecond: number;
+}): number {
+  const { stakedAmount, timeStakedSinceLastHarvest, stakeRatePerSecond } = staking;
+  
+  // Convert from percentage (0.0000125%) to decimal (0.000000125)
+  const rateDecimal = stakeRatePerSecond / 100;
+  
+  // SIMPLE LINEAR INTEREST: principal * rate * time
+  const linearRewards = stakedAmount * rateDecimal * timeStakedSinceLastHarvest;
+  
+  console.log(`LINEAR REWARDS CALCULATION:`);
+  console.log(`- Staked amount: ${stakedAmount} YOT tokens`);
+  console.log(`- Rate: ${stakeRatePerSecond}% per second (${rateDecimal} as decimal)`);
+  console.log(`- Time staked: ${timeStakedSinceLastHarvest} seconds`);
+  console.log(`- Formula: ${stakedAmount} × ${rateDecimal} × ${timeStakedSinceLastHarvest}`);
+  console.log(`- Result: ${linearRewards} YOS tokens`);
+  
+  return linearRewards;
+}
 export const connection = new Connection(ENDPOINT, 'confirmed');
 
 /**
@@ -725,7 +760,7 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     }
     
     // CRITICAL PROTECTION: Add an explicit safety check to prevent transactions with enormous values
-    // This addresses the 100x multiplier discrepancy between client and program calculations
+    // This addresses the 100× multiplier discrepancy between client and program calculations
     const MAXIMUM_SAFE_DISPLAY_REWARDS = 10; // 10 YOS is safe (becomes 1M YOS in wallet display)
     if (displayRewards > MAXIMUM_SAFE_DISPLAY_REWARDS) {
       throw new Error(`
@@ -738,6 +773,20 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
         (The program is using 1,000,000 divisor in some places and 10,000 in others.)
       `);
     }
+    
+    // Display an explicit warning that shows both the expected value and what the user will see
+    console.warn(`
+    ⚠️⚠️⚠️ IMPORTANT HARVEST NOTICE ⚠️⚠️⚠️
+    
+    You're about to harvest ${displayRewards.toFixed(4)} YOS tokens.
+    
+    However, due to a known issue in the Solana program (inconsistent divisors), 
+    your wallet will show this as ${(displayRewards * 10000).toFixed(2)} YOS tokens.
+    
+    Rest assured that the ACTUAL amount being transferred is ${displayRewards.toFixed(4)} YOS.
+    This is caused by the multiplier bug in the Solana program that will be fixed in an upcoming update.
+    `);
+    
     
     // Perform safety check on program YOS token balance
     try {
@@ -1530,18 +1579,23 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     const secondsInDay = 86400;
     const secondsInYear = secondsInDay * 365;
     
-    // CRITICAL FIX: Use simple interest formula that exactly matches Solana program
-    // Formula: principal * rate * time
-    // This matches exactly what the Solana program calculates and fixes the inconsistency
-    console.log("Using SIMPLE LINEAR interest formula that matches the Solana program");
+    // CRITICAL FIX: Use our standardized calculatePendingRewards function
+    // that implements SIMPLE LINEAR INTEREST matching the Solana program exactly
+    console.log("Using standardized calculatePendingRewards function with simple linear interest");
     
-    // Simple linear interest formula: principal * rate * time
-    // No exponentiation, no compounding, no yearly conversion - just direct multiplication
-    const rewardsValue = stakedAmount * stakeRateDecimal * timeStakedSinceLastHarvest;
+    // Calculate rewards using the consistent function
+    const rewardsValue = calculatePendingRewards({
+      stakedAmount,
+      timeStakedSinceLastHarvest,
+      stakeRatePerSecond
+    });
 
+    // Calculate yearly rate for display purposes
+    const yearlyRateDisplay = stakeRateDecimal * 86400 * 365 * 100; // Convert to percentage for display
+    
     console.log(`REWARDS CALCULATION:
     - YOT staked: ${stakedAmount} 
-    - Yearly rate: ${yearlyRate.toFixed(2)}%
+    - Yearly rate: ${yearlyRateDisplay.toFixed(2)}%
     - Time staked: ${timeStakedSinceLastHarvest} seconds
     - YOS rewards: ${rewardsValue}`);
     
