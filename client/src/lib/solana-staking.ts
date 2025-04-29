@@ -1286,7 +1286,8 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
         startTimestamp: 0,
         lastHarvestTime: 0,
         totalHarvested: 0,
-        rewardsEarned: 0
+        rewardsEarned: 0,
+        _rewardsEarnedInternal: 0 // Include the internal value as well
       };
     }
     
@@ -1420,7 +1421,8 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
         startTimestamp: 0,
         lastHarvestTime: 0,
         totalHarvested: 0,
-        rewardsEarned: 0
+        rewardsEarned: 0,
+        _rewardsEarnedInternal: 0 // Include the internal value for consistency
       };
     }
     

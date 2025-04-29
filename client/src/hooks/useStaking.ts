@@ -568,9 +568,18 @@ export function useStaking() {
         const stakingRates = await getStakingProgramState();
         console.log("Staking rates for threshold check:", stakingRates);
         
-        // Check if rewards meet the threshold
+        // CRITICAL FIX: Check if rewards meet the threshold using the UI display value (not internal)
+        // This ensures consistency between what the user sees and what is required
         if (stakingInfo.rewardsEarned < (stakingRates.harvestThreshold || 0)) {
           throw new Error(`Rewards (${stakingInfo.rewardsEarned.toFixed(6)} YOS) are below the minimum threshold (${(stakingRates.harvestThreshold || 0).toFixed(6)} YOS). Stake more or wait longer.`);
+        }
+        
+        // Log reward values for clarity and debugging
+        console.log("REWARDS CHECK PASSED:");
+        console.log(`- User UI reward amount: ${stakingInfo.rewardsEarned} YOS`);
+        console.log(`- Harvest threshold: ${stakingRates.harvestThreshold || 0} YOS`);
+        if (stakingInfo._rewardsEarnedInternal) {
+          console.log(`- Internal blockchain value (not shown to user): ${stakingInfo._rewardsEarnedInternal} YOS`);
         }
         
         // Execute the harvest
