@@ -550,18 +550,23 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     // Use our global helper function for consistent UI to raw conversion
     // When sending 0.0288805 YOS, the raw value will be 288.805
     
-    // CRITICAL FIX: For YOS tokens, we need to apply BOTH token decimals AND program scaling
-    // For YOS, we need: rawValue = uiValue * 10^9 * 10,000
-    // Example: 0.5 YOS -> 0.5 * 10^9 = 500,000,000 -> 500,000,000 * 10,000 = 5,000,000,000,000
-    const rawYosAmount = uiToRawTokenAmount(rawRewards, YOS_TOKEN_DECIMALS); // Convert to raw token amount (9 decimals)
-    const programAdjustedAmount = rawYosAmount * BigInt(PROGRAM_SCALING_FACTOR); // Apply program scaling
+    // CRITICAL FIX: For YOS tokens, we now understand that we've been incorrectly scaling
+    // The Solana program expects YOS amounts to be scaled down by the program scaling factor
+    // to display them correctly, but the token decimals are handled by Solana separately
     
-    console.log(`YOS CONVERSION - HARVEST REWARDS: ${rawRewards} YOS`);
-    console.log(`Step 1: Convert to raw token amount: ${rawRewards} × 10^${YOS_TOKEN_DECIMALS} = ${rawYosAmount}`);
-    console.log(`Step 2: Apply program scaling: ${rawYosAmount} × ${PROGRAM_SCALING_FACTOR} = ${programAdjustedAmount}`);
+    // We only need to apply the program scaling factor (10000)
+    const scaledAmount = uiToRawYos(rawRewards);
     
-    // Write the fully adjusted amount to the data buffer
-    data.writeBigUInt64LE(programAdjustedAmount, 1);
+    console.log(`YOS CONVERSION (FIXED) - HARVEST REWARDS: ${rawRewards} YOS`);
+    console.log(`Applied program scaling only: ${rawRewards} × ${PROGRAM_SCALING_FACTOR} = ${scaledAmount}`);
+    
+    // Ensure we don't exceed the maximum u64 value
+    if (scaledAmount > BigInt("18446744073709551615")) {
+      throw new Error("Amount too large for transaction encoding");
+    }
+    
+    // Write the amount to the data buffer
+    data.writeBigUInt64LE(scaledAmount, 1);
     
     // Calculate the scaling value to get from our calculated amount to 226 YOS
     const targetYOS = 226;
@@ -569,11 +574,11 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     
     console.log(`Created harvest instruction buffer with adjusted rewards:`);
     console.log(`Original rewards value: ${rewardsAmount} YOS`);
-    console.log(`SCALING ANALYSIS: First multiplying by token decimals (10^9), then program scaling (${PROGRAM_SCALING_FACTOR})`);
-    console.log(`ACTUAL SCALING: For our calculated ${rawRewards} YOS, we're sending: ${programAdjustedAmount}`);
+    console.log(`SCALING ANALYSIS: Now applying only program scaling (${PROGRAM_SCALING_FACTOR})`);
+    console.log(`ACTUAL SCALING: For our calculated ${rawRewards} YOS, we're sending: ${scaledAmount}`);
     console.log(`This should result in proper blockchain value that matches program expectation`);
-    console.log(`Using consistent token + program scaling across all operations`);
-    console.log(`The exact ratio applied: 10^${YOS_TOKEN_DECIMALS} × ${PROGRAM_SCALING_FACTOR}`);
+    console.log(`Using consistent program scaling across all operations`);
+    console.log(`The exact ratio applied: ${PROGRAM_SCALING_FACTOR}×`);
     console.log("Buffer size:", data.length, "bytes");
     return data;
   } else {
