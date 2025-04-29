@@ -342,6 +342,17 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                     </AlertDescription>
                   </Alert>
                   
+                  {stakingInfo.rewardsEarned > 0 && (
+                    <Alert className="mt-4 bg-blue-950/30 border-blue-700">
+                      <Bell className="h-4 w-4 text-blue-500" />
+                      <AlertTitle className="text-blue-400 text-xs font-medium">Pending Rewards</AlertTitle>
+                      <AlertDescription className="text-blue-200 text-xs">
+                        You have <strong>{(stakingInfo.rewardsEarned / 10000).toFixed(6)} YOS</strong> in unclaimed rewards.
+                        Consider harvesting your rewards before unstaking to avoid losing them.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  
                   <div className="bg-dark-300 border border-border p-3 rounded-lg text-sm mt-4">
                     <div className="flex items-start">
                       <InfoIcon className="h-4 w-4 mr-2 mt-0.5 text-primary" />

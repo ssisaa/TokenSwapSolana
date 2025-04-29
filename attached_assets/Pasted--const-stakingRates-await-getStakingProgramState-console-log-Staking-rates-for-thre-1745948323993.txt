@@ -1,0 +1,291 @@
+    const stakingRates = await getStakingProgramState();
+        console.log("Staking rates for threshold check:", stakingRates);
+        
+        // Check if rewards meet the threshold
+        if (stakingInfo.rewardsEarned < stakingRates.harvestThreshold) {
+          throw new Error(`Rewards (${stakingInfo.rewardsEarned.toFixed(6)} YOS) are below the minimum threshold (${stakingRates.harvestThreshold.toFixed(6)} YOS). Stake more or wait longer.`);
+        }
+        
+        // Execute the harvest
+        const result = await harvestYOSRewards(wallet);
+        console.log("Harvest transaction result:", result);
+        
+        // Handle the special "already processed" case
+        if (result === "ALREADY_PROCESSED") {
+          console.log("Transaction was already processed, treating as success");
+          return { signature: "ALREADY_PROCESSED", alreadyProcessed: true };
+        }
+        
+        // Return the signature for processing in onSuccess
+        return { signature: result, alreadyProcessed: false };
+      } catch (err) {
+        console.error("Error during harvesting operation:", err);
+        throw err;
+      }
+    },
+    onSuccess: (result) => {
+      if (!publicKey) return;
+      
+      // Invalidate queries to trigger refetch
+      queryClient.invalidateQueries({ queryKey: ['staking', publicKey.toString()] });
+      queryClient.invalidateQueries({ queryKey: ['tokens'] });
+      
+      // IMPORTANT: Immediately update the UI with the simulated result
+      // Get the current staking info
+      const currentInfo = queryClient.getQueryData<StakingInfo>(['staking', publicKey.toString()]);
+      
+      if (currentInfo) {
+        // Create a simulated updated staking info after harvest
+        const updatedInfo = {
+          ...currentInfo,
+          totalHarvested: currentInfo.totalHarvested + currentInfo.rewardsEarned,
+          rewardsEarned: 0,
+          lastHarvestTime: Math.floor(Date.now() / 1000)
+        };
+        
+        console.log("Updating staking info with simulated data after harvest:", updatedInfo);
+        
+        // Update the cache with simulated data
+        queryClient.setQueryData(['staking', publicKey.toString()], updatedInfo);
+      }
+      
+      // Check if this was an "already processed" transaction
+      if (result.signature === "ALREADY_PROCESSED") {
+        toast({
+          title: "Transaction Already Processed",
+          description: "Your rewards were already harvested in a previous transaction. Your balance has been updated.",
+        });
+      } else {
+        toast({
+          title: "Rewards Harvested",
+          description: "Successfully harvested YOS token rewards.",
+        });
+      }
+    },
+    onError: (error: Error) => {
+      const errorMessage = error.message || "Unknown error occurred";
+      
+      // Handle specific error messages with user-friendly explanations
+      if (errorMessage.includes("Failed to serialize or deserialize account data")) {
+        toast({
+          title: "Staking Program Not Initialized",
+          description: "The staking program needs to be initialized by an admin. Please check admin settings.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("program that does not exist")) {
+        toast({
+          title: "Staking Program Not Deployed",
+          description: "The staking program is not deployed or not accessible. Please check program ID.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("invalid program id")) {
+        toast({
+          title: "Invalid Program ID",
+          description: "The staking program ID is invalid. Check configuration.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("Transaction simulation failed")) {
+        toast({
+          title: "Transaction Failed",
+          description: "The transaction simulation failed. The program may not be properly initialized or has invalid data.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("No rewards to harvest")) {
+        toast({
+          title: "No Rewards Available",
+          description: "You don't have any YOS rewards to harvest yet. Stake longer to earn rewards.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("Insufficient funds")) {
+        toast({
+          title: "Insufficient Funds",
+          description: "You don't have enough SOL to pay for transaction fees.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("Program state account does not exist")) {
+        toast({
+          title: "Program Not Initialized",
+          description: "The staking program state has not been created. An admin needs to initialize it first.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("This transaction has already been processed")) {
+        toast({
+          title: "Transaction Already Processed",
+          description: "Your transaction was already processed. Please check your wallet balance before trying again.",
+        });
+        
+        // Invalidate queries to update the UI with the latest data
+        if (publicKey) {
+          queryClient.invalidateQueries({ queryKey: ['staking', publicKey.toString()] });
+          queryClient.invalidateQueries({ queryKey: ['tokens'] });
+        }
+      } else if (errorMessage.includes("below the minimum threshold")) {
+        // Specific handling for harvest threshold errors
+        toast({
+          title: "Rewards Below Threshold",
+          description: errorMessage,
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Harvesting Failed',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+      }
+      
+      console.error("Detailed harvesting error:", error);
+    }
+  });
+  
+  // Mutation for admin to update staking parameters
+  const updateStakingSettingsMutation = useMutation({
+    mutationFn: async ({ 
+      ratePerSecond,
+      harvestThreshold
+    }: { 
+      ratePerSecond: number,
+      harvestThreshold: number
+    }) => {
+      if (!wallet || !connected) {
+        throw new Error('Wallet not connected');
+      }
+      
+      if (!publicKey) {
+        throw new Error('Wallet public key not available');
+      }
+      
+      try {
+        console.log("Updating staking parameters...");
+        console.log("New rate per second:", ratePerSecond);
+        console.log("New harvest threshold:", harvestThreshold);
+        
+        // Special case handling for known rate values
+        let basisPoints;
+        if (ratePerSecond === 0.00000125) {
+          // Special case: 0.00000125% per second = 12000 basis points
+          basisPoints = 12000;
+          console.log("Using special case: 0.00000125% = 12000 basis points");
+        } else if (ratePerSecond === 0.000000125) {
+          // Special case: 0.000000125% per second = 1200 basis points
+          basisPoints = 1200;
+          console.log("Using special case: 0.000000125% = 1200 basis points");
+        } else {
+          // Convert using our scaling factor: 1.25e-9 (0.00000000125%) = 12 basis points
+          // Therefore, the multiplier is 12 / 0.00000000125 = 9,600,000,000
+          basisPoints = Math.round(ratePerSecond * 9600000000);
+          console.log(`Using dynamic calculation: ${ratePerSecond}% × 9,600,000,000 = ${basisPoints} basis points`);
+        }
+        
+        console.log("Final basis points for blockchain:", basisPoints);
+        
+        // For the harvest threshold, we convert to YOS raw units (micro-YOS)
+        // YOS uses 6 decimals, so 1 YOS = 1,000,000 micro-YOS
+        const harvestThresholdRaw = Math.round(harvestThreshold * 1000000);
+        console.log("Harvest threshold in micro-YOS:", harvestThresholdRaw);
+        
+        // Call the blockchain function to update parameters
+        const signature = await updateStakingParameters(
+          wallet, 
+          basisPoints,               // stake rate in basis points
+          harvestThresholdRaw        // minimum amount in YOS micro-units
+        );
+        
+        console.log("Update parameters transaction signature:", signature);
+        
+        // Return signature and new values for processing in onSuccess
+        return { 
+          signature,
+          ratePerSecond,
+          harvestThreshold
+        };
+      } catch (err) {
+        console.error("Error updating staking parameters:", err);
+        throw err;
+      }
+    },
+    onSuccess: (result) => {
+      // Invalidate queries to trigger refetch
+      queryClient.invalidateQueries({ queryKey: ['staking', 'rates'] });
+      
+      toast({
+        title: "Staking Parameters Updated",
+        description: `Successfully updated staking rate to ${result.ratePerSecond}% per second and harvest threshold to ${result.harvestThreshold} YOS.`,
+      });
+    },
+    onError: (error: Error) => {
+      const errorMessage = error.message || "Unknown error occurred";
+      
+      // Handle specific error messages with user-friendly explanations
+      if (errorMessage.includes("not admin")) {
+        toast({
+          title: "Not Authorized",
+          description: "Only the admin wallet can update staking parameters.",
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Update Failed',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+      }
+      
+      console.error("Detailed parameter update error:", error);
+    }
+  });
+  
+  // Load global staking statistics periodically
+  useEffect(() => {
+    const loadGlobalStats = async () => {
+      console.log("Fetching global stats with React Query...");
+      try {
+        const stats = await getGlobalStakingStats();
+        console.log("Updated global stats from query:", stats);
+        setGlobalStats(stats);
+      } catch (error) {
+        console.error("Error fetching global staking stats:", error);
+        // Keep last valid stats instead of setting defaults
+      }
+    };
+    
+    // Load stats immediately and then periodically
+    loadGlobalStats();
+    const interval = setInterval(loadGlobalStats, 60000); // Refresh every minute
+    
+    return () => clearInterval(interval);
+  }, []);
+  
+  return {
+    stakingInfo: stakingInfo || {
+      stakedAmount: 0,
+      startTimestamp: 0,
+      lastHarvestTime: 0,
+      totalHarvested: 0,
+      rewardsEarned: 0
+    },
+    stakingRates: stakingRates || {
+      stakeRatePerSecond: 0,
+      harvestThreshold: 0,
+      dailyAPR: 0,
+      weeklyAPR: 0,
+      monthlyAPR: 0,
+      yearlyAPR: 0,
+      dailyAPY: 0,
+      weeklyAPY: 0,
+      monthlyAPY: 0,
+      yearlyAPY: 0
+    },
+    globalStats,
+    isLoadingStakingInfo,
+    isLoadingRates,
+    stakingError,
+    ratesError,
+    stakeMutation,
+    unstakeMutation,
+    harvestMutation,
+    updateStakingSettingsMutation,
+    refetchStakingInfo,
+    refetchRates
+  };
+}
