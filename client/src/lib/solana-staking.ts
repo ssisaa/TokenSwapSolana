@@ -33,17 +33,22 @@ const YOS_TOKEN_DECIMALS = 9;
  * @returns The scaled value for blockchain with both adjustments applied
  */
 export function uiToRawYot(uiValue: number): bigint {
-  // CRITICAL FIX TAKE 3:
-  // We need to use only the program scaling factor (10000) for staking amount
-  // This correctly converts the UI value to the raw amount expected by the program
+  // CRITICAL FIX TAKE 4:
+  // We need to apply both token decimals AND program scaling factor to get
+  // the raw value that displays correctly in the Phantom wallet
   
-  // For wallet display purposes, we multiply by 10000 - this gives the correct display in the wallet
-  // The program itself knows the tokens have 9 decimals, so we don't need to apply those here
+  // First convert to token decimals (this makes it display properly in wallet)
+  const withDecimals = uiValue * Math.pow(10, YOT_TOKEN_DECIMALS);
+  
+  // Now apply program scaling - this is what the contract needs
   const scaledAmount = Math.round(uiValue * PROGRAM_SCALING_FACTOR);
   
-  console.log(`YOT CONVERSION (FIXED v3): UI ${uiValue} → Raw blockchain value ${scaledAmount}`);
-  console.log(`Direct program scaling: ${uiValue} × ${PROGRAM_SCALING_FACTOR} = ${scaledAmount}`);
+  console.log(`YOT CONVERSION (FIXED v4): UI ${uiValue} → Display value ${withDecimals} → Contract value ${scaledAmount}`);
+  console.log(`Step 1: Token decimals for display: ${uiValue} × 10^${YOT_TOKEN_DECIMALS} = ${withDecimals}`);
+  console.log(`Step 2: Program scaling for contract: ${uiValue} × ${PROGRAM_SCALING_FACTOR} = ${scaledAmount}`);
   
+  // Return the PROGRAM_SCALING_FACTOR value as that's what the contract needs
+  // The token decimals are automatically handled by the token program
   return BigInt(scaledAmount);
 }
 
@@ -487,14 +492,18 @@ function encodeStakeInstruction(amount: number): Buffer {
   const data = Buffer.alloc(1 + 8); // instruction type (1) + amount (8)
   data.writeUInt8(StakingInstructionType.Stake, 0);
   
-  // CRITICAL FIX: For YOT tokens, we need to be careful about how we encode the amount
-  // We ONLY need to send the program's scaling factor (10000) without token decimals
-  // The Solana program will handle the token decimals separately
+  // CRITICAL FIX: For YOT tokens, we need to use two different conversions:
+  // 1. For display in wallet UI, we need to apply token decimals (9) only
+  // 2. For the contract, we need to apply program scaling factor (10000) only
   
-  const rawAmount = uiToRawYot(amount);
+  // This converts amount to the correct raw value with program scaling factor
+  const contractAmount = Math.round(amount * PROGRAM_SCALING_FACTOR);
+  // Convert to bigint for transaction encoding
+  const rawAmount = BigInt(contractAmount);
   
-  console.log(`STAKING: Converting UI value ${amount} YOT to raw value ${rawAmount}`);
-  console.log(`Applied program scaling only: ${amount} × ${PROGRAM_SCALING_FACTOR} = ${rawAmount}`);
+  console.log(`STAKING: Converting UI value ${amount} YOT for transaction`);
+  console.log(`For wallet display: ${amount} × 10^${YOT_TOKEN_DECIMALS} = ${amount * Math.pow(10, YOT_TOKEN_DECIMALS)}`);
+  console.log(`For contract: ${amount} × ${PROGRAM_SCALING_FACTOR} = ${contractAmount}`);
   
   // Ensure we don't exceed the maximum u64 value
   if (rawAmount > BigInt("18446744073709551615")) {
@@ -510,13 +519,18 @@ function encodeUnstakeInstruction(amount: number): Buffer {
   const data = Buffer.alloc(1 + 8); // instruction type (1) + amount (8)
   data.writeUInt8(StakingInstructionType.Unstake, 0);
   
-  // CRITICAL FIX: For YOT tokens, we need to be careful about how we encode the amount
-  // We ONLY need to send the program's scaling factor (10000) without token decimals
-  // The Solana program will handle the token decimals separately
-  const rawAmount = uiToRawYot(amount);
+  // CRITICAL FIX: For YOT tokens, we need to use two different conversions like we do for staking:
+  // 1. For display in wallet UI, we need to apply token decimals (9) only
+  // 2. For the contract, we need to apply program scaling factor (10000) only
   
-  console.log(`UNSTAKING: Converting UI value ${amount} YOT to raw value ${rawAmount}`);
-  console.log(`Applied program scaling only: ${amount} × ${PROGRAM_SCALING_FACTOR} = ${rawAmount}`);
+  // This converts amount to the correct raw value with program scaling factor
+  const contractAmount = Math.round(amount * PROGRAM_SCALING_FACTOR);
+  // Convert to bigint for transaction encoding
+  const rawAmount = BigInt(contractAmount);
+  
+  console.log(`UNSTAKING: Converting UI value ${amount} YOT for transaction`);
+  console.log(`For wallet display: ${amount} × 10^${YOT_TOKEN_DECIMALS} = ${amount * Math.pow(10, YOT_TOKEN_DECIMALS)}`);
+  console.log(`For contract: ${amount} × ${PROGRAM_SCALING_FACTOR} = ${contractAmount}`);
   
   // Ensure we don't exceed the maximum u64 value
   if (rawAmount > BigInt("18446744073709551615")) {
@@ -557,25 +571,27 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     // Use our global helper function for consistent UI to raw conversion
     // When sending 0.0288805 YOS, the raw value will be 288.805
     
-    // CRITICAL FIX (TAKE 2): For YOS tokens, we need to apply both token decimals and program scaling
-    // But in a way that preserves the original value
+    // CRITICAL FIX (TAKE 3): For YOS tokens, we need two separate paths just like with YOT:
+    // 1. For wallet display, apply token decimals (10^9)
+    // 2. For contract, apply program scaling (10000)
     
-    // For YOS, we need to apply both decimals (10^9) and program scaling (10000)
-    // But in a way that preserves the original value
-    const amountWithDecimals = rawRewards * Math.pow(10, YOS_TOKEN_DECIMALS);
-    const programScaled = Math.round(amountWithDecimals * 0.0001);
+    // For wallet display - this value will show properly in the transaction confirmation
+    const walletDisplayAmount = rawRewards * Math.pow(10, YOS_TOKEN_DECIMALS);
     
-    console.log(`YOS CONVERSION (FIXED v2) - HARVEST REWARDS: ${rawRewards} YOS`);
-    console.log(`Step 1: Applied token decimals: ${rawRewards} × 10^${YOS_TOKEN_DECIMALS} = ${amountWithDecimals}`);
-    console.log(`Step 2: Applied inverse program scaling: ${amountWithDecimals} × 0.0001 = ${programScaled}`);
+    // For contract calculation - this is what the program expects
+    const contractAmount = Math.round(rawRewards * PROGRAM_SCALING_FACTOR);
+    
+    console.log(`YOS CONVERSION (FIXED v3) - HARVEST REWARDS: ${rawRewards} YOS`);
+    console.log(`For wallet display: ${rawRewards} × 10^${YOS_TOKEN_DECIMALS} = ${walletDisplayAmount}`);
+    console.log(`For contract: ${rawRewards} × ${PROGRAM_SCALING_FACTOR} = ${contractAmount}`);
     
     // Ensure we don't exceed the maximum u64 value
-    if (programScaled > Number.MAX_SAFE_INTEGER) {
+    if (contractAmount > Number.MAX_SAFE_INTEGER) {
       throw new Error("Amount too large for transaction encoding");
     }
     
-    // Write the amount to the data buffer
-    data.writeBigUInt64LE(BigInt(programScaled), 1);
+    // Write the contract amount to the data buffer
+    data.writeBigUInt64LE(BigInt(contractAmount), 1);
     
     // Calculate the scaling value to get from our calculated amount to 226 YOS
     const targetYOS = 226;
