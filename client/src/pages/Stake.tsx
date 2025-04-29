@@ -369,7 +369,7 @@ export default function Stake() {
                       </div>
                       <div className="text-xs text-amber-400 flex items-center">
                         <span className="mr-1">⚠️</span>
-                        Minimum stake: {stakingRates?.harvestThreshold || 0} YOT
+                        Minimum stake: {stakingRates?.stakeThreshold || 0} YOT
                       </div>
                     </div>
                     
@@ -390,7 +390,7 @@ export default function Stake() {
                             Staking locks your YOT tokens in the smart contract and automatically begins generating YOS rewards at {(stakingRates?.dailyAPY || 0).toFixed(2)}% daily APY (compound interest).
                           </p>
                           <p className="mt-2 font-medium text-amber-300">
-                            Minimum staking amount: {stakingRates?.harvestThreshold || 0} YOT
+                            Minimum staking amount: {stakingRates?.stakeThreshold || 0} YOT
                           </p>
                         </div>
                       </div>
@@ -432,7 +432,7 @@ export default function Stake() {
                       </div>
                       <div className="text-xs text-amber-400 flex items-center">
                         <span className="mr-1">⚠️</span>
-                        Minimum unstake: {stakingRates?.harvestThreshold || 0} YOT
+                        Minimum unstake: {stakingRates?.unstakeThreshold || 0} YOT
                       </div>
                     </div>
                     
