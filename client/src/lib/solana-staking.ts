@@ -44,9 +44,9 @@ function calculatePendingRewards(staking: {
   // Convert from percentage (0.00000125%) to decimal (0.0000000125)
   const rateDecimal = stakeRatePerSecond / 100;
   
-  // YOS token uses 9 decimal places for proper scaling
-  const YOS_DECIMALS = 9;
-  const scalingFactor = Math.pow(10, YOS_DECIMALS);
+  // IMPORTANT: The Solana program uses a 10,000× multiplier internally
+  // We must match this exact scaling factor for compatibility with the deployed program
+  const scalingFactor = 10000;
   
   // SIMPLE LINEAR INTEREST: principal * rate * time
   const linearRewards = stakedAmount * rateDecimal * timeStakedSinceLastHarvest;
@@ -54,7 +54,7 @@ function calculatePendingRewards(staking: {
   console.log(`LINEAR REWARDS CALCULATION: ${stakedAmount} × ${rateDecimal} × ${timeStakedSinceLastHarvest} = ${linearRewards}`);
   
   // CRITICAL: We need to address the discrepancy between program and UI calculations.
-  // The Solana program uses the token's decimal places (9) for scaling rewards.
+  // The Solana program uses a 10,000× multiplier internally for scaling rewards.
   
   // For UI display, we show the normalized amount (what users will actually receive)
   const displayRewards = linearRewards / scalingFactor;
@@ -395,9 +395,8 @@ function encodeUnstakeInstruction(amount: number): Buffer {
 
 function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
   // CRITICAL FIX: The harvest instruction needs special handling
-  // YOS token uses 9 decimal places - use this for proper scaling
-  const YOS_DECIMALS = 9;
-  const scalingFactor = Math.pow(10, YOS_DECIMALS);
+  // The Solana program uses a 10,000× multiplier internally
+  const scalingFactor = 10000;
   
   if (rewardsAmount !== undefined) {
     // Enhanced version with explicit rewards amount parameter
@@ -405,8 +404,8 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     const data = Buffer.alloc(9); // instruction type (1) + rewards amount (8)
     data.writeUInt8(StakingInstructionType.Harvest, 0);
     
-    // Scale rewards to raw token amount using proper YOS token decimals (9)
-    // This ensures the wallet will display the correct amount
+    // Scale rewards by 10,000 to match the deployed Solana program's scaling factor
+    // This ensures correct token amounts are displayed in the wallet UI
     const scaledRewards = rewardsAmount * scalingFactor;
     
     // Write the rewards amount as a 64-bit integer
@@ -821,11 +820,11 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     // Using the normalized UI rewards value (already divided by 10,000 in calculatePendingRewards)
     const displayRewards = stakingInfo.rewardsEarned;
     
-    // YOS token uses 9 decimal places for proper scaling
-    const YOS_DECIMALS = 9;
-    const scalingFactor = Math.pow(10, YOS_DECIMALS);
+    // IMPORTANT: The Solana program uses a 10,000× multiplier internally
+    // We must match this exact scaling factor for compatibility with the deployed program
+    const scalingFactor = 10000;
     
-    // Calculate the actual value that will be shown in the wallet (multiplied by 10^9)
+    // Calculate the raw rewards value that will be used by the program (10,000× multiplier)
     const programRewards = displayRewards * scalingFactor;
     
     console.log(`
@@ -910,7 +909,7 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       ],
       programId: new PublicKey(STAKING_PROGRAM_ID),
       // Use our encoding function with the display rewards amount - it will scale it internally
-      // The harvestInstruction encoding function handles the scaling using YOS_DECIMALS (9)
+      // The harvestInstruction encoding function handles the scaling using the 10,000x multiplier
       data: encodeHarvestInstruction(displayRewards)
     });
     
