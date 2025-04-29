@@ -218,8 +218,10 @@ function encodeInitializeInstruction(
   yosMint: PublicKey,
   stakeRateBasisPoints: number,
   harvestThreshold: number,
+  stakeThreshold: number = 10,
+  unstakeThreshold: number = 10
 ): Buffer {
-  const data = Buffer.alloc(1 + 32 + 32 + 8 + 8); // instruction type (1) + yotMint (32) + yosMint (32) + stakeRate (8) + harvestThreshold (8)
+  const data = Buffer.alloc(1 + 32 + 32 + 8 + 8 + 8 + 8); // instruction type (1) + yotMint (32) + yosMint (32) + stakeRate (8) + harvestThreshold (8) + stakeThreshold (8) + unstakeThreshold (8)
   data.writeUInt8(StakingInstructionType.Initialize, 0);
   
   let offset = 1;
@@ -237,12 +239,38 @@ function encodeInitializeInstruction(
     ? Math.round(stakeRateBasisPoints * 9600000) // Convert from percentage to basis points
     : stakeRateBasisPoints; // Already in basis points
   
-  console.log("Initialize with basis points:", basisPoints);
-  data.writeBigUInt64LE(BigInt(basisPoints), offset);
+  // Validate and cap basis points to prevent overflow
+  const MAX_BASIS_POINTS = 1000000;
+  const safeBasisPoints = Math.min(Math.max(1, basisPoints), MAX_BASIS_POINTS);
+  
+  console.log("Initialize with basis points:", safeBasisPoints);
+  data.writeBigUInt64LE(BigInt(safeBasisPoints), offset);
   offset += 8;
   
   // Convert harvest threshold to raw amount with 6 decimals (1 YOS = 1,000,000 raw units)
-  data.writeBigUInt64LE(BigInt(Math.round(harvestThreshold * 1000000)), offset);
+  // Limit the max value to prevent overflow
+  const MAX_SAFE_HARVEST_THRESHOLD = 18446744073; // Max value / 1_000_000 for safe conversion
+  const safeHarvestThreshold = Math.min(Math.max(0, harvestThreshold), MAX_SAFE_HARVEST_THRESHOLD);
+  
+  console.log(`Harvest threshold: ${harvestThreshold}, capped to: ${safeHarvestThreshold}`);
+  data.writeBigUInt64LE(BigInt(Math.round(safeHarvestThreshold * 1000000)), offset);
+  offset += 8;
+  
+  // Convert stake threshold to raw amount with 6 decimals (1 YOT = 1,000,000 raw units)
+  const MAX_SAFE_STAKE_THRESHOLD = 1000000;
+  const safeStakeThreshold = Math.min(Math.max(0, stakeThreshold), MAX_SAFE_STAKE_THRESHOLD);
+  
+  console.log(`Stake threshold: ${stakeThreshold}, capped to: ${safeStakeThreshold}`);
+  data.writeBigUInt64LE(BigInt(Math.round(safeStakeThreshold * 1000000)), offset);
+  offset += 8;
+  
+  // Convert unstake threshold to raw amount with 6 decimals (1 YOT = 1,000,000 raw units)
+  const MAX_SAFE_UNSTAKE_THRESHOLD = 1000000;
+  const safeUnstakeThreshold = Math.min(Math.max(0, unstakeThreshold), MAX_SAFE_UNSTAKE_THRESHOLD);
+  
+  console.log(`Unstake threshold: ${unstakeThreshold}, capped to: ${safeUnstakeThreshold}`);
+  data.writeBigUInt64LE(BigInt(Math.round(safeUnstakeThreshold * 1000000)), offset);
+  
   return data;
 }
 
@@ -277,21 +305,28 @@ function encodeHarvestInstruction(): Buffer {
 function encodeUpdateParametersInstruction(
   stakeRateBasisPoints: number,
   harvestThreshold: number,
+  stakeThreshold: number = 10,
+  unstakeThreshold: number = 10
 ): Buffer {
-  const data = Buffer.alloc(1 + 8 + 8); // instruction type (1) + stakeRate (8) + harvestThreshold (8)
+  const data = Buffer.alloc(1 + 8 + 8 + 8 + 8); // instruction type (1) + stakeRate (8) + harvestThreshold (8) + stakeThreshold (8) + unstakeThreshold (8)
   data.writeUInt8(StakingInstructionType.UpdateParameters, 0);
   
   // Ensure we're using integer basis points
   const basisPoints = stakeRateBasisPoints < 1 
     ? Math.round(stakeRateBasisPoints * 9600000) // Convert from percentage to basis points
     : stakeRateBasisPoints; // Already in basis points
-    
-  data.writeBigUInt64LE(BigInt(basisPoints), 1);
+  
+  // Validate and cap basis points to prevent overflow
+  const MAX_BASIS_POINTS = 1000000;
+  const safeBasisPoints = Math.min(Math.max(1, basisPoints), MAX_BASIS_POINTS);
+  
+  console.log(`Original basis points: ${basisPoints}, capped to: ${safeBasisPoints}`);
+  data.writeBigUInt64LE(BigInt(safeBasisPoints), 1);
   
   // Convert harvest threshold to raw amount with 6 decimals (1 YOS = 1,000,000 raw units)
   // Limit the max value to prevent overflow
-  const MAX_SAFE_THRESHOLD = 18446744073; // Max value / 1_000_000 for safe conversion
-  const safeHarvestThreshold = Math.min(harvestThreshold, MAX_SAFE_THRESHOLD);
+  const MAX_SAFE_HARVEST_THRESHOLD = 18446744073; // Max value / 1_000_000 for safe conversion
+  const safeHarvestThreshold = Math.min(Math.max(0, harvestThreshold), MAX_SAFE_HARVEST_THRESHOLD);
   
   console.log(`Original harvest threshold: ${harvestThreshold}, capped to: ${safeHarvestThreshold}`);
   
@@ -300,13 +335,38 @@ function encodeUpdateParametersInstruction(
   console.log(`Harvest threshold in raw units: ${harvestThresholdRaw}`);
   
   data.writeBigUInt64LE(harvestThresholdRaw, 1 + 8);
+  
+  // Convert stake threshold to raw amount with 6 decimals (1 YOT = 1,000,000 raw units)
+  const MAX_SAFE_STAKE_THRESHOLD = 1000000; // 1 million YOT max
+  const safeStakeThreshold = Math.min(Math.max(0, stakeThreshold), MAX_SAFE_STAKE_THRESHOLD);
+  
+  console.log(`Stake threshold: ${stakeThreshold} YOT, capped to: ${safeStakeThreshold}`);
+  
+  const stakeThresholdRaw = BigInt(Math.floor(safeStakeThreshold * 1000000));
+  console.log(`Stake threshold in raw units: ${stakeThresholdRaw}`);
+  
+  data.writeBigUInt64LE(stakeThresholdRaw, 1 + 8 + 8);
+  
+  // Convert unstake threshold to raw amount with 6 decimals (1 YOT = 1,000,000 raw units)
+  const MAX_SAFE_UNSTAKE_THRESHOLD = 1000000; // 1 million YOT max
+  const safeUnstakeThreshold = Math.min(Math.max(0, unstakeThreshold), MAX_SAFE_UNSTAKE_THRESHOLD);
+  
+  console.log(`Unstake threshold: ${unstakeThreshold} YOT, capped to: ${safeUnstakeThreshold}`);
+  
+  const unstakeThresholdRaw = BigInt(Math.floor(safeUnstakeThreshold * 1000000));
+  console.log(`Unstake threshold in raw units: ${unstakeThresholdRaw}`);
+  
+  data.writeBigUInt64LE(unstakeThresholdRaw, 1 + 8 + 8 + 8);
+  
   return data;
 }
 
 export async function initializeStakingProgram(
   wallet: any,
   stakeRateBasisPoints: number,
-  harvestThreshold: number
+  harvestThreshold: number,
+  stakeThreshold: number = 10, 
+  unstakeThreshold: number = 10
 ): Promise<string> {
   if (!wallet || !wallet.publicKey) {
     throw new Error('Wallet not connected');
@@ -329,7 +389,7 @@ export async function initializeStakingProgram(
     
     if (programStateInfo) {
       // Program is already initialized - check if we need to update parameters
-      return await updateStakingParameters(wallet, stakeRateBasisPoints, harvestThreshold);
+      return await updateStakingParameters(wallet, stakeRateBasisPoints, harvestThreshold, stakeThreshold, unstakeThreshold);
     }
     
     // Get program authority's token addresses
@@ -374,7 +434,7 @@ export async function initializeStakingProgram(
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // System program
       ],
       programId: new PublicKey(STAKING_PROGRAM_ID),
-      data: encodeInitializeInstruction(yotMint, yosMint, stakeRateBasisPoints, harvestThreshold)
+      data: encodeInitializeInstruction(yotMint, yosMint, stakeRateBasisPoints, harvestThreshold, stakeThreshold, unstakeThreshold)
     });
     
     // Sign and send the transaction
