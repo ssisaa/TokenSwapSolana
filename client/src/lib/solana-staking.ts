@@ -437,7 +437,7 @@ function encodeUnstakeInstruction(amount: number): Buffer {
 function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
   // CRITICAL FIX: The harvest instruction needs special handling
   // The Solana program uses a 10,000× multiplier internally
-  const scalingFactor = 10000;
+  const PROGRAM_SCALING_FACTOR = 10000;
   
   if (rewardsAmount !== undefined) {
     // Enhanced version with explicit rewards amount parameter
@@ -445,9 +445,13 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     const data = Buffer.alloc(9); // instruction type (1) + rewards amount (8)
     data.writeUInt8(StakingInstructionType.Harvest, 0);
     
-    // Scale rewards by 10,000 to match the deployed Solana program's scaling factor
+    // CRITICAL: Scale rewards by 10,000 to match the deployed Solana program's scaling factor
     // This ensures correct token amounts are displayed in the wallet UI
-    const scaledRewards = rewardsAmount * scalingFactor;
+    const scaledRewards = rewardsAmount * PROGRAM_SCALING_FACTOR;
+    
+    // IMPORTANT: The program also applies an additional conversion factor related to token decimals
+    // This is for the actual blockchain calculation that displays in Phantom wallet
+    // This should match the exact value shown in the wallet (226-280 YOS range)
     
     // Write the rewards amount as a 64-bit integer
     // NOTE: This is only used for logging and verification - the blockchain calculates the actual amount
@@ -455,7 +459,8 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     
     console.log(`Created harvest instruction buffer with adjusted rewards:`);
     console.log(`Display rewards (UI value): ${rewardsAmount} YOS`);
-    console.log(`Scaled rewards (for program, ${scalingFactor}× multiplier): ${scaledRewards} YOS`);
+    console.log(`Scaled rewards (for program, ${PROGRAM_SCALING_FACTOR}× multiplier): ${scaledRewards} YOS`);
+    console.log(`Expected wallet value: ~${Math.round(scaledRewards)} YOS`);
     console.log("Buffer size:", data.length, "bytes");
     return data;
   } else {
