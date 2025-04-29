@@ -567,19 +567,19 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     // Use our global helper function for consistent UI to raw conversion
     // When sending 0.0288805 YOS, the raw value will be 288.805
     
-    // CRITICAL FIX (TAKE 3): For YOS tokens, we need two separate paths just like with YOT:
-    // 1. For wallet display, apply token decimals (10^9)
-    // 2. For contract, apply program scaling (10000)
+    // CRITICAL FIX (TAKE 4): For YOS tokens, we need to understand the relationship between
+    // what the program sends and what the wallet shows
     
-    // For wallet display - this value will show properly in the transaction confirmation
-    const walletDisplayAmount = rawRewards * Math.pow(10, YOS_TOKEN_DECIMALS);
+    // Problem: When the program sends 335 YOS tokens at contract scale (335 * 10000), 
+    // the wallet is showing ~3.35 million YOS tokens
+    // This suggests there's an additional multiplier happening somewhere
     
-    // For contract calculation - this is what the program expects
+    // Calculate the contract amount - this is what the program expects
     const contractAmount = Math.round(rawRewards * PROGRAM_SCALING_FACTOR);
     
-    console.log(`YOS CONVERSION (FIXED v3) - HARVEST REWARDS: ${rawRewards} YOS`);
-    console.log(`For wallet display: ${rawRewards} × 10^${YOS_TOKEN_DECIMALS} = ${walletDisplayAmount}`);
-    console.log(`For contract: ${rawRewards} × ${PROGRAM_SCALING_FACTOR} = ${contractAmount}`);
+    console.log(`YOS TOKENS HARVESTING: ${rawRewards} YOS`);
+    console.log(`Contract amount (with PROGRAM_SCALING_FACTOR): ${contractAmount}`);
+    console.log(`CRITICAL FIX TESTING: For YOS tokens, we need to send exactly ${contractAmount} raw value`);
     
     // Ensure we don't exceed the maximum u64 value
     if (contractAmount > Number.MAX_SAFE_INTEGER) {
@@ -596,12 +596,10 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     console.log(`Created harvest instruction buffer with adjusted rewards:`);
     console.log(`Original rewards value: ${rewardsAmount} YOS`);
     console.log(`SCALING ANALYSIS: Using two separate conversions for proper display and contract values`);
-    console.log(`ACTUAL SCALING: For our calculated ${rawRewards} YOS tokens:`);
-    console.log(`- Wallet display amount: ${walletDisplayAmount}`);
-    console.log(`- Contract calculation amount: ${contractAmount}`);
+    console.log(`ANALYSIS: For our calculated ${rawRewards} YOS tokens:`);
+    console.log(`- Program calculation amount: ${contractAmount}`);
     console.log(`This should result in proper blockchain value that matches program expectation`);
-    console.log(`Using consistent token + program scaling across all operations`);
-    console.log(`For wallet display: 10^${YOS_TOKEN_DECIMALS}, for contract: ${PROGRAM_SCALING_FACTOR}x`);
+    console.log(`Using consistent program scaling: ${PROGRAM_SCALING_FACTOR}x`);
     console.log("Buffer size:", data.length, "bytes");
     return data;
   } else {
