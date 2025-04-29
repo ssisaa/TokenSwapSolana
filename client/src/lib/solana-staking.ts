@@ -318,30 +318,16 @@ export async function initializeStakingProgram(
     
     // Create the program state account if it doesn't exist
     const programStateInfo = await connection.getAccountInfo(programState);
-    if (!programStateInfo) {
-      // Calculate space needed: admin (32) + yotMint (32) + yosMint (32) + stakeRate (8) + harvestThreshold (8) = 112 bytes
-      const space = 112;
-      const rent = await connection.getMinimumBalanceForRentExemption(space);
-      
-      console.log("Creating program state account with rent:", rent, "and space:", space);
-      
-      // Use the simple createAccount instruction instead of createAccountWithSeed
-      transaction.add(
-        SystemProgram.createAccount({
-          fromPubkey: walletPublicKey,
-          newAccountPubkey: programState,
-          lamports: rent,
-          space: space,
-          programId: new PublicKey(STAKING_PROGRAM_ID)
-        })
-      );
-    }
+    console.log("Program state account exists:", !!programStateInfo);
+    
+    // NOTE: We'll let the program create its state account internally
+    // This is a common pattern in Solana - the program handles PDA creation
     
     // Add initialize instruction
     transaction.add({
       keys: [
         { pubkey: walletPublicKey, isSigner: true, isWritable: true },
-        { pubkey: programState, isSigner: true, isWritable: true }, // Program state needs to be a signer for creation
+        { pubkey: programState, isSigner: false, isWritable: true }, // PDA can't be a signer
         { pubkey: programAuthority, isSigner: false, isWritable: false },
         { pubkey: yotMint, isSigner: false, isWritable: false },
         { pubkey: yosMint, isSigner: false, isWritable: false },
@@ -420,22 +406,8 @@ export async function stakeYOTTokens(
       );
     }
     
-    // Create staking account if it doesn't exist
-    if (!stakingAccountInfo) {
-      // Calculate space needed: owner (32) + staked amount (8) + start timestamp (8) + last harvest time (8) + total harvested (8) = 64 bytes
-      const space = 64;
-      const rent = await connection.getMinimumBalanceForRentExemption(space);
-      
-      transaction.add(
-        SystemProgram.createAccount({
-          fromPubkey: walletPublicKey,
-          newAccountPubkey: stakingAccount,
-          lamports: rent,
-          space: space,
-          programId: new PublicKey(STAKING_PROGRAM_ID)
-        })
-      );
-    }
+    // Note: We'll let the program handle account creation
+    // Staking accounts are PDAs just like program state
     
     // Add stake instruction
     transaction.add({
