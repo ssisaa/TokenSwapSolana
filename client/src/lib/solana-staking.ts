@@ -2649,11 +2649,15 @@ export async function getStakingProgramState(): Promise<{
       const monthlyAPR = stakeRatePerSecond * secondsPerMonth; // 3.24% monthly 
       const yearlyAPR = stakeRatePerSecond * secondsPerYear;   // 39.42% yearly
       
-      // Calculate APY values (compound interest)
-      const dailyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerDay) - 1) * 100;
-      const weeklyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerWeek) - 1) * 100;
-      const monthlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerMonth) - 1) * 100;
-      const yearlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerYear) - 1) * 100;
+      // Calculate LINEAR interest rates based on actual staking program behavior
+      // stakeRatePerSecond * seconds * 10000 (scaling factor)
+      const scalingFactor = 10000; // Match the multiplier in the Solana program
+      
+      // Linear interest calculation (rate * time * scaling)
+      const dailyAPY = stakeRatePerSecond * secondsPerDay * scalingFactor;
+      const weeklyAPY = stakeRatePerSecond * secondsPerWeek * scalingFactor;
+      const monthlyAPY = stakeRatePerSecond * secondsPerMonth * scalingFactor;
+      const yearlyAPY = stakeRatePerSecond * secondsPerYear * scalingFactor;
       
       return {
         stakeRatePerSecond,
@@ -2726,11 +2730,15 @@ export async function getStakingProgramState(): Promise<{
       daily: `${stakeRatePerSecond} * ${secondsPerDay} = ${dailyAPR}`
     });
     
-    // Calculate APY values (compound interest)
-    const dailyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerDay) - 1) * 100;
-    const weeklyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerWeek) - 1) * 100;
-    const monthlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerMonth) - 1) * 100;
-    const yearlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerYear) - 1) * 100;
+    // Calculate LINEAR interest rates based on actual staking program behavior
+    // stakeRatePerSecond * seconds * 10000 (scaling factor)
+    const scalingFactor = 10000; // Match the multiplier in the Solana program
+    
+    // Linear interest calculation (rate * time * scaling)
+    const dailyAPY = stakeRatePerSecond * secondsPerDay * scalingFactor;
+    const weeklyAPY = stakeRatePerSecond * secondsPerWeek * scalingFactor;
+    const monthlyAPY = stakeRatePerSecond * secondsPerMonth * scalingFactor;
+    const yearlyAPY = stakeRatePerSecond * secondsPerYear * scalingFactor;
     
     return {
       stakeRatePerSecond,
@@ -2762,11 +2770,15 @@ export async function getStakingProgramState(): Promise<{
     
     // Calculate linear rates (not compound)
     const dailyAPR = stakeRatePerSecond * secondsPerDay;
-    const weeklyAPR = stakeRatePerSecond * secondsPerWeek;
-    const monthlyAPR = stakeRatePerSecond * secondsPerMonth;
-    const yearlyAPR = stakeRatePerSecond * secondsPerYear;
+    // Calculate LINEAR interest rates based on actual staking program behavior
+    // stakeRatePerSecond * seconds * 10000 (scaling factor)
+    const scalingFactor = 10000; // Match the multiplier in the Solana program
     
-    // Calculate APY values (compound interest)
+    // Linear interest calculation (rate * time * scaling)
+    const dailyAPY = stakeRatePerSecond * secondsPerDay * scalingFactor;
+    const weeklyAPY = stakeRatePerSecond * secondsPerWeek * scalingFactor;
+    const monthlyAPY = stakeRatePerSecond * secondsPerMonth * scalingFactor;
+    const yearlyAPY = stakeRatePerSecond * secondsPerYear * scalingFactor;
     const dailyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerDay) - 1) * 100;
     const weeklyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerWeek) - 1) * 100;
     const monthlyAPY = (Math.pow(1 + (stakeRatePerSecond / 100), secondsPerMonth) - 1) * 100;
