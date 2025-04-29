@@ -156,8 +156,16 @@ export function useStaking() {
       }
       
       try {
-        // Call the updated staking function which shows the wallet signature prompt
-        // even though the program isn't deployed yet
+        // Get staking rates to check against minimum stake threshold
+        const rates = await getStakingProgramState();
+        console.log("Staking rates for threshold check:", rates);
+        
+        // Check if stake amount meets the minimum threshold
+        if (amount < rates.harvestThreshold) {
+          throw new Error(`Staking amount (${amount.toFixed(2)} YOT) is below the minimum threshold (${rates.harvestThreshold.toFixed(2)} YOT). Please stake more tokens.`);
+        }
+        
+        // Call the staking function which shows the wallet signature prompt
         const signature = await stakeYOTTokens(wallet, amount);
         console.log("Stake transaction signature:", signature);
         
@@ -339,7 +347,16 @@ export function useStaking() {
           }
         }
         
-        // Now call the actual unstake operation with all this debugging information
+        // Get staking rates to check against threshold
+        const rates = await getStakingProgramState();
+        console.log("Staking rates for threshold check:", rates);
+        
+        // Check if unstake amount meets the minimum threshold
+        if (amount < rates.harvestThreshold) {
+          throw new Error(`Unstake amount (${amount.toFixed(2)} YOT) is below the minimum threshold (${rates.harvestThreshold.toFixed(2)} YOT). Please unstake more tokens or leave them staked.`);
+        }
+        
+        // Now call the actual unstake operation
         console.log("Now executing actual unstake operation...");
         const signature = await unstakeYOTTokens(wallet, amount);
         console.log("Unstake transaction signature:", signature);
@@ -427,6 +444,12 @@ export function useStaking() {
         toast({
           title: "Insufficient Token Balance",
           description: "You don't have enough YOT tokens staked to unstake that amount.",
+          variant: 'destructive',
+        });
+      } else if (errorMessage.includes("below the minimum threshold")) {
+        toast({
+          title: "Amount Below Threshold",
+          description: errorMessage,
           variant: 'destructive',
         });
       } else {
