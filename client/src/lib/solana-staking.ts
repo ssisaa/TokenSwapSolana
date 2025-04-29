@@ -724,6 +724,21 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       throw new Error(`Rewards (${displayRewards.toFixed(6)} YOS) are below the minimum threshold (${harvestThreshold.toFixed(6)} YOS)`);
     }
     
+    // CRITICAL PROTECTION: Add an explicit safety check to prevent transactions with enormous values
+    // This addresses the 100x multiplier discrepancy between client and program calculations
+    const MAXIMUM_SAFE_DISPLAY_REWARDS = 10; // 10 YOS is safe (becomes 1M YOS in wallet display)
+    if (displayRewards > MAXIMUM_SAFE_DISPLAY_REWARDS) {
+      throw new Error(`
+        CRITICAL SAFETY LIMIT REACHED:
+        Due to a known issue with the Solana program's rate calculation, harvesting more than ${MAXIMUM_SAFE_DISPLAY_REWARDS} YOS 
+        at once can cause very large transaction values (${formatNumber(blockchainRewards)} raw units) 
+        to appear in your wallet.
+        
+        Please contact the program admin to fix the rate divisor discrepancy in the Solana program.
+        (The program is using 1,000,000 divisor in some places and 10,000 in others.)
+      `);
+    }
+    
     // Perform safety check on program YOS token balance
     try {
       const programYosAccountInfo = await getAccount(connection, programYosATA);
