@@ -2050,9 +2050,9 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     // Set recent blockhash and fee payer
     transaction.feePayer = userPublicKey;
     
-    // Get a fresh blockhash right before sending
-    // Using 'confirmed' commitment level to avoid "blockhash not found" errors
-    let blockhashResponse = await connection.getLatestBlockhash('confirmed');
+    // Get a fresh blockhash right before sending with 'finalized' commitment
+    // Using 'finalized' instead of 'confirmed' to avoid "blockhash not found" errors
+    let blockhashResponse = await connection.getLatestBlockhash('finalized');
     transaction.recentBlockhash = blockhashResponse.blockhash;
     
     // Request signature from user (this triggers a wallet signature request)
@@ -2062,11 +2062,11 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       // Send signed transaction with retry logic
       const rawTransaction = signedTransaction.serialize();
       
-      // Send with priority fee to help ensure it confirms
+      // Send with priority fee and explicitly handle the blockhash
       const signature = await connection.sendRawTransaction(rawTransaction, {
         skipPreflight: false,
-        preflightCommitment: 'confirmed',
-        maxRetries: 3
+        preflightCommitment: 'finalized',
+        maxRetries: 5
       });
       
       // Confirm with more robust error handling
@@ -2076,7 +2076,7 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
           signature,
           blockhash: blockhashResponse.blockhash,
           lastValidBlockHeight: blockhashResponse.lastValidBlockHeight
-        }, 'confirmed');
+        }, 'finalized');
         
         // Check if confirmation has errors
         if (confirmation.value.err) {
@@ -2253,9 +2253,9 @@ export async function updateStakingParameters(
     // Set recent blockhash and fee payer
     transaction.feePayer = adminPublicKey;
     
-    // Get a fresh blockhash right before sending
-    // Using 'confirmed' commitment level to avoid "blockhash not found" errors
-    let blockhashResponse = await connection.getLatestBlockhash('confirmed');
+    // Get a fresh blockhash right before sending with 'finalized' commitment
+    // Using 'finalized' instead of 'confirmed' to avoid "blockhash not found" errors
+    let blockhashResponse = await connection.getLatestBlockhash('finalized');
     transaction.recentBlockhash = blockhashResponse.blockhash;
     
     console.log("Transaction created, requesting admin wallet signature...");
@@ -2271,8 +2271,8 @@ export async function updateStakingParameters(
       // Send with priority fee to help ensure it confirms
       const signature = await connection.sendRawTransaction(rawTransaction, {
         skipPreflight: false,
-        preflightCommitment: 'confirmed',
-        maxRetries: 3
+        preflightCommitment: 'finalized',
+        maxRetries: 5
       });
       
       console.log("Transaction sent with signature:", signature);
