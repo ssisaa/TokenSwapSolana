@@ -973,9 +973,7 @@ export async function getStakingProgramState(): Promise<{
         weeklyAPY,
         monthlyAPY,
         yearlyAPY,
-        yosMint,
-        stakeThreshold,
-        unstakeThreshold
+        yosMint
       };
     }
   } catch (error) {
