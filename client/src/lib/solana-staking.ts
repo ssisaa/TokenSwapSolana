@@ -2895,15 +2895,19 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // Convert staking rate from decimal to percentage (for clarity in logging)
     const ratePercentage = stakeRateDecimal * 100;
     
-    // SIMPLE LINEAR INTEREST: principal * rate * time
-    // No exponentiation, no compounding - matches exactly what the Solana program calculates
-    const pendingRewards = stakedAmount * stakeRateDecimal * timeStakedSinceLastHarvest;
+    // CRITICAL FIX: MULTIPLY BY 10,000 TO MATCH SOLANA PROGRAM CALCULATION
+    // This scaling factor ensures the UI displays what the user will actually receive
+    const scalingFactor = 10000;
     
-    console.log(`LINEAR REWARDS CALCULATION:`);
+    // SIMPLE LINEAR INTEREST: principal * rate * time * scalingFactor
+    const pendingRewards = stakedAmount * stakeRateDecimal * timeStakedSinceLastHarvest * scalingFactor;
+    
+    console.log(`LINEAR REWARDS CALCULATION WITH SCALING FACTOR:`);
     console.log(`- Staked amount: ${stakedAmount} YOT tokens`);
     console.log(`- Rate: ${ratePercentage}% per second (${stakeRateDecimal} as decimal)`);
     console.log(`- Time staked: ${timeStakedSinceLastHarvest} seconds`);
-    console.log(`- Formula: ${stakedAmount} × ${stakeRateDecimal} × ${timeStakedSinceLastHarvest}`);
+    console.log(`- Scaling factor: ${scalingFactor} (matches blockchain calculation)`);
+    console.log(`- Formula: ${stakedAmount} × ${stakeRateDecimal} × ${timeStakedSinceLastHarvest} × ${scalingFactor}`);
     console.log(`- Result: ${pendingRewards} YOS tokens`);
     
     console.log("Reward calculation info:", {
