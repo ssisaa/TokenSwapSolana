@@ -25,11 +25,32 @@ enum MultiHubSwapInstructionType {
 }
 
 /**
+ * Find a program address for a seed
+ * @param seeds Seeds for the PDA
+ * @param programId Program ID
+ * @returns Program address and bump seed
+ */
+function findProgramAddress(seeds: Buffer[], programId: PublicKey): [PublicKey, number] {
+  let nonce = 255;
+  while (nonce > 0) {
+    try {
+      const seedsWithNonce = seeds.concat(Buffer.from([nonce]));
+      const address = PublicKey.createProgramAddressSync(seedsWithNonce, programId);
+      return [address, nonce];
+    } catch (err) {
+      nonce--;
+      if (nonce <= 0) throw err;
+    }
+  }
+  throw new Error('Unable to find a viable program address nonce');
+}
+
+/**
  * Find the program state PDA
  * @returns Program state address and bump seed
  */
 function findProgramStateAddress(): [PublicKey, number] {
-  return findProgramAddressSync(
+  return findProgramAddress(
     [Buffer.from('program_state')],
     new PublicKey(PROGRAM_ID)
   );
@@ -40,7 +61,7 @@ function findProgramStateAddress(): [PublicKey, number] {
  * @returns Program authority address and bump seed
  */
 function findProgramAuthorityAddress(): [PublicKey, number] {
-  return findProgramAddressSync(
+  return findProgramAddress(
     [Buffer.from('authority')],
     new PublicKey(PROGRAM_ID)
   );
@@ -52,7 +73,7 @@ function findProgramAuthorityAddress(): [PublicKey, number] {
  * @returns Swap account address and bump seed
  */
 function findSwapAccountAddress(walletAddress: PublicKey): [PublicKey, number] {
-  return findProgramAddressSync(
+  return findProgramAddress(
     [Buffer.from('swap_account'), walletAddress.toBuffer()],
     new PublicKey(PROGRAM_ID)
   );
@@ -64,7 +85,7 @@ function findSwapAccountAddress(walletAddress: PublicKey): [PublicKey, number] {
  * @returns Contribution account address and bump seed
  */
 function findContributionAccountAddress(walletAddress: PublicKey): [PublicKey, number] {
-  return findProgramAddressSync(
+  return findProgramAddress(
     [Buffer.from('contribution'), walletAddress.toBuffer()],
     new PublicKey(PROGRAM_ID)
   );

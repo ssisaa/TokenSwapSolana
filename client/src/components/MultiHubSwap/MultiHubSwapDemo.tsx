@@ -1,266 +1,403 @@
 import React, { useState, useEffect } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useConnection, useWallet } from '@solana/wallet-adapter-react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import TokenSearchInput from './TokenSearchInput';
-import { TokenMetadata, getTokenByAddress } from '@/lib/token-search-api';
-import { getMultiHubSwapEstimate, executeMultiHubSwap, SwapProvider, SwapEstimate } from '@/lib/multi-hub-swap';
-import { ENDPOINT, YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, SOL_TOKEN_ADDRESS, RAYDIUM } from '@/lib/constants';
+import { Loader2, ArrowRightLeft, Info, AlertTriangle } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useToast } from '@/hooks/use-toast';
+import { TokenSearchInput } from './TokenSearchInput';
+import { executeMultiHubSwap, getMultiHubSwapEstimate, claimYosSwapRewards, SwapProvider } from '@/lib/multi-hub-swap';
 
-/**
- * A simplified component to demonstrate the multi-hub swap functionality
- */
+// Default tokens
+const SOL_TOKEN = {
+  address: 'So11111111111111111111111111111111111111112',
+  symbol: 'SOL',
+  name: 'Solana',
+  decimals: 9,
+  logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png'
+};
+
+const YOT_TOKEN = {
+  address: '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF',
+  symbol: 'YOT',
+  name: 'YOT Token',
+  decimals: 9,
+  logoURI: 'https://cryptologos.cc/logos/solana-sol-logo.png?v=024' // Placeholder logo
+};
+
 export default function MultiHubSwapDemo() {
+  const { connection } = useConnection();
   const wallet = useWallet();
+  const { toast } = useToast();
   
-  // Token selection state
-  const [fromToken, setFromToken] = useState<TokenMetadata | null>(null);
-  const [toToken, setToToken] = useState<TokenMetadata | null>(null);
+  const [fromToken, setFromToken] = useState<any>(SOL_TOKEN);
+  const [toToken, setToToken] = useState<any>(YOT_TOKEN);
+  const [amount, setAmount] = useState('1');
+  const [estimatedAmount, setEstimatedAmount] = useState<number | null>(null);
+  const [slippage, setSlippage] = useState(1); // 1%
+  const [loading, setLoading] = useState(false);
+  const [estimateLoading, setEstimateLoading] = useState(false);
+  const [claimLoading, setClaimLoading] = useState(false);
+  const [availableRewards, setAvailableRewards] = useState(0);
+  const [routeProvider, setRouteProvider] = useState<SwapProvider>(SwapProvider.Contract);
   
-  // Amount and estimate state
-  const [amount, setAmount] = useState('');
-  const [swapEstimate, setSwapEstimate] = useState<SwapEstimate | null>(null);
-  
-  // Loading states
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSwapping, setIsSwapping] = useState(false);
-  
-  // Result states
-  const [swapResult, setSwapResult] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  
-  // Provider selection
-  const [selectedProvider, setSelectedProvider] = useState<SwapProvider>(SwapProvider.Raydium);
-  
-  // Load default tokens
+  // Get swap estimate when inputs change
   useEffect(() => {
-    async function loadDefaultTokens() {
-      const solToken = await getTokenByAddress(SOL_TOKEN_ADDRESS);
-      const yotToken = await getTokenByAddress(YOT_TOKEN_ADDRESS);
-      
-      if (solToken) setFromToken(solToken);
-      if (yotToken) setToToken(yotToken);
-    }
-    
-    loadDefaultTokens();
-  }, []);
-  
-  // Calculate swap estimate when inputs change
-  useEffect(() => {
-    async function calculateEstimate() {
-      if (!fromToken || !toToken || !amount || Number(amount) <= 0) {
-        setSwapEstimate(null);
+    const getEstimate = async () => {
+      if (!fromToken || !toToken || !amount || parseFloat(amount) <= 0) {
+        setEstimatedAmount(null);
         return;
       }
       
-      setIsLoading(true);
-      setError(null);
-      
       try {
-        const estimate = await getMultiHubSwapEstimate(fromToken, toToken, Number(amount));
-        setSwapEstimate(estimate);
-      } catch (err) {
-        console.error('Error calculating swap estimate:', err);
-        setError('Failed to calculate swap estimate');
-        setSwapEstimate(null);
+        setEstimateLoading(true);
+        const parsedAmount = parseFloat(amount);
+        const estimate = await getMultiHubSwapEstimate(fromToken, toToken, parsedAmount);
+        
+        if (estimate.success) {
+          setEstimatedAmount(estimate.estimatedAmount);
+          setRouteProvider(estimate.provider || SwapProvider.Contract);
+        } else {
+          setEstimatedAmount(null);
+          console.error('Failed to get estimate:', estimate.error);
+        }
+      } catch (error) {
+        console.error('Error getting swap estimate:', error);
+        setEstimatedAmount(null);
       } finally {
-        setIsLoading(false);
+        setEstimateLoading(false);
       }
-    }
+    };
     
-    calculateEstimate();
+    getEstimate();
   }, [fromToken, toToken, amount]);
   
-  // Handle swap action
-  const handleSwap = async () => {
+  // Simulate fetching available rewards
+  useEffect(() => {
+    if (wallet.connected && wallet.publicKey) {
+      // In a real app, we would fetch rewards from the blockchain
+      setAvailableRewards(0.75); // Example: 0.75 YOS tokens available
+    } else {
+      setAvailableRewards(0);
+    }
+  }, [wallet.connected, wallet.publicKey]);
+  
+  const handleSwapClick = async () => {
     if (!wallet.connected) {
-      setError('Please connect your wallet');
+      toast({
+        title: 'Wallet not connected',
+        description: 'Please connect your wallet to continue',
+        variant: 'destructive'
+      });
       return;
     }
     
-    if (!fromToken || !toToken || !amount || !swapEstimate) {
-      setError('Please fill in all fields');
+    if (!fromToken || !toToken || !amount || parseFloat(amount) <= 0) {
+      toast({
+        title: 'Invalid input',
+        description: 'Please enter a valid amount and select tokens',
+        variant: 'destructive'
+      });
       return;
     }
-    
-    setIsSwapping(true);
-    setError(null);
-    setSwapResult(null);
     
     try {
-      const result = await executeMultiHubSwap(
+      setLoading(true);
+      const parsedAmount = parseFloat(amount);
+      const swapResult = await executeMultiHubSwap(
         wallet,
         fromToken,
         toToken,
-        Number(amount),
-        0.01 // 1% slippage
+        parsedAmount,
+        slippage / 100
       );
       
-      if (result.success) {
-        setSwapResult(`Swap successful! Tx: ${result.signature.slice(0, 8)}...${result.signature.slice(-8)}`);
+      if (swapResult.success) {
+        toast({
+          title: 'Swap successful',
+          description: `Swapped ${parsedAmount} ${fromToken.symbol} to approximately ${estimatedAmount?.toFixed(4)} ${toToken.symbol}`,
+          variant: 'default'
+        });
       } else {
-        setError(`Swap failed: ${result.error}`);
+        toast({
+          title: 'Swap failed',
+          description: swapResult.error || 'Unknown error occurred',
+          variant: 'destructive'
+        });
       }
-    } catch (err) {
-      console.error('Swap error:', err);
-      setError(`Swap error: ${err instanceof Error ? err.message : String(err)}`);
+    } catch (error) {
+      console.error('Error executing swap:', error);
+      toast({
+        title: 'Swap failed',
+        description: 'An error occurred while processing the swap',
+        variant: 'destructive'
+      });
     } finally {
-      setIsSwapping(false);
+      setLoading(false);
     }
   };
   
-  // Swap tokens
-  const handleSwapTokens = () => {
-    if (fromToken && toToken) {
-      const temp = fromToken;
-      setFromToken(toToken);
-      setToToken(temp);
-      setSwapEstimate(null);
+  const handleClaimRewards = async () => {
+    if (!wallet.connected) {
+      toast({
+        title: 'Wallet not connected',
+        description: 'Please connect your wallet to continue',
+        variant: 'destructive'
+      });
+      return;
     }
+    
+    try {
+      setClaimLoading(true);
+      const claimResult = await claimYosSwapRewards(wallet);
+      
+      if (claimResult.success) {
+        toast({
+          title: 'Rewards claimed successfully',
+          description: `Your YOS rewards have been transferred to your wallet`,
+          variant: 'default'
+        });
+        setAvailableRewards(0);
+      } else {
+        toast({
+          title: 'Failed to claim rewards',
+          description: claimResult.error || 'Unknown error occurred',
+          variant: 'destructive'
+        });
+      }
+    } catch (error) {
+      console.error('Error claiming rewards:', error);
+      toast({
+        title: 'Failed to claim rewards',
+        description: 'An error occurred while claiming your rewards',
+        variant: 'destructive'
+      });
+    } finally {
+      setClaimLoading(false);
+    }
+  };
+  
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    
+    // Only allow numbers and one decimal point
+    if (value === '' || /^[0-9]*\.?[0-9]*$/.test(value)) {
+      setAmount(value);
+    }
+  };
+  
+  const handleSlippageChange = (newSlippage: number) => {
+    setSlippage(newSlippage);
+  };
+  
+  // Helper function to format token logo URL
+  const getTokenLogo = (token: any) => {
+    return token?.logoURI || 'https://cryptologos.cc/logos/solana-sol-logo.png?v=024';
   };
   
   return (
-    <Card className="max-w-md mx-auto my-8">
+    <Card className="w-full max-w-md bg-background shadow-lg border-border">
       <CardHeader>
-        <CardTitle>Multi-Hub Swap Demo</CardTitle>
-        <CardDescription>Swap tokens using Raydium on Devnet</CardDescription>
+        <CardTitle className="text-2xl">Multi-Hub Swap</CardTitle>
+        <CardDescription>Swap tokens on Solana with multi-hub routing and liquidity contribution</CardDescription>
       </CardHeader>
       
       <CardContent className="space-y-4">
-        {/* From token */}
+        {/* From Token */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">From</label>
-          <div className="flex space-x-2">
-            <div className="w-2/3">
-              <TokenSearchInput
-                onTokenSelect={setFromToken}
-                selectedToken={fromToken || undefined}
-                placeholder="From token"
-              />
-            </div>
-            <div className="w-1/3">
-              <Input
-                type="number"
-                placeholder="0.0"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-              />
-            </div>
+          <div className="flex justify-between">
+            <label className="text-sm font-medium">From</label>
+            <label className="text-sm text-muted-foreground">
+              Balance: {wallet.connected ? '0.00' : 'Connect wallet'}
+            </label>
           </div>
-        </div>
-        
-        {/* Swap button */}
-        <div className="flex justify-center">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handleSwapTokens}
-            className="rounded-full"
-          >
-            ↑↓
-          </Button>
-        </div>
-        
-        {/* To token */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium">To</label>
+          
           <div className="flex space-x-2">
-            <div className="w-2/3">
-              <TokenSearchInput
-                onTokenSelect={setToToken}
-                selectedToken={toToken || undefined}
-                placeholder="To token"
-              />
-            </div>
-            <div className="w-1/3">
-              <Input
+            <div className="flex-1">
+              <input
                 type="text"
+                value={amount}
+                onChange={handleAmountChange}
+                className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
                 placeholder="0.0"
-                value={swapEstimate ? swapEstimate.outputAmount.toFixed(6) : ''}
-                readOnly
-                className="bg-muted"
+              />
+            </div>
+            
+            <div className="w-32">
+              <TokenSearchInput
+                selectedToken={fromToken}
+                onSelect={setFromToken}
+                excludeTokens={toToken ? [toToken.address] : []}
               />
             </div>
           </div>
         </div>
         
-        {/* Provider selection */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Provider</label>
-          <Select
-            value={selectedProvider}
-            onValueChange={(value) => setSelectedProvider(value as SwapProvider)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select provider" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={SwapProvider.Raydium}>Raydium DEX</SelectItem>
-              <SelectItem value={SwapProvider.Jupiter}>Jupiter Aggregator</SelectItem>
-              <SelectItem value={SwapProvider.Contract}>YOT Contract</SelectItem>
-            </SelectContent>
-          </Select>
+        {/* Swap Icon */}
+        <div className="flex justify-center py-2">
+          <div className="bg-muted/50 p-2 rounded-full">
+            <ArrowRightLeft className="h-5 w-5 text-muted-foreground" />
+          </div>
         </div>
         
-        {/* Swap details */}
-        {swapEstimate && (
-          <div className="text-sm space-y-1 bg-muted p-3 rounded-md">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Rate</span>
-              <span>
-                1 {fromToken?.symbol} = {swapEstimate.price.toFixed(6)} {toToken?.symbol}
-              </span>
+        {/* To Token */}
+        <div className="space-y-2">
+          <div className="flex justify-between">
+            <label className="text-sm font-medium">To (estimated)</label>
+            <label className="text-sm text-muted-foreground">
+              Balance: {wallet.connected ? '0.00' : 'Connect wallet'}
+            </label>
+          </div>
+          
+          <div className="flex space-x-2">
+            <div className="flex-1 px-3 py-2 bg-muted border border-border rounded-md">
+              {estimateLoading ? (
+                <div className="flex items-center justify-center h-5">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <span>{estimatedAmount !== null ? estimatedAmount.toFixed(4) : '0.0'}</span>
+              )}
             </div>
             
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Minimum received</span>
-              <span>{swapEstimate.minimumReceived.toFixed(6)} {toToken?.symbol}</span>
+            <div className="w-32">
+              <TokenSearchInput
+                selectedToken={toToken}
+                onSelect={setToToken}
+                excludeTokens={fromToken ? [fromToken.address] : []}
+              />
             </div>
-            
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Price impact</span>
-              <span className={swapEstimate.priceImpact > 5 ? 'text-destructive' : 'text-primary'}>
-                {swapEstimate.priceImpact.toFixed(2)}%
-              </span>
+          </div>
+        </div>
+        
+        {/* Swap Details */}
+        <div className="bg-muted/30 rounded-md p-3 space-y-2 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Route Provider</span>
+            <span className="font-medium">{routeProvider}</span>
+          </div>
+          
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Slippage Tolerance</span>
+            <div className="flex space-x-1">
+              {[0.5, 1, 2].map((value) => (
+                <button
+                  key={value}
+                  onClick={() => handleSlippageChange(value)}
+                  className={`px-2 py-0.5 text-xs rounded-md ${
+                    slippage === value
+                      ? 'bg-primary text-white'
+                      : 'bg-muted hover:bg-primary/20'
+                  }`}
+                >
+                  {value}%
+                </button>
+              ))}
             </div>
-            
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Route</span>
-              <span>{swapEstimate.route.join(' → ')}</span>
-            </div>
-            
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Provider</span>
-              <span>{swapEstimate.provider}</span>
+          </div>
+          
+          <div className="flex justify-between">
+            <span className="text-muted-foreground flex items-center">
+              Liquidity Contribution
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3.5 w-3.5 ml-1 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">
+                      20% of your swap amount goes to the SOL-YOT liquidity pool,
+                      improving liquidity for all users.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </span>
+            <span className="font-medium">20%</span>
+          </div>
+          
+          <div className="flex justify-between">
+            <span className="text-muted-foreground flex items-center">
+              YOS Cashback
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3.5 w-3.5 ml-1 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">
+                      5% of your swap amount is converted to YOS tokens as cashback rewards.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </span>
+            <span className="font-medium">5%</span>
+          </div>
+        </div>
+        
+        {/* YOS Rewards */}
+        {wallet.connected && availableRewards > 0 && (
+          <div className="bg-primary/10 border border-primary/20 rounded-md p-3">
+            <div className="flex justify-between items-center">
+              <div>
+                <h4 className="font-medium text-primary">Available YOS Rewards</h4>
+                <p className="text-sm text-muted-foreground">
+                  {availableRewards.toFixed(4)} YOS can be claimed
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleClaimRewards}
+                disabled={claimLoading}
+              >
+                {claimLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Claiming
+                  </>
+                ) : (
+                  'Claim'
+                )}
+              </Button>
             </div>
           </div>
         )}
         
-        {/* Error message */}
-        {error && (
-          <div className="text-sm text-destructive p-2 bg-destructive/10 rounded-md">
-            {error}
+        {/* Warning about slippage and price impact - only when needed */}
+        {estimatedAmount !== null && estimatedAmount > 0 && slippage < 1 && (
+          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-md p-3 flex items-start space-x-2">
+            <AlertTriangle className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-muted-foreground">
+              Your slippage tolerance is set to {slippage}%. For larger swaps, consider increasing
+              your slippage tolerance to ensure the transaction succeeds.
+            </p>
           </div>
         )}
-        
-        {/* Success message */}
-        {swapResult && (
-          <div className="text-sm text-primary p-2 bg-primary/10 rounded-md">
-            {swapResult}
-          </div>
-        )}
-        
-        {/* Swap button */}
+      </CardContent>
+      
+      <CardFooter>
         <Button
           className="w-full"
-          disabled={!wallet.connected || !fromToken || !toToken || !amount || !swapEstimate || isSwapping}
-          onClick={handleSwap}
+          size="lg"
+          onClick={handleSwapClick}
+          disabled={loading || !estimatedAmount || estimatedAmount <= 0 || !wallet.connected}
         >
-          {isSwapping ? 'Swapping...' : 'Swap'}
+          {loading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Swapping...
+            </>
+          ) : !wallet.connected ? (
+            'Connect Wallet to Swap'
+          ) : !estimatedAmount || estimatedAmount <= 0 ? (
+            'Enter a valid amount'
+          ) : (
+            `Swap ${parseFloat(amount).toFixed(4)} ${fromToken?.symbol} for ~${estimatedAmount?.toFixed(4)} ${toToken?.symbol}`
+          )}
         </Button>
-      </CardContent>
+      </CardFooter>
     </Card>
   );
 }

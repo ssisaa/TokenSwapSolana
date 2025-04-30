@@ -1,6 +1,6 @@
 import { TokenMetadata, SwapEstimate, getSwapEstimate } from './token-search-api';
 import { executeSwapAndDistribute, claimYosRewards, getSwapContributionInfo, getSwapGlobalStats } from './multi-hub-swap-contract';
-import { SWAP_FEE } from './constants';
+import { SOL_TOKEN_ADDRESS, YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, DISTRIBUTION } from './constants';
 
 /**
  * Enum representing different swap providers
@@ -18,6 +18,10 @@ export interface SwapResult {
   success: boolean;
   signature?: string;
   error?: string;
+  fromToken?: TokenMetadata;
+  toToken?: TokenMetadata;
+  fromAmount?: number;
+  toAmount?: number;
 }
 
 /**
@@ -33,10 +37,65 @@ export async function getMultiHubSwapEstimate(
   amount: number
 ): Promise<SwapEstimate> {
   try {
-    return await getSwapEstimate(fromToken, toToken, amount);
+    // Routes:
+    // 1. YOT -> SOL: Direct on-chain swap via smart contract
+    // 2. SOL -> YOT: Direct on-chain swap via smart contract
+    // 3. Other -> YOT: First swap to SOL, then SOL -> YOT
+    // 4. YOT -> Other: First swap YOT -> SOL, then SOL -> Other
+    
+    const isDirectPath = 
+      (fromToken.address === YOT_TOKEN_ADDRESS && toToken.address === SOL_TOKEN_ADDRESS) ||
+      (fromToken.address === SOL_TOKEN_ADDRESS && toToken.address === YOT_TOKEN_ADDRESS);
+    
+    if (isDirectPath) {
+      return await getSwapEstimate(fromToken, toToken, amount);
+    }
+    
+    // For multi-hop routes, we need to estimate both legs
+    let middleToken: TokenMetadata = {
+      symbol: 'SOL',
+      name: 'Solana',
+      address: SOL_TOKEN_ADDRESS,
+      decimals: 9
+    };
+    
+    if (fromToken.address === YOT_TOKEN_ADDRESS) {
+      // YOT -> SOL -> Other
+      const leg1 = await getSwapEstimate(fromToken, middleToken, amount);
+      const leg2 = await getSwapEstimate(middleToken, toToken, leg1.outputAmount);
+      
+      return {
+        inputAmount: amount,
+        outputAmount: leg2.outputAmount,
+        price: leg1.price * leg2.price,
+        priceImpact: leg1.priceImpact + leg2.priceImpact,
+        minimumReceived: leg2.minimumReceived,
+        route: [fromToken.symbol, middleToken.symbol, toToken.symbol],
+        provider: 'Multi-hop (Contract + Raydium)'
+      };
+    } else {
+      // Other -> SOL -> YOT
+      const leg1 = await getSwapEstimate(fromToken, middleToken, amount);
+      const leg2 = await getSwapEstimate(middleToken, {
+        symbol: 'YOT',
+        name: 'YOT Token',
+        address: YOT_TOKEN_ADDRESS,
+        decimals: 9
+      }, leg1.outputAmount);
+      
+      return {
+        inputAmount: amount,
+        outputAmount: leg2.outputAmount,
+        price: leg1.price * leg2.price,
+        priceImpact: leg1.priceImpact + leg2.priceImpact,
+        minimumReceived: leg2.minimumReceived,
+        route: [fromToken.symbol, middleToken.symbol, 'YOT'],
+        provider: 'Multi-hop (Raydium + Contract)'
+      };
+    }
   } catch (error) {
-    console.error('Error getting swap estimate:', error);
-    throw new Error(`Failed to get swap estimate: ${error instanceof Error ? error.message : String(error)}`);
+    console.error('Error estimating swap:', error);
+    throw error;
   }
 }
 
@@ -59,24 +118,29 @@ export async function executeMultiHubSwap(
   provider?: SwapProvider
 ): Promise<SwapResult> {
   try {
-    // Get the swap estimate first
     const estimate = await getMultiHubSwapEstimate(fromToken, toToken, amount);
-    
-    // Calculate minimum amount to receive based on slippage
     const minAmountOut = estimate.outputAmount * (1 - slippage);
     
-    // Execute the swap using the contract
+    // We'll start with simple YOT <-> SOL swaps using our contract
+    // In a full implementation, we'd route through different providers 
+    // based on the tokens and best rates
+    
+    // For now, use the contract for all swaps
     const signature = await executeSwapAndDistribute(wallet, amount, minAmountOut);
     
     return {
       success: true,
-      signature
+      signature,
+      fromToken,
+      toToken,
+      fromAmount: amount,
+      toAmount: estimate.outputAmount
     };
   } catch (error) {
     console.error('Error executing swap:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : 'Unknown error during swap'
     };
   }
 }
@@ -95,10 +159,10 @@ export async function claimYosSwapRewards(wallet: any): Promise<SwapResult> {
       signature
     };
   } catch (error) {
-    console.error('Error claiming YOS rewards:', error);
+    console.error('Error claiming rewards:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : 'Unknown error claiming rewards'
     };
   }
 }
@@ -113,7 +177,7 @@ export async function getUserSwapInfo(walletAddress: string) {
     return await getSwapContributionInfo(walletAddress);
   } catch (error) {
     console.error('Error getting user swap info:', error);
-    throw new Error(`Failed to get user swap info: ${error instanceof Error ? error.message : String(error)}`);
+    throw error;
   }
 }
 
@@ -126,7 +190,7 @@ export async function getGlobalSwapStats() {
     return await getSwapGlobalStats();
   } catch (error) {
     console.error('Error getting global swap stats:', error);
-    throw new Error(`Failed to get global swap stats: ${error instanceof Error ? error.message : String(error)}`);
+    throw error;
   }
 }
 
@@ -136,15 +200,14 @@ export async function getGlobalSwapStats() {
  * @returns Fee breakdown
  */
 export function calculateSwapFees(amount: number) {
-  const tradingFee = amount * SWAP_FEE;
-  const liquidityContribution = amount * 0.2; // 20% goes to liquidity pool
-  const yosCashback = amount * 0.05; // 5% returned as YOS
+  const userAmount = amount * (DISTRIBUTION.USER_PERCENTAGE / 100);
+  const liquidityAmount = amount * (DISTRIBUTION.LIQUIDITY_PERCENTAGE / 100);
+  const cashbackAmount = amount * (DISTRIBUTION.CASHBACK_PERCENTAGE / 100);
   
   return {
-    tradingFee,
-    liquidityContribution,
-    yosCashback,
-    totalFees: tradingFee + liquidityContribution,
-    netAmount: amount - tradingFee - liquidityContribution + yosCashback
+    userAmount,
+    liquidityAmount,
+    cashbackAmount,
+    total: amount
   };
 }
