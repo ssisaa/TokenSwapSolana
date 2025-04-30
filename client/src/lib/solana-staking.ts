@@ -9,6 +9,7 @@ import {
   SYSVAR_CLOCK_PUBKEY,
   TransactionInstruction
 } from '@solana/web3.js';
+import { sendTransactionWithWallet } from './wallet-adapter';
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getAccount, createTransferInstruction } from '@solana/spl-token';
 import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, YOT_DECIMALS, YOS_DECIMALS, STAKING_PROGRAM_ID, ENDPOINT, YOS_WALLET_DISPLAY_ADJUSTMENT, PROGRAM_SCALING_FACTOR } from './constants';
 
