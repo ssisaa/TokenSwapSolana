@@ -820,12 +820,15 @@ export async function stakeYOTTokens(
     // Note: We'll let the program handle account creation
     // Staking accounts are PDAs just like program state
     
-    // CORE FIX: For tokens with 9 decimals, we need to apply proper decimal scaling
-    // This ensures proper wallet display while maintaining blockchain compatibility
+    // SUPER CRITICAL FIX: Use toFixed(0) and parseFloat for exact integer token amounts
+    // This ensures proper wallet display with zero decimal places in confirmation screen
     
-    // Convert UI amount (e.g., 1000 YOT) to raw blockchain amount (e.g., 1000000000000)
+    // Step 1: Format with toFixed(0) then parse to float - critical to prevent 1000.01 issue
+    const formattedAmount = parseFloat(amount.toFixed(0));
+    
+    // Step 2: Convert UI amount (e.g., 1000 YOT) to raw blockchain amount with proper decimals
     // This applies the token's 9 decimal places to get the correct blockchain amount
-    const tokenAmount = uiToRawTokenAmount(amount, YOT_DECIMALS);
+    const tokenAmount = uiToRawTokenAmount(formattedAmount, YOT_DECIMALS);
     
     // Log detailed information for debugging
     console.log(`Creating YOT token transfer:`);
@@ -932,11 +935,15 @@ export async function prepareUnstakeTransaction(
   // CRITICAL FIX: Add direct token transfer instruction with EXACT integer amount
   // This ensures proper wallet display while maintaining program compatibility
   
-  // CORE FIX: For tokens with 9 decimals, we need to apply proper decimal scaling
-  // This ensures proper wallet display while maintaining blockchain compatibility
+  // SUPER CRITICAL FIX: Use toFixed(0) and parseFloat for exact integer token amounts
+  // This ensures proper wallet display with zero decimal places in confirmation screen
   
-  // Convert UI amount to raw blockchain amount with 9 decimals
-  const tokenAmount = uiToRawTokenAmount(amount, YOT_DECIMALS);
+  // Step 1: Format with toFixed(0) then parse to float - critical to prevent 1000.01 issue
+  const formattedAmount = parseFloat(amount.toFixed(0));
+  
+  // Step 2: Convert UI amount (e.g., 1000 YOT) to raw blockchain amount with proper decimals
+  // This applies the token's 9 decimal places to get the correct blockchain amount
+  const tokenAmount = uiToRawTokenAmount(formattedAmount, YOT_DECIMALS);
   
   // Log detailed information for debugging
   console.log(`Preparing YOT token transfer for unstaking:`);
