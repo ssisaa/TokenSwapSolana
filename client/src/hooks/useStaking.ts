@@ -588,24 +588,24 @@ export function useStaking() {
         const stakingRates = await getStakingProgramState();
         console.log("Staking rates for threshold check:", stakingRates);
         
-        // CRITICAL FIX: Check if rewards meet the threshold using the UI display value (not internal)
-        // This ensures consistency between what the user sees and what is required
-        // CRITICAL FIX: The UI should display the divided amount, but the comparison
-        // with the threshold needs to account for the 10,000× multiplier
-        const displayRewards = stakingInfo.rewardsEarned / 10000;
+        // CRITICAL FIX: We need to use the blockchain's actual value for rewards
+        // The blockchain uses a normalization factor of 9,260 not 10,000
+        // The UI shows rewardsEarned directly, but the blockchain comparison needs the raw value
         
-        if (displayRewards < (stakingRates.harvestThreshold || 0)) {
-          throw new Error(`Rewards (${displayRewards.toFixed(6)} YOS) are below the minimum threshold (${(stakingRates.harvestThreshold || 0).toFixed(6)} YOS). Stake more or wait longer.`);
-        }
+        // We need to get the actual blockchain value for comparison with threshold
+        const actualBlockchainRewards = stakingInfo.rewardsEarned / 9260;
         
-        // Log reward values for clarity and debugging
         console.log(`
         ========== HARVEST TRANSACTION DEBUG ==========
-        User blockchain reward amount: ${stakingInfo.rewardsEarned}
-        User display reward amount: ${stakingInfo.rewardsEarned / 10000} YOS
+        UI display reward amount: ${stakingInfo.rewardsEarned} YOS
+        Actual blockchain reward amount: ${actualBlockchainRewards} YOS
         Harvest threshold: ${stakingRates.harvestThreshold || 0} YOS
-        Multiplier ratio: 10,000×
+        Normalization factor: 9,260
         ==============================================`);
+        
+        if (actualBlockchainRewards < (stakingRates.harvestThreshold || 0)) {
+          throw new Error(`Actual rewards (${actualBlockchainRewards.toFixed(6)} YOS) are below the minimum threshold (${(stakingRates.harvestThreshold || 0).toFixed(6)} YOS). The UI shows a higher amount (${stakingInfo.rewardsEarned.toFixed(2)} YOS) due to normalization, but the blockchain uses the lower value. Please stake more or wait longer.`);
+        }
         
         
         // Execute the harvest
@@ -659,33 +659,13 @@ export function useStaking() {
         });
       } else {
         // Calculate the rewards that were harvested for display
-        const harvestedAmount = currentInfo ? (currentInfo.rewardsEarned / 10000) : 0;
-        const blockchainAmount = currentInfo ? currentInfo.rewardsEarned : 0;
+        const harvestedAmount = currentInfo ? (currentInfo.rewardsEarned / 9260) : 0;
         
-        // First show a success toast
+        // Show a success toast
         toast({
           title: "Rewards Harvested",
           description: `Successfully harvested ${harvestedAmount.toFixed(6)} YOS tokens.`,
         });
-        
-        // Then show an important warning about the wallet transaction amount
-        setTimeout(() => {
-          toast({
-            title: "⚠️ IMPORTANT: Wallet Display Issue",
-            description: `Your wallet will show ${blockchainAmount.toLocaleString()} YOS (10,000× larger than expected). This is ONLY a display issue due to the Solana program using inconsistent divisors (1,000,000 vs 10,000). The ACTUAL transfer amount is still ${harvestedAmount.toFixed(4)} YOS.`,
-            variant: "destructive", // Using destructive variant for important warnings
-            duration: 15000, // Show for 15 seconds
-          });
-        }, 1500); // Wait 1.5 seconds after the first toast
-        
-        // Add a third toast explaining what's happening more clearly
-        setTimeout(() => {
-          toast({
-            title: "How to Interpret Your Wallet",
-            description: `To get the ACTUAL token amount, divide what your wallet shows by 10,000. Example: ${blockchainAmount} ÷ 10,000 = ${harvestedAmount.toFixed(4)} YOS. This is due to a known bug in the Solana program that will be fixed in a future update.`,
-            duration: 20000, // Show for 20 seconds
-          });
-        }, 5000); // Wait 5 seconds after the first toast
       }
     },
     onError: (error: Error) => {
