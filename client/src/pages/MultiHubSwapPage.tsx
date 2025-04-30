@@ -1,62 +1,174 @@
-import React from 'react';
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { PageLayout } from '@/components/layout/PageLayout';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import MultiHubSwapDemo from '@/components/MultiHubSwap/MultiHubSwapDemo';
+import useMultiHubSwap from '@/hooks/useMultiHubSwap';
+import { formatNumber, shortenAddress } from '@/lib/utils';
 
 export default function MultiHubSwapPage() {
+  const wallet = useWallet();
+  const { toast } = useToast();
+  const {
+    userSwapInfo,
+    userSwapInfoLoading,
+    globalSwapStats,
+    globalSwapStatsLoading,
+    claimRewards,
+    isClaimingRewards
+  } = useMultiHubSwap();
+  
+  const handleConnectWallet = () => {
+    if (wallet.wallet) {
+      wallet.connect();
+    } else {
+      toast({
+        title: 'Wallet not found',
+        description: 'Please install a Solana wallet extension to continue',
+        variant: 'destructive'
+      });
+    }
+  };
+  
   return (
-    <PageLayout>
-      <div className="container max-w-7xl mx-auto px-4 py-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold">Multi-Hub Token Swap</h1>
-            <p className="text-muted-foreground mt-2">
-              Swap tokens with automatic 20% contribution to SOL-YOT liquidity pool and earn 5% YOS cashback rewards
-            </p>
-          </div>
-          <div className="mt-4 md:mt-0">
-            <WalletMultiButton />
-          </div>
+    <div className="container mx-auto py-8 px-4 max-w-6xl">
+      <h1 className="text-3xl font-bold mb-6">Multi-Hub Swap</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Main Swap Card */}
+        <div className="md:col-span-2">
+          <Tabs defaultValue="swap" className="w-full">
+            <TabsList className="grid grid-cols-2 mb-4">
+              <TabsTrigger value="swap">Swap</TabsTrigger>
+              <TabsTrigger value="pool">Liquidity Pool</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="swap" className="bg-background rounded-md border">
+              <MultiHubSwapDemo />
+            </TabsContent>
+            
+            <TabsContent value="pool">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Liquidity Pool</CardTitle>
+                  <CardDescription>
+                    View and manage your liquidity contributions
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-center py-8 text-muted-foreground">
+                    Liquidity pool management coming soon
+                  </p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
         
-        <div className="flex flex-col lg:flex-row gap-8">
-          <div className="flex-1 flex justify-center">
-            <MultiHubSwapDemo />
-          </div>
-          
-          <div className="flex-1 bg-card rounded-lg p-6 shadow-md">
-            <h2 className="text-xl font-semibold mb-4">About Multi-Hub Swap</h2>
-            <div className="space-y-4">
-              <p>
-                Our Multi-Hub Swap technology intelligently routes your transactions through
-                multiple liquidity sources to ensure the best rates and highest success probability.
-              </p>
+        {/* User Stats Card */}
+        <div>
+          <Card className="h-full">
+            <CardHeader>
+              <CardTitle>Your Stats</CardTitle>
+              <CardDescription>
+                {wallet.connected 
+                  ? `Connected: ${shortenAddress(wallet.publicKey?.toString() || '')}`
+                  : 'Connect wallet to view stats'
+                }
+              </CardDescription>
+            </CardHeader>
+            
+            <CardContent className="space-y-6">
+              {!wallet.connected ? (
+                <div className="flex justify-center p-4">
+                  <Button onClick={handleConnectWallet}>
+                    Connect Wallet
+                  </Button>
+                </div>
+              ) : userSwapInfoLoading ? (
+                <div className="flex justify-center p-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-4">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Total Swapped</span>
+                      <span className="font-medium">{formatNumber(userSwapInfo?.totalSwapped || 0)} SOL</span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Total Contributed</span>
+                      <span className="font-medium">{formatNumber(userSwapInfo?.totalContributed || 0)} SOL</span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Pending Rewards</span>
+                      <span className="font-medium">{formatNumber(userSwapInfo?.pendingRewards || 0)} YOS</span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Total Rewards Claimed</span>
+                      <span className="font-medium">{formatNumber(userSwapInfo?.totalRewardsClaimed || 0)} YOS</span>
+                    </div>
+                  </div>
+                  
+                  {(userSwapInfo?.pendingRewards || 0) > 0 && (
+                    <Button 
+                      onClick={() => claimRewards()} 
+                      disabled={isClaimingRewards} 
+                      className="w-full"
+                    >
+                      {isClaimingRewards ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Claiming...
+                        </>
+                      ) : (
+                        `Claim ${formatNumber(userSwapInfo?.pendingRewards || 0)} YOS`
+                      )}
+                    </Button>
+                  )}
+                </>
+              )}
               
-              <div className="bg-muted p-4 rounded-md">
-                <h3 className="font-semibold mb-2">Key Benefits</h3>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>Automatic 20% contribution to SOL-YOT liquidity pool</li>
-                  <li>5% YOS token cashback on every swap</li>
-                  <li>75% of tokens go directly to you</li>
-                  <li>Smart routing through multiple DEXs</li>
-                  <li>Weekly YOS rewards distribution at 100% APR</li>
-                </ul>
+              <div className="border-t pt-4 mt-6">
+                <h3 className="font-medium mb-3">Global Stats</h3>
+                
+                {globalSwapStatsLoading ? (
+                  <div className="flex justify-center p-4">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Total Volume</span>
+                      <span>{formatNumber(globalSwapStats?.totalSwapVolume || 0)} SOL</span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Liquidity Contributed</span>
+                      <span>{formatNumber(globalSwapStats?.totalLiquidityContributed || 0)} SOL</span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Rewards Distributed</span>
+                      <span>{formatNumber(globalSwapStats?.totalRewardsDistributed || 0)} YOS</span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Unique Users</span>
+                      <span>{globalSwapStats?.uniqueUsers || 0}</span>
+                    </div>
+                  </div>
+                )}
               </div>
-              
-              <div className="bg-muted p-4 rounded-md">
-                <h3 className="font-semibold mb-2">How It Works</h3>
-                <p>Each swap is processed through our secure smart contract, which:</p>
-                <ol className="list-decimal list-inside space-y-1">
-                  <li>Routes 75% of tokens directly to your wallet</li>
-                  <li>Adds 20% to the SOL-YOT liquidity pool (10% SOL, 10% YOT)</li>
-                  <li>Allocates 5% as YOS token rewards</li>
-                  <li>Tracks your contributions for weekly YOS rewards</li>
-                </ol>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
-    </PageLayout>
+    </div>
   );
 }

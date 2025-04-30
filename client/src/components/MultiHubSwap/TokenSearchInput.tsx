@@ -1,88 +1,38 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { 
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Input } from '@/components/ui/input';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Check, ChevronDown, Loader2 } from 'lucide-react';
+import { Check, ChevronsUpDown, SearchIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { searchTokens } from '@/lib/token-search-api';
+import { TokenMetadata } from '@/lib/multi-hub-swap';
 
-// Common Solana tokens
-const COMMON_TOKENS = [
-  {
-    address: 'So11111111111111111111111111111111111111112',
-    symbol: 'SOL',
-    name: 'Solana',
-    decimals: 9,
-    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png'
-  },
-  {
-    address: '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF',
-    symbol: 'YOT',
-    name: 'YOT Token',
-    decimals: 9,
-    logoURI: 'https://cryptologos.cc/logos/solana-sol-logo.png?v=024' // Placeholder logo
-  },
-  {
-    address: 'GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n',
-    symbol: 'YOS',
-    name: 'YOS Rewards Token',
-    decimals: 9,
-    logoURI: 'https://cryptologos.cc/logos/solana-sol-logo.png?v=024' // Placeholder logo
-  },
-  {
-    address: '9T7uw5dqaEmEC4McqyefzYsEg5hoC4e2oV8it1Uc4f1U',
-    symbol: 'USDC',
-    name: 'USD Coin (Devnet)',
-    decimals: 6,
-    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png'
-  }
-];
-
-export interface TokenSearchInputProps {
-  selectedToken: any;
-  onSelect: (token: any) => void;
+interface TokenSearchInputProps {
+  selectedToken: TokenMetadata | null;
+  onSelect: (token: TokenMetadata) => void;
   excludeTokens?: string[];
-  placeholder?: string;
 }
 
 export function TokenSearchInput({ 
   selectedToken, 
   onSelect, 
-  excludeTokens = [],
-  placeholder = 'Search token...'
+  excludeTokens = []
 }: TokenSearchInputProps) {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [tokens, setTokens] = useState(COMMON_TOKENS);
-
-  // Filter tokens based on search query and excluded tokens
-  const filteredTokens = tokens.filter(token => {
-    // Exclude tokens that should not be shown
-    if (excludeTokens.includes(token.address)) return false;
-    
-    // If search query is empty, show all
-    if (!searchQuery) return true;
-    
-    // Search by symbol, name, or address
-    const query = searchQuery.toLowerCase();
-    return (
-      token.symbol.toLowerCase().includes(query) ||
-      token.name.toLowerCase().includes(query) ||
-      token.address.toLowerCase().includes(query)
-    );
-  });
-
-  // Handle token selection
-  const handleSelectToken = (token: any) => {
-    onSelect(token);
-    setOpen(false);
-  };
-
-  // Format token icon and fallback
-  const getTokenIcon = (token: any) => {
-    return token?.logoURI || 'https://cryptologos.cc/logos/solana-sol-logo.png?v=024';
-  };
-
+  const [tokens, setTokens] = useState<TokenMetadata[]>([]);
+  
+  // Initialize and update token list
+  useEffect(() => {
+    const results = searchTokens(searchQuery, excludeTokens);
+    setTokens(results);
+  }, [searchQuery, excludeTokens]);
+  
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -90,66 +40,65 @@ export function TokenSearchInput({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between bg-background"
+          className="w-full justify-between"
         >
           {selectedToken ? (
-            <div className="flex items-center gap-2 overflow-hidden">
-              <img 
-                src={getTokenIcon(selectedToken)}
-                alt={selectedToken.symbol}
-                className="h-5 w-5 rounded-full" 
-              />
-              <span className="truncate">{selectedToken.symbol}</span>
+            <div className="flex items-center gap-2">
+              {selectedToken.logoURI && (
+                <img 
+                  src={selectedToken.logoURI} 
+                  alt={selectedToken.symbol} 
+                  className="w-5 h-5 rounded-full"
+                />
+              )}
+              <span>{selectedToken.symbol}</span>
             </div>
           ) : (
-            <span>Select token</span>
+            <span className="text-muted-foreground">Select token</span>
           )}
-          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[200px] p-0" align="start">
+      <PopoverContent className="w-56 p-0">
         <Command>
           <CommandInput 
-            placeholder={placeholder}
+            placeholder="Search tokens..." 
             value={searchQuery}
             onValueChange={setSearchQuery}
             className="h-9"
           />
           <CommandList>
-            <CommandEmpty>
-              {isLoading ? (
-                <div className="flex items-center justify-center py-6">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : (
-                <div className="py-6 text-center text-sm">No tokens found</div>
-              )}
-            </CommandEmpty>
+            <CommandEmpty>No tokens found.</CommandEmpty>
             <CommandGroup>
-              {filteredTokens.map((token) => (
+              {tokens.map((token) => (
                 <CommandItem
                   key={token.address}
-                  value={`${token.symbol}-${token.address}`}
-                  onSelect={() => handleSelectToken(token)}
+                  value={token.address}
+                  onSelect={() => {
+                    onSelect(token);
+                    setOpen(false);
+                  }}
                   className="cursor-pointer"
                 >
-                  <div className="flex items-center gap-2 overflow-hidden">
-                    <img 
-                      src={getTokenIcon(token)}
-                      alt={token.symbol}
-                      className="h-5 w-5 rounded-full" 
-                    />
-                    <span className="truncate">{token.symbol}</span>
-                    <span className="truncate text-muted-foreground text-xs">{token.name}</span>
-                  </div>
-                  <Check
-                    className={cn(
-                      "ml-auto h-4 w-4",
-                      selectedToken?.address === token.address
-                        ? "opacity-100"
-                        : "opacity-0"
+                  <div className="flex items-center w-full">
+                    <div className="flex items-center gap-2 flex-1">
+                      {token.logoURI && (
+                        <img 
+                          src={token.logoURI} 
+                          alt={token.symbol} 
+                          className="w-5 h-5 rounded-full"
+                        />
+                      )}
+                      <div>
+                        <div className="font-medium">{token.symbol}</div>
+                        <div className="text-xs text-muted-foreground truncate">{token.name}</div>
+                      </div>
+                    </div>
+                    
+                    {selectedToken?.address === token.address && (
+                      <Check className="h-4 w-4 text-primary" />
                     )}
-                  />
+                  </div>
                 </CommandItem>
               ))}
             </CommandGroup>

@@ -1,191 +1,95 @@
-import { Connection, PublicKey } from '@solana/web3.js';
-import { ENDPOINT, YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, SOL_TOKEN_ADDRESS, YOT_SYMBOL, YOS_SYMBOL, SOL_SYMBOL } from './constants';
+import { TokenMetadata } from './multi-hub-swap';
+import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, SOL_TOKEN_ADDRESS, YOT_SYMBOL, YOS_SYMBOL, SOL_SYMBOL } from './constants';
 
-const connection = new Connection(ENDPOINT);
-
-// Default tokens to show even when search is empty
-const defaultTokens = [
+// Default token list for the application
+export const defaultTokens: TokenMetadata[] = [
   {
+    address: SOL_TOKEN_ADDRESS,
     symbol: SOL_SYMBOL,
     name: 'Solana',
-    address: SOL_TOKEN_ADDRESS,
     decimals: 9,
-    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png'
+    logoURI: 'https://cryptologos.cc/logos/solana-sol-logo.png?v=024'
   },
   {
-    symbol: YOT_SYMBOL,
-    name: 'YOT Token',
     address: YOT_TOKEN_ADDRESS,
+    symbol: YOT_SYMBOL,
+    name: 'YieldOptimizationToken',
     decimals: 9,
-    logoURI: 'https://via.placeholder.com/50/f4900c/ffffff?text=YOT'
+    logoURI: 'https://via.placeholder.com/50/4F46E5/FFFFFF?text=YOT'
   },
   {
-    symbol: YOS_SYMBOL,
-    name: 'YOS Token',
     address: YOS_TOKEN_ADDRESS,
+    symbol: YOS_SYMBOL,
+    name: 'YieldOptimizationShard',
     decimals: 9,
-    logoURI: 'https://via.placeholder.com/50/0cf49b/ffffff?text=YOS'
+    logoURI: 'https://via.placeholder.com/50/EA580C/FFFFFF?text=YOS'
   },
-  // Add more popular/default tokens here
+  // These are example tokens for development
+  {
+    address: '9T7uw5dqaEmEC4McqyefzYsEg5hoC4e2oV8it1Uc4f1U',
+    symbol: 'USDC',
+    name: 'USD Coin (Devnet)',
+    decimals: 6,
+    logoURI: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png?v=024'
+  },
+  {
+    address: 'EbgWXRY4N5SZYrELtrrQzPpGUT4bz3UYpCDJTNdVdYuj',
+    symbol: 'BTC',
+    name: 'Bitcoin (Devnet)',
+    decimals: 8,
+    logoURI: 'https://cryptologos.cc/logos/bitcoin-btc-logo.png?v=024'
+  },
+  {
+    address: 'EnYAyJ2AQxXfcmfeMjvQQiNMrTn7jGEcFYxVc8FvpRt4',
+    symbol: 'ETH',
+    name: 'Ethereum (Devnet)',
+    decimals: 18,
+    logoURI: 'https://cryptologos.cc/logos/ethereum-eth-logo.png?v=024'
+  }
 ];
 
 /**
- * Token metadata interface
- */
-export interface TokenMetadata {
-  symbol: string;
-  name: string;
-  address: string;
-  decimals: number;
-  logoURI?: string;
-  tags?: string[];
-}
-
-/**
- * Swap estimate interface
- */
-export interface SwapEstimate {
-  inputAmount: number;
-  outputAmount: number;
-  price: number;
-  priceImpact: number;
-  minimumReceived: number;
-  route: string[];
-  provider: string;
-}
-
-/**
- * Search for tokens by name, symbol, or address
- * @param query Search query (empty for popular tokens)
+ * Search for tokens by symbol or address
+ * @param query Search query string
+ * @param excludeAddresses Addresses to exclude from results
  * @returns Array of matching tokens
  */
-export async function searchTokens(query: string): Promise<TokenMetadata[]> {
-  try {
-    if (!query || query.trim() === '') {
-      return defaultTokens;
+export function searchTokens(query: string, excludeAddresses: string[] = []): TokenMetadata[] {
+  if (!query) {
+    return defaultTokens.filter(token => !excludeAddresses.includes(token.address));
+  }
+  
+  const lowerQuery = query.toLowerCase();
+  
+  return defaultTokens.filter(token => {
+    // Skip excluded addresses
+    if (excludeAddresses.includes(token.address)) {
+      return false;
     }
-
-    const lowerQuery = query.toLowerCase();
     
-    // First check if the query matches any of our default tokens
-    const defaultMatches = defaultTokens.filter(token => 
+    // Match by symbol or address
+    return (
       token.symbol.toLowerCase().includes(lowerQuery) ||
       token.name.toLowerCase().includes(lowerQuery) ||
       token.address.toLowerCase().includes(lowerQuery)
     );
-    
-    // If we have a match in default tokens, return it immediately
-    if (defaultMatches.length > 0) {
-      return defaultMatches;
-    }
-    
-    // Check if the query is a valid Solana address and try to resolve it
-    if (query.length >= 32 && query.length <= 44) {
-      try {
-        const validatedToken = await validateTokenAddress(query);
-        if (validatedToken) {
-          return [validatedToken];
-        }
-      } catch (error) {
-        // Not a valid token address, continue with regular search
-      }
-    }
-    
-    // For a production app, we would integrate with a token list API
-    // For now, just return default tokens that match the query
-    return defaultMatches;
-  } catch (error) {
-    console.error('Error searching tokens:', error);
-    return [];
-  }
-}
-
-/**
- * Validate token address by checking if it's a valid SPL token
- * @param addressString Token address to validate
- * @returns Token metadata or null if invalid
- */
-export async function validateTokenAddress(addressString: string): Promise<TokenMetadata | null> {
-  try {
-    // Check if it's one of our known tokens
-    const knownToken = defaultTokens.find(token => token.address === addressString);
-    if (knownToken) {
-      return knownToken;
-    }
-    
-    // Try to validate it as a real SPL token on Solana
-    const address = new PublicKey(addressString);
-    const tokenInfo = await connection.getTokenSupply(address);
-    
-    if (tokenInfo) {
-      // Token exists! Create a placeholder metadata
-      return {
-        symbol: 'UNKNOWN',
-        name: 'Unknown Token',
-        address: addressString,
-        decimals: tokenInfo.value.decimals,
-        logoURI: 'https://via.placeholder.com/50/cccccc/ffffff?text=?'
-      };
-    }
-    
-    return null;
-  } catch (error) {
-    console.error('Error validating token address:', error);
-    return null;
-  }
+  });
 }
 
 /**
  * Get token by address
  * @param address Token address
- * @returns Token metadata or null if not found
+ * @returns Token metadata if found, undefined otherwise
  */
-export async function getTokenByAddress(address: string): Promise<TokenMetadata | null> {
-  try {
-    // First check default tokens
-    const defaultToken = defaultTokens.find(token => token.address === address);
-    if (defaultToken) {
-      return defaultToken;
-    }
-    
-    // If not in default list, try to validate it
-    return await validateTokenAddress(address);
-  } catch (error) {
-    console.error('Error getting token by address:', error);
-    return null;
-  }
+export function getTokenByAddress(address: string): TokenMetadata | undefined {
+  return defaultTokens.find(token => token.address === address);
 }
 
 /**
- * Get swap estimate between tokens
- * @param fromToken Source token
- * @param toToken Destination token
- * @param amount Amount to swap
- * @returns Swap estimate
+ * Get token by symbol
+ * @param symbol Token symbol
+ * @returns Token metadata if found, undefined otherwise
  */
-export async function getSwapEstimate(
-  fromToken: TokenMetadata,
-  toToken: TokenMetadata,
-  amount: number
-): Promise<SwapEstimate> {
-  // For now, return simulated data with realistic values
-  // In a real implementation, this would call the appropriate DEX API
-  const basePrice = fromToken.symbol === SOL_SYMBOL ? 148.50 : 
-                  fromToken.symbol === YOT_SYMBOL ? 0.12 : 0.03;
-  
-  const targetPrice = toToken.symbol === SOL_SYMBOL ? 148.50 : 
-                    toToken.symbol === YOT_SYMBOL ? 0.12 : 0.03;
-  
-  const exchangeRate = targetPrice / basePrice;
-  const outputAmount = amount * exchangeRate * 0.995; // 0.5% fee
-  
-  return {
-    inputAmount: amount,
-    outputAmount,
-    price: exchangeRate,
-    priceImpact: 0.5, // 0.5% impact
-    minimumReceived: outputAmount * 0.99, // 1% slippage
-    route: [fromToken.symbol, toToken.symbol],
-    provider: 'Raydium'
-  };
+export function getTokenBySymbol(symbol: string): TokenMetadata | undefined {
+  return defaultTokens.find(token => token.symbol === symbol);
 }

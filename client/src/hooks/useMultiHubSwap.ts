@@ -1,129 +1,112 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useState, useMemo } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
 import { 
   getMultiHubSwapEstimate, 
   executeMultiHubSwap, 
   claimYosSwapRewards,
   getUserSwapInfo,
   getGlobalSwapStats,
-  SwapProvider
+  SwapProvider,
+  TokenMetadata
 } from '@/lib/multi-hub-swap';
-import { TokenMetadata } from '@/lib/token-search-api';
-import { queryClient } from '@/lib/queryClient';
-import { useToast } from '@/hooks/use-toast';
+
+const DEFAULT_SLIPPAGE = 0.01; // Default 1% slippage
 
 export default function useMultiHubSwap() {
-  const { toast } = useToast();
   const wallet = useWallet();
-  const walletAddress = wallet.publicKey?.toString() || '';
-  const isWalletConnected = wallet.connected && !!walletAddress;
-
-  // Token selection state
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  
   const [fromToken, setFromToken] = useState<TokenMetadata | null>(null);
   const [toToken, setToToken] = useState<TokenMetadata | null>(null);
+  const [amount, setAmount] = useState<string>('');
+  const [slippage, setSlippage] = useState<number>(DEFAULT_SLIPPAGE);
   
-  // Amount state
-  const [fromAmount, setFromAmount] = useState('');
-  const [toAmount, setToAmount] = useState('');
+  // Convert input amount to number
+  const parsedAmount = useMemo(() => {
+    const num = parseFloat(amount);
+    return isNaN(num) ? 0 : num;
+  }, [amount]);
   
-  // Slippage state
-  const [slippage, setSlippage] = useState(0.01); // 1% default
-  
-  // Swap estimate
-  const [swapEstimate, setSwapEstimate] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  
-  // Get user swap stats and liquidity contribution info
+  // Get swap estimate
   const { 
-    data: swapStats, 
-    isLoading: isLoadingSwapStats 
+    data: swapEstimate,
+    isLoading: estimateLoading,
+    error: estimateError 
   } = useQuery({
-    queryKey: ['/api/swap/stats', walletAddress],
+    queryKey: ['swap-estimate', fromToken?.address, toToken?.address, parsedAmount],
     queryFn: async () => {
-      if (!isWalletConnected) return null;
-      return await getUserSwapInfo(walletAddress);
+      if (!fromToken || !toToken || parsedAmount <= 0) {
+        return null;
+      }
+      return getMultiHubSwapEstimate(fromToken, toToken, parsedAmount);
     },
-    enabled: isWalletConnected,
+    enabled: !!fromToken && !!toToken && parsedAmount > 0,
+    refetchInterval: 30000, // Refresh every 30 seconds
   });
-
+  
+  // Get user swap info
+  const {
+    data: userSwapInfo,
+    isLoading: userSwapInfoLoading,
+    error: userSwapInfoError
+  } = useQuery({
+    queryKey: ['user-swap-info', wallet.publicKey?.toString()],
+    queryFn: async () => {
+      if (!wallet.publicKey) return null;
+      return getUserSwapInfo(wallet.publicKey.toString());
+    },
+    enabled: !!wallet.publicKey,
+    refetchInterval: 60000, // Refresh every 60 seconds
+  });
+  
   // Get global swap stats
   const {
     data: globalSwapStats,
-    isLoading: isLoadingGlobalStats
+    isLoading: globalSwapStatsLoading,
+    error: globalSwapStatsError
   } = useQuery({
-    queryKey: ['/api/swap/global-stats'],
+    queryKey: ['global-swap-stats'],
     queryFn: async () => {
-      return await getGlobalSwapStats();
-    }
+      return getGlobalSwapStats();
+    },
+    refetchInterval: 60000, // Refresh every 60 seconds
   });
-
-  // Calculate estimate whenever fromToken, toToken, or fromAmount changes
-  useEffect(() => {
-    const calculateEstimate = async () => {
-      if (!fromToken || !toToken || !fromAmount || parseFloat(fromAmount) <= 0) {
-        setSwapEstimate(null);
-        setToAmount('');
-        return;
-      }
-      
-      try {
-        setIsLoading(true);
-        const amount = parseFloat(fromAmount);
-        const estimate = await getMultiHubSwapEstimate(fromToken, toToken, amount);
-        setSwapEstimate(estimate);
-        setToAmount(estimate.outputAmount.toString());
-      } catch (error) {
-        console.error('Error calculating swap estimate:', error);
-        setSwapEstimate(null);
-        setToAmount('');
-        toast({
-          title: 'Estimate Error',
-          description: 'Unable to calculate swap estimate. Please try again.',
-          variant: 'destructive',
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    calculateEstimate();
-  }, [fromToken, toToken, fromAmount, toast]);
   
-  // Swap mutation
+  // Execute swap mutation
   const swapMutation = useMutation({
     mutationFn: async () => {
-      if (!fromToken || !toToken || !fromAmount || !wallet.publicKey) {
-        throw new Error('Missing required swap parameters');
+      if (!wallet || !fromToken || !toToken || parsedAmount <= 0) {
+        throw new Error('Missing required parameters for swap');
       }
       
-      const amount = parseFloat(fromAmount);
-      return await executeMultiHubSwap(wallet, fromToken, toToken, amount, slippage);
+      return executeMultiHubSwap(
+        wallet,
+        fromToken,
+        toToken,
+        parsedAmount,
+        slippage
+      );
     },
-    onSuccess: (result) => {
-      if (result.success) {
-        toast({
-          title: 'Swap Successful',
-          description: `Successfully swapped ${result.fromAmount} ${result.fromToken?.symbol} to ${result.toAmount?.toFixed(6)} ${result.toToken?.symbol}`,
-        });
-        
-        // Invalidate queries to refresh data
-        queryClient.invalidateQueries({ queryKey: ['/api/swap/stats', walletAddress] });
-        
-        // Reset input fields
-        setFromAmount('');
-        setToAmount('');
-      } else {
-        toast({
-          title: 'Swap Failed',
-          description: result.error || 'Unknown error occurred during swap',
-          variant: 'destructive',
-        });
-      }
+    onSuccess: (data) => {
+      toast({
+        title: 'Swap completed successfully',
+        description: `Transaction signature: ${data.signature?.slice(0, 8)}...`,
+        variant: 'default',
+      });
+      
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: ['user-swap-info'] });
+      queryClient.invalidateQueries({ queryKey: ['global-swap-stats'] });
+      
+      // Reset amount
+      setAmount('');
     },
     onError: (error: Error) => {
       toast({
-        title: 'Swap Failed',
+        title: 'Swap failed',
         description: error.message,
         variant: 'destructive',
       });
@@ -133,115 +116,99 @@ export default function useMultiHubSwap() {
   // Claim rewards mutation
   const claimRewardsMutation = useMutation({
     mutationFn: async () => {
-      if (!wallet.publicKey) {
+      if (!wallet) {
         throw new Error('Wallet not connected');
       }
       
-      return await claimYosSwapRewards(wallet);
+      return claimYosSwapRewards(wallet);
     },
-    onSuccess: (result) => {
-      if (result.success) {
-        toast({
-          title: 'Rewards Claimed',
-          description: 'Successfully claimed YOS rewards',
-        });
-        
-        // Invalidate queries to refresh data
-        queryClient.invalidateQueries({ queryKey: ['/api/swap/stats', walletAddress] });
-      } else {
-        toast({
-          title: 'Claim Failed',
-          description: result.error || 'Unknown error occurred while claiming rewards',
-          variant: 'destructive',
-        });
-      }
+    onSuccess: (data) => {
+      toast({
+        title: 'Rewards claimed successfully',
+        description: `Transaction signature: ${data.signature?.slice(0, 8)}...`,
+        variant: 'default',
+      });
+      
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: ['user-swap-info'] });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Claim Failed',
+        title: 'Failed to claim rewards',
         description: error.message,
         variant: 'destructive',
       });
     },
   });
   
-  // Swap tokens function
-  const handleSwap = useCallback(() => {
-    if (!wallet.connected) {
-      toast({
-        title: 'Wallet Not Connected',
-        description: 'Please connect your wallet to perform a swap',
-        variant: 'destructive',
-      });
-      return;
+  // Calculate swap summary
+  const swapSummary = useMemo(() => {
+    if (!fromToken || !toToken || parsedAmount <= 0 || !swapEstimate?.success) {
+      return null;
     }
     
-    swapMutation.mutate();
-  }, [wallet.connected, swapMutation, toast]);
-  
-  // Claim rewards function
-  const handleClaimRewards = useCallback(() => {
-    if (!wallet.connected) {
-      toast({
-        title: 'Wallet Not Connected',
-        description: 'Please connect your wallet to claim rewards',
-        variant: 'destructive',
-      });
-      return;
-    }
+    const estimatedAmount = swapEstimate.estimatedAmount || 0;
+    const minReceived = estimatedAmount * (1 - slippage);
+    const provider = swapEstimate.provider || SwapProvider.Contract;
     
-    claimRewardsMutation.mutate();
-  }, [wallet.connected, claimRewardsMutation, toast]);
+    return {
+      fromAmount: parsedAmount,
+      fromToken,
+      toAmount: estimatedAmount,
+      minReceived,
+      toToken,
+      provider,
+      slippage: slippage * 100,
+      estimatedFee: parsedAmount * 0.025, // 0.25% fee
+      liquidityContribution: parsedAmount * 0.2, // 20% to liquidity
+      cashbackReward: parsedAmount * 0.05, // 5% as YOS rewards
+      userReceives: parsedAmount * 0.75, // 75% to user
+    };
+  }, [fromToken, toToken, parsedAmount, swapEstimate, slippage]);
   
-  // Switch tokens
-  const handleSwitchTokens = useCallback(() => {
-    if (fromToken && toToken) {
-      const temp = fromToken;
-      setFromToken(toToken);
-      setToToken(temp);
-      setFromAmount(toAmount);
-      setToAmount('');
-      setSwapEstimate(null);
-    }
-  }, [fromToken, toToken, toAmount]);
-
   return {
-    // Token selection
+    // State
     fromToken,
     toToken,
+    amount,
+    slippage,
+    
+    // State setters
     setFromToken,
     setToToken,
-    
-    // Amount
-    fromAmount,
-    toAmount,
-    setFromAmount,
-    setToAmount,
-    
-    // Swap estimate and loading state
-    swapEstimate,
-    isLoading,
-    
-    // Slippage
-    slippage,
+    setAmount,
     setSlippage,
     
-    // Actions
-    handleSwap,
-    handleSwitchTokens,
-    handleClaimRewards,
+    // Queries
+    swapEstimate,
+    estimateLoading,
+    estimateError,
+    userSwapInfo,
+    userSwapInfoLoading,
+    userSwapInfoError,
+    globalSwapStats,
+    globalSwapStatsLoading,
+    globalSwapStatsError,
     
     // Mutations
+    swap: swapMutation.mutate,
     isSwapping: swapMutation.isPending,
-    isClaiming: claimRewardsMutation.isPending,
+    swapError: swapMutation.error,
+    claimRewards: claimRewardsMutation.mutate,
+    isClaimingRewards: claimRewardsMutation.isPending,
+    claimRewardsError: claimRewardsMutation.error,
     
-    // Stats
-    swapStats,
-    isLoadingSwapStats,
-    globalSwapStats,
-    isLoadingGlobalStats,
+    // Computed
+    swapSummary,
     
-    // Pass wallet for convenience
-    wallet
+    // Utilities
+    resetForm: () => {
+      setAmount('');
+      setSlippage(DEFAULT_SLIPPAGE);
+    },
+    
+    // Validation
+    isValid: !!fromToken && !!toToken && parsedAmount > 0 && !!swapEstimate?.success,
+    isConnected: wallet.connected,
   };
 }

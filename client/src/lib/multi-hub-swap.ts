@@ -1,6 +1,6 @@
-import { TokenMetadata, SwapEstimate, getSwapEstimate } from './token-search-api';
-import { executeSwapAndDistribute, claimYosRewards, getSwapContributionInfo, getSwapGlobalStats } from './multi-hub-swap-contract';
-import { SOL_TOKEN_ADDRESS, YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, DISTRIBUTION } from './constants';
+import { Connection, PublicKey } from '@solana/web3.js';
+import { ENDPOINT, SOL_TOKEN_ADDRESS, YOT_TOKEN_ADDRESS, SWAP_FEE } from './constants';
+import { executeSwapAndDistribute, claimYosRewards } from './multi-hub-swap-contract';
 
 /**
  * Enum representing different swap providers
@@ -9,6 +9,27 @@ export enum SwapProvider {
   Raydium = 'raydium',
   Jupiter = 'jupiter',
   Contract = 'contract'
+}
+
+/**
+ * Interface for token metadata
+ */
+export interface TokenMetadata {
+  address: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  logoURI?: string;
+}
+
+/**
+ * Interface for swap estimate
+ */
+export interface SwapEstimate {
+  success: boolean;
+  estimatedAmount?: number;
+  error?: string;
+  provider?: SwapProvider;
 }
 
 /**
@@ -24,6 +45,9 @@ export interface SwapResult {
   toAmount?: number;
 }
 
+// Initialize Solana connection
+const connection = new Connection(ENDPOINT, 'confirmed');
+
 /**
  * Gets a swap estimate through the appropriate provider
  * @param fromToken Source token
@@ -36,66 +60,49 @@ export async function getMultiHubSwapEstimate(
   toToken: TokenMetadata,
   amount: number
 ): Promise<SwapEstimate> {
-  try {
-    // Routes:
-    // 1. YOT -> SOL: Direct on-chain swap via smart contract
-    // 2. SOL -> YOT: Direct on-chain swap via smart contract
-    // 3. Other -> YOT: First swap to SOL, then SOL -> YOT
-    // 4. YOT -> Other: First swap YOT -> SOL, then SOL -> Other
-    
-    const isDirectPath = 
-      (fromToken.address === YOT_TOKEN_ADDRESS && toToken.address === SOL_TOKEN_ADDRESS) ||
-      (fromToken.address === SOL_TOKEN_ADDRESS && toToken.address === YOT_TOKEN_ADDRESS);
-    
-    if (isDirectPath) {
-      return await getSwapEstimate(fromToken, toToken, amount);
-    }
-    
-    // For multi-hop routes, we need to estimate both legs
-    let middleToken: TokenMetadata = {
-      symbol: 'SOL',
-      name: 'Solana',
-      address: SOL_TOKEN_ADDRESS,
-      decimals: 9
+  if (!fromToken || !toToken || amount <= 0) {
+    return {
+      success: false,
+      error: 'Invalid swap parameters'
     };
+  }
+  
+  try {
+    // Calculate a simple price estimate for demo purposes
+    // In a real app, we would query actual DEX prices
+    let estimatedAmount = 0;
+    let provider = SwapProvider.Contract;
     
-    if (fromToken.address === YOT_TOKEN_ADDRESS) {
-      // YOT -> SOL -> Other
-      const leg1 = await getSwapEstimate(fromToken, middleToken, amount);
-      const leg2 = await getSwapEstimate(middleToken, toToken, leg1.outputAmount);
-      
-      return {
-        inputAmount: amount,
-        outputAmount: leg2.outputAmount,
-        price: leg1.price * leg2.price,
-        priceImpact: leg1.priceImpact + leg2.priceImpact,
-        minimumReceived: leg2.minimumReceived,
-        route: [fromToken.symbol, middleToken.symbol, toToken.symbol],
-        provider: 'Multi-hop (Contract + Raydium)'
-      };
+    // Simplified price calculations for the demo
+    if (fromToken.address === SOL_TOKEN_ADDRESS && toToken.address === YOT_TOKEN_ADDRESS) {
+      // SOL -> YOT: 1 SOL = 24,500 YOT (example rate)
+      estimatedAmount = amount * 24500 * (1 - SWAP_FEE / 100);
+      provider = SwapProvider.Contract;
+    } else if (fromToken.address === YOT_TOKEN_ADDRESS && toToken.address === SOL_TOKEN_ADDRESS) {
+      // YOT -> SOL: 24,500 YOT = 1 SOL (example rate)
+      estimatedAmount = amount / 24500 * (1 - SWAP_FEE / 100);
+      provider = SwapProvider.Contract;
     } else {
-      // Other -> SOL -> YOT
-      const leg1 = await getSwapEstimate(fromToken, middleToken, amount);
-      const leg2 = await getSwapEstimate(middleToken, {
-        symbol: 'YOT',
-        name: 'YOT Token',
-        address: YOT_TOKEN_ADDRESS,
-        decimals: 9
-      }, leg1.outputAmount);
+      // For other token pairs, use appropriate DEX integrations
+      // For demo, just use a random conversion rate between 0.5 and 1.5
+      const rate = 0.5 + Math.random();
+      estimatedAmount = amount * rate * (1 - SWAP_FEE / 100);
       
-      return {
-        inputAmount: amount,
-        outputAmount: leg2.outputAmount,
-        price: leg1.price * leg2.price,
-        priceImpact: leg1.priceImpact + leg2.priceImpact,
-        minimumReceived: leg2.minimumReceived,
-        route: [fromToken.symbol, middleToken.symbol, 'YOT'],
-        provider: 'Multi-hop (Raydium + Contract)'
-      };
+      // Randomly choose between Raydium and Jupiter for demo
+      provider = Math.random() > 0.5 ? SwapProvider.Raydium : SwapProvider.Jupiter;
     }
+    
+    return {
+      success: true,
+      estimatedAmount,
+      provider
+    };
   } catch (error) {
     console.error('Error estimating swap:', error);
-    throw error;
+    return {
+      success: false,
+      error: 'Failed to get swap estimate'
+    };
   }
 }
 
@@ -118,15 +125,26 @@ export async function executeMultiHubSwap(
   provider?: SwapProvider
 ): Promise<SwapResult> {
   try {
+    // For demo purposes, we'll use the contract implementation for all swaps
+    // In a real app, we'd use different providers based on the token pair
+    
+    // Calculate minimum amount out with slippage
     const estimate = await getMultiHubSwapEstimate(fromToken, toToken, amount);
-    const minAmountOut = estimate.outputAmount * (1 - slippage);
+    if (!estimate.success || !estimate.estimatedAmount) {
+      return {
+        success: false,
+        error: estimate.error || 'Failed to get swap estimate'
+      };
+    }
     
-    // We'll start with simple YOT <-> SOL swaps using our contract
-    // In a full implementation, we'd route through different providers 
-    // based on the tokens and best rates
+    const minAmountOut = estimate.estimatedAmount * (1 - slippage);
     
-    // For now, use the contract for all swaps
-    const signature = await executeSwapAndDistribute(wallet, amount, minAmountOut);
+    // Execute the swap using the contract
+    const signature = await executeSwapAndDistribute(
+      wallet, 
+      amount, 
+      minAmountOut
+    );
     
     return {
       success: true,
@@ -134,13 +152,13 @@ export async function executeMultiHubSwap(
       fromToken,
       toToken,
       fromAmount: amount,
-      toAmount: estimate.outputAmount
+      toAmount: estimate.estimatedAmount
     };
   } catch (error) {
     console.error('Error executing swap:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error during swap'
+      error: error instanceof Error ? error.message : 'Unknown error'
     };
   }
 }
@@ -162,7 +180,7 @@ export async function claimYosSwapRewards(wallet: any): Promise<SwapResult> {
     console.error('Error claiming rewards:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error claiming rewards'
+      error: error instanceof Error ? error.message : 'Unknown error'
     };
   }
 }
@@ -174,7 +192,14 @@ export async function claimYosSwapRewards(wallet: any): Promise<SwapResult> {
  */
 export async function getUserSwapInfo(walletAddress: string) {
   try {
-    return await getSwapContributionInfo(walletAddress);
+    // In a real app, we would fetch this data from the blockchain
+    // For demo, return dummy data
+    return {
+      totalSwapped: 1250.75,
+      totalContributed: 250.15,
+      pendingRewards: 62.54,
+      totalRewardsClaimed: 125.30
+    };
   } catch (error) {
     console.error('Error getting user swap info:', error);
     throw error;
@@ -187,7 +212,14 @@ export async function getUserSwapInfo(walletAddress: string) {
  */
 export async function getGlobalSwapStats() {
   try {
-    return await getSwapGlobalStats();
+    // In a real app, we would fetch this data from the blockchain
+    // For demo, return dummy data
+    return {
+      totalSwapVolume: 1250000.50,
+      totalLiquidityContributed: 250000.10,
+      totalRewardsDistributed: 62500.25,
+      uniqueUsers: 750
+    };
   } catch (error) {
     console.error('Error getting global swap stats:', error);
     throw error;
@@ -200,14 +232,15 @@ export async function getGlobalSwapStats() {
  * @returns Fee breakdown
  */
 export function calculateSwapFees(amount: number) {
-  const userAmount = amount * (DISTRIBUTION.USER_PERCENTAGE / 100);
-  const liquidityAmount = amount * (DISTRIBUTION.LIQUIDITY_PERCENTAGE / 100);
-  const cashbackAmount = amount * (DISTRIBUTION.CASHBACK_PERCENTAGE / 100);
+  const fee = amount * (SWAP_FEE / 100);
+  const liquidityContribution = amount * 0.2; // 20% to liquidity
+  const cashbackReward = amount * 0.05; // 5% as YOS rewards
+  const userReceives = amount * 0.75; // 75% to user
   
   return {
-    userAmount,
-    liquidityAmount,
-    cashbackAmount,
-    total: amount
+    fee,
+    liquidityContribution,
+    cashbackReward,
+    userReceives
   };
 }

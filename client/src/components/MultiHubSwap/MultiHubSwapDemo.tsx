@@ -1,47 +1,37 @@
-import React, { useState, useEffect } from 'react';
-import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect } from 'react';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ArrowRightLeft, Info, AlertTriangle } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useToast } from '@/hooks/use-toast';
+import { Input } from '@/components/ui/input';
+import { Slider } from '@/components/ui/slider';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { ArrowRightLeft, AlertTriangle, Info, Loader2 } from 'lucide-react';
 import { TokenSearchInput } from './TokenSearchInput';
-import { executeMultiHubSwap, getMultiHubSwapEstimate, claimYosSwapRewards, SwapProvider } from '@/lib/multi-hub-swap';
-
-// Default tokens
-const SOL_TOKEN = {
-  address: 'So11111111111111111111111111111111111111112',
-  symbol: 'SOL',
-  name: 'Solana',
-  decimals: 9,
-  logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png'
-};
-
-const YOT_TOKEN = {
-  address: '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF',
-  symbol: 'YOT',
-  name: 'YOT Token',
-  decimals: 9,
-  logoURI: 'https://cryptologos.cc/logos/solana-sol-logo.png?v=024' // Placeholder logo
-};
+import { formatNumber } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import { getMultiHubSwapEstimate, executeMultiHubSwap, claimYosSwapRewards, SwapProvider } from '@/lib/multi-hub-swap';
+import { defaultTokens } from '@/lib/token-search-api';
+import { SOL_SYMBOL, YOT_SYMBOL, SOL_TOKEN_ADDRESS, YOT_TOKEN_ADDRESS } from '@/lib/constants';
 
 export default function MultiHubSwapDemo() {
-  const { connection } = useConnection();
   const wallet = useWallet();
   const { toast } = useToast();
   
-  const [fromToken, setFromToken] = useState<any>(SOL_TOKEN);
-  const [toToken, setToToken] = useState<any>(YOT_TOKEN);
-  const [amount, setAmount] = useState('1');
-  const [estimatedAmount, setEstimatedAmount] = useState<number | null>(null);
-  const [slippage, setSlippage] = useState(1); // 1%
-  const [loading, setLoading] = useState(false);
-  const [estimateLoading, setEstimateLoading] = useState(false);
-  const [claimLoading, setClaimLoading] = useState(false);
-  const [availableRewards, setAvailableRewards] = useState(0);
-  const [routeProvider, setRouteProvider] = useState<SwapProvider>(SwapProvider.Contract);
+  // Token state
+  const [fromToken, setFromToken] = useState(defaultTokens[0]); // Default to SOL
+  const [toToken, setToToken] = useState(defaultTokens[1]); // Default to YOT
+  const [amount, setAmount] = useState('');
+  const [slippage, setSlippage] = useState(1.0); // Default 1% slippage
   
-  // Get swap estimate when inputs change
+  // UI state
+  const [estimatedAmount, setEstimatedAmount] = useState<number | null>(null);
+  const [estimateLoading, setEstimateLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [routeProvider, setRouteProvider] = useState(SwapProvider.Contract);
+  const [availableRewards, setAvailableRewards] = useState(0);
+  const [claimLoading, setClaimLoading] = useState(false);
+  
+  // Get swap estimate when tokens or amount changes
   useEffect(() => {
     const getEstimate = async () => {
       if (!fromToken || !toToken || !amount || parseFloat(amount) <= 0) {
@@ -54,9 +44,9 @@ export default function MultiHubSwapDemo() {
         const parsedAmount = parseFloat(amount);
         const estimate = await getMultiHubSwapEstimate(fromToken, toToken, parsedAmount);
         
-        if (estimate.success) {
+        if (estimate.success && estimate.estimatedAmount !== undefined) {
           setEstimatedAmount(estimate.estimatedAmount);
-          setRouteProvider(estimate.provider || SwapProvider.Contract);
+          setRouteProvider(estimate.provider ?? SwapProvider.Contract);
         } else {
           setEstimatedAmount(null);
           console.error('Failed to get estimate:', estimate.error);
@@ -214,7 +204,7 @@ export default function MultiHubSwapDemo() {
           
           <div className="flex space-x-2">
             <div className="flex-1">
-              <input
+              <Input
                 type="text"
                 value={amount}
                 onChange={handleAmountChange}
@@ -390,11 +380,11 @@ export default function MultiHubSwapDemo() {
               Swapping...
             </>
           ) : !wallet.connected ? (
-            'Connect Wallet to Swap'
+            "Connect Wallet"
           ) : !estimatedAmount || estimatedAmount <= 0 ? (
-            'Enter a valid amount'
+            "Enter an amount"
           ) : (
-            `Swap ${parseFloat(amount).toFixed(4)} ${fromToken?.symbol} for ~${estimatedAmount?.toFixed(4)} ${toToken?.symbol}`
+            `Swap ${fromToken.symbol} to ${toToken.symbol}`
           )}
         </Button>
       </CardFooter>
