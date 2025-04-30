@@ -1,0 +1,157 @@
+Wallet error: WalletSendTransactionError: Unexpected error
+    at PhantomWalletAdapter.sendTransaction (@solana_wallet-adapter-phantom.js?v=475b2935:536:15)
+    at async unstakeYOTTokens (solana-staking.ts:1200:25)
+    at async Object.mutationFn (useStaking.ts:371:27)
+onError @ MultiWalletContext.tsx:101
+emit @ @solana_wallet-adapter-phantom.js?v=475b2935:81
+sendTransaction @ @solana_wallet-adapter-phantom.js?v=475b2935:539
+await in sendTransaction
+unstakeYOTTokens @ solana-staking.ts:1200
+await in unstakeYOTTokens
+mutationFn @ useStaking.ts:371
+await in mutationFn
+fn @ @tanstack_react-query.js?v=475b2935:1189
+run @ @tanstack_react-query.js?v=475b2935:494
+start @ @tanstack_react-query.js?v=475b2935:536
+execute @ @tanstack_react-query.js?v=475b2935:1225
+await in execute
+mutate @ @tanstack_react-query.js?v=475b2935:2630
+(anonymous) @ @tanstack_react-query.js?v=475b2935:3295
+handleUnstake @ Stake.tsx:66
+callCallback2 @ chunk-276SZO74.js?v=475b2935:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=475b2935:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=475b2935:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=475b2935:3736
+executeDispatch @ chunk-276SZO74.js?v=475b2935:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=475b2935:7034
+processDispatchQueue @ chunk-276SZO74.js?v=475b2935:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=475b2935:7051
+(anonymous) @ chunk-276SZO74.js?v=475b2935:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=475b2935:18913
+batchedUpdates @ chunk-276SZO74.js?v=475b2935:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=475b2935:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=475b2935:5478
+dispatchEvent @ chunk-276SZO74.js?v=475b2935:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=475b2935:5449Understand this error
+solana-staking.ts:1223 Error sending unstake transaction: WalletSendTransactionError: Unexpected error
+    at PhantomWalletAdapter.sendTransaction (@solana_wallet-adapter-phantom.js?v=475b2935:536:15)
+    at async unstakeYOTTokens (solana-staking.ts:1200:25)
+    at async Object.mutationFn (useStaking.ts:371:27)
+unstakeYOTTokens @ solana-staking.ts:1223
+await in unstakeYOTTokens
+mutationFn @ useStaking.ts:371
+await in mutationFn
+fn @ @tanstack_react-query.js?v=475b2935:1189
+run @ @tanstack_react-query.js?v=475b2935:494
+start @ @tanstack_react-query.js?v=475b2935:536
+execute @ @tanstack_react-query.js?v=475b2935:1225
+await in execute
+mutate @ @tanstack_react-query.js?v=475b2935:2630
+(anonymous) @ @tanstack_react-query.js?v=475b2935:3295
+handleUnstake @ Stake.tsx:66
+callCallback2 @ chunk-276SZO74.js?v=475b2935:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=475b2935:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=475b2935:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=475b2935:3736
+executeDispatch @ chunk-276SZO74.js?v=475b2935:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=475b2935:7034
+processDispatchQueue @ chunk-276SZO74.js?v=475b2935:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=475b2935:7051
+(anonymous) @ chunk-276SZO74.js?v=475b2935:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=475b2935:18913
+batchedUpdates @ chunk-276SZO74.js?v=475b2935:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=475b2935:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=475b2935:5478
+dispatchEvent @ chunk-276SZO74.js?v=475b2935:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=475b2935:5449Understand this error
+solana-staking.ts:1227 Error in unstake process: Error: Failed to unstake: Unexpected error
+    at unstakeYOTTokens (solana-staking.ts:1224:13)
+    at async Object.mutationFn (useStaking.ts:371:27)
+unstakeYOTTokens @ solana-staking.ts:1227
+await in unstakeYOTTokens
+mutationFn @ useStaking.ts:371
+await in mutationFn
+fn @ @tanstack_react-query.js?v=475b2935:1189
+run @ @tanstack_react-query.js?v=475b2935:494
+start @ @tanstack_react-query.js?v=475b2935:536
+execute @ @tanstack_react-query.js?v=475b2935:1225
+await in execute
+mutate @ @tanstack_react-query.js?v=475b2935:2630
+(anonymous) @ @tanstack_react-query.js?v=475b2935:3295
+handleUnstake @ Stake.tsx:66
+callCallback2 @ chunk-276SZO74.js?v=475b2935:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=475b2935:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=475b2935:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=475b2935:3736
+executeDispatch @ chunk-276SZO74.js?v=475b2935:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=475b2935:7034
+processDispatchQueue @ chunk-276SZO74.js?v=475b2935:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=475b2935:7051
+(anonymous) @ chunk-276SZO74.js?v=475b2935:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=475b2935:18913
+batchedUpdates @ chunk-276SZO74.js?v=475b2935:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=475b2935:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=475b2935:5478
+dispatchEvent @ chunk-276SZO74.js?v=475b2935:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=475b2935:5449Understand this error
+solana-staking.ts:1228 Detailed unstaking error: Error: Failed to unstake: Unexpected error
+    at unstakeYOTTokens (solana-staking.ts:1224:13)
+    at async Object.mutationFn (useStaking.ts:371:27)
+unstakeYOTTokens @ solana-staking.ts:1228
+await in unstakeYOTTokens
+mutationFn @ useStaking.ts:371
+await in mutationFn
+fn @ @tanstack_react-query.js?v=475b2935:1189
+run @ @tanstack_react-query.js?v=475b2935:494
+start @ @tanstack_react-query.js?v=475b2935:536
+execute @ @tanstack_react-query.js?v=475b2935:1225
+await in execute
+mutate @ @tanstack_react-query.js?v=475b2935:2630
+(anonymous) @ @tanstack_react-query.js?v=475b2935:3295
+handleUnstake @ Stake.tsx:66
+callCallback2 @ chunk-276SZO74.js?v=475b2935:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=475b2935:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=475b2935:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=475b2935:3736
+executeDispatch @ chunk-276SZO74.js?v=475b2935:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=475b2935:7034
+processDispatchQueue @ chunk-276SZO74.js?v=475b2935:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=475b2935:7051
+(anonymous) @ chunk-276SZO74.js?v=475b2935:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=475b2935:18913
+batchedUpdates @ chunk-276SZO74.js?v=475b2935:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=475b2935:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=475b2935:5478
+dispatchEvent @ chunk-276SZO74.js?v=475b2935:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=475b2935:5449Understand this error
+useStaking.ts:377 Error during unstaking operation: Error: Failed to unstake: Unexpected error
+    at unstakeYOTTokens (solana-staking.ts:1224:13)
+    at async Object.mutationFn (useStaking.ts:371:27)
+mutationFn @ useStaking.ts:377
+await in mutationFn
+fn @ @tanstack_react-query.js?v=475b2935:1189
+run @ @tanstack_react-query.js?v=475b2935:494
+start @ @tanstack_react-query.js?v=475b2935:536
+execute @ @tanstack_react-query.js?v=475b2935:1225
+await in execute
+mutate @ @tanstack_react-query.js?v=475b2935:2630
+(anonymous) @ @tanstack_react-query.js?v=475b2935:3295
+handleUnstake @ Stake.tsx:66
+callCallback2 @ chunk-276SZO74.js?v=475b2935:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=475b2935:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=475b2935:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=475b2935:3736
+executeDispatch @ chunk-276SZO74.js?v=475b2935:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=475b2935:7034
+processDispatchQueue @ chunk-276SZO74.js?v=475b2935:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=475b2935:7051
+(anonymous) @ chunk-276SZO74.js?v=475b2935:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=475b2935:18913
+batchedUpdates @ chunk-276SZO74.js?v=475b2935:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=475b2935:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=475b2935:5478
+dispatchEvent @ chunk-276SZO74.js?v=475b2935:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=475b2935:5449Understand this error
+useStaking.ts:473 Detailed unstaking error: Error: Failed to unstake: Unexpected error
+    at unstakeYOTTokens (solana-staking.ts:1224:13)
+    at async Object.mutationFn (useStaking.ts:371:27)
