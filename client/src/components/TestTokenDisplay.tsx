@@ -20,7 +20,7 @@ export function TestTokenDisplay() {
   const { wallet, connected } = useMultiWallet();
   const [yotAmount, setYotAmount] = useState('1000');
   const [yosAmount, setYosAmount] = useState('100');
-  const [displayDivisor, setDisplayDivisor] = useState('17000');
+  const [displayDivisor, setDisplayDivisor] = useState('823');
   const [testResult, setTestResult] = useState<string>('');
   
   // Create a transaction with display-only instructions (source = destination)
