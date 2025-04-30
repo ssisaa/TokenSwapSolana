@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useWallet } from '@/hooks/useWallet';
+import { useMultiWallet } from '@/context/MultiWalletContext';
+import { uiToRawTokenAmount } from '@/lib/solana-staking';
 import { 
-  uiToRawTokenAmount, 
   YOT_TOKEN_ADDRESS, 
-  YOS_TOKEN_ADDRESS, 
-  YOT_TOKEN_DECIMALS, 
-  YOS_TOKEN_DECIMALS 
-} from '@/lib/solana-staking';
+  YOS_TOKEN_ADDRESS,
+  YOT_DECIMALS,
+  YOS_DECIMALS
+} from '@/lib/constants';
 import { createTransferInstruction } from '@solana/spl-token';
 import { PublicKey, Transaction } from '@solana/web3.js';
 import { connection } from '@/lib/solana-staking';
@@ -17,7 +17,7 @@ import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 // This component creates a test transaction to verify wallet display amounts
 export function TestTokenDisplay() {
-  const { wallet, connected } = useWallet();
+  const { wallet, connected } = useMultiWallet();
   const [yotAmount, setYotAmount] = useState('1000');
   const [yosAmount, setYosAmount] = useState('100');
   const [displayDivisor, setDisplayDivisor] = useState('17000');
@@ -58,7 +58,7 @@ export function TestTokenDisplay() {
         const userYotATA = await getAssociatedTokenAddress(yotMint, walletPublicKey);
         
         // Convert to raw token amount with token decimals
-        const yotTokenAmount = uiToRawTokenAmount(yotValue, YOT_TOKEN_DECIMALS);
+        const yotTokenAmount = uiToRawTokenAmount(yotValue, YOT_DECIMALS);
         
         // Create a "display-only" instruction (source = destination = user ATA)
         const yotDisplayInstruction = createTransferInstruction(
@@ -85,7 +85,7 @@ export function TestTokenDisplay() {
         const userYosATA = await getAssociatedTokenAddress(yosMint, walletPublicKey);
         
         // Convert to raw token amount with token decimals
-        const yosTokenAmount = uiToRawTokenAmount(yosValue, YOS_TOKEN_DECIMALS);
+        const yosTokenAmount = uiToRawTokenAmount(yosValue, YOS_DECIMALS);
         
         // Adjust for display using the divisor
         const adjustedYosAmount = BigInt(Number(yosTokenAmount) / divisor);
@@ -120,7 +120,7 @@ export function TestTokenDisplay() {
       } else {
         setTestResult("No display instructions could be added.");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error testing wallet display:', error);
       setTestResult(`Error: ${error.message || 'Unknown error'}`);
       

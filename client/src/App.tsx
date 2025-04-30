@@ -14,6 +14,7 @@ import Liquidity from "@/pages/Liquidity";
 import Memes from "@/pages/Memes";
 import Integration from "@/pages/Integration";
 import AdminPage from "@/pages/AdminPage";
+import TestPage from "@/pages/TestPage";
 import Home from "@/pages/Home"; // Keep for compatibility with existing routes
 
 function Router() {
@@ -29,6 +30,9 @@ function Router() {
         
         {/* Admin route */}
         <Route path="/admin" component={AdminPage} />
+        
+        {/* Test route for token display */}
+        <Route path="/test" component={TestPage} />
         
         {/* Keep original routes for backward compatibility */}
         <Route path="/home" component={Home} />
