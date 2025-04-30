@@ -505,8 +505,7 @@ export default function Stake() {
                         
 
                         
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-gray-400">0</span>
+                        <div className="flex justify-end items-center text-xs">
                           <span className={`font-medium ${(stakingInfo.rewardsEarned / 9260) >= (stakingRates?.harvestThreshold || 0) ? 'text-green-400' : 'text-amber-400'}`}>
                             Minimum harvest amount: {typeof stakingRates?.harvestThreshold === 'number' ? 
                               stakingRates.harvestThreshold.toLocaleString('en-US', {maximumFractionDigits: 0}) : '0'} YOS

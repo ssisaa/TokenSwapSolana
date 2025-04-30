@@ -397,8 +397,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                         }}
                       ></div>
                     </div>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-gray-400">0</span>
+                    <div className="flex justify-end items-center text-xs">
                       <span className={`font-medium ${rawRewards >= harvestThreshold ? 'text-green-400' : 'text-amber-400'}`}>
                         Minimum harvest amount: {harvestThreshold.toLocaleString('en-US')} YOS
                       </span>
