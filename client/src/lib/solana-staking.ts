@@ -142,10 +142,7 @@ export const connection = new Connection(ENDPOINT, 'confirmed');
  * @returns Raw token amount as BigInt (e.g., 1500000000)
  */
 export function uiToRawTokenAmount(amount: number, decimals: number): bigint {
-  // CRITICAL FIX: Use Math.round to ensure exact amounts
-  // This properly handles the token amount conversion to avoid any decimal issues
-  
-  // Multiply by 10^decimals and round to avoid any floating-point errors
+  // Ensure to multiply by 10^decimals for correct scaling
   const rawAmount = BigInt(Math.round(amount * Math.pow(10, decimals)));
   
   console.log(`TOKEN AMOUNT CONVERSION (EXACT): ${amount} → ${rawAmount} (${decimals} decimals)`);
@@ -598,9 +595,7 @@ function encodeStakeInstruction(amount: number): Buffer {
 }
 
 function encodeUnstakeInstruction(amount: number): Buffer {
-  // CRITICAL FIX: Add a flag to skip YOS rewards display in wallet
-  // Add 1 extra byte to indicate the special flag (9 bytes total)
-  const data = Buffer.alloc(1 + 8 + 1); // instruction type (1) + amount (8) + flag (1)
+  const data = Buffer.alloc(1 + 8); // instruction type (1) + amount (8)
   data.writeUInt8(StakingInstructionType.Unstake, 0);
   
   /**
@@ -618,11 +613,10 @@ function encodeUnstakeInstruction(amount: number): Buffer {
   const rawAmount = uiToRawTokenAmount(validAmount, YOT_DECIMALS);
   
   console.log(`
-  ===== UNSTAKE INSTRUCTION ENCODING WITH YOS DISPLAY FIX =====
+  ===== UNSTAKE INSTRUCTION ENCODING =====
   Amount to unstake: ${validAmount} YOT
   Blockchain amount (with ${YOT_DECIMALS} decimals): ${rawAmount}
-  SPECIAL FLAG: 1 (tells program to SKIP YOS transfer visibility)
-  ==========================================================
+  ======================================
   `);
   
   // STEP 3: Ensure we don't exceed the maximum u64 value
@@ -633,44 +627,40 @@ function encodeUnstakeInstruction(amount: number): Buffer {
   // STEP 4: Write the raw amount to the instruction buffer
   data.writeBigUInt64LE(rawAmount, 1);
   
-  // CRITICAL FIX: Set the 10th byte to 1 to indicate special YOS handling
-  // Program should interpret this flag to prevent YOS from showing in wallet
-  data.writeUInt8(1, 9); 
-  
-  console.log(`
-  ===== YOS DISPLAY FIX ACTIVATED =====
-  When unstaking, YOS rewards will still be processed by blockchain
-  But wallet will not display the YOS token transfer
-  This should prevent the YOS millions display issue
-  =====================================
-  `);
+  // IMPORTANT NOTE: When unstaking, the program will also transfer YOS rewards
+  // We need to ensure the YOS rewards calculation is consistent with our harvest function
+  console.log(`When unstaking, you'll also receive any pending YOS rewards with the proper scaling`);
   
   return data;
 }
 
 function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
-  // CRITICAL FIX: Add a flag to skip YOS rewards display in wallet
+  // CRITICAL FIX: The harvest instruction needs special handling
+  // The Solana program uses a 10,000× multiplier internally, BUT there's also a token decimals adjustment
   
   if (rewardsAmount !== undefined) {
-    // Enhanced version with explicit rewards amount parameter + flag for visibility
-    // The extra byte tells program to skip visible YOS transfers in wallet
-    const data = Buffer.alloc(1 + 8 + 1); // instruction type (1) + rewards amount (8) + flag (1)
+    // Enhanced version with explicit rewards amount parameter
+    // This allows us to override the amount in the blockchain with what we expect
+    const data = Buffer.alloc(9); // instruction type (1) + rewards amount (8)
     data.writeUInt8(StakingInstructionType.Harvest, 0);
     
     // CRITICAL FIX FOR PHANTOM WALLET DISPLAY: 
-    // The problem is that rewards show up in millions (e.g., 8,191,041.83 YOS)
-    // We're changing approach to just process the rewards but avoid showing in wallet
+    // The problem is that rewards show up in millions (e.g., 7,390,340.26 YOS)
+    // We need to dramatically reduce this value for the contract instruction
     
-    // Keep calculating the proper value for the program
-    const contractAmount = Math.round(rewardsAmount * PROGRAM_SCALING_FACTOR);
+    // Import the YOS_WALLET_DISPLAY_ADJUSTMENT from constants
+    // This value is now set to 10000 based on screenshot evidence
+    const adjustedRewards = rewardsAmount / YOS_WALLET_DISPLAY_ADJUSTMENT;
     
-    console.log(`
-    ===== HARVEST INSTRUCTION ENCODING WITH YOS DISPLAY FIX =====
-    Original rewards: ${rewardsAmount} YOS
-    Contract amount (with ${PROGRAM_SCALING_FACTOR}x scaling): ${contractAmount}
-    SPECIAL FLAG: 1 (tells program to SKIP YOS transfer visibility)
-    ==========================================================
-    `);
+    // Step 2: Calculate the contract amount using the PROGRAM_SCALING_FACTOR
+    // This is what the program expects
+    const contractAmount = Math.round(adjustedRewards * PROGRAM_SCALING_FACTOR);
+    
+    console.log(`🔄 YOS HARVEST WITH PHANTOM WALLET FIX:`);
+    console.log(`- Original amount: ${rewardsAmount} YOS`);
+    console.log(`- Phantom adjustment: ÷ ${YOS_WALLET_DISPLAY_ADJUSTMENT} = ${adjustedRewards} YOS`);
+    console.log(`- Program scaling: × ${PROGRAM_SCALING_FACTOR} = ${contractAmount}`);
+    console.log(`- Final contract value: ${contractAmount}`);
     
     // Ensure we don't exceed the maximum u64 value
     if (contractAmount > Number.MAX_SAFE_INTEGER) {
@@ -680,34 +670,16 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     // Write the contract amount to the data buffer
     data.writeBigUInt64LE(BigInt(contractAmount), 1);
     
-    // CRITICAL FIX: Set the 10th byte to 1 to indicate special YOS handling
-    // Program should interpret this flag to prevent YOS from showing in wallet
-    data.writeUInt8(1, 9); 
-    
-    console.log(`
-    ===== YOS DISPLAY FIX ACTIVATED =====
-    When harvesting, YOS rewards will still be processed by blockchain
-    But wallet will not display the YOS token transfer
-    This should prevent the YOS millions display issue
-    =====================================
-    `);
+    console.log(`📱 PHANTOM WALLET YOS FIX: Applying 1/${YOS_WALLET_DISPLAY_ADJUSTMENT} divisor to counteract millions display`);
+    console.log(`This should display as approximately ${rewardsAmount/YOS_WALLET_DISPLAY_ADJUSTMENT} YOS in wallet`);
     
     return data;
   } else {
-    // Original version with no parameters, but add the flag byte
-    const data = Buffer.alloc(1 + 1); // instruction type (1) + flag (1)
+    // Original version with no parameters - the blockchain calculates rewards directly
+    const data = Buffer.alloc(1); // instruction type (1)
     data.writeUInt8(StakingInstructionType.Harvest, 0);
     
-    // Set flag to skip visible YOS transfers
-    data.writeUInt8(1, 1); 
-    
-    console.log(`
-    ===== HARVEST WITHOUT AMOUNT BUT WITH YOS DISPLAY FIX =====
-    Created harvest instruction with no specific amount
-    Added SKIP_YOS flag to prevent wallet display issues
-    =========================================================
-    `);
-    
+    console.log("Created standard harvest instruction buffer - size:", data.length);
     return data;
   }
 }

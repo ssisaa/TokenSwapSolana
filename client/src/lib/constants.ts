@@ -42,10 +42,10 @@ export const STAKING_PROGRAM_ID = '6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6'
 // Based on user requirements: "Want exacted amount what user staked not some extra multiple"
 // We are removing all adjustment factors and using raw blockchain values directly
 
-// CRITICAL: Set program scaling factor to 1 (no scaling)
-// The program does not use any scaling factor - just direct token decimal conversion (9 decimals)
-export const PROGRAM_SCALING_FACTOR = 1;
+// CRITICAL: Phantom wallet is displaying values in millions
+// We need to account for the fact that the Solana program internally uses a 10,000x multiplier
+export const PROGRAM_SCALING_FACTOR = 10000;
 
-// CRITICAL: Remove YOS display adjustment to show exact values
-// User demands exact amounts with no adjustments
-export const YOS_WALLET_DISPLAY_ADJUSTMENT = 1;
+// CRITICAL: YOS display adjustment to counteract the millions display issue
+// This divisor is applied to YOS amounts before sending to the blockchain
+export const YOS_WALLET_DISPLAY_ADJUSTMENT = 10000;
