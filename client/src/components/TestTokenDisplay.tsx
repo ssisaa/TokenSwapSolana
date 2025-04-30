@@ -65,17 +65,15 @@ export function TestTokenDisplay() {
         // The key to fixing this issue is to use the Solana SDK properly
         // We want to display exactly 1000 YOT in the wallet, not 1000.01
         
-        // EMERGENCY DECIMAL FIX - VERSION 5:
-        // Use a hardcoded low-level transaction instruction for EXACT amounts
-        // This approach directly creates the instruction bytes without indirect conversions
-        
-        // NEW WALLET COMPATIBILITY FIX:
-        // Use our specialized utility function that guarantees correct wallet display
+        // PHANTOM WALLET COMPATIBILITY FIX:
+        // Use our specialized utility function that accounts for how Phantom displays tokens
+        // This subtracts 0.01 from the amount to counteract Phantom's rounding behavior
         const yotAmountValue = parseFloat(yotAmount);
         const walletCompatibleAmount = getWalletCompatibleYotAmount(yotAmountValue);
         
-        console.log(`FINAL FIX: Using getWalletCompatibleYotAmount to ensure proper display`);
-        console.log(`Input: ${yotAmount} → Output: ${walletCompatibleAmount} (wallet compatible amount)`);
+        console.log(`📱 PHANTOM WALLET FIX: Using specialized function to ensure clean integer display`);
+        console.log(`Input: ${yotAmount} YOT → Output: ${walletCompatibleAmount} raw tokens`);
+        console.log(`This should display as exactly ${yotAmount} YOT in Phantom Wallet (no decimal artifact)`);
         
         // Create a direct transfer instruction with the exact amount
         const yotDisplayInstruction = createTransferInstruction(
@@ -104,10 +102,12 @@ export function TestTokenDisplay() {
         // Get integer YOS amount for proper wallet display
         const yosAmountValue = parseFloat(yosAmount);
         
-        // Using only our specialized utility function (guaranteed to work)
+        // Using our enhanced Phantom Wallet compatibility fix
         const walletAdjustedAmount = getWalletAdjustedYosAmount(yosAmountValue);
         
-        console.log(`IMPROVED YOS display: ${yosAmount} → ${walletAdjustedAmount} (wallet-compatible amount)`);
+        console.log(`📱 PHANTOM WALLET YOS FIX: ${yosAmount} YOS → ${walletAdjustedAmount} raw tokens`);
+        console.log(`This should display as exactly ${yosAmount} YOS in Phantom Wallet (adjusted for display)`);
+        console.log(`Divisor applied: 1/${displayDivisor} to show smaller values`);
         
         // Create display instruction with our wallet-compatible amount
         const yosDisplayInstruction = createTransferInstruction(
