@@ -130,7 +130,7 @@ export default function AdminStatistics() {
           <CardHeader className="pb-2">
             <CardTitle className="text-lg font-medium flex items-center">
               <TrendingUp className="h-5 w-5 mr-2 text-green-400" />
-              Current APY
+              Current Rates
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -139,17 +139,31 @@ export default function AdminStatistics() {
                 <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
               </div>
             ) : (
-              <div className="text-3xl font-bold">
-                {programState ? 
-                  // Convert rate to APY percentage 
-                  // With 0.00125% per second, this should be close to 39,420% per year
-                  `${programState.yearlyAPR.toFixed(2)}%` 
-                  : "0.00%"}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm text-gray-400">Annual APR:</span>
+                  <span className="text-3xl font-bold">
+                    {programState ? `${programState.yearlyAPR.toFixed(2)}%` : "0.00%"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-400">Annual APY:</span>
+                  <span className="text-2xl font-bold text-green-400">
+                    {programState ? `${programState.yearlyAPY.toFixed(2)}%` : "0.00%"}
+                  </span>
+                </div>
               </div>
             )}
             {programState && (
-              <div className="text-sm text-gray-400 mt-1">
-                {programState.dailyAPY.toFixed(2)}% daily
+              <div className="text-sm text-gray-400 mt-2 pt-2 border-t border-gray-800">
+                <div className="flex justify-between">
+                  <span>Daily APR:</span>
+                  <span>{programState.dailyAPR.toFixed(2)}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Daily APY:</span>
+                  <span>{programState.dailyAPY.toFixed(2)}%</span>
+                </div>
               </div>
             )}
           </CardContent>
