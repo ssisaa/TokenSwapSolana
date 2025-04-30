@@ -510,7 +510,7 @@ export default function Stake() {
                         
                         <div className="flex justify-between items-center text-xs">
                           <span className="text-gray-400">0</span>
-                          <span className={`font-medium ${(stakingInfo.rewardsEarned / 10000) >= (stakingRates?.harvestThreshold || 0) ? 'text-green-400' : 'text-amber-400'}`}>
+                          <span className={`font-medium ${stakingInfo.rewardsEarned >= (stakingRates?.harvestThreshold || 0) ? 'text-green-400' : 'text-amber-400'}`}>
                             Threshold: {typeof stakingRates?.harvestThreshold === 'number' ? 
                               stakingRates.harvestThreshold.toLocaleString('en-US', {maximumFractionDigits: 0}) : '0'} YOS
                           </span>
@@ -526,11 +526,11 @@ export default function Stake() {
                         Harvest Rewards
                       </Button>
                       
-                      {(stakingInfo.rewardsEarned / 10000) < (stakingRates?.harvestThreshold || 0) && (
+                      {stakingInfo.rewardsEarned < (stakingRates?.harvestThreshold || 0) && (
                         <div className="text-xs text-amber-400 flex items-center">
                           <span className="mr-1">⚠️</span>
                           Need at least {typeof stakingRates?.harvestThreshold === 'number' ? 
-                              stakingRates.harvestThreshold.toLocaleString('en-US', {maximumFractionDigits: 0}) : '0'} YOS to harvest (you have {formatNumber(stakingInfo.rewardsEarned / 10000)})
+                              stakingRates.harvestThreshold.toLocaleString('en-US', {maximumFractionDigits: 0}) : '0'} YOS to harvest (you have {formatNumber(stakingInfo.rewardsEarned, 6)})
                         </div>
                       )}
                     </div>
@@ -548,7 +548,7 @@ export default function Stake() {
                           </p>
                           <div className="mt-2 p-2 bg-amber-900/30 border border-amber-500/50 rounded-md">
                             <p className="text-xs text-amber-300 font-medium mb-1">⚠️ Important Transaction Note</p>
-                            <p className="text-xs">Your wallet will show a much larger YOS amount ({formatNumber(stakingInfo.rewardsEarned)} YOS) than you'll actually receive ({formatNumber(stakingInfo.rewardsEarned / 10000)} YOS). This is normal due to a technical limitation.</p>
+                            <p className="text-xs">Your wallet will show a smaller YOS amount ({formatNumber(stakingInfo.rewardsEarned / 1000, 6)} YOS) than calculated in the UI ({formatNumber(stakingInfo.rewardsEarned, 6)} YOS). This is normal due to a technical limitation with the token display.</p>
                           </div>
                         </div>
                       </div>
