@@ -103,7 +103,18 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
   };
 
   // Check if rewards can be harvested
-  const canHarvest = stakingInfo.rewardsEarned > 0;
+  // CRITICAL FIX: Ensure that rewards > threshold and add debugging
+  const canHarvest = stakingInfo.rewardsEarned > 0 && stakingInfo.rewardsEarned >= (stakingRates?.harvestThreshold || 1);
+  
+  // Debug the values to see why the button is disabled
+  console.log("HARVEST DEBUG:", {
+    rewardsEarned: stakingInfo.rewardsEarned,
+    harvestThreshold: stakingRates?.harvestThreshold || 1,
+    canHarvest,
+    buttonDisabled: !canHarvest || isHarvesting || !connected,
+    isHarvesting,
+    connected
+  });
 
   return (
     <Card className="w-full bg-dark-200">
@@ -366,7 +377,26 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                       <span className="font-medium text-white">{formatNumber(stakingInfo.rewardsEarned, 8)}</span> YOS available
                     </span>
                   </div>
-                  <div className="flex flex-col space-y-2">
+                  
+                  {/* Progress bar for harvest threshold */}
+                  <div className="space-y-2 mt-2">
+                    <div className="w-full bg-slate-700 rounded-full h-2.5">
+                      <div 
+                        className={`h-2.5 rounded-full ${stakingInfo.rewardsEarned >= (stakingRates?.harvestThreshold || 1) ? 'bg-green-500' : 'bg-blue-600'}`}
+                        style={{ 
+                          width: `${Math.min(100, (stakingInfo.rewardsEarned / (stakingRates?.harvestThreshold || 1)) * 100)}%` 
+                        }}
+                      ></div>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-gray-400">0</span>
+                      <span className={`font-medium ${stakingInfo.rewardsEarned >= (stakingRates?.harvestThreshold || 1) ? 'text-green-400' : 'text-amber-400'}`}>
+                        Minimum harvest amount: {(stakingRates?.harvestThreshold || 1).toLocaleString('en-US')} YOS
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col space-y-2 mt-3">
                     <Button 
                       onClick={handleHarvest} 
                       disabled={!canHarvest || isHarvesting || !connected}
