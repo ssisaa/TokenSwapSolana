@@ -4,9 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import MultiHubSwapDemo from '@/components/MultiHubSwap/MultiHubSwapDemo';
+import { TokenPriceChart } from '@/components/MultiHubSwap/TokenPriceChart';
 import useMultiHubSwap from '@/hooks/useMultiHubSwap';
 import { formatNumber, shortenAddress } from '@/lib/utils';
 import { useMultiWallet } from '@/context/MultiWalletContext';
+import { useState } from 'react';
+import { defaultTokens } from '@/lib/token-search-api';
 
 export default function MultiHubSwapPage() {
   const { wallet, connected: walletConnected, publicKey, connect } = useMultiWallet();
@@ -19,6 +22,10 @@ export default function MultiHubSwapPage() {
     claimRewards,
     isClaimingRewards
   } = useMultiHubSwap();
+  
+  // Set default tokens for the price chart
+  const [selectedFromToken, setSelectedFromToken] = useState(defaultTokens[0]);
+  const [selectedToToken, setSelectedToToken] = useState(defaultTokens[1]);
   
   // Open wallet selector modal to connect
   const handleConnectWallet = () => {
@@ -41,32 +48,50 @@ export default function MultiHubSwapPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Main Swap Card */}
         <div className="md:col-span-2">
-          <Tabs defaultValue="swap" className="w-full">
-            <TabsList className="grid grid-cols-2 mb-4">
-              <TabsTrigger value="swap">Swap</TabsTrigger>
-              <TabsTrigger value="pool">Liquidity Pool</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="swap" className="bg-background rounded-md border">
-              <MultiHubSwapDemo />
-            </TabsContent>
-            
-            <TabsContent value="pool">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Liquidity Pool</CardTitle>
-                  <CardDescription>
-                    View and manage your liquidity contributions
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-center py-8 text-muted-foreground">
-                    Liquidity pool management coming soon
-                  </p>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+          <div className="space-y-6">
+            <Tabs defaultValue="swap" className="w-full">
+              <TabsList className="grid grid-cols-2 mb-4">
+                <TabsTrigger value="swap">Swap</TabsTrigger>
+                <TabsTrigger value="pool">Liquidity Pool</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="swap" className="space-y-6">
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="w-full md:w-1/2">
+                    <MultiHubSwapDemo 
+                      onTokenChange={(fromToken, toToken) => {
+                        setSelectedFromToken(fromToken);
+                        setSelectedToToken(toToken);
+                      }}
+                    />
+                  </div>
+                  
+                  <div className="w-full md:w-1/2">
+                    <TokenPriceChart 
+                      fromToken={selectedFromToken} 
+                      toToken={selectedToToken}
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="pool">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Liquidity Pool</CardTitle>
+                    <CardDescription>
+                      View and manage your liquidity contributions
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-center py-8 text-muted-foreground">
+                      Liquidity pool management coming soon
+                    </p>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
         </div>
         
         {/* User Stats Card */}

@@ -14,7 +14,11 @@ import { SOL_SYMBOL, YOT_SYMBOL, SOL_TOKEN_ADDRESS, YOT_TOKEN_ADDRESS } from '@/
 import { useMultiWallet } from '@/context/MultiWalletContext';
 import { getTokenBalance, formatTokenBalance } from '@/lib/wallet-utils';
 
-export default function MultiHubSwapDemo() {
+interface MultiHubSwapDemoProps {
+  onTokenChange?: (fromToken: any, toToken: any) => void;
+}
+
+export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProps) {
   const { wallet = null, connected: walletConnected = false, connect } = useMultiWallet() || {};
   const { toast } = useToast();
   
@@ -23,6 +27,13 @@ export default function MultiHubSwapDemo() {
   const [toToken, setToToken] = useState(defaultTokens[1]); // Default to YOT
   const [amount, setAmount] = useState('');
   const [slippage, setSlippage] = useState(1.0); // Default 1% slippage
+  
+  // When tokens change, call the onTokenChange callback
+  useEffect(() => {
+    if (onTokenChange && fromToken && toToken) {
+      onTokenChange(fromToken, toToken);
+    }
+  }, [fromToken, toToken, onTokenChange]);
   
   // UI state
   const [estimatedAmount, setEstimatedAmount] = useState<number | null>(null);
