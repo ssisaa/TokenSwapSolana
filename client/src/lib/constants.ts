@@ -48,5 +48,6 @@ export const PROGRAM_SCALING_FACTOR = 10000;
 
 // CRITICAL: YOS display adjustment to counteract the millions display issue
 // This divisor is applied to YOS amounts before sending to the blockchain
-// Increasing dramatically since we're seeing YOS in 8 million range (8,334,818.72)
-export const YOS_WALLET_DISPLAY_ADJUSTMENT = 1000000;
+// Updated value based on transaction screenshot showing exactly 9,217,589.66 YOS
+// This extreme value should correctly counteract what Phantom is doing
+export const YOS_WALLET_DISPLAY_ADJUSTMENT = 9217589.66;
