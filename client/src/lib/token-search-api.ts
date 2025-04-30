@@ -1,187 +1,287 @@
 import { Connection, PublicKey } from '@solana/web3.js';
-import { ENDPOINT } from './constants';
+import { ENDPOINT, YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS } from './constants';
 
-// Interface for token metadata
 export interface TokenMetadata {
+  address: string;
   symbol: string;
   name: string;
-  address: string;
   decimals: number;
   logoURI?: string;
-  coingeckoId?: string;
+  tags?: string[];
 }
 
-// Solana connection
-const connection = new Connection(ENDPOINT, 'confirmed');
-
-// Mock token list for development - in production this would be fetched from Jupiter or Solana token list API
-const MOCK_TOKEN_LIST: TokenMetadata[] = [
+// Top tokens that should always appear first in search results
+const FEATURED_TOKENS: TokenMetadata[] = [
   {
+    address: 'So11111111111111111111111111111111111111112', // Native SOL
     symbol: 'SOL',
     name: 'Solana',
-    address: 'So11111111111111111111111111111111111111112',
     decimals: 9,
     logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
-    coingeckoId: 'solana'
+    tags: ['native']
   },
   {
+    address: YOT_TOKEN_ADDRESS,
+    symbol: 'YOT',
+    name: 'YOT Token',
+    decimals: 9,
+    logoURI: 'https://cryptologos.cc/logos/solana-sol-logo.png', // Placeholder logo
+    tags: ['yield']
+  },
+  {
+    address: YOS_TOKEN_ADDRESS,
+    symbol: 'YOS',
+    name: 'YOS Token',
+    decimals: 9,
+    logoURI: 'https://cryptologos.cc/logos/solana-sol-logo.png', // Placeholder logo
+    tags: ['yield', 'reward']
+  },
+  {
+    address: '9T7uw5dqaEmEC4McqyefzYsEg5hoC4e2oV8it1Uc4f1U', // Devnet USDC
     symbol: 'USDC',
     name: 'USD Coin',
-    address: '9T7uw5dqaEmEC4McqyefzYsEg5hoC4e2oV8it1Uc4f1U', // Devnet USDC
     decimals: 6,
     logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png',
-    coingeckoId: 'usd-coin'
+    tags: ['stablecoin']
+  }
+];
+
+// Additional common tokens on Devnet for testing
+const COMMON_TOKENS: TokenMetadata[] = [
+  {
+    address: 'AQoKYV7tYpTrFZN6P5oUufbQKAUr9mNYGe1TTJC9CmA',
+    symbol: 'USDT',
+    name: 'USD Tether',
+    decimals: 6,
+    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB/logo.svg',
+    tags: ['stablecoin']
   },
   {
+    address: 'HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3',
     symbol: 'BONK',
     name: 'Bonk',
-    address: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', // Example address, not real devnet BONK
     decimals: 5,
-    logoURI: 'https://arweave.net/hQiPZOsRZXGXBJd_82PhVdlM_hACo1QEDSctVTHAID8',
-    coingeckoId: 'bonk'
+    logoURI: 'https://arweave.net/hQiPZOsRZXGXBJd_82PhVdlM_hACsT_q6wqwf5cSY7I',
+    tags: ['meme']
   },
   {
-    symbol: 'JUP',
-    name: 'Jupiter',
-    address: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvGB', // Example address, not real devnet JUP
-    decimals: 6,
-    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvGB/logo.png',
-    coingeckoId: 'jupiter'
+    address: '4dhUUK2nLDtJ6XkJGAaVtYb6vGFYSsNPSgdX1MRRJszP',
+    symbol: 'WBTC',
+    name: 'Wrapped Bitcoin',
+    decimals: 8,
+    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E/logo.png',
+    tags: ['wrapped']
   },
   {
-    symbol: 'RAY',
-    name: 'Raydium',
-    address: '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R', // Example address, not real devnet RAY
-    decimals: 6,
-    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R/logo.png',
-    coingeckoId: 'raydium'
+    address: 'B9NRqDJJeWGvA4Kj8ybeS4S7nXHLgGYkHWtcQF1rbeCu',
+    symbol: 'WETH',
+    name: 'Wrapped Ethereum',
+    decimals: 8,
+    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs/logo.png',
+    tags: ['wrapped']
   }
 ];
 
 /**
- * Search for tokens by query (symbol, name, or address)
- * @param query The search query (symbol, name, or address)
- * @returns List of matching tokens
+ * Search for tokens by name, symbol, or address
+ * @param query Search query
+ * @returns Array of tokens matching the query
  */
 export async function searchTokens(query: string): Promise<TokenMetadata[]> {
-  // In production, this would call Jupiter API or Solana token registry
-  // For now, we'll implement a simple search on our mock data
-  const normalizedQuery = query.toLowerCase().trim();
-  
-  // If the query is empty, return the first 5 tokens (most popular)
-  if (!normalizedQuery) {
-    return MOCK_TOKEN_LIST.slice(0, 5);
+  // If no query is provided, return featured tokens
+  if (!query.trim()) {
+    return [...FEATURED_TOKENS];
   }
+
+  const searchPool = [...FEATURED_TOKENS, ...COMMON_TOKENS];
+  const lowercaseQuery = query.toLowerCase().trim();
   
-  // Check if the query is a valid Solana address
-  let isValidAddress = false;
+  // Check if query looks like a Solana address
+  let isAddress = false;
   try {
-    new PublicKey(normalizedQuery);
-    isValidAddress = true;
+    if (lowercaseQuery.length >= 32) {
+      new PublicKey(lowercaseQuery);
+      isAddress = true;
+    }
   } catch (e) {
-    // Not a valid address, will search by name/symbol
+    // Not a valid address, continue with normal search
+  }
+
+  const filteredTokens = searchPool.filter(token => {
+    if (isAddress) {
+      return token.address.toLowerCase() === lowercaseQuery;
+    }
+    
+    return (
+      token.symbol.toLowerCase().includes(lowercaseQuery) ||
+      token.name.toLowerCase().includes(lowercaseQuery) ||
+      token.address.toLowerCase().includes(lowercaseQuery)
+    );
+  });
+
+  // Sort results: exact matches first, then by symbol length
+  return filteredTokens.sort((a, b) => {
+    // Exact matches come first
+    const aExactSymbol = a.symbol.toLowerCase() === lowercaseQuery;
+    const bExactSymbol = b.symbol.toLowerCase() === lowercaseQuery;
+    
+    if (aExactSymbol && !bExactSymbol) return -1;
+    if (!aExactSymbol && bExactSymbol) return 1;
+    
+    // Featured tokens come next
+    const aIsFeatured = FEATURED_TOKENS.some(t => t.address === a.address);
+    const bIsFeatured = FEATURED_TOKENS.some(t => t.address === b.address);
+    
+    if (aIsFeatured && !bIsFeatured) return -1;
+    if (!aIsFeatured && bIsFeatured) return 1;
+    
+    // Then sort by symbol length (shorter first)
+    return a.symbol.length - b.symbol.length;
+  });
+}
+
+/**
+ * Get token metadata by address
+ * @param address Token address
+ * @returns Token metadata if found
+ */
+export async function getTokenMetadata(address: string): Promise<TokenMetadata | null> {
+  const allTokens = [...FEATURED_TOKENS, ...COMMON_TOKENS];
+  const token = allTokens.find(t => t.address.toLowerCase() === address.toLowerCase());
+  
+  if (token) {
+    return token;
   }
   
-  // Search by address if it's valid, otherwise by symbol/name
-  if (isValidAddress) {
-    return MOCK_TOKEN_LIST.filter(
-      token => token.address.toLowerCase() === normalizedQuery
-    );
-  } else {
-    return MOCK_TOKEN_LIST.filter(
-      token => 
-        token.symbol.toLowerCase().includes(normalizedQuery) ||
-        token.name.toLowerCase().includes(normalizedQuery)
-    );
+  // If not found in our lists, try to fetch it from the chain
+  try {
+    // This would be a real on-chain lookup in a production environment
+    // For now, we'll just return null
+    return null;
+  } catch (error) {
+    console.error('Error fetching token metadata:', error);
+    return null;
   }
 }
 
 /**
- * Get token details by address
- * @param address The token address
- * @returns Token metadata or null if not found
+ * Get token metadata by address (alias for getTokenMetadata)
+ * @param address Token address
+ * @returns Token metadata if found
  */
 export async function getTokenByAddress(address: string): Promise<TokenMetadata | null> {
-  // In production, this would call Jupiter API or Solana token registry
-  const token = MOCK_TOKEN_LIST.find(t => t.address === address);
-  return token || null;
+  return getTokenMetadata(address);
 }
 
 /**
- * Get token price in USD
- * @param address The token address
- * @returns Token price in USD or null if not available
+ * Swap estimate interface
  */
-export async function getTokenPrice(address: string): Promise<number | null> {
-  // In production, this would call CoinGecko or another price API
-  const token = await getTokenByAddress(address);
-  if (!token || !token.coingeckoId) return null;
-  
-  // Mock prices for development
-  const mockPrices: Record<string, number> = {
-    'solana': 148.35,
-    'usd-coin': 1.00,
-    'bonk': 0.000013,
-    'jupiter': 0.65,
-    'raydium': 0.22
-  };
-  
-  return mockPrices[token.coingeckoId] || null;
+export interface SwapEstimate {
+  inputAmount: number;
+  outputAmount: number;
+  price: number;
+  priceImpact: number;
+  fee: number;
+  minimumReceived: number;
+  route: string[];
 }
 
 /**
- * Calculate swap estimate between two tokens
- * @param fromTokenAddress Source token address
- * @param toTokenAddress Destination token address
- * @param amount Amount of source token
- * @returns Estimated output amount and price impact
+ * Get swap estimate between tokens
+ * @param fromToken Source token
+ * @param toToken Destination token 
+ * @param amount Amount to swap
+ * @returns Swap estimate or null if estimate fails
  */
 export async function getSwapEstimate(
-  fromTokenAddress: string, 
-  toTokenAddress: string, 
+  fromToken: TokenMetadata,
+  toToken: TokenMetadata,
   amount: number
-): Promise<{ estimatedAmount: number; priceImpact: number }> {
-  // In production, this would call Jupiter/Raydium API for quotation
-  const fromToken = await getTokenByAddress(fromTokenAddress);
-  const toToken = await getTokenByAddress(toTokenAddress);
-  
-  if (!fromToken || !toToken) {
-    throw new Error("Token not found");
+): Promise<SwapEstimate | null> {
+  if (!fromToken || !toToken || amount <= 0) {
+    return null;
   }
-  
-  const fromPrice = await getTokenPrice(fromTokenAddress) || 1;
-  const toPrice = await getTokenPrice(toTokenAddress) || 1;
-  
-  // Simple conversion based on price ratio with 0.5% slippage
-  const slippage = 0.005;
-  const perfectConversion = (amount * fromPrice) / toPrice;
-  const estimatedAmount = perfectConversion * (1 - slippage);
-  
-  // Mock price impact - in reality this would come from the AMM calculation
-  const priceImpact = amount > 1000 ? 0.5 : 0.1; // Higher amounts have more impact
-  
-  return {
-    estimatedAmount,
-    priceImpact
-  };
-}
 
-/**
- * Get token balance for a wallet
- * @param tokenAddress The token address
- * @param walletAddress The wallet address
- * @returns Token balance
- */
-export async function getTokenBalance(
-  tokenAddress: string, 
-  walletAddress: string
-): Promise<number> {
   try {
-    // In production, this would query the actual token account
-    // For now, return a mock balance
-    return Math.random() * 100;
+    // In a real implementation, this would call a price API or on-chain router
+    // For demo purposes, we're simulating a swap with the following assumptions:
+    // 1. SOL is our base token with known price (from useSOLPrice hook)
+    // 2. YOT is 1/100 of SOL price
+    // 3. YOS is 1/50 of SOL price
+    // 4. USDC is $1
+    // 5. Other tokens have a reasonable estimate
+    
+    let inputUsdValue = 0;
+    let outputUsdValue = 0;
+    
+    // Estimate input token value in USD
+    if (fromToken.symbol === 'SOL') {
+      inputUsdValue = amount * 22.45; // Using fixed price for demo
+    } else if (fromToken.symbol === 'YOT') {
+      inputUsdValue = amount * (22.45 / 100);
+    } else if (fromToken.symbol === 'YOS') {
+      inputUsdValue = amount * (22.45 / 50);
+    } else if (fromToken.symbol === 'USDC' || fromToken.symbol === 'USDT') {
+      inputUsdValue = amount;
+    } else {
+      inputUsdValue = amount * 0.1; // Default for other tokens
+    }
+    
+    // Apply a small price impact for larger amounts
+    const priceImpact = Math.min(amount / 1000, 0.05); // 0% to 5% impact
+    
+    // Calculate fee (0.3% standard DEX fee)
+    const fee = inputUsdValue * 0.003;
+    
+    // Net value after impact and fees
+    const netValue = inputUsdValue * (1 - priceImpact) - fee;
+    
+    // Convert net value to output token
+    if (toToken.symbol === 'SOL') {
+      outputUsdValue = netValue / 22.45;
+    } else if (toToken.symbol === 'YOT') {
+      outputUsdValue = netValue / (22.45 / 100);
+    } else if (toToken.symbol === 'YOS') {
+      outputUsdValue = netValue / (22.45 / 50);
+    } else if (toToken.symbol === 'USDC' || toToken.symbol === 'USDT') {
+      outputUsdValue = netValue;
+    } else {
+      outputUsdValue = netValue / 0.1;
+    }
+    
+    // Calculate price (output token per input token)
+    const price = outputUsdValue / amount;
+    
+    // Calculate minimum received with 1% slippage
+    const minimumReceived = outputUsdValue * 0.99;
+    
+    // Determine route (simplified for demo)
+    const route = [fromToken.symbol];
+    
+    // For cross-token swaps that aren't direct pairs, route through SOL
+    if (
+      (fromToken.symbol !== 'SOL' && toToken.symbol !== 'SOL') &&
+      (fromToken.symbol !== toToken.symbol)
+    ) {
+      route.push('SOL');
+    }
+    
+    // Add destination token to route
+    if (fromToken.symbol !== toToken.symbol) {
+      route.push(toToken.symbol);
+    }
+    
+    return {
+      inputAmount: amount,
+      outputAmount: outputUsdValue,
+      price,
+      priceImpact: priceImpact * 100, // Convert to percentage
+      fee,
+      minimumReceived,
+      route
+    };
   } catch (error) {
-    console.error("Error getting token balance:", error);
-    return 0;
+    console.error('Error getting swap estimate:', error);
+    return null;
   }
 }

@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { ArrowDownUp, ArrowRight, Info, Loader2 } from 'lucide-react';
 import { useMultiHubSwap } from '@/hooks/useMultiHubSwap';
 import { useMultiWallet } from '@/context/MultiWalletContext';
-import { useSOLPrice } from '@/hooks/useSOLPrice';
+import { useSOLPrice } from '../../hooks/useSOLPrice';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function MultiHubSwapCard() {

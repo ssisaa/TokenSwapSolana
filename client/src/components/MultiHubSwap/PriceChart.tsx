@@ -1,197 +1,201 @@
 import { useState, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { formatDistance, subHours, getHours, getMinutes } from 'date-fns';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { ChevronUp, ChevronDown } from 'lucide-react';
+import { useSOLPrice } from '../../hooks/useSOLPrice';
 
 interface PriceChartProps {
-  fromSymbol: string;
-  toSymbol: string;
-  timeframe?: '15m' | '1h' | '4h' | '1d';
+  tokenAddress: string;
+  tokenSymbol: string;
 }
 
-interface PriceData {
-  time: Date;
-  price: number;
+interface PriceDataPoint {
   timestamp: number;
+  price: number;
 }
 
-export default function PriceChart({
-  fromSymbol,
-  toSymbol,
-  timeframe = '15m'
-}: PriceChartProps) {
-  const [data, setData] = useState<PriceData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [highPrice, setHighPrice] = useState<number>(0);
-  const [lowPrice, setLowPrice] = useState<number>(0);
+/**
+ * Generates mock price data for demonstration purposes
+ * In a real implementation, this would fetch from a price API
+ */
+function generatePriceData(basePrice: number, days: number = 30, volatility: number = 0.02): PriceDataPoint[] {
+  const data: PriceDataPoint[] = [];
+  const now = Date.now();
+  const msPerDay = 24 * 60 * 60 * 1000;
+  
+  let price = basePrice;
+  
+  for (let i = days; i >= 0; i--) {
+    const timestamp = now - (i * msPerDay);
+    const change = 1 + (Math.random() * volatility * 2 - volatility);
+    price *= change;
+    
+    data.push({
+      timestamp,
+      price
+    });
+  }
+  
+  return data;
+}
 
+export default function PriceChart({ tokenAddress, tokenSymbol }: PriceChartProps) {
+  const [priceData, setPriceData] = useState<PriceDataPoint[]>([]);
+  const [timeframe, setTimeframe] = useState<string>('30d');
+  const { solPrice } = useSOLPrice();
+  
   useEffect(() => {
-    const fetchPriceData = async () => {
-      if (!fromSymbol || !toSymbol) {
-        setLoading(false);
-        return;
-      }
+    // Estimate base price based on tokenSymbol
+    // In a real implementation, this would fetch from an API
+    let basePrice = 0;
+    
+    if (tokenSymbol === 'SOL') {
+      basePrice = solPrice;
+    } else if (tokenSymbol === 'YOT') {
+      basePrice = solPrice / 100; // YOT price is 1/100 of SOL
+    } else if (tokenSymbol === 'YOS') {
+      basePrice = solPrice / 50; // YOS price is 1/50 of SOL
+    } else if (tokenSymbol === 'USDC') {
+      basePrice = 1.0; // USDC is a stablecoin
+    } else {
+      basePrice = 0.1; // Default price for other tokens
+    }
 
-      setLoading(true);
-      setError(null);
-
-      try {
-        // In a real implementation, we would fetch data from an API
-        // For now, we'll generate synthetic data
-        const now = new Date();
-        const dataPoints: PriceData[] = [];
-        const basePrice = 0.5; // Base price value
-        let points = 48; // 48 points for 15m timeframe (12 hours total)
-        
-        if (timeframe === '1h') points = 24; // 24 hours
-        if (timeframe === '4h') points = 42; // 7 days (approx)
-        if (timeframe === '1d') points = 30; // 30 days
-        
-        // Generate simulated price data that looks like a real market
-        // with some volatility and an overall trend
-        const volatility = 0.03; // 3% volatility
-        const trend = 0.001; // Slight upward trend
-        let lastPrice = basePrice;
-        
-        for (let i = points; i >= 0; i--) {
-          // Calculate time
-          let timePoint: Date;
-          if (timeframe === '15m') timePoint = subHours(now, i * 0.25);
-          else if (timeframe === '1h') timePoint = subHours(now, i);
-          else if (timeframe === '4h') timePoint = subHours(now, i * 4);
-          else timePoint = subHours(now, i * 24);
-          
-          // Random walk with slight trend
-          const change = (Math.random() - 0.5) * volatility + trend;
-          lastPrice = lastPrice * (1 + change);
-          
-          dataPoints.push({
-            time: timePoint,
-            price: lastPrice,
-            timestamp: timePoint.getTime()
-          });
-        }
-        
-        // Calculate high and low
-        const prices = dataPoints.map(d => d.price);
-        setHighPrice(Math.max(...prices));
-        setLowPrice(Math.min(...prices));
-        
-        setData(dataPoints);
-      } catch (err) {
-        console.error('Error fetching price data:', err);
-        setError('Failed to load price data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPriceData();
-  }, [fromSymbol, toSymbol, timeframe]);
-
+    // Generate price data based on timeframe
+    let days = 30;
+    let volatility = 0.02;
+    
+    if (timeframe === '7d') {
+      days = 7;
+      volatility = 0.015;
+    } else if (timeframe === '1d') {
+      days = 1;
+      volatility = 0.01;
+    } else if (timeframe === '1h') {
+      days = 1/24;
+      volatility = 0.005;
+    } else if (timeframe === '1y') {
+      days = 365;
+      volatility = 0.03;
+    }
+    
+    const data = generatePriceData(basePrice, days, volatility);
+    setPriceData(data);
+  }, [timeframe, tokenSymbol, solPrice]);
+  
+  // Calculate price change
+  const calculatePriceChange = (): { change: number; percentChange: number } => {
+    if (priceData.length < 2) return { change: 0, percentChange: 0 };
+    
+    const firstPrice = priceData[0].price;
+    const lastPrice = priceData[priceData.length - 1].price;
+    const change = lastPrice - firstPrice;
+    const percentChange = (change / firstPrice) * 100;
+    
+    return { change, percentChange };
+  };
+  
+  const { change, percentChange } = calculatePriceChange();
+  const isPositive = percentChange >= 0;
+  
+  // Format timestamp for display on chart
   const formatXAxis = (timestamp: number) => {
     const date = new Date(timestamp);
-    return `${getHours(date)}:${getMinutes(date).toString().padStart(2, '0')}`;
+    
+    if (timeframe === '1h') {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else if (timeframe === '1d') {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else if (timeframe === '7d') {
+      return date.toLocaleDateString([], { weekday: 'short' });
+    } else {
+      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
   };
-
-  const formatTooltipTime = (timestamp: number) => {
-    const date = new Date(timestamp);
-    return formatDistance(date, new Date(), { addSuffix: true });
-  };
-
-  // Calculate percentage change
-  const priceChange = data.length > 0 
-    ? ((data[data.length - 1].price - data[0].price) / data[0].price) * 100
-    : 0;
   
   return (
-    <Card className="p-4 h-full">
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <h3 className="text-lg font-semibold">
-            {fromSymbol} / {toSymbol} 
-            <span className="text-xs ml-2 text-muted-foreground">
-              {timeframe}
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-md font-medium">
+          {tokenSymbol} Price
+        </CardTitle>
+        <div className="flex items-center space-x-4">
+          <div className="flex space-x-2">
+            {['1h', '1d', '7d', '30d', '1y'].map((option) => (
+              <button
+                key={option}
+                className={`px-2 py-1 text-xs rounded ${timeframe === option 
+                  ? 'bg-primary text-primary-foreground' 
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+                onClick={() => setTimeframe(option)}
+              >
+                {option.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="mb-4">
+          <div className="flex items-baseline space-x-2">
+            <span className="text-2xl font-bold">
+              ${priceData.length > 0 ? priceData[priceData.length - 1].price.toFixed(6) : '0.00'}
             </span>
-          </h3>
-          {!loading && data.length > 0 && (
-            <div className="text-sm">
-              <span className={priceChange >= 0 ? "text-green-500" : "text-red-500"}>
-                {priceChange >= 0 ? "+" : ""}{priceChange.toFixed(2)}%
-              </span>
+            <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${
+              isPositive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+            }`}>
+              {isPositive ? <ChevronUp className="h-3 w-3 mr-1" /> : <ChevronDown className="h-3 w-3 mr-1" />}
+              {isPositive ? '+' : ''}{percentChange.toFixed(2)}%
             </div>
-          )}
+          </div>
+          <span className="text-sm text-muted-foreground">
+            {isPositive ? '+' : ''}{change.toFixed(6)} ({timeframe})
+          </span>
         </div>
-        <div className="text-sm text-right">
-          {!loading && data.length > 0 && (
-            <>
-              <div className="flex space-x-4">
-                <div>
-                  <div className="text-muted-foreground text-xs">High</div>
-                  <div>{highPrice.toFixed(6)}</div>
-                </div>
-                <div>
-                  <div className="text-muted-foreground text-xs">Low</div>
-                  <div>{lowPrice.toFixed(6)}</div>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      ) : error ? (
-        <div className="flex items-center justify-center h-64 text-red-500">
-          {error}
-        </div>
-      ) : (
-        <div className="h-64">
+        
+        <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart
-              data={data}
+            <AreaChart
+              data={priceData}
               margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
             >
-              <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+              <defs>
+                <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={isPositive ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)'} stopOpacity={0.3} />
+                  <stop offset="95%" stopColor={isPositive ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)'} stopOpacity={0} />
+                </linearGradient>
+              </defs>
               <XAxis 
                 dataKey="timestamp" 
                 tickFormatter={formatXAxis} 
-                tick={{ fontSize: 10 }}
-                stroke="#888888"
+                minTickGap={30}
+                tick={{ fontSize: 12 }}
+                axisLine={false}
+                tickLine={false}
               />
               <YAxis 
                 domain={['auto', 'auto']} 
-                tick={{ fontSize: 10 }} 
-                width={40}
-                tickFormatter={(value) => value.toFixed(4)}
-                stroke="#888888"
+                tick={{ fontSize: 12 }}
+                tickFormatter={(value) => `$${value.toFixed(2)}`}
+                width={60}
+                axisLine={false}
+                tickLine={false}
               />
               <Tooltip 
-                labelFormatter={formatTooltipTime}
-                formatter={(value: number) => [value.toFixed(6), 'Price']}
-                contentStyle={{ 
-                  background: 'rgba(15, 23, 42, 0.9)', 
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: '6px'
-                }}
+                labelFormatter={(label) => new Date(label).toLocaleString()}
+                formatter={(value: number) => [`$${value.toFixed(6)}`, 'Price']}
               />
-              <Line 
+              <Area 
                 type="monotone" 
                 dataKey="price" 
-                stroke="#16a34a" 
-                dot={false}
-                strokeWidth={2}
-                animationDuration={500}
+                stroke={isPositive ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)'} 
+                fillOpacity={1}
+                fill="url(#colorPrice)"
               />
-            </LineChart>
+            </AreaChart>
           </ResponsiveContainer>
         </div>
-      )}
+      </CardContent>
     </Card>
   );
 }

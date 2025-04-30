@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useMultiWallet } from '@/context/MultiWalletContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/hooks/use-toast';
-import { useSOLPrice } from '@/hooks/useSOLPrice';
+import { useSOLPrice } from './useSOLPrice';
 import { 
   swapAndDistribute,
   claimWeeklyYosReward,

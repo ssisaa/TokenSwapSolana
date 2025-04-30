@@ -1,438 +1,388 @@
 import { useState, useEffect } from 'react';
-import { useMultiWallet } from '@/context/MultiWalletContext';
 import { 
-  ArrowDownUp, 
-  ArrowRight, 
-  Loader2, 
-  Info, 
-  RefreshCw, 
-  Settings, 
-  Percent,
-  ArrowLeftRight
-} from 'lucide-react';
-import { useMultiHubSwap } from '@/hooks/useMultiHubSwap';
-import { Button } from '@/components/ui/button';
+  Card, 
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader, 
+  CardTitle
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Switch } from '@/components/ui/switch';
-import { Slider } from '@/components/ui/slider';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 import { 
-  Tabs, 
-  TabsContent, 
-  TabsList, 
-  TabsTrigger 
-} from "@/components/ui/tabs";
+  ArrowDown, 
+  Info, 
+  BarChart3, 
+  RefreshCw, 
+  Settings
+} from 'lucide-react';
 import TokenSearchInput from './TokenSearchInput';
 import PriceChart from './PriceChart';
-import { YOT_TOKEN_ADDRESS } from '@/lib/constants';
-import { TokenMetadata, getSwapEstimate, getTokenByAddress } from '@/lib/token-search-api';
-import { getSwapRoute, swapToBuyYOT, swapToSellYOT } from '@/lib/swap-router';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { 
+  TokenMetadata, 
+  getTokenByAddress,
+  getSwapEstimate,
+  SwapEstimate
+} from '@/lib/token-search-api';
+import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS } from '@/lib/constants';
+import { executeSwapAndDistribute } from '@/lib/multi-hub-swap-contract';
+import { useToast } from '@/hooks/use-toast';
 
 export default function EnhancedMultiHubSwapCard() {
-  const [swapMode, setSwapMode] = useState<'buy' | 'sell'>('buy'); // 'buy' for TokenX→YOT, 'sell' for YOT→TokenX
-  const [amountIn, setAmountIn] = useState<string>('');
-  const [slippage, setSlippage] = useState<number>(0.5); // 0.5% default slippage
+  const { toast } = useToast();
+  const wallet = useWallet();
+  
+  // Token states
   const [fromToken, setFromToken] = useState<TokenMetadata | null>(null);
   const [toToken, setToToken] = useState<TokenMetadata | null>(null);
-  const [estimatedOutput, setEstimatedOutput] = useState<number>(0);
-  const [priceImpact, setPriceImpact] = useState<number>(0);
-  const [isQuoting, setIsQuoting] = useState<boolean>(false);
-  const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
+  const [fromAmount, setFromAmount] = useState<string>('');
+  const [toAmount, setToAmount] = useState<string>('');
   
-  // Distribution estimates
-  const [estimatedUser, setEstimatedUser] = useState<number>(0);
-  const [estimatedLiquidity, setEstimatedLiquidity] = useState<number>(0);
-  const [estimatedCashback, setEstimatedCashback] = useState<number>(0);
-  const [estimatedCommission, setEstimatedCommission] = useState<number>(0);
+  // UI states
+  const [isSwapping, setIsSwapping] = useState<boolean>(false);
+  const [swapEstimate, setSwapEstimate] = useState<SwapEstimate | null>(null);
+  const [activeTab, setActiveTab] = useState<'swap' | 'chart'>('swap');
+  const [slippage, setSlippage] = useState<number>(1); // 1% slippage
   
-  const { wallet, connected } = useMultiWallet();
-  const { 
-    swapStats, 
-    isLoadingSwapStats,
-    isSwapping
-  } = useMultiHubSwap();
-
-  // Initialize tokens on load
+  // Load default tokens on component mount
   useEffect(() => {
-    const initTokens = async () => {
-      try {
-        const yotToken = await getTokenByAddress(YOT_TOKEN_ADDRESS);
-        const solToken = await getTokenByAddress('So11111111111111111111111111111111111111112');
-        
-        if (swapMode === 'buy') {
-          setFromToken(solToken);
-          setToToken(yotToken);
-        } else {
-          setFromToken(yotToken);
-          setToToken(solToken);
-        }
-      } catch (error) {
-        console.error("Error initializing tokens:", error);
-      }
-    };
-    
-    initTokens();
-  }, [swapMode]);
-
-  // Flip tokens
-  const flipTokens = () => {
-    const newMode = swapMode === 'buy' ? 'sell' : 'buy';
-    setSwapMode(newMode);
-    setAmountIn('');
-    setEstimatedOutput(0);
-    setPriceImpact(0);
-    setEstimatedUser(0);
-    setEstimatedLiquidity(0);
-    setEstimatedCashback(0);
-    setEstimatedCommission(0);
-  };
-
-  // Update estimate when input changes
-  useEffect(() => {
-    const updateSwapEstimate = async () => {
-      if (!fromToken || !toToken || !amountIn || parseFloat(amountIn) <= 0) {
-        setEstimatedOutput(0);
-        setPriceImpact(0);
-        setEstimatedUser(0);
-        setEstimatedLiquidity(0);
-        setEstimatedCashback(0);
-        setEstimatedCommission(0);
-        return;
+    async function loadDefaultTokens() {
+      // Set SOL as default "from" token
+      const solToken = await getTokenByAddress('So11111111111111111111111111111111111111112');
+      if (solToken) {
+        setFromToken(solToken);
       }
       
-      setIsQuoting(true);
-      try {
-        // Get swap route
-        const route = await getSwapRoute(
-          fromToken.address,
-          toToken.address,
-          parseFloat(amountIn)
-        );
-        
-        setEstimatedOutput(route.estimatedAmount);
-        setPriceImpact(route.priceImpact);
-        
-        // Calculate distribution based on mode
-        if (swapMode === 'buy') {
-          // For buy flow: Any token → YOT
-          const userPercent = swapStats?.buyDistribution?.userPercent || 75;
-          const liquidityPercent = swapStats?.buyDistribution?.liquidityPercent || 20;
-          const cashbackPercent = swapStats?.buyDistribution?.cashbackPercent || 5;
-          const commissionPercent = swapStats?.commissionPercent || 0.1;
-          
-          setEstimatedUser(route.estimatedAmount * (userPercent / 100));
-          setEstimatedLiquidity(route.estimatedAmount * (liquidityPercent / 100));
-          setEstimatedCashback(route.estimatedAmount * (cashbackPercent / 100));
-          setEstimatedCommission(parseFloat(amountIn) * (commissionPercent / 100));
-        } else {
-          // For sell flow: YOT → Any token
-          const userPercent = swapStats?.sellDistribution?.userPercent || 75;
-          const liquidityPercent = swapStats?.sellDistribution?.liquidityPercent || 20;
-          const cashbackPercent = swapStats?.sellDistribution?.cashbackPercent || 5;
-          const commissionPercent = swapStats?.commissionPercent || 0.1;
-          
-          // For sell flow, the distribution applies to input amount (YOT)
-          const inputAmount = parseFloat(amountIn);
-          setEstimatedUser(route.estimatedAmount);
-          setEstimatedLiquidity(inputAmount * (liquidityPercent / 100));
-          setEstimatedCashback(inputAmount * (cashbackPercent / 100));
-          setEstimatedCommission(route.estimatedAmount * (commissionPercent / 100));
-        }
-      } catch (error) {
-        console.error("Error updating estimate:", error);
-        setEstimatedOutput(0);
-        setPriceImpact(0);
-        setEstimatedUser(0);
-        setEstimatedLiquidity(0);
-        setEstimatedCashback(0);
-        setEstimatedCommission(0);
-      } finally {
-        setIsQuoting(false);
+      // Set YOT as default "to" token
+      const yotToken = await getTokenByAddress(YOT_TOKEN_ADDRESS);
+      if (yotToken) {
+        setToToken(yotToken);
       }
-    };
-    
-    if (fromToken && toToken) {
-      updateSwapEstimate();
     }
-  }, [amountIn, fromToken, toToken, swapMode, swapStats]);
-
-  // Function to handle swap
-  const handleSwap = async () => {
-    if (!fromToken || !toToken || !amountIn || parseFloat(amountIn) <= 0) return;
     
-    const amount = parseFloat(amountIn);
+    loadDefaultTokens();
+  }, []);
+  
+  // Update estimate when tokens or amount changes
+  useEffect(() => {
+    async function updateEstimate() {
+      if (fromToken && toToken && fromAmount && parseFloat(fromAmount) > 0) {
+        try {
+          const estimate = await getSwapEstimate(
+            fromToken,
+            toToken,
+            parseFloat(fromAmount)
+          );
+          
+          setSwapEstimate(estimate);
+          if (estimate) {
+            setToAmount(estimate.outputAmount.toFixed(6));
+          }
+        } catch (error) {
+          console.error('Error updating swap estimate:', error);
+          setSwapEstimate(null);
+          setToAmount('');
+        }
+      } else {
+        setSwapEstimate(null);
+        setToAmount('');
+      }
+    }
+    
+    updateEstimate();
+  }, [fromToken, toToken, fromAmount]);
+  
+  // Handle token swap buttons
+  const handleSwapTokens = () => {
+    const temp = fromToken;
+    setFromToken(toToken);
+    setToToken(temp);
+    setFromAmount(toAmount);
+    // toAmount will be updated via the useEffect
+  };
+  
+  // Handle swap execution
+  const handleSwap = async () => {
+    if (!wallet.connected) {
+      toast({
+        title: 'Wallet not connected',
+        description: 'Please connect your wallet to swap tokens',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
+    if (!fromToken || !toToken || !swapEstimate) {
+      toast({
+        title: 'Invalid swap parameters',
+        description: 'Please check your input values and try again',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
+    setIsSwapping(true);
     
     try {
-      let txSignature: string;
+      const signature = await executeSwapAndDistribute(
+        wallet,
+        parseFloat(fromAmount),
+        swapEstimate.minimumReceived
+      );
       
-      if (swapMode === 'buy') {
-        // Any token → YOT (Buy flow)
-        txSignature = await swapToBuyYOT(
-          wallet,
-          fromToken.address,
-          amount,
-          slippage,
-          swapStats?.buyDistribution?.userPercent || 75,
-          swapStats?.buyDistribution?.liquidityPercent || 20,
-          swapStats?.buyDistribution?.cashbackPercent || 5
-        );
-      } else {
-        // YOT → Any token (Sell flow)
-        txSignature = await swapToSellYOT(
-          wallet,
-          toToken.address,
-          amount,
-          slippage,
-          swapStats?.sellDistribution?.userPercent || 75,
-          swapStats?.sellDistribution?.liquidityPercent || 20,
-          swapStats?.sellDistribution?.cashbackPercent || 5
-        );
-      }
+      toast({
+        title: 'Swap successful',
+        description: `Transaction signature: ${signature.slice(0, 8)}...${signature.slice(-8)}`,
+        variant: 'default'
+      });
       
-      console.log("Swap transaction successful:", txSignature);
-      
-      // Reset form
-      setAmountIn('');
+      // Reset input values
+      setFromAmount('');
+      setToAmount('');
+      setSwapEstimate(null);
     } catch (error) {
-      console.error("Swap failed:", error);
+      console.error('Swap error:', error);
+      toast({
+        title: 'Swap failed',
+        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsSwapping(false);
     }
   };
-
+  
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-      {/* Price Chart - 3/5 width on large screens */}
-      <div className="lg:col-span-3 order-2 lg:order-1">
-        <PriceChart 
-          fromSymbol={fromToken?.symbol || 'TOKEN'} 
-          toSymbol={toToken?.symbol || 'YOT'} 
-        />
+    <div className="grid grid-cols-1 lg:grid-cols-7 gap-4 w-full max-w-7xl mx-auto">
+      {/* Mobile header */}
+      <div className="lg:hidden col-span-1">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle>MultiHub Swap</CardTitle>
+            <CardDescription>
+              Swap tokens with automatic liquidity contribution and YOS rewards
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pb-2">
+            <div className="flex space-x-2">
+              <Button 
+                variant={activeTab === 'swap' ? 'default' : 'outline'}
+                size="sm"
+                className="flex-1"
+                onClick={() => setActiveTab('swap')}
+              >
+                Swap
+              </Button>
+              <Button 
+                variant={activeTab === 'chart' ? 'default' : 'outline'}
+                size="sm"
+                className="flex-1"
+                onClick={() => setActiveTab('chart')}
+              >
+                <BarChart3 className="mr-2 h-4 w-4" />
+                Charts
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
       
-      {/* Swap Interface - 2/5 width on large screens */}
-      <div className="lg:col-span-2 order-1 lg:order-2">
-        <div className="bg-muted/30 rounded-lg p-4 shadow-sm border border-border/30">
-          <div className="mb-4 flex justify-between items-center">
-            <h3 className="text-lg font-medium">Swap</h3>
-            <div className="flex gap-1">
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
-                <Percent className="h-4 w-4" />
+      {/* Chart section (left side on desktop, conditionally shown on mobile) */}
+      <div className={`col-span-1 lg:col-span-4 ${activeTab === 'chart' || activeTab === 'swap' && window.innerWidth >= 1024 ? 'block' : 'hidden'}`}>
+        <div className="space-y-4">
+          {fromToken && (
+            <PriceChart 
+              tokenAddress={fromToken.address} 
+              tokenSymbol={fromToken.symbol} 
+            />
+          )}
+          
+          {toToken && fromToken && toToken.address !== fromToken.address && (
+            <PriceChart 
+              tokenAddress={toToken.address} 
+              tokenSymbol={toToken.symbol} 
+            />
+          )}
+        </div>
+      </div>
+      
+      {/* Swap section (right side on desktop, conditionally shown on mobile) */}
+      <div className={`col-span-1 lg:col-span-3 ${activeTab === 'swap' || activeTab === 'chart' && window.innerWidth >= 1024 ? 'block' : 'hidden'}`}>
+        <Card className="h-full">
+          {/* Desktop header */}
+          <CardHeader className="hidden lg:flex flex-col pb-2">
+            <div className="flex justify-between items-center">
+              <CardTitle>MultiHub Swap</CardTitle>
+              <Button variant="ghost" size="icon">
+                <Settings className="h-4 w-4" />
               </Button>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <Label htmlFor="slippage">Slippage Tolerance</Label>
-                        <span className="text-sm">{slippage}%</span>
-                      </div>
-                      <Slider 
-                        id="slippage"
-                        min={0.1}
-                        max={5}
-                        step={0.1}
-                        value={[slippage]}
-                        onValueChange={(values) => setSlippage(values[0])}
-                      />
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>0.1%</span>
-                        <span>5%</span>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="advanced-mode">Auto Router</Label>
-                        <Switch 
-                          id="advanced-mode" 
-                          checked={showAdvanced}
-                          onCheckedChange={setShowAdvanced}
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Automatically route through Jupiter or Raydium for best execution
-                      </p>
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
             </div>
-          </div>
+            <CardDescription>
+              Swap tokens with automatic liquidity contribution and YOS rewards
+            </CardDescription>
+          </CardHeader>
           
-          {/* From */}
-          <div className="bg-background rounded-lg p-4 mb-2">
-            <div className="flex justify-between mb-2">
-              <Label htmlFor="from-amount" className="text-muted-foreground text-xs">From</Label>
-              <span className="text-xs text-muted-foreground">
-                Balance: 0.00
-              </span>
-            </div>
-            <div className="flex gap-2 items-center">
-              <Input
-                id="from-amount"
-                type="number"
-                placeholder="0.0"
-                value={amountIn}
-                onChange={(e) => setAmountIn(e.target.value)}
-                className="border-0 text-xl p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
-              />
-              <div className="flex-shrink-0">
-                <TokenSearchInput 
-                  onSelect={setFromToken}
-                  selectedToken={fromToken || undefined}
-                  placeholder="Select"
-                  excludeTokens={toToken ? [toToken.address] : []}
-                />
-              </div>
-            </div>
-          </div>
-          
-          {/* Swap Direction */}
-          <div className="flex justify-center -my-2 relative z-10">
-            <Button 
-              variant="outline" 
-              size="icon" 
-              className="h-10 w-10 rounded-full bg-background shadow-md border-border"
-              onClick={flipTokens}
-            >
-              <ArrowDownUp className="h-4 w-4" />
-            </Button>
-          </div>
-          
-          {/* To */}
-          <div className="bg-background rounded-lg p-4 mb-4">
-            <div className="flex justify-between mb-2">
-              <Label htmlFor="to-amount" className="text-muted-foreground text-xs">To</Label>
-              <span className="text-xs text-muted-foreground">
-                Balance: 0.00
-              </span>
-            </div>
-            <div className="flex gap-2 items-center">
-              <div className="relative flex-1">
-                <Input
-                  id="to-amount"
-                  type="number"
-                  placeholder="0.0"
-                  value={isQuoting ? '...' : estimatedOutput.toFixed(6)}
-                  readOnly
-                  className="border-0 text-xl p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
-                />
-                {isQuoting && (
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                    <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
-                  </div>
+          <CardContent className="space-y-4">
+            {/* From token */}
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <label className="text-sm font-medium">From</label>
+                {wallet.connected && fromToken && (
+                  <span className="text-xs text-muted-foreground">
+                    Balance: 0.00 {fromToken.symbol}
+                  </span>
                 )}
               </div>
-              <div className="flex-shrink-0">
-                <TokenSearchInput 
-                  onSelect={setToToken}
-                  selectedToken={toToken || undefined}
-                  placeholder="Select"
-                  excludeTokens={fromToken ? [fromToken.address] : []}
+              
+              <div className="flex space-x-2">
+                <TokenSearchInput
+                  onTokenSelect={setFromToken}
+                  selectedToken={fromToken || undefined}
+                  label="Select token"
+                  placeholder="Search tokens"
                 />
+                
+                <div className="flex-1">
+                  <Input
+                    type="number"
+                    placeholder="0.00"
+                    value={fromAmount}
+                    onChange={(e) => setFromAmount(e.target.value)}
+                    className="text-right"
+                  />
+                </div>
               </div>
             </div>
-          </div>
-          
-          {/* Distribution Info Accordion */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button 
-                variant="outline" 
-                className="w-full justify-between mb-4"
-                size="sm"
+            
+            {/* Swap button */}
+            <div className="flex justify-center">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleSwapTokens}
+                className="bg-muted rounded-full h-8 w-8"
               >
-                <span className="flex items-center gap-2">
-                  <Info className="h-4 w-4" />
-                  <span>Distribution Info</span>
-                </span>
-                <ArrowLeftRight className="h-4 w-4" />
+                <ArrowDown className="h-4 w-4" />
               </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-full">
-              <div className="space-y-3 py-1">
-                <div className="grid grid-cols-2 gap-1 text-sm">
-                  <span className="text-muted-foreground">User Receives:</span>
-                  <span className="text-right font-medium">
-                    {swapMode === 'buy'
-                      ? `${estimatedUser.toFixed(6)} YOT`
-                      : `${estimatedUser.toFixed(6)} ${toToken?.symbol || 'TOKEN'}`}
+            </div>
+            
+            {/* To token */}
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <label className="text-sm font-medium">To</label>
+                {wallet.connected && toToken && (
+                  <span className="text-xs text-muted-foreground">
+                    Balance: 0.00 {toToken.symbol}
                   </span>
-                </div>
+                )}
+              </div>
+              
+              <div className="flex space-x-2">
+                <TokenSearchInput
+                  onTokenSelect={setToToken}
+                  selectedToken={toToken || undefined}
+                  label="Select token"
+                  placeholder="Search tokens"
+                />
                 
-                <div className="grid grid-cols-2 gap-1 text-sm">
-                  <span className="text-muted-foreground">Liquidity Contribution:</span>
-                  <span className="text-right font-medium">
-                    {estimatedLiquidity.toFixed(6)} YOT
-                  </span>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-1 text-sm">
-                  <span className="text-muted-foreground">YOS Cashback:</span>
-                  <span className="text-right font-medium">
-                    {estimatedCashback.toFixed(6)} YOS
-                  </span>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-1 text-sm">
-                  <span className="text-muted-foreground">Owner Commission:</span>
-                  <span className="text-right font-medium">
-                    {estimatedCommission.toFixed(6)} SOL
-                  </span>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-1 text-sm">
-                  <span className="text-muted-foreground">Price Impact:</span>
-                  <span className="text-right font-medium">
-                    {priceImpact.toFixed(2)}%
-                  </span>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-1 text-sm">
-                  <span className="text-muted-foreground">Slippage Tolerance:</span>
-                  <span className="text-right font-medium">
-                    {slippage}%
-                  </span>
+                <div className="flex-1">
+                  <Input
+                    type="number"
+                    placeholder="0.00"
+                    value={toAmount}
+                    readOnly
+                    className="text-right bg-muted"
+                  />
                 </div>
               </div>
-            </PopoverContent>
-          </Popover>
-          
-          {/* Swap Button */}
-          <Button 
-            className="w-full" 
-            size="lg"
-            disabled={!connected || isSwapping || !amountIn || parseFloat(amountIn) <= 0 || !fromToken || !toToken}
-            onClick={handleSwap}
-          >
-            {!connected ? (
-              "Connect Wallet"
-            ) : isSwapping ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                Swapping...
-              </>
-            ) : (
-              "Swap"
+            </div>
+            
+            {/* Swap details */}
+            {swapEstimate && (
+              <div className="bg-muted rounded-lg p-3 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Price</span>
+                  <span>
+                    1 {fromToken?.symbol} = {swapEstimate.price.toFixed(6)} {toToken?.symbol}
+                  </span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Route</span>
+                  <div className="flex items-center space-x-1">
+                    {swapEstimate.route.map((symbol, index) => (
+                      <span key={index} className="flex items-center">
+                        {index > 0 && <span className="mx-1">→</span>}
+                        {symbol}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Price Impact</span>
+                  <span className={swapEstimate.priceImpact > 2 ? 'text-amber-500' : 'text-green-500'}>
+                    {swapEstimate.priceImpact.toFixed(2)}%
+                  </span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Minimum Received</span>
+                  <span>{swapEstimate.minimumReceived.toFixed(6)} {toToken?.symbol}</span>
+                </div>
+                
+                <Separator />
+                
+                <div className="space-y-1 pt-1">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Liquidity Contribution</span>
+                    <span>20%</span>
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">YOS Cashback</span>
+                    <Badge variant="secondary" className="font-normal">
+                      ≈5% in YOS
+                    </Badge>
+                  </div>
+                </div>
+              </div>
             )}
-          </Button>
-          
-          {/* Swap Stats Footer */}
-          <div className="mt-4 flex justify-between text-xs text-muted-foreground">
-            <div>YOT Price: ${swapStats?.yotPriceUsd?.toFixed(3) || "0.000"}</div>
-            <div>Weekly APR: {swapStats?.weeklyRewardRate || 1.92}%</div>
-          </div>
-        </div>
+            
+            {/* Swap button */}
+            <Button
+              className="w-full"
+              disabled={!wallet.connected || !fromToken || !toToken || !swapEstimate || isSwapping}
+              onClick={handleSwap}
+            >
+              {isSwapping ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  Swapping...
+                </>
+              ) : !wallet.connected ? (
+                'Connect Wallet'
+              ) : !fromToken || !toToken ? (
+                'Select Tokens'
+              ) : !swapEstimate ? (
+                'Enter Amount'
+              ) : (
+                'Swap'
+              )}
+            </Button>
+            
+            {/* Info footer */}
+            <div className="flex justify-center text-xs text-muted-foreground">
+              <Info className="h-3 w-3 mr-1" />
+              <span>
+                20% of your swap amount contributes to SOL-YOT liquidity pool
+              </span>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

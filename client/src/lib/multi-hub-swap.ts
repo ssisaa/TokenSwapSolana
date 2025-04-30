@@ -238,6 +238,9 @@ export async function getMultiHubSwapStats() {
     // Import the commission percentage from constants
     const { OWNER_COMMISSION_PERCENT } = await import('./constants');
     
+    // Import SOL price from utility function or use a baseline estimate
+    const solPrice = 142.18; // Current SOL price as of development
+    
     // For now, return simulated data with real commission value
     return {
       totalLiquidityContributed: 25000,
@@ -246,6 +249,7 @@ export async function getMultiHubSwapStats() {
       weeklyRewardRate: 1.92, // 1.92% per week (100% APR / 52 weeks)
       yearlyAPR: 100, // 100% APR
       commissionPercent: OWNER_COMMISSION_PERCENT, // Owner commission percentage
+      yotPriceUsd: solPrice / 100, // YOT price (estimated as 1/100 of SOL price)
       // Adding configurable distribution percentages
       buyDistribution: {
         userPercent: 75,
