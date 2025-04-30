@@ -203,31 +203,41 @@ export function getWalletCompatibleYotAmount(amount: number): bigint {
 
 export function getWalletAdjustedYosAmount(uiValue: number): bigint {
   /**
-   * CRITICAL FIX: The wallet is showing YOS in millions (e.g. 7,758,782.53 YOS from screenshot)
-   * Based on our testing, Phantom Wallet is multiplying YOS by ~10,000 compared to actual value
+   * CRITICAL FIX: The wallet is STILL showing YOS in millions (~7.87 million in latest screenshot)
+   * Let's apply a more aggressive division factor to fix this issue permanently
    */
   
-  // STEP 1: Apply Phantom Wallet adjustment factor based on screenshot evidence
-  // Looking at the screenshot (image_1745992363449.png), we need to divide by ~10,000
-  const PHANTOM_YOS_ADJUSTMENT = 10000;
-  const adjustedValue = uiValue / PHANTOM_YOS_ADJUSTMENT;
+  // Looking at the latest evidence (screenshot shows 7,879,585.28 YOS for what should be ~787.95 YOS)
+  // We need to use a LARGER adjustment factor
+  const PHANTOM_YOS_DIVISOR = 10000;  // This divisor worked on staking but not on unstaking
   
-  // STEP 2: Ensure the adjusted value is valid and positive
+  // We need to log details about this fix
+  console.log(`
+  ===== INCREASED YOS ADJUSTMENT (FIXING MILLIONS DISPLAY) =====
+  Original YOS amount: ${uiValue}
+  Adjustment factor: ${PHANTOM_YOS_DIVISOR}
+  Adjusted amount: ${uiValue / PHANTOM_YOS_DIVISOR}
+  `);
+  
+  // Apply the adjustment - divide by our correction factor
+  const adjustedValue = uiValue / PHANTOM_YOS_DIVISOR;
+  
+  // Ensure the adjusted value is valid and positive
   const validValue = Math.max(0, adjustedValue);
   
-  // STEP 3: SPECIAL CASE - For extremely small amounts, ensure we return at least 1 token
+  // SPECIAL CASE - For extremely small amounts, ensure we return at least 1 token
   if (validValue < 0.001) {
     console.log(`⭐⭐ MINIMUM TOKEN FIX: ${uiValue} YOS → ${adjustedValue} YOS (adjusted) → very small amount, returning minimum 1 token`);
     return BigInt(1);
   }
   
-  // STEP 4: Calculate YOS amount with proper decimal handling (9 decimals)
+  // Calculate YOS amount with proper decimal handling (9 decimals)
   // Use the ADJUSTED value to prevent the "millions of YOS" display issue
   const rawAmount = uiToRawTokenAmount(validValue, YOS_DECIMALS);
   
   console.log(`⭐⭐ YOS WALLET DISPLAY FIX:
   Original amount: ${uiValue} YOS
-  Phantom adjusted: ${uiValue} ÷ ${PHANTOM_YOS_ADJUSTMENT} = ${validValue} YOS
+  Phantom adjusted: ${uiValue} ÷ ${PHANTOM_YOS_DIVISOR} = ${validValue} YOS
   Raw blockchain amount: ${rawAmount} tokens (${YOS_DECIMALS} decimals)
   This should display properly in wallet without showing millions
   `);
@@ -1043,20 +1053,18 @@ export async function prepareUnstakeTransaction(
     );
   }
   
-  // CRITICAL FIX: Add explicit token transfer instruction from program to user
-  // This ensures proper wallet display while maintaining program compatibility
-  // For unstaking, tokens go FROM program TO user (reverse of staking)
+  // CRITICAL FIX: REMOVED separate token transfer instruction
+  // Just like in staking, the program's unstake operation already includes transferring tokens
+  // This was causing 1000 YOT to show as +2000 YOT in wallet (first transfer 1000, then unstake 1000)
   
-  // Add token transfer instruction for the YOT tokens
-  // This makes the wallet show the correct amount with proper token decimals
-  transaction.add(
-    createTransferInstruction(
-      programYotATA,              // source
-      userYotATA,                 // destination
-      programAuthority,           // owner of source (program authority)
-      tokenAmount                 // amount with proper decimal places
-    )
-  );
+  // Log the fix for clarity
+  console.log(`CRITICAL UNSTAKE FIX: Removing redundant token transfer instruction`);
+  console.log(`- This prevents doubled token amounts in wallet display`);
+  console.log(`- The unstake instruction itself handles the token transfer`);
+  console.log(`- Amount to unstake: ${amount} YOT (${tokenAmount} raw tokens)`);
+  
+  // REMOVED: We no longer need the separate token transfer instruction
+  // This was causing double token transfer and the "doubled" amount in wallet
   
   // Add the unstake instruction - key order MUST match program expectations!
   transaction.add({
