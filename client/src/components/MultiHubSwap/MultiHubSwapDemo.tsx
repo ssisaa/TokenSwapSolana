@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,9 +11,10 @@ import { useToast } from '@/hooks/use-toast';
 import { getMultiHubSwapEstimate, executeMultiHubSwap, claimYosSwapRewards, SwapProvider } from '@/lib/multi-hub-swap';
 import { defaultTokens } from '@/lib/token-search-api';
 import { SOL_SYMBOL, YOT_SYMBOL, SOL_TOKEN_ADDRESS, YOT_TOKEN_ADDRESS } from '@/lib/constants';
+import { useMultiWallet } from '@/context/MultiWalletContext';
 
 export default function MultiHubSwapDemo() {
-  const wallet = useWallet();
+  const { wallet = null, connected: walletConnected = false, connect } = useMultiWallet() || {};
   const { toast } = useToast();
   
   // Token state
@@ -64,16 +64,16 @@ export default function MultiHubSwapDemo() {
   
   // Simulate fetching available rewards
   useEffect(() => {
-    if (wallet.connected && wallet.publicKey) {
+    if (walletConnected && wallet?.publicKey) {
       // In a real app, we would fetch rewards from the blockchain
       setAvailableRewards(0.75); // Example: 0.75 YOS tokens available
     } else {
       setAvailableRewards(0);
     }
-  }, [wallet.connected, wallet.publicKey]);
+  }, [walletConnected, wallet?.publicKey]);
   
   const handleSwapClick = async () => {
-    if (!wallet.connected) {
+    if (!walletConnected) {
       toast({
         title: 'Wallet not connected',
         description: 'Please connect your wallet to continue',
@@ -129,7 +129,7 @@ export default function MultiHubSwapDemo() {
   };
   
   const handleClaimRewards = async () => {
-    if (!wallet.connected) {
+    if (!walletConnected) {
       toast({
         title: 'Wallet not connected',
         description: 'Please connect your wallet to continue',
@@ -199,7 +199,7 @@ export default function MultiHubSwapDemo() {
           <div className="flex justify-between">
             <label className="text-sm font-medium">From</label>
             <label className="text-sm text-muted-foreground">
-              Balance: {wallet.connected ? '0.00' : 'Connect wallet'}
+              Balance: {walletConnected ? '0.00' : 'Connect wallet'}
             </label>
           </div>
           
@@ -236,7 +236,7 @@ export default function MultiHubSwapDemo() {
           <div className="flex justify-between">
             <label className="text-sm font-medium">To (estimated)</label>
             <label className="text-sm text-muted-foreground">
-              Balance: {wallet.connected ? '0.00' : 'Connect wallet'}
+              Balance: {walletConnected ? '0.00' : 'Connect wallet'}
             </label>
           </div>
           
@@ -328,7 +328,7 @@ export default function MultiHubSwapDemo() {
         </div>
         
         {/* YOS Rewards */}
-        {wallet.connected && availableRewards > 0 && (
+        {walletConnected && availableRewards > 0 && (
           <div className="bg-primary/10 border border-primary/20 rounded-md p-3">
             <div className="flex justify-between items-center">
               <div>
@@ -373,14 +373,14 @@ export default function MultiHubSwapDemo() {
           className="w-full"
           size="lg"
           onClick={handleSwapClick}
-          disabled={loading || !estimatedAmount || estimatedAmount <= 0 || !wallet.connected}
+          disabled={loading || !estimatedAmount || estimatedAmount <= 0 || !walletConnected}
         >
           {loading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Swapping...
             </>
-          ) : !wallet.connected ? (
+          ) : !walletConnected ? (
             "Connect Wallet"
           ) : !estimatedAmount || estimatedAmount <= 0 ? (
             "Enter an amount"
