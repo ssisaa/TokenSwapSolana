@@ -3,6 +3,7 @@ import { PhantomWalletAdapter } from '@solana/wallet-adapter-phantom';
 import { SolflareWalletAdapter } from '@solana/wallet-adapter-solflare';
 import { WalletError, WalletAdapter } from '@solana/wallet-adapter-base';
 import { Cluster, PublicKey } from '@solana/web3.js';
+import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import { SOLANA_CLUSTER } from '../lib/constants';
 
 interface WalletInfo {
@@ -33,6 +34,12 @@ interface MultiWalletProviderProps {
 }
 
 export function MultiWalletProvider({ children, cluster = SOLANA_CLUSTER as Cluster }: MultiWalletProviderProps) {
+  // Convert Solana Cluster to WalletAdapterNetwork
+  const walletAdapterNetwork = cluster === 'mainnet-beta' 
+    ? WalletAdapterNetwork.Mainnet 
+    : cluster === 'testnet' 
+      ? WalletAdapterNetwork.Testnet
+      : WalletAdapterNetwork.Devnet;
   const [wallets, setWallets] = useState<WalletInfo[]>([]);
   const [selectedWallet, setSelectedWallet] = useState<WalletInfo | null>(null);
   const [wallet, setWallet] = useState<any>(null);
@@ -46,27 +53,31 @@ export function MultiWalletProvider({ children, cluster = SOLANA_CLUSTER as Clus
     const availableWallets: WalletInfo[] = [];
 
     try {
-      // Phantom Wallet
-      const phantomAdapter = new PhantomWalletAdapter();
-      const phantomInstalled = window.solana && window.solana.isPhantom;
+      // Phantom Wallet - initialize with proper network type
+      const phantomAdapter = new PhantomWalletAdapter({ network: walletAdapterNetwork });
+      // Use a safer check for Phantom
+      const phantomInstalled = 
+        (typeof window !== 'undefined' && window.solana && window.solana.isPhantom);
       
       availableWallets.push({
         name: 'Phantom',
         icon: 'https://www.phantom.app/img/logo.png',
         adapter: phantomAdapter,
-        installed: !!phantomInstalled
+        installed: true // Always show Phantom as an option regardless of detection
       });
       
-      // Solflare Wallet with proper adapter
-      const solflareAdapter = new SolflareWalletAdapter();
-      const solflareInstalled = window.solflare || typeof navigator !== 'undefined' && 
-        navigator.userAgent.indexOf('Solflare') > -1;
+      // Solflare Wallet with proper adapter - create and initialize properly
+      const solflareAdapter = new SolflareWalletAdapter({ network: walletAdapterNetwork });
+      // Check if Solflare is available via multiple detection methods
+      const solflareInstalled = 
+        (typeof window !== 'undefined' && window.solflare) || 
+        (typeof navigator !== 'undefined' && navigator.userAgent.indexOf('Solflare') > -1);
       
       availableWallets.push({
         name: 'Solflare',
         icon: 'https://solflare.com/logo.png',
         adapter: solflareAdapter,
-        installed: solflareInstalled || true // Always show Solflare as an option
+        installed: true // Always show Solflare as an option regardless of detection
       });
       
       // Other Wallets (generic - could be browser extension or other)
@@ -85,7 +96,7 @@ export function MultiWalletProvider({ children, cluster = SOLANA_CLUSTER as Clus
     } catch (error) {
       console.error("Error initializing wallets:", error);
     }
-  }, []);
+  }, [walletAdapterNetwork]);
 
   // Setup wallet event listeners when wallet changes
   useEffect(() => {
