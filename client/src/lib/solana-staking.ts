@@ -1539,9 +1539,9 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       data: encodeHarvestInstruction(displayRewards)
     });
     
-    // Sign and send the transaction
-    console.log("Sending harvest transaction...");
-    const signature = await wallet.sendTransaction(transaction, connection);
+    // Sign and send the transaction using universal wallet adapter
+    console.log("Sending harvest transaction with universal wallet adapter...");
+    const signature = await sendTransaction(wallet, transaction, connection);
     await connection.confirmTransaction(signature, 'confirmed');
     console.log("Harvest transaction confirmed:", signature);
     
@@ -1702,11 +1702,8 @@ export async function updateStakingParameters(
           lastValidBlockHeight: lastValidBlockHeight
         });
         
-        const signature = await wallet.sendTransaction(transaction, connection, {
-          skipPreflight: false,
-          preflightCommitment: 'confirmed',
-          maxRetries: 3
-        });
+        console.log("Using universal wallet adapter for admin settings transaction");
+        const signature = await sendTransaction(wallet, transaction, connection);
         
         console.log('Transaction sent successfully with signature:', signature);
         
@@ -1803,8 +1800,9 @@ export async function updateStakingParameters(
             lastValidBlockHeight: newBlockHashInfo.lastValidBlockHeight
           }).add(updateInstruction);
           
-          // Try again
-          const signature = await wallet.sendTransaction(retryTransaction, connection);
+          // Try again using universal wallet adapter
+          console.log("Using universal wallet adapter for retry transaction");
+          const signature = await sendTransaction(wallet, retryTransaction, connection);
           console.log('Retry transaction sent with signature:', signature);
           
           const confirmation = await connection.confirmTransaction({
