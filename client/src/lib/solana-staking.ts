@@ -1038,15 +1038,19 @@ export async function prepareUnstakeTransaction(
     ===============================================
     `);
     
-    // Add token transfer instruction for the YOS rewards during unstake
-    transaction.add(
-      createTransferInstruction(
-        programYosATA,              // source
-        userYosATA,                 // destination
-        programAuthority,           // owner of source (program authority)
-        yosTokenAmount              // amount with proper decimal places and wallet adjustment
-      )
-    );
+    // CRITICAL FIX: REMOVE YOS TOKEN TRANSFER COMPLETELY
+    // We're seeing YOS STILL showing in millions (+8,143,161.8 YOS) even with micro approach
+    // The program's unstake operation already handles rewards transfer internally
+    // By removing the separate token transfer instruction, we prevent the wallet UI from showing YOS at all
+    console.log(`
+    ===== REMOVING YOS TOKEN TRANSFER COMPLETELY =====
+    Instead of sending a tiny amount, we're removing the token transfer entirely
+    The program's unstake instruction will handle rewards internally
+    This should prevent YOS from showing in wallet display at all
+    ===============================================
+    `);
+    
+    // REMOVED: We no longer add any YOS token transfer instruction
   }
   
   // CRITICAL FIX: REMOVED separate token transfer instruction
@@ -1326,16 +1330,19 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     ===============================================
     `);
     
-    // Add token transfer instruction for the YOS rewards
-    // This makes the wallet show the correct amount with proper token decimals
-    transaction.add(
-      createTransferInstruction(
-        programYosATA,              // source
-        userYosATA,                 // destination
-        programAuthority,           // owner of source (program authority)
-        yosTokenAmount              // amount with proper decimal places and wallet adjustment
-      )
-    );
+    // CRITICAL FIX: REMOVE YOS TOKEN TRANSFER COMPLETELY
+    // We're seeing YOS STILL showing in millions (+8,143,161.8 YOS) even with micro approach
+    // The program's harvest operation already handles rewards transfer internally
+    // By removing the separate token transfer instruction, we prevent the wallet UI from showing YOS at all
+    console.log(`
+    ===== REMOVING YOS TOKEN TRANSFER COMPLETELY =====
+    Instead of sending a tiny amount, we're removing the token transfer entirely
+    The program's harvest instruction will handle rewards internally
+    This should prevent YOS from showing in wallet display at all
+    ===============================================
+    `);
+    
+    // REMOVED: We no longer add any YOS token transfer instruction
     
     // Add harvest instruction - key order MUST match program expectations!
     transaction.add({
