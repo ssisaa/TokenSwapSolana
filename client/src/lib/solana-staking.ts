@@ -1330,7 +1330,7 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     
     // Second approach: Get the raw blockchain amount with proper decimal places (9)
     // These are the two most important values for debugging
-    const rawYosAmount = uiToRawYOSAmount(adjustedYosAmount);
+    const rawYosAmount = uiToRawTokenAmount(adjustedYosAmount, YOS_DECIMALS);
     const yosTokenAmount = getWalletAdjustedYosAmount(displayRewards);
     
     console.log(`
