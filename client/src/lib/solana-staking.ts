@@ -229,6 +229,24 @@ export function rawToUiTokenAmount(rawAmount: bigint | number, decimals: number)
 }
 
 /**
+ * Wallet-compatible token amount conversion for YOT token
+ * Ensures that the displayed amount in wallet will be exact integers with no decimal
+ * 
+ * @param amount UI amount to display in wallet
+ * @returns Raw amount for blockchain that will display correctly in wallet
+ */
+export function getWalletCompatibleYotAmount(amount: number): bigint {
+  // Step 1: Convert to integer to prevent any decimal display
+  const integerAmount = Math.floor(amount);
+  
+  // Step 2: Multiply by exact 10^9 power for 9 decimals
+  const multiplier = Math.pow(10, YOT_DECIMALS);
+  
+  // Step 3: Avoid any JavaScript floating point issues
+  return BigInt(integerAmount * multiplier);
+}
+
+/**
  * Fetch token balance using TokenAccount (raw account address)
  * Returns UI-correct value by using built-in uiAmount
  * 

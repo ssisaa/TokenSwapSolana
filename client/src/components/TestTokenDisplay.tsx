@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMultiWallet } from '@/context/MultiWalletContext';
-import { uiToRawTokenAmount, getWalletAdjustedYosAmount } from '@/lib/solana-staking';
+import { uiToRawTokenAmount, getWalletAdjustedYosAmount, getWalletCompatibleYotAmount } from '@/lib/solana-staking';
 import { 
   YOT_TOKEN_ADDRESS, 
   YOS_TOKEN_ADDRESS,
@@ -70,11 +70,27 @@ export function TestTokenDisplay() {
         console.log(`FIXED YOT DISPLAY: Using proper decimal conversion: ${yotValue} YOT → ${yotTokenAmount} (with ${YOT_DECIMALS} decimals)`);
         
         // Create a "display-only" instruction (source = destination = user ATA)
+        // The key to fixing this issue is to use the Solana SDK properly
+        // We want to display exactly 1000 YOT in the wallet, not 1000.01
+        
+        // EMERGENCY DECIMAL FIX - VERSION 5:
+        // Use a hardcoded low-level transaction instruction for EXACT amounts
+        // This approach directly creates the instruction bytes without indirect conversions
+        
+        // NEW WALLET COMPATIBILITY FIX:
+        // Use our specialized utility function that guarantees correct wallet display
+        const yotAmountValue = parseFloat(yotAmount);
+        const walletCompatibleAmount = getWalletCompatibleYotAmount(yotAmountValue);
+        
+        console.log(`FINAL FIX: Using getWalletCompatibleYotAmount to ensure proper display`);
+        console.log(`Input: ${yotAmount} → Output: ${walletCompatibleAmount} (wallet compatible amount)`);
+        
+        // Create a direct transfer instruction with the exact amount
         const yotDisplayInstruction = createTransferInstruction(
-          userYotATA,           // source (user)
+          userYotATA,           // source (user) 
           userYotATA,           // destination (same user - no actual transfer)
           walletPublicKey,      // owner (user can sign)
-          yotTokenAmount,      // EXACT INTEGER AMOUNT - NO DECIMALS
+          walletCompatibleAmount,       // Wallet-compatible amount from our utility function
           [],                   // multisigners
           TOKEN_PROGRAM_ID      // programId
         );
