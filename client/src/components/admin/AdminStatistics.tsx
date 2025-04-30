@@ -10,6 +10,8 @@ import { STAKING_PROGRAM_ID, YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS } from "@/lib/
 import { getStakingProgramState, getGlobalStakingStats } from "@/lib/solana-staking";
 import { Progress } from "@/components/ui/progress";
 import { useStaking } from "@/hooks/useStaking";
+import { getAssociatedTokenAddress } from "@solana/spl-token";
+import { toast } from "@/hooks/use-toast";
 
 // Find program state address
 function findProgramStateAddress(): [PublicKey, number] {
@@ -23,7 +25,12 @@ export default function AdminStatistics() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   // Use the same staking hook that the main dashboard uses
-  const { globalStats, stakingRates, isLoading: isLoadingStaking, refreshStakingInfo } = useStaking();
+  const { globalStats, stakingRates, isLoadingStakingInfo, isLoadingRates, isLoadingGlobalStats, refetchGlobalStats, refetchRates } = useStaking();
+  const isLoadingStaking = isLoadingStakingInfo || isLoadingRates || isLoadingGlobalStats;
+  
+  // Add state for YOS program balance
+  const [programYosBalance, setProgramYosBalance] = useState<number | null>(null);
+  const [isLoadingYosBalance, setIsLoadingYosBalance] = useState(false);
   
   // Query staking program state
   const { 
@@ -58,10 +65,57 @@ export default function AdminStatistics() {
     totalStakers: globalStats.totalStakers
   } : null;
   
+  // Function to fetch program YOS balance
+  const fetchProgramYosBalance = async () => {
+    try {
+      setIsLoadingYosBalance(true);
+      
+      // Get program authority
+      const [programAuthorityAddress] = PublicKey.findProgramAddressSync(
+        [Buffer.from('authority')],
+        new PublicKey(STAKING_PROGRAM_ID)
+      );
+      
+      // Get program YOS token account
+      const programYosTokenAccount = await getAssociatedTokenAddress(
+        new PublicKey(YOS_TOKEN_ADDRESS),
+        programAuthorityAddress,
+        true // allowOwnerOffCurve
+      );
+      
+      // Check if account exists
+      const accountInfo = await connection.getAccountInfo(programYosTokenAccount);
+      
+      if (!accountInfo) {
+        setProgramYosBalance(0);
+        return;
+      }
+      
+      // Get token balance
+      const balance = await connection.getTokenAccountBalance(programYosTokenAccount);
+      setProgramYosBalance(balance.value.uiAmount || 0);
+    } catch (error) {
+      console.error("Error fetching program YOS balance:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch program YOS balance",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingYosBalance(false);
+    }
+  };
+  
+  // Load the YOS balance when the component mounts or refreshTrigger changes
+  useEffect(() => {
+    fetchProgramYosBalance();
+  }, [refreshTrigger]);
+  
   const handleRefresh = () => {
     setRefreshTrigger(prev => prev + 1);
     refetchState();
-    refreshStakingInfo(); // Use the same refresh function from useStaking
+    refetchGlobalStats();
+    refetchRates();
   };
   
   const isLoading = isLoadingState || isLoadingTokenStats || isLoadingStakers;
