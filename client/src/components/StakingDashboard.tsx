@@ -138,8 +138,8 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
                   <span className="text-sm font-semibold text-green-400">YOS</span>
                 </div>
                 {stakingInfo.rewardsEarned > 0 && (
-                  <div className="text-xs text-blue-400 mt-1">
-                    <span className="font-medium">ℹ️ Updated display:</span> Shows actual YOS value with proper decimals
+                  <div className="text-xs text-slate-300 mt-1">
+                    <span className="font-medium text-blue-400">Wallet will show:</span> {formatNumber(stakingInfo.rewardsEarned / 1000, 8)} YOS
                   </div>
                 )}
               </div>

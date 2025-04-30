@@ -503,7 +503,7 @@ export default function Stake() {
                           <div className="flex items-start">
                             <AlertCircle className="h-3 w-3 mr-1 mt-0.5 shrink-0 text-amber-400" />
                             <div className="text-xs text-amber-300">
-                              Due to a technical limitation, wallet transactions will show {formatNumber(stakingInfo.rewardsEarned)} YOS instead of {formatNumber(stakingInfo.rewardsEarned / 10000)} YOS
+                              Due to a technical limitation, wallet transactions will show {formatNumber(stakingInfo.rewardsEarned / 1000, 8)} YOS instead of {formatNumber(stakingInfo.rewardsEarned, 8)} YOS
                             </div>
                           </div>
                         </div>
