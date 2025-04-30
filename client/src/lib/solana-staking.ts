@@ -197,11 +197,14 @@ export function getWalletAdjustedYosAmount(uiValue: number): bigint {
   // This matches the constant in constants.ts
   const DISPLAY_ADJUSTMENT = 17000;
   
-  // Apply the display adjustment factor
-  const walletAdjustedAmount = integerAmount / DISPLAY_ADJUSTMENT;
+  // Apply the display adjustment factor and ensure integer result with Math.floor
+  const walletAdjustedAmount = Math.floor(integerAmount / DISPLAY_ADJUSTMENT);
   
-  // Convert to proper token amount with decimals
-  return uiToRawTokenAmount(walletAdjustedAmount, YOS_DECIMALS);
+  // CRITICAL FIX: Use direct BigInt multiplication to prevent any decimal errors
+  // This guarantees an integer amount for the wallet display without using uiToRawTokenAmount
+  const multiplier = BigInt(10 ** YOS_DECIMALS);
+  console.log(`YOS wallet display: ${uiValue} → ${walletAdjustedAmount} (integer adjustment)`);
+  return BigInt(walletAdjustedAmount) * multiplier;
 }
 
 /**
