@@ -202,30 +202,40 @@ export function getWalletCompatibleYotAmount(amount: number): bigint {
    * PHANTOM WALLET COMPATIBILITY FIX
    * This function accounts for how Phantom Wallet displays token amounts based on token metadata
    *
-   * The issue: Phantom is showing 1000.01 instead of 1000 YOT when transferring tokens
-   * Solution: Since YOT has 9 decimals in its metadata, we need to ensure exactness at that scale
+   * Issue 1: For large amounts, Phantom shows 1000.01 instead of 1000 YOT
+   * Issue 2: For small amounts like 0.1, Phantom shows -1000 YOT
    */
   
   // STEP 1: Ensure amount is valid and positive
   const validAmount = Math.max(0, amount); // Ensure no negative values
   
-  // STEP 2: For amounts ≤ 0.01, return the minimum value of 1 token
-  if (validAmount <= 0.01) {
-    console.log(`⭐⭐ PHANTOM WALLET FIX: ${amount} YOT → very small amount, returning minimum 1 token`);
+  // STEP 2: For tiny amounts, use a small positive integer
+  if (validAmount < 0.001) {
+    console.log(`⭐⭐ PHANTOM WALLET FIX: ${amount} YOT → extremely small amount, returning minimum 1 token`);
     return BigInt(1);
   }
   
-  // STEP 3: Subtract a tiny amount to counteract Phantom's rounding behavior
-  let adjustedAmount;
-  if (validAmount > 1) {
-    // For larger amounts, subtract 0.01 (should be small enough to not matter)
-    adjustedAmount = validAmount - 0.01;
-  } else {
-    // For small amounts, subtract 1% instead of a fixed amount
-    adjustedAmount = validAmount * 0.99;
+  // STEP 3: SPECIAL HANDLING for small amounts (0.001 to 1 YOT)
+  // These need different adjustments to avoid negative display in wallet
+  if (validAmount <= 1) {
+    // For small amounts, we need to INCREASE slightly instead of decreasing
+    // This counteracts Phantom's behavior of showing negative values for small amounts
+    const adjustedAmount = validAmount * 1.01; // Add 1% instead of subtracting
+    
+    // Convert directly to token amount with proper decimal scaling
+    const rawAmount = BigInt(Math.floor(adjustedAmount * 1e9));
+    
+    console.log(`⭐⭐ PHANTOM WALLET FIX (SMALL AMOUNT): ${amount} YOT → adjusted UP to ${adjustedAmount} YOT → raw ${rawAmount}`);
+    console.log(`This should display correctly in wallet (not negative)`);
+    
+    return rawAmount;
   }
   
-  // STEP 4: Convert to raw token amount with high precision, avoiding floating point errors
+  // STEP 4: STANDARD HANDLING for normal amounts (>1 YOT)
+  // For normal amounts, subtract a tiny amount to counteract the +0.01 display issue
+  const adjustedAmount = validAmount - 0.01;
+  
+  // STEP 5: Convert to raw token amount with high precision, avoiding floating point errors
   // First convert to string and split into integer and fractional parts
   const amountStr = adjustedAmount.toString();
   const [integerPart, fractionalPart = ''] = amountStr.split('.');
@@ -236,7 +246,7 @@ export function getWalletCompatibleYotAmount(amount: number): bigint {
   // Combine integer and padded fractional parts to create the raw amount string
   const rawAmountString = integerPart + paddedFractional;
   
-  console.log(`⭐⭐ PHANTOM WALLET FIX: ${amount} YOT → adjusted to ${adjustedAmount} YOT → raw ${rawAmountString}`);
+  console.log(`⭐⭐ PHANTOM WALLET FIX (NORMAL AMOUNT): ${amount} YOT → adjusted to ${adjustedAmount} YOT → raw ${rawAmountString}`);
   
   // Convert to BigInt for blockchain transmission
   return BigInt(rawAmountString);
@@ -244,37 +254,58 @@ export function getWalletCompatibleYotAmount(amount: number): bigint {
 
 export function getWalletAdjustedYosAmount(uiValue: number): bigint {
   /**
-   * PHANTOM WALLET COMPATIBILITY FIX FOR YOS TOKENS
+   * CRITICAL PHANTOM WALLET COMPATIBILITY FIX FOR YOS TOKENS
    * 
-   * This function is specifically designed to fix the YOS token display 
-   * in Phantom Wallet, which shows amounts in millions
-   * 
-   * Example from screenshot: 7,094,606.62 YOS should show as ~700 YOS
+   * This function is specifically designed to fix two major YOS token display issues:
+   * 1. YOS displays in millions (e.g., 7,094,606.62 YOS instead of ~700 YOS)
+   * 2. Small YOS amounts might display as negative values (same issue as YOT)
    */
   
   // STEP 1: Apply a MAJOR display adjustment (key insight from screenshot)
-  // Based on the screenshot evidence, we need to apply a scaling factor of 1/10000
+  // Based on user-provided evidence, we need to apply a scaling factor of 1/10000
   const PHANTOM_YOS_DIVISOR = 10000;
-  const adjustedValue = uiValue / PHANTOM_YOS_DIVISOR;
   
-  // STEP 2: For extremely small amounts, ensure we return at least 1 token
-  if (adjustedValue <= 0.0001) {
+  // STEP 2: Ensure the input value is valid and positive
+  const validValue = Math.max(0, uiValue);
+  
+  // STEP 3: SPECIAL CASE - For extremely small amounts, ensure we return at least 1 token
+  if (validValue < 0.001) {
     console.log(`⭐⭐ PHANTOM WALLET YOS FIX: ${uiValue} YOS → very small amount, returning minimum 1 token`);
     return BigInt(1);
   }
   
-  // STEP 3: Convert to raw token amount with high precision using string operations
-  // Split into integer and fractional parts
+  // STEP 4: Apply the major divisor to fix millions display issue
+  const adjustedValue = validValue / PHANTOM_YOS_DIVISOR;
+  
+  // STEP 5: SPECIAL HANDLING for small amounts (similar to YOT fix)
+  if (adjustedValue <= 1) {
+    // For small amounts, we need to INCREASE slightly instead of decreasing
+    // This counteracts Phantom's behavior of showing negative values for small amounts
+    const smallAmountAdjustment = adjustedValue * 1.01; // Add 1% to avoid negative display
+    
+    // Convert directly to token amount with proper decimal scaling
+    const rawAmount = BigInt(Math.floor(smallAmountAdjustment * 1e9));
+    
+    console.log(`⭐⭐ PHANTOM WALLET YOS FIX (SMALL AMOUNT): ${uiValue} YOS → reduced by 1/${PHANTOM_YOS_DIVISOR} → ${adjustedValue} YOS → adjusted UP to ${smallAmountAdjustment} YOS → raw ${rawAmount}`);
+    console.log(`This should display correctly in wallet (not negative and not in millions)`);
+    
+    return rawAmount;
+  }
+  
+  // STEP 6: STANDARD HANDLING for normal amounts
+  // For normal amounts, we use string-based precision to avoid floating point errors
+  
+  // Convert to string and split into integer and fractional parts
   const amountStr = adjustedValue.toString();
   const [integerPart, fractionalPart = ''] = amountStr.split('.');
   
-  // Pad the fractional part with zeros to 9 places
+  // Pad the fractional part with zeros to 9 places (YOS has 9 decimals)
   const paddedFractional = fractionalPart.padEnd(9, '0').slice(0, 9);
   
   // Combine integer and padded fractional parts to create the raw amount string
   const rawAmountString = integerPart + paddedFractional;
   
-  console.log(`📱 PHANTOM WALLET YOS FIX: ${uiValue} YOS → Divided by ${PHANTOM_YOS_DIVISOR} → ${adjustedValue} YOS → raw ${rawAmountString}`);
+  console.log(`📱 PHANTOM WALLET YOS FIX (NORMAL AMOUNT): ${uiValue} YOS → divided by ${PHANTOM_YOS_DIVISOR} → ${adjustedValue} YOS → raw ${rawAmountString}`);
   console.log(`This should display correctly in Phantom Wallet (not in millions)`);
   
   // Convert to BigInt for blockchain transmission
@@ -620,34 +651,33 @@ function encodeStakeInstruction(amount: number): Buffer {
   data.writeUInt8(StakingInstructionType.Stake, 0);
   
   /**
-   * PHANTOM WALLET COMPATIBILITY FIX:
-   * For program instruction, ensure exact amounts that match what the user expects
+   * CRITICAL FIX: The wallet displays the tokens properly as -1000 YOT when staking,
+   * but the program is only receiving 0.1 YOT because we're dividing by a 10000x factor.
    * 
-   * Two key requirements:
-   * 1. Use the original (non-adjusted) amount for the program instruction
-   * 2. Ensure numeric precision by using string operations
+   * We need to match the EXACT AMOUNT the user wants to stake with proper decimal conversion
+   * using standard token decimal rules.
    */
   
   // STEP 1: Ensure amount is valid and positive
   const validAmount = Math.max(0, amount); // Ensure no negative values
   
-  // STEP 2: Round to nearest integer to match expected display
-  const roundedAmount = Math.round(validAmount);
+  // STEP 2: Get the raw token amount with proper decimal places (9 decimals for YOT)
+  // This converts directly to the blockchain-compatible amount without any scaling factor
+  const rawAmount = uiToRawTokenAmount(validAmount, YOT_DECIMALS);
   
-  // STEP 3: Calculate contract amount using the PROGRAM_SCALING_FACTOR
-  // This is the scaling factor expected by the Solana program
-  const contractAmount = roundedAmount * PROGRAM_SCALING_FACTOR;
+  console.log(`
+  ===== STAKE INSTRUCTION ENCODING =====
+  Amount to stake: ${validAmount} YOT
+  Blockchain amount (with ${YOT_DECIMALS} decimals): ${rawAmount}
+  ======================================
+  `);
   
-  // STEP 4: Convert to BigInt for transaction encoding
-  const rawAmount = BigInt(contractAmount);
-  
-  console.log(`⭐ PROGRAM INSTRUCTION: ${amount} → rounded ${roundedAmount} → contract ${contractAmount}`);
-  
-  // Ensure we don't exceed the maximum u64 value
+  // STEP 3: Ensure we don't exceed the maximum u64 value
   if (rawAmount > BigInt("18446744073709551615")) {
     throw new Error("Amount too large for transaction encoding");
   }
   
+  // STEP 4: Write the raw amount to the instruction buffer
   data.writeBigUInt64LE(rawAmount, 1);
   
   return data;
@@ -658,34 +688,32 @@ function encodeUnstakeInstruction(amount: number): Buffer {
   data.writeUInt8(StakingInstructionType.Unstake, 0);
   
   /**
-   * PHANTOM WALLET COMPATIBILITY FIX:
-   * For program instruction, ensure exact amounts that match what the user expects
+   * CRITICAL FIX: We're seeing the same issue as with stake - the wallet shows the correct token
+   * amount (-1000 YOT for staking) but the blockchain program only receives 0.1 tokens.
    * 
-   * Two key requirements:
-   * 1. Use the original (non-adjusted) amount for the program instruction
-   * 2. Ensure numeric precision by using string operations
+   * We need to use proper token decimal conversion without the 10000x scaling factor.
    */
   
   // STEP 1: Ensure amount is valid and positive
   const validAmount = Math.max(0, amount); // Ensure no negative values
   
-  // STEP 2: Round to nearest integer to match expected display
-  const roundedAmount = Math.round(validAmount);
+  // STEP 2: Get the raw token amount with proper decimal places (9 decimals for YOT)
+  // This converts directly to the blockchain-compatible amount without any scaling factor
+  const rawAmount = uiToRawTokenAmount(validAmount, YOT_DECIMALS);
   
-  // STEP 3: Calculate contract amount using the PROGRAM_SCALING_FACTOR
-  // This is the scaling factor expected by the Solana program
-  const contractAmount = roundedAmount * PROGRAM_SCALING_FACTOR;
+  console.log(`
+  ===== UNSTAKE INSTRUCTION ENCODING =====
+  Amount to unstake: ${validAmount} YOT
+  Blockchain amount (with ${YOT_DECIMALS} decimals): ${rawAmount}
+  ======================================
+  `);
   
-  // STEP 4: Convert to BigInt for transaction encoding
-  const rawAmount = BigInt(contractAmount);
-  
-  console.log(`⭐ UNSTAKE INSTRUCTION: ${amount} → rounded ${roundedAmount} → contract ${contractAmount}`);
-  
-  // Ensure we don't exceed the maximum u64 value
+  // STEP 3: Ensure we don't exceed the maximum u64 value
   if (rawAmount > BigInt("18446744073709551615")) {
     throw new Error("Amount too large for transaction encoding");
   }
   
+  // STEP 4: Write the raw amount to the instruction buffer
   data.writeBigUInt64LE(rawAmount, 1);
   
   // IMPORTANT NOTE: When unstaking, the program will also transfer YOS rewards

@@ -40,5 +40,5 @@ export const STAKING_PROGRAM_ID = '6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6'
 
 // Token display adjustment factors
 // These help correct the way tokens display in wallet confirmation screens
-export const PROGRAM_SCALING_FACTOR = 10000;     // Program's internal scaling factor
+export const PROGRAM_SCALING_FACTOR = 1;     // CRITICAL FIX: Program doesn't use a scaling factor - it uses token decimal conversion
 export const YOS_WALLET_DISPLAY_ADJUSTMENT = 17000; // Wallet display adjustment for YOS tokens
