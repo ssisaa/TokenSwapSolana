@@ -69,27 +69,48 @@ export function MultiWalletProvider({ children, cluster = SOLANA_CLUSTER as Clus
         // Simple checks that don't rely on window properties
         try {
           if (walletName === 'phantom') {
-            // Check if phantom-like object exists
-            const hasPhantom = typeof window !== 'undefined' && 
-                (typeof (window as any).phantom !== 'undefined' || 
-                 (typeof (window as any).solana !== 'undefined' && 
-                  (window as any).solana.isPhantom));
+            // Check if phantom-like object exists - both modern and legacy structures
+            const hasPhantom = typeof window !== 'undefined' && (
+                // Modern Phantom structure (more reliable)
+                (typeof (window as any).phantom !== 'undefined' && 
+                 typeof (window as any).phantom.solana !== 'undefined') ||
+                // Legacy structure 
+                (typeof (window as any).solana !== 'undefined' && 
+                 (window as any).solana.isPhantom)
+            );
+            
+            console.log(`Phantom detection details:`, {
+              modern: typeof (window as any).phantom !== 'undefined' && typeof (window as any).phantom.solana !== 'undefined',
+              legacy: typeof (window as any).solana !== 'undefined' && (window as any).solana.isPhantom
+            });
+            
             return hasPhantom;
           } else if (walletName === 'solflare') {
-            // Check if solflare-like object exists
-            const hasSolflare = typeof window !== 'undefined' && 
-                (typeof (window as any).solflare !== 'undefined' || 
-                 (typeof (window as any).solana !== 'undefined' && 
-                  (window as any).solana.isSolflare) ||
-                 (navigator.userAgent && navigator.userAgent.indexOf('Solflare') > -1));
+            // Check if solflare-like object exists - multiple detection methods
+            const hasSolflare = typeof window !== 'undefined' && (
+                // Direct solflare object
+                (typeof (window as any).solflare !== 'undefined') || 
+                // Solflare via solana object
+                (typeof (window as any).solana !== 'undefined' && 
+                 (window as any).solana.isSolflare) ||
+                // Solflare in user agent
+                (navigator.userAgent && navigator.userAgent.indexOf('Solflare') > -1)
+            );
+            
+            console.log(`Solflare detection details:`, {
+              direct: typeof (window as any).solflare !== 'undefined',
+              viaSolana: typeof (window as any).solana !== 'undefined' && (window as any).solana.isSolflare,
+              userAgent: navigator.userAgent && navigator.userAgent.indexOf('Solflare') > -1
+            });
+            
             return hasSolflare;
           }
         } catch (err) {
           console.warn(`Error checking for wallet ${walletName}:`, err);
         }
         
-        // Return true by default to allow connection attempts
-        // The actual adapter will handle connection errors appropriately
+        // Always return true to ensure wallets are available for connection attempts
+        // This ensures we don't prematurely filter out wallets that might be available
         return true;
       };
 
@@ -330,8 +351,16 @@ export function MultiWalletProvider({ children, cluster = SOLANA_CLUSTER as Clus
           }
           throw err; // Re-throw all other errors
         }
+      } else if (wallets.length > 0) {
+        // If no wallet specified but wallets exist, try the first available wallet
+        const firstWallet = wallets.find(w => w.installed) || wallets[0];
+        console.log(`No wallet specified, trying first available: ${firstWallet.name}`);
+        
+        // Recursively call connect with the first wallet
+        return await connect(firstWallet.name);
       } else {
-        throw new Error("No wallet adapter available");
+        console.error("No wallet adapters available at all");
+        throw new Error("Please install a Solana wallet extension like Phantom or Solflare");
       }
     } catch (error) {
       console.error("Connection error:", error);
