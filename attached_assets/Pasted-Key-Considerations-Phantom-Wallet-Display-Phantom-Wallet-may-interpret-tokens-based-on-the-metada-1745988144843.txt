@@ -1,0 +1,44 @@
+Key Considerations:
+Phantom Wallet Display:
+
+Phantom Wallet may interpret tokens based on the metadata (decimals) registered with the token on Solana.
+
+If Phantom Wallet is still showing a discrepancy like -1000.01 instead of -1000, it suggests either a rounding issue or a mismatch in how decimals are being interpreted at different stages in the system.
+
+What could be happening:
+The transaction might be sending the correct raw token amounts, but when Phantom Wallet renders it, it may be adding an extra decimal because of how Solana token accounts are handled.
+
+What to verify:
+Token Metadata on Solana Explorer:
+
+Confirm that the YOT token’s metadata reflects 9 decimals on the Solana explorer.
+
+This is crucial because Phantom Wallet uses token metadata to display the amount of tokens correctly. If Phantom Wallet is using incorrect metadata, it will display the wrong token value.
+
+Precision Handling:
+
+I noticed you’re using BigInt for precise handling of raw amounts. While this works, it's important to ensure that no unnecessary rounding or conversions happen on the UI before sending to Phantom Wallet.
+
+Token Transfer Logic:
+
+In the Solana program (lib.rs), ensure that you are using the raw amounts without any additional scaling when transferring YOS tokens or YOT tokens.
+
+In particular, when sending or receiving tokens, make sure that no additional rounding occurs unless it's specifically needed.
+
+Next Steps:
+Check Token Metadata:
+
+Go to the Solana Explorer and ensure the YOT token has 9 decimals. This ensures Phantom Wallet interprets the token correctly when sending or receiving.
+
+Update Rounding Logic:
+
+If Phantom Wallet is still showing extra decimals, ensure that the final displayed token amount is rounded only after performing the raw-to-ui conversion. Do not apply rounding before sending the transaction to the blockchain.
+
+Final Conversion Logic:
+
+Check that your rawToUiTokenAmount function and uiToRawTokenAmount properly handle decimal places. After all operations, apply rounding only for display purposes, not for blockchain transactions.
+
+Further Troubleshooting:
+Re-test the flow after ensuring the metadata and conversion logic are correctly applied.
+
+Monitor Phantom Wallet behavior when sending transactions and check if it adds decimals upon receiving tokens.

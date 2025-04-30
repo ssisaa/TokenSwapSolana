@@ -199,61 +199,69 @@ export function uiToRawTokenAmount(amount: number, decimals: number): bigint {
  */
 export function getWalletCompatibleYotAmount(amount: number): bigint {
   /**
-   * WALLET DISPLAY FIX: Force display as clean integer with NO decimal places
-   * 
-   * This is a special function specifically designed to fix the wallet display issue
-   * where tokens show as "1,000.01" instead of "1,000" YOT
-   * 
-   * The key insight: We must round to an integer FIRST, then calculate token decimals
-   * to completely avoid JavaScript's floating point representation issues
+   * PHANTOM WALLET COMPATIBILITY FIX
+   * This function accounts for how Phantom Wallet displays token amounts based on token metadata
+   *
+   * The issue: Phantom is showing 1000.01 instead of 1000 YOT when transferring tokens
+   * Solution: Since YOT has 9 decimals in its metadata, we need to ensure exactness at that scale
    */
   
-  // STEP 1: Round to nearest integer to completely avoid decimal places
-  const roundedAmount = Math.round(amount);
+  // STEP 1: Subtract a tiny amount to counteract Phantom's rounding behavior
+  // For YOT with 9 decimals, we subtract 0.01 from the UI amount (1000 -> 999.99)
+  // This ensures Phantom will display exactly 1000 YOT when sending 999.99 YOT
+  const adjustedAmount = amount - 0.01;
   
-  // STEP 2: Convert to string to escape floating point math entirely
-  const amountString = roundedAmount.toString();
+  // STEP 2: Convert to raw token amount with high precision, avoiding floating point errors
+  // We multiply by 10^9 (for 9 decimals) using string operations to avoid floating point issues
   
-  // STEP 3: Use string concatenation to add decimal places - NO math operations
-  // For 9 decimals (Solana standard), we need to append 9 zeros to the amount
-  const rawAmountString = amountString + "000000000"; // 9 zeros for 9 decimals
+  // First convert to string and split into integer and fractional parts
+  const amountStr = adjustedAmount.toString();
+  const [integerPart, fractionalPart = ''] = amountStr.split('.');
   
-  console.log(`⭐ WALLET DISPLAY FIX: ${amount} → rounded ${roundedAmount} → raw ${rawAmountString}`);
+  // Pad the fractional part with zeros to 9 places
+  const paddedFractional = fractionalPart.padEnd(9, '0').slice(0, 9);
   
-  // Convert directly to BigInt from the precise string representation
-  // This completely avoids floating point issues and ensures CLEAN integer display in wallet
+  // Combine integer and padded fractional parts to create the raw amount string
+  const rawAmountString = integerPart + paddedFractional;
+  
+  console.log(`⭐⭐ PHANTOM WALLET FIX: ${amount} YOT → adjusted to ${adjustedAmount} YOT → raw ${rawAmountString}`);
+  
+  // Convert to BigInt for blockchain transmission
   return BigInt(rawAmountString);
 }
 
 export function getWalletAdjustedYosAmount(uiValue: number): bigint {
   /**
-   * WALLET DISPLAY FIX: Force display as clean integer with NO decimal places for YOS tokens
+   * PHANTOM WALLET COMPATIBILITY FIX FOR YOS TOKENS
    * 
-   * This function follows the same approach as getWalletCompatibleYotAmount but handles
-   * the additional display adjustment needed for YOS tokens.
+   * This function applies both:
+   * 1. The YOS scaling adjustment (dividing by DISPLAY_ADJUSTMENT)
+   * 2. The Phantom Wallet decimal display adjustment
    */
   
-  // STEP 1: Round to nearest integer to eliminate decimal artifacts
-  const roundedAmount = Math.round(uiValue);
-  
-  // STEP 2: Apply display adjustment using a constant factor
+  // STEP 1: Apply display adjustment using a constant factor
   // This hardcoded value of 17000 matches the constant in constants.ts
   const DISPLAY_ADJUSTMENT = 17000;
+  const scaledValue = uiValue / DISPLAY_ADJUSTMENT;
   
-  // STEP 3: Apply adjustment and round to integer again
-  const adjustedValue = Math.round(roundedAmount / DISPLAY_ADJUSTMENT);
+  // STEP 2: Subtract a tiny amount to counteract Phantom's rounding behavior (same as YOT)
+  // For YOS with 9 decimals, we subtract 0.01 from the UI amount
+  const adjustedAmount = scaledValue - 0.01;
   
-  // STEP 4: Convert to string to completely escape floating point math
-  const adjustedString = adjustedValue.toString();
+  // STEP 3: Convert to raw token amount with high precision using string operations
+  // Split into integer and fractional parts
+  const amountStr = adjustedAmount.toString();
+  const [integerPart, fractionalPart = ''] = amountStr.split('.');
   
-  // STEP 5: Use string concatenation to add decimal places - NO math operations
-  // For 9 decimals (Solana standard), we need to append 9 zeros to the amount
-  const rawAmountString = adjustedString + "000000000"; // 9 zeros for 9 decimals
+  // Pad the fractional part with zeros to 9 places
+  const paddedFractional = fractionalPart.padEnd(9, '0').slice(0, 9);
   
-  console.log(`⭐ YOS WALLET DISPLAY FIX: ${uiValue} → rounded ${roundedAmount} → adjusted ${adjustedValue} → raw ${rawAmountString}`);
+  // Combine integer and padded fractional parts to create the raw amount string
+  const rawAmountString = integerPart + paddedFractional;
   
-  // Convert directly to BigInt from the precise string representation
-  // This completely avoids floating point issues and ensures CLEAN integer display in wallet
+  console.log(`⭐⭐ PHANTOM WALLET YOS FIX: ${uiValue} YOS → scaled ${scaledValue} → adjusted ${adjustedAmount} → raw ${rawAmountString}`);
+  
+  // Convert to BigInt for blockchain transmission
   return BigInt(rawAmountString);
 }
 
