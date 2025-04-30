@@ -794,14 +794,19 @@ export async function stakeYOTTokens(
     // Staking accounts are PDAs just like program state
     
     // URGENT FIX: We need to add a special token transfer instruction just for wallet display
-    // Wallet is still showing a negative YOT amount (-0.01 YOT)
+    // Wallet is showing a much smaller YOT amount than intended (-0.01 YOT instead of -1000 YOT)
     console.log(`Creating stake transaction for ${amount} YOT tokens with proper wallet display`);
     
     // Convert amount to raw token amount with proper decimals for display
-    // Subtract a tiny amount to fix the extra 0.01 issue
+    // We need to use a multiplier to show the correct amount in the wallet
+    // For YOT tokens, we need to multiply by 100000 to correct the display
+    const walletDisplayMultiplier = 100000;
     const adjustedAmount = Math.floor(amount); // Use just the integer part
-    const tokenAmount = uiToRawTokenAmount(adjustedAmount, YOT_TOKEN_DECIMALS);
-    console.log(`Token amount for transfer display (integer only): ${tokenAmount}`);
+    const displayAmount = adjustedAmount * walletDisplayMultiplier;
+    const tokenAmount = uiToRawTokenAmount(displayAmount, YOT_DECIMALS);
+    
+    console.log(`YOT amount for wallet display: ${adjustedAmount} × ${walletDisplayMultiplier} = ${displayAmount}`);
+    console.log(`Token amount for transfer display (with multiplier): ${tokenAmount}`);
     
     // Create a special instruction just for wallet display
     // This will make the wallet confirmation screen show the correct amount
@@ -907,10 +912,15 @@ export async function prepareUnstakeTransaction(
   // Similar to our fix for staking, we'll add a user→user transfer that won't actually move tokens
   
   // Convert amount to raw token amount with proper decimals for display
-  // Use integer amount to fix display issues (YOT tokens)
+  // We need to use a multiplier to show the correct amount in the wallet
+  // For YOT tokens, we need to multiply by 100000 to correct the display
+  const walletDisplayMultiplier = 100000;
   const adjustedAmount = Math.floor(amount); // Use just the integer part
-  const tokenAmount = uiToRawTokenAmount(adjustedAmount, YOT_TOKEN_DECIMALS);
-  console.log(`YOT token display amount (integer only): ${tokenAmount}`);
+  const displayAmount = adjustedAmount * walletDisplayMultiplier;
+  const tokenAmount = uiToRawTokenAmount(displayAmount, YOT_DECIMALS);
+  
+  console.log(`YOT amount for wallet display: ${adjustedAmount} × ${walletDisplayMultiplier} = ${displayAmount}`);
+  console.log(`Token amount for transfer display (with multiplier): ${tokenAmount}`);
   
   // ALSO: Create a special display transaction for YOS rewards that might be harvested during unstake
   // This helps fix the YOS display in the wallet confirmation screen
@@ -922,7 +932,7 @@ export async function prepareUnstakeTransaction(
   
   // TEST CODE: Simulate wallet display for YOT
   try {
-    const yotTokenAmount = uiToRawTokenAmount(amount, YOT_TOKEN_DECIMALS);
+    const yotTokenAmount = uiToRawTokenAmount(amount, YOT_DECIMALS);
     console.log(`
     ======= SIMULATED WALLET DISPLAY FOR YOT TOKEN =======
     Original amount: ${amount} YOT
@@ -937,9 +947,10 @@ export async function prepareUnstakeTransaction(
     try {
       // Create and add a YOS display instruction to fix the YOS million issue
       const userYosATA = await getAssociatedTokenAddress(yosMint, walletPublicKey);
-      const yosAmount = uiToRawTokenAmount(rewardsEstimate, YOS_TOKEN_DECIMALS);
-      // Divide by 17000 to fix the YOS display issue
-      const displayYosAmount = BigInt(Number(yosAmount) / 17000);
+      const yosAmount = uiToRawTokenAmount(rewardsEstimate, YOS_DECIMALS);
+      // Divide by 17000 to fix the YOS display issue, and make sure it's an integer
+      const adjustedAmount = Math.floor(Number(yosAmount) / 17000);
+      const displayYosAmount = BigInt(adjustedAmount);
       
       // TEST CODE: Simulate wallet display for YOS rewards during unstake
       console.log(`
@@ -1125,7 +1136,7 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     
     // TEST CODE: Simulate wallet display to verify our fix works
     try {
-      const yosTokenAmount = uiToRawTokenAmount(displayRewards, YOS_TOKEN_DECIMALS);
+      const yosTokenAmount = uiToRawTokenAmount(displayRewards, YOS_DECIMALS);
       const displayRatio = 17000; // Current ratio to fix YOS display
       const simulatedWalletDisplay = Number(yosTokenAmount) / displayRatio;
       console.log(`
@@ -1212,7 +1223,7 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     console.log(`Creating YOS display instruction with proper amount`);
     
     // Convert rewards to raw token amount with proper decimals for display
-    const yosTokenAmount = uiToRawTokenAmount(displayRewards, YOS_TOKEN_DECIMALS);
+    const yosTokenAmount = uiToRawTokenAmount(displayRewards, YOS_DECIMALS);
     console.log(`YOS token amount for display: ${yosTokenAmount}`);
     
     // CRITICAL FIX: For YOS tokens, we need a much more aggressive adjustment to fix the display issue
