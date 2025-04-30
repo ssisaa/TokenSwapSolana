@@ -914,11 +914,10 @@ export async function prepareUnstakeTransaction(
   
   // ALSO: Create a special display transaction for YOS rewards that might be harvested during unstake
   // This helps fix the YOS display in the wallet confirmation screen
-  // Note: yosMint is already declared above
   // Get staking info to calculate potential rewards
-  const stakingInfo = await getStakingInfo(walletPublicKey.toString());
+  const stakingDisplayInfo = await getStakingInfo(walletPublicKey.toString());
   // Get just a rough estimate of rewards
-  const rewardsEstimate = stakingInfo.rewardsEarned;
+  const rewardsEstimate = stakingDisplayInfo.rewardsEarned;
   console.log(`Potential YOS rewards during unstake: ${rewardsEstimate}`);
   
   if (rewardsEstimate > 0) {
