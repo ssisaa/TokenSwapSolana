@@ -159,6 +159,24 @@ export function uiToRawTokenAmount(amount: number, decimals: number): bigint {
 }
 
 /**
+ * Special function to get YOS token amounts that display properly in wallet transactions
+ * This applies the display adjustment factor to prevent YOS from showing in millions
+ * 
+ * @param uiValue The UI amount of YOS tokens
+ * @returns The adjusted raw amount that will display correctly in wallet 
+ */
+export function getWalletAdjustedYosAmount(uiValue: number): bigint {
+  // First ensure integer amounts to avoid decimal display issues (.01 suffix)
+  const integerAmount = Math.floor(uiValue);
+  
+  // Apply the display adjustment factor from constants.ts
+  const walletAdjustedAmount = integerAmount / YOS_WALLET_DISPLAY_ADJUSTMENT;
+  
+  // Convert to proper token amount with decimals
+  return uiToRawTokenAmount(walletAdjustedAmount, YOS_DECIMALS);
+}
+
+/**
  * Utility function to convert raw blockchain amount to UI token amount
  * @param rawAmount Raw token amount (e.g., 1500000000)
  * @param decimals Token decimals (e.g., 9 for most Solana tokens)
