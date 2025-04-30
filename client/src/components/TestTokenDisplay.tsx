@@ -57,15 +57,11 @@ export function TestTokenDisplay() {
         const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
         const userYotATA = await getAssociatedTokenAddress(yotMint, walletPublicKey);
         
-        // CRITICAL FIX: We need to use the EXACT INTEGER VALUE directly
-        // Convert to integer first to avoid any decimal places
-        const integerYotValue = Math.floor(yotValue);
+        // CRITICAL FIX: For tokens with 9 decimals, we need to apply proper decimal scaling
+        // Convert UI amount (e.g., 1000 YOT) to raw blockchain amount with 9 decimals
+        const yotTokenAmount = uiToRawTokenAmount(yotValue, YOT_DECIMALS);
         
-        // Create BigInt from the integer value - NO DECIMAL CONVERSION
-        // This is critical - don't use uiToRawTokenAmount which applies decimals
-        const yotTokenAmount = BigInt(integerYotValue);
-        
-        console.log(`FIXED YOT DISPLAY: Using direct integer value ${integerYotValue} → ${yotTokenAmount} (no decimals)`);
+        console.log(`FIXED YOT DISPLAY: Using proper decimal conversion: ${yotValue} YOT → ${yotTokenAmount} (with ${YOT_DECIMALS} decimals)`);
         
         // Create a "display-only" instruction (source = destination = user ATA)
         const yotDisplayInstruction = createTransferInstruction(

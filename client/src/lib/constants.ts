@@ -8,7 +8,7 @@ export const SOLANA_RPC_URL = ENDPOINT;
 // YOT Token (main token)
 export const YOT_TOKEN_ADDRESS = '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF';
 export const YOT_TOKEN_ACCOUNT = 'BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE';
-export const YOT_DECIMALS = 0; // CRITICAL FIX: Changed from 9 to 0 to prevent decimal display in wallet
+export const YOT_DECIMALS = 9; // CRITICAL FIX: Both YOT and YOS use 9 decimals as per Solana standard
 
 // YOS Token (staking reward token)
 export const YOS_TOKEN_ADDRESS = 'GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n';

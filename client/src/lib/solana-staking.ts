@@ -820,20 +820,18 @@ export async function stakeYOTTokens(
     // Note: We'll let the program handle account creation
     // Staking accounts are PDAs just like program state
     
-    // SUPER CRITICAL FIX: DIRECT INTEGER TOKEN TRANSFER
-    // This ensures proper wallet display while maintaining program compatibility
+    // CORE FIX: For tokens with 9 decimals, we need to apply proper decimal scaling
+    // This ensures proper wallet display while maintaining blockchain compatibility
     
-    // STEP 1: Force integer amount (no decimals allowed!)
-    const integerAmount = Math.floor(amount);
+    // Convert UI amount (e.g., 1000 YOT) to raw blockchain amount (e.g., 1000000000000)
+    // This applies the token's 9 decimal places to get the correct blockchain amount
+    const tokenAmount = uiToRawTokenAmount(amount, YOT_DECIMALS);
     
-    // STEP 2: MOST CRITICAL FIX - Use DIRECT INTEGER VALUE with ABSOLUTELY NO conversions
-    // Do NOT use uiToRawTokenAmount or any other decimal conversion - this is the root issue!
-    // There should be no scaling, no decimal places, no adjustments of any kind
-    const tokenAmount = BigInt(integerAmount);
-    
-    // Create an explicit transfer instruction with the exact integer token amount with no decimals
-    console.log(`ABSOLUTE FIX - Creating YOT token transfer with EXACT INTEGER: ${integerAmount} YOT tokens`);
-    console.log(`Using raw BigInt amount = ${tokenAmount} with ABSOLUTELY NO CONVERSIONS OR DECIMALS`);
+    // Log detailed information for debugging
+    console.log(`Creating YOT token transfer:`);
+    console.log(`- UI amount: ${amount} YOT tokens`);
+    console.log(`- Raw blockchain amount with ${YOT_DECIMALS} decimals: ${tokenAmount}`);
+    console.log(`- Using proper token decimal conversion for on-chain compatibility`);
     
     // Add token transfer instruction - user will send tokens to program
     transaction.add(
@@ -934,14 +932,16 @@ export async function prepareUnstakeTransaction(
   // CRITICAL FIX: Add direct token transfer instruction with EXACT integer amount
   // This ensures proper wallet display while maintaining program compatibility
   
-  // IMPORTANT: Use Math.floor to ensure we have an exact integer amount of tokens
-  // This prevents the wallet from showing decimal places like 1000.01
-  const integerAmount = Math.floor(amount);
+  // CORE FIX: For tokens with 9 decimals, we need to apply proper decimal scaling
+  // This ensures proper wallet display while maintaining blockchain compatibility
   
-  // CRITICAL FIX: DIRECT INTEGER VALUE WITH NO CONVERSIONS
-  // This is the most fundamental fix required to address the .01 display issue
-  // We bypass ALL decimal conversion logic completely and use the raw integer value
-  const tokenAmount = BigInt(integerAmount);
+  // Convert UI amount to raw blockchain amount with 9 decimals
+  const tokenAmount = uiToRawTokenAmount(amount, YOT_DECIMALS);
+  
+  // Log detailed information for debugging
+  console.log(`Preparing YOT token transfer for unstaking:`);
+  console.log(`- UI amount: ${amount} YOT tokens`);
+  console.log(`- Raw blockchain amount with ${YOT_DECIMALS} decimals: ${tokenAmount}`);
   
   console.log(`Preparing unstake transaction for ${amount} YOT tokens (${tokenAmount} raw tokens)`);
   
