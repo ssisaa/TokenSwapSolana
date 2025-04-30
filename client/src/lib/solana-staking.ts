@@ -1451,7 +1451,7 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     ===============================================
     `);
     
-    // FINAL FIX: Use the precise divisor of 1005 which matches what we see in Phantom Wallet
+    // FINAL FIX: Use the precise divisor of 9260 which matches our program scaling factor
     // This is based on actual transaction test results showing +0.08358 YOS
     const adjustedYosAmount = displayRewards / YOS_WALLET_DISPLAY_ADJUSTMENT;
     
@@ -1482,8 +1482,8 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     // The actual token transfer will still happen through the program's harvest instruction
     
     // Calculate the exact amount that should show in wallet for this specific case
-    // Based on screenshot evidence showing +0.0234 YOS in Phantom wallet
-    // Using our precise adjustment factor of 1005
+    // Based on screenshot evidence showing YOS rewards in Phantom wallet
+    // Using our program scaling factor of 9260
     const targetWalletDisplay = displayRewards / YOS_WALLET_DISPLAY_ADJUSTMENT; // This should match what appears in the wallet
     
     // Calculate how much this means as a blockchain amount
