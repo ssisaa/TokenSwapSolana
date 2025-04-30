@@ -60,70 +60,100 @@ export function MultiWalletProvider({ children, cluster = SOLANA_CLUSTER as Clus
         return;
       }
 
-      // Ensure window.solana is set to at least an empty object for safety
-      if (!window.solana) {
-        console.log('No window.solana object found - setting empty fallback');
-        window.solana = {} as any;
-      }
+      // Function to detect wallet with safer checks
+      const detectWallet = (walletName: string) => {
+        if (walletName === 'phantom') {
+          return !!(
+            typeof window !== 'undefined' && 
+            window.solana && 
+            window.solana.isPhantom
+          );
+        } else if (walletName === 'solflare') {
+          return !!(
+            typeof window !== 'undefined' && 
+            (window.solflare || 
+            (navigator.userAgent && navigator.userAgent.indexOf('Solflare') > -1))
+          );
+        }
+        return false;
+      };
 
-      // Ensure window.solflare is set to at least an empty object for safety
-      if (!window.solflare) {
-        console.log('No window.solflare object found - setting empty fallback');
-        window.solflare = {} as any;
-      }
-
-      // Phantom Wallet - initialize with proper network type
+      // Support all possible network configurations
+      const allNetworks = [
+        WalletAdapterNetwork.Devnet,   // Our primary target
+        WalletAdapterNetwork.Testnet,  // In case wallet is on testnet
+        WalletAdapterNetwork.Mainnet   // In case wallet is on mainnet
+      ];
+      
+      // Phantom Wallet - initialize with all network options
       try {
-        const phantomAdapter = new PhantomWalletAdapter({ network: walletAdapterNetwork });
-        // Use a safer check for Phantom with proper fallback
-        const phantomInstalled = !!(window.solana && window.solana.isPhantom);
-        console.log('Phantom wallet detection:', phantomInstalled);
+        // Check if phantom is installed first
+        const phantomDetected = detectWallet('phantom');
+        console.log('Phantom wallet detection:', phantomDetected);
         
-        availableWallets.push({
-          name: 'Phantom',
-          icon: 'https://www.phantom.app/img/logo.png',
-          adapter: phantomAdapter,
-          installed: true // Always show Phantom as an option regardless of detection
-        });
+        // Create an adapter for each network (we'll select the right one during connection)
+        for (const network of allNetworks) {
+          const phantomAdapter = new PhantomWalletAdapter({ network });
+          
+          // Only add each network version once
+          if (!availableWallets.some(w => w.name === `Phantom (${network})`)) {
+            availableWallets.push({
+              name: `Phantom (${network})`,
+              icon: 'https://www.phantom.app/img/logo.png',
+              adapter: phantomAdapter,
+              installed: phantomDetected
+            });
+          }
+        }
       } catch (error) {
         console.error('Error initializing Phantom adapter:', error);
       }
       
-      // Solflare Wallet with proper adapter
+      // Solflare Wallet with proper adapter - support all networks
       try {
-        const solflareAdapter = new SolflareWalletAdapter({ network: walletAdapterNetwork });
-        // Check if Solflare is available via multiple detection methods
-        const solflareInstalled = !!(
-          window.solflare || 
-          (typeof navigator !== 'undefined' && navigator.userAgent.indexOf('Solflare') > -1)
-        );
-        console.log('Solflare wallet detection:', solflareInstalled);
+        // Check if Solflare is available
+        const solflareDetected = detectWallet('solflare');
+        console.log('Solflare wallet detection:', solflareDetected);
         
-        availableWallets.push({
-          name: 'Solflare',
-          icon: 'https://solflare.com/logo.png',
-          adapter: solflareAdapter,
-          installed: true // Always show Solflare as an option regardless of detection
-        });
+        // Create an adapter for each network
+        for (const network of allNetworks) {
+          const solflareAdapter = new SolflareWalletAdapter({ network });
+          
+          // Only add each network version once
+          if (!availableWallets.some(w => w.name === `Solflare (${network})`)) {
+            availableWallets.push({
+              name: `Solflare (${network})`,
+              icon: 'https://solflare.com/logo.png',
+              adapter: solflareAdapter,
+              installed: solflareDetected
+            });
+          }
+        }
       } catch (error) {
         console.error('Error initializing Solflare adapter:', error);
       }
       
-      // Other Wallets (generic - could be browser extension or other)
-      try {
-        const otherWalletInstalled = !!(window.solana && !window.solana.isPhantom);
-        console.log('Other wallet detection:', otherWalletInstalled);
+      // If no wallets were detected at all, add basic fallback options
+      if (availableWallets.length === 0) {
+        console.warn('No wallets detected, adding basic fallback options');
         
-        if (otherWalletInstalled) {
-          availableWallets.push({
-            name: 'OtherWallets',
-            icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMjEgMThWMTlDMjEgMjAuMTA0NiAyMC4xMDQ2IDIxIDE5IDIxSDVDMy44OTU0MyAyMSAzIDIwLjEwNDYgMyAxOVY1QzMgMy44OTU0MyAzLjg5NTQzIDMgNSAzSDE5QzIwLjEwNDYgMyAyMSAzLjg5NTQzIDIxIDVWNk0yMSAxMlYxMk0yMSA2VjYiIHN0cm9rZT0iIzk5OTk5OSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48L3N2Zz4=',
-            adapter: window.solana,
-            installed: true
-          });
-        }
-      } catch (error) {
-        console.error('Error detecting other wallets:', error);
+        // Basic Phantom fallback
+        const phantomAdapter = new PhantomWalletAdapter({ network: walletAdapterNetwork });
+        availableWallets.push({
+          name: 'Phantom',
+          icon: 'https://www.phantom.app/img/logo.png',
+          adapter: phantomAdapter,
+          installed: false // Explicitly mark as not installed
+        });
+        
+        // Basic Solflare fallback
+        const solflareAdapter = new SolflareWalletAdapter({ network: walletAdapterNetwork });
+        availableWallets.push({
+          name: 'Solflare',
+          icon: 'https://solflare.com/logo.png',
+          adapter: solflareAdapter,
+          installed: false // Explicitly mark as not installed
+        });
       }
       
       console.log("Available wallets:", availableWallets.map(w => w.name));

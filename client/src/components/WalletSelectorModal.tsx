@@ -21,34 +21,93 @@ export default function WalletSelectorModal() {
   // Check for installed wallets on component mount
   useEffect(() => {
     // Simple detection for popular wallets
-    const wallets = [];
+    const detectedWallets = [];
     
     // Check for Phantom
     if (typeof window !== 'undefined' && window.solana && window.solana.isPhantom) {
-      wallets.push('Phantom');
+      detectedWallets.push('Phantom');
     }
     
     // Check for Solflare
     if (typeof window !== 'undefined' && window.solflare) {
-      wallets.push('Solflare');
+      detectedWallets.push('Solflare');
     }
     
     // Check for other browser-extension Solana wallets
     if (typeof window !== 'undefined' && window.solana && !window.solana.isPhantom) {
-      wallets.push('OtherWallets');
+      detectedWallets.push('OtherWallets');
     }
     
-    console.log("Detected wallets:", wallets);
-    setInstalledWallets(wallets);
+    console.log("Detected wallets:", detectedWallets);
+    setInstalledWallets(detectedWallets);
   }, []);
   
+  // Try to connect with network options
   const handleConnect = async (walletName: string) => {
+    const networks = ['devnet', 'testnet', 'mainnet-beta'];
+    let connected = false;
+    let lastError = null;
+    
+    setConnectorError(null);
+    
+    // Get wallet network information
+    const getWalletNetworkInfo = () => {
+      if (typeof window !== 'undefined' && window.solana) {
+        // Try to detect the network from Phantom
+        if (window.solana.isPhantom) {
+          const network = window.solana._network;
+          return network ? network : 'unknown';
+        }
+      }
+      return 'unknown';
+    };
+    
+    // Show a message about current wallet network
+    const currentNetwork = getWalletNetworkInfo();
+    console.log("Detected wallet network:", currentNetwork);
+    
+    // Notify user about detected network
+    if (currentNetwork !== 'unknown') {
+      toast({
+        title: "Wallet Network",
+        description: `Your wallet appears to be on ${currentNetwork} network. Our app runs on devnet.`,
+        variant: "default",
+      });
+    }
+    
     try {
-      setConnectorError(null);
-      await connect(walletName);
-      setShowWalletSelector(false);
+      // Try connecting with the base wallet name first
+      try {
+        console.log(`Trying to connect to ${walletName}...`);
+        await connect(walletName);
+        connected = true;
+        setShowWalletSelector(false);
+        return;
+      } catch (initialError) {
+        console.log(`Initial connection attempt failed, trying with network options...`);
+        lastError = initialError;
+      }
+      
+      // Try with explicit network options
+      for (const network of networks) {
+        try {
+          const networkWalletName = `${walletName} (${network})`;
+          console.log(`Trying to connect to ${networkWalletName}...`);
+          
+          await connect(networkWalletName);
+          connected = true;
+          setShowWalletSelector(false);
+          return;
+        } catch (error) {
+          console.log(`Failed to connect with ${network}:`, error);
+          lastError = error;
+        }
+      }
+      
+      // If we get here, all connection attempts failed
+      throw lastError || new Error("Failed to connect to wallet");
     } catch (error) {
-      console.error('Failed to connect:', error);
+      console.error('All connection attempts failed:', error);
       
       // Show user-friendly error message and store for display
       if (error instanceof Error) {
@@ -68,7 +127,7 @@ export default function WalletSelectorModal() {
           toast({
             variant: "destructive",
             title: "Wallet Network Error",
-            description: "Please connect to a Solana-compatible wallet on the devnet network",
+            description: "Please switch your wallet to the Solana devnet network and try again",
           });
         } else {
           toast({
