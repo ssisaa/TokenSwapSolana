@@ -17,11 +17,8 @@ import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, YOT_DECIMALS, YOS_DECIMALS, STAKI
 // with the deployed Solana program
 const PROGRAM_SCALING_FACTOR = 10000;
 
-// YOT TOKEN DECIMALS - Standard Solana token (9 decimals)
-const YOT_TOKEN_DECIMALS = 9; 
-
-// YOS TOKEN DECIMALS - Used for Phantom wallet display
-const YOS_TOKEN_DECIMALS = 9;
+// Use imported YOT_DECIMALS and YOS_DECIMALS from constants.ts
+// This ensures consistency across the application
 
 /**
  * Convert UI value to raw blockchain value for YOT tokens
@@ -38,13 +35,13 @@ export function uiToRawYot(uiValue: number): bigint {
   // the raw value that displays correctly in the Phantom wallet
   
   // First convert to token decimals (this makes it display properly in wallet)
-  const withDecimals = uiValue * Math.pow(10, YOT_TOKEN_DECIMALS);
+  const withDecimals = uiValue * Math.pow(10, YOT_DECIMALS);
   
   // Now apply program scaling - this is what the contract needs
   const scaledAmount = Math.round(uiValue * PROGRAM_SCALING_FACTOR);
   
   console.log(`YOT CONVERSION (FIXED v4): UI ${uiValue} → Display value ${withDecimals} → Contract value ${scaledAmount}`);
-  console.log(`Step 1: Token decimals for display: ${uiValue} × 10^${YOT_TOKEN_DECIMALS} = ${withDecimals}`);
+  console.log(`Step 1: Token decimals for display: ${uiValue} × 10^${YOT_DECIMALS} = ${withDecimals}`);
   console.log(`Step 2: Program scaling for contract: ${uiValue} × ${PROGRAM_SCALING_FACTOR} = ${scaledAmount}`);
   
   // Return the PROGRAM_SCALING_FACTOR value as that's what the contract needs
@@ -66,11 +63,11 @@ export function uiToRawYos(uiValue: number): bigint {
   // For YOS, we need to apply both decimals (10^9) and program scaling (10000)
   // But in a way that preserves the original value
   // So we'll use decimals * 0.0001 instead of * 10000
-  const amountWithDecimals = uiValue * Math.pow(10, YOS_TOKEN_DECIMALS);
+  const amountWithDecimals = uiValue * Math.pow(10, YOS_DECIMALS);
   const programScaled = Math.round(amountWithDecimals * 0.0001);
   
   console.log(`YOS CONVERSION (FIXED v2): UI ${uiValue} → Raw blockchain value ${programScaled}`);
-  console.log(`Step 1: Applied token decimals: ${uiValue} × 10^${YOS_TOKEN_DECIMALS} = ${amountWithDecimals}`);
+  console.log(`Step 1: Applied token decimals: ${uiValue} × 10^${YOS_DECIMALS} = ${amountWithDecimals}`);
   console.log(`Step 2: Applied inverse program scaling: ${amountWithDecimals} × 0.0001 = ${programScaled}`);
   
   return BigInt(programScaled);
