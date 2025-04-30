@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useMultiWallet } from '@/context/MultiWalletContext';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -15,7 +15,7 @@ import { SOL_TOKEN_ADDRESS, YOT_TOKEN_ADDRESS, YOS_CASHBACK_PERCENT, LIQUIDITY_C
  * Custom hook for handling multi-hub swaps
  */
 export default function useMultiHubSwap() {
-  const wallet = useWallet();
+  const { wallet, connected: walletConnected, publicKey } = useMultiWallet();
   const { toast } = useToast();
   
   // State for the swap form
@@ -30,7 +30,7 @@ export default function useMultiHubSwap() {
   
   // Default to SOL to YOT swap when wallet connects
   useEffect(() => {
-    if (wallet.connected && !fromToken && !toToken) {
+    if (walletConnected && !fromToken && !toToken) {
       // Initialize with SOL and YOT
       const initializeTokens = async () => {
         const solToken = await getTokenInfo(SOL_TOKEN_ADDRESS);
@@ -44,7 +44,7 @@ export default function useMultiHubSwap() {
       
       initializeTokens();
     }
-  }, [wallet.connected, fromToken, toToken]);
+  }, [walletConnected, fromToken, toToken]);
   
   // Switch the from and to tokens
   const switchTokens = useCallback(() => {
@@ -138,7 +138,7 @@ export default function useMultiHubSwap() {
   // Swap mutation
   const { mutate: swapMutate, isPending: isSwapping } = useMutation({
     mutationFn: async () => {
-      if (!wallet.publicKey || !wallet.signTransaction || !fromToken || !toToken || !swapEstimate) {
+      if (!publicKey || !wallet?.signTransaction || !fromToken || !toToken || !swapEstimate) {
         throw new Error('Wallet not connected or swap parameters invalid');
       }
       
@@ -177,7 +177,64 @@ export default function useMultiHubSwap() {
     }
   }, [isValid, swapMutate]);
   
+  // Mock user swap info for the UI (to be replaced with actual data from chain)
+  const [userSwapInfo, setUserSwapInfo] = useState({
+    totalSwapped: 0,
+    totalContributed: 0,
+    pendingRewards: 0,
+    totalRewardsClaimed: 0
+  });
+  const [userSwapInfoLoading, setUserSwapInfoLoading] = useState(false);
+  
+  // Mock global stats for UI (to be replaced with actual data from chain)
+  const [globalSwapStats, setGlobalSwapStats] = useState({
+    totalSwapVolume: 0,
+    totalLiquidityContributed: 0,
+    totalRewardsDistributed: 0,
+    uniqueUsers: 0
+  });
+  const [globalSwapStatsLoading, setGlobalSwapStatsLoading] = useState(false);
+  
+  // Mock claim rewards function
+  const [isClaimingRewards, setIsClaimingRewards] = useState(false);
+  const claimRewards = useCallback(async () => {
+    if (!walletConnected || !wallet) {
+      throw new Error('Wallet not connected');
+    }
+    
+    setIsClaimingRewards(true);
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Update user info after successful claim
+      setUserSwapInfo(prev => ({
+        ...prev,
+        pendingRewards: 0,
+        totalRewardsClaimed: prev.totalRewardsClaimed + prev.pendingRewards
+      }));
+      
+      toast({
+        title: 'Rewards claimed successfully',
+        description: 'Your YOS rewards have been transferred to your wallet',
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('Error claiming rewards:', error);
+      toast({
+        title: 'Failed to claim rewards',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+      return false;
+    } finally {
+      setIsClaimingRewards(false);
+    }
+  }, [walletConnected, wallet, toast]);
+  
   return {
+    // Token swap form
     fromToken,
     toToken,
     amount,
@@ -193,6 +250,14 @@ export default function useMultiHubSwap() {
     isSwapping,
     swapSummary,
     isValid,
-    refreshEstimate: refetch
+    refreshEstimate: refetch,
+    
+    // User and global stats
+    userSwapInfo,
+    userSwapInfoLoading,
+    globalSwapStats,
+    globalSwapStatsLoading,
+    claimRewards,
+    isClaimingRewards
   };
 }
