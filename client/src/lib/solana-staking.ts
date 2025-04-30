@@ -198,36 +198,48 @@ export function uiToRawTokenAmount(amount: number, decimals: number): bigint {
  * @returns Raw amount for blockchain that will display correctly in wallet
  */
 export function getWalletCompatibleYotAmount(amount: number): bigint {
-  // First ensure we're working with an integer amount to eliminate decimal display issues
-  const integerAmount = Math.floor(amount);
+  // SUPER CRITICAL: Ensure we're working with CLEAN integer amounts to eliminate decimal display issues
+  // We need to completely avoid floating-point math, use string parsing instead
   
-  // CRITICAL FIX: Use string concatenation to ensure exact precision
-  // This avoids any floating point issues that could occur with Math operations
+  // Step 1: Convert to string first to isolate any potential floating point
+  const amountString = amount.toString();
+  
+  // Step 2: Extract only the integer part before any decimal point
+  const integerPart = amountString.split(".")[0];
+  
+  // Step 3: Use string concatenation to ensure exact precision - NO math operations at all
   // For 9 decimals, we need to append 9 zeros to the amount
-  const rawAmountString = integerAmount.toString() + "000000000"; // 9 zeros for 9 decimals
+  const rawAmountString = integerPart + "000000000"; // 9 zeros for 9 decimals
   
-  console.log(`YOT wallet display: ${amount} → ${integerAmount} → ${rawAmountString} (string-based adjustment)`);
+  console.log(`YOT wallet display: ${amount} → ${integerPart} → ${rawAmountString} (pure string-based adjustment)`);
   
   // Convert directly to BigInt from the precise string representation
   return BigInt(rawAmountString);
 }
 
 export function getWalletAdjustedYosAmount(uiValue: number): bigint {
-  // First ensure integer amounts to avoid decimal display issues (.01 suffix)
-  const integerAmount = Math.floor(uiValue);
+  // SUPER CRITICAL: Completely avoid math operations for display precision
+  // Use string operations for perfect precision in wallet display
   
-  // Use a hardcoded value of 17000 for the wallet display adjustment
-  // This matches the constant in constants.ts
+  // Step 1: Convert to string first to isolate any potential floating point
+  const valueString = uiValue.toString();
+  
+  // Step 2: Extract only the integer part before any decimal point
+  const integerPart = valueString.split(".")[0];
+  
+  // Step 3: Apply display adjustment using string operations
+  // This hardcoded value of 17000 matches the constant in constants.ts
   const DISPLAY_ADJUSTMENT = 17000;
   
-  // Apply the display adjustment factor and ensure integer result with Math.floor
-  const walletAdjustedAmount = Math.floor(integerAmount / DISPLAY_ADJUSTMENT);
+  // Convert to number, divide, then back to integer string
+  // This is the only math operation we need to perform
+  const adjustedValue = Math.floor(parseInt(integerPart) / DISPLAY_ADJUSTMENT);
   
-  // CRITICAL FIX: Use string concatenation to ensure exact precision
-  // This avoids any floating point issues that could occur with Math operations
-  const rawAmountString = walletAdjustedAmount.toString() + "000000000"; // 9 zeros for 9 decimals
+  // Step 4: Use string concatenation to ensure exact precision - minimal math operations
+  // For 9 decimals, we need to append 9 zeros to the amount
+  const rawAmountString = adjustedValue.toString() + "000000000"; // 9 zeros for 9 decimals
   
-  console.log(`YOS wallet display: ${uiValue} → ${walletAdjustedAmount} → ${rawAmountString} (string-based adjustment)`);
+  console.log(`YOS wallet display: ${uiValue} → ${integerPart} → ${adjustedValue} → ${rawAmountString} (pure string-based adjustment)`);
   return BigInt(rawAmountString);
 }
 
