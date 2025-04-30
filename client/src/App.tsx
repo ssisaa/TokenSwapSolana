@@ -26,6 +26,7 @@ function Router() {
         <Route path="/" component={Dashboard} />
         <Route path="/swap" component={Swap} />
         <Route path="/multi-hub-swap" component={MultiHubSwapPage} />
+        <Route path="/dashboard/multi-hub-swap" component={MultiHubSwapPage} />
         <Route path="/stake" component={Stake} />
         <Route path="/liquidity" component={Liquidity} />
         <Route path="/memes" component={Memes} />
