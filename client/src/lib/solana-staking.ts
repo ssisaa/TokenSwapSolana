@@ -178,39 +178,37 @@ export function rawToUiTokenAmount(rawAmount: bigint | number, decimals: number)
 }
 
 /**
- * Properly fetches and converts token balance with correct decimal handling
- * Uses the official token account balance method that properly handles decimals
+ * Fetch token balance using TokenAccount (raw account address)
+ * Returns UI-correct value by using built-in uiAmount
  * 
  * @param connection Solana connection
  * @param tokenAccount The token account to check balance for
- * @param isProgramScaledToken Optional flag to indicate if this is a token using our program's 10,000× scaling factor
  * @returns Human-readable UI token amount with proper decimal handling
  */
 export async function getTokenBalance(
-  connection: Connection, 
+  connection: Connection,
   tokenAccount: PublicKey,
-  isProgramScaledToken?: boolean
+  isProgramScaledToken?: boolean  // Keep this parameter for backward compatibility
 ): Promise<number> {
   try {
     const balanceInfo = await connection.getTokenAccountBalance(tokenAccount);
-    const decimals = balanceInfo.value.decimals;
-    const amount = parseFloat(balanceInfo.value.amount);
+    const uiAmount = balanceInfo.value.uiAmount;
     
-    let uiAmount: number;
-    
-    if (isProgramScaledToken) {
-      // If this is a program-scaled token (like YOS in our staking program),
-      // use the 10,000× scaling factor instead of token decimals
+    // Keep special handling for program-scaled tokens if needed
+    if (isProgramScaledToken && uiAmount !== null) {
+      // Apply the program scaling factor only if we need to (for specific program requirements)
       const PROGRAM_SCALING_FACTOR = 10000;
-      uiAmount = amount / PROGRAM_SCALING_FACTOR;
-      console.log(`Program-scaled token balance raw: ${amount}, using 10,000× scaling factor, UI amount: ${uiAmount}`);
-    } else {
-      // Standard token decimal conversion (e.g., 9 decimals for most Solana tokens)
-      uiAmount = amount / Math.pow(10, decimals);
-      console.log(`Token balance raw: ${amount}, decimals: ${decimals}, UI amount: ${uiAmount}`);
+      const programScaledAmount = parseFloat(balanceInfo.value.amount) / PROGRAM_SCALING_FACTOR;
+      console.log(`Program-scaled token balance: ${programScaledAmount} (scaled with 10,000× factor)`);
+      return programScaledAmount;
     }
     
-    return parseFloat(uiAmount.toFixed(9)); // Round to 9 decimal places for consistency
+    if (uiAmount !== null) {
+      console.log(`Token balance (using native uiAmount): ${uiAmount}`);
+      return uiAmount;
+    }
+    
+    return 0;
   } catch (error) {
     console.error('Error fetching token balance:', error);
     return 0;
@@ -218,8 +216,8 @@ export async function getTokenBalance(
 }
 
 /**
- * Get parsed token balance for a specific mint using getParsedTokenAccountsByOwner
- * This is useful when you want to find token accounts by owner and mint
+ * Fetch token balance using owner's wallet and mint address
+ * Also returns UI-correct value using uiAmount
  * 
  * @param connection Solana connection
  * @param owner The owner's public key
@@ -231,7 +229,7 @@ export async function getParsedTokenBalance(
   connection: Connection,
   owner: PublicKey,
   mint: PublicKey,
-  isProgramScaledToken?: boolean
+  isProgramScaledToken?: boolean // Keep this parameter for backward compatibility
 ): Promise<number> {
   try {
     const accounts = await connection.getParsedTokenAccountsByOwner(owner, { mint });
@@ -240,25 +238,24 @@ export async function getParsedTokenBalance(
       return 0;
     }
 
-    const tokenInfo = accounts.value[0].account.data.parsed.info;
-    const amount = parseFloat(tokenInfo.tokenAmount.amount);
-    const decimals = tokenInfo.tokenAmount.decimals;
+    const tokenAmount = accounts.value[0].account.data.parsed.info.tokenAmount;
+    const uiAmount = tokenAmount.uiAmount;
     
-    let uiAmount: number;
-    
-    if (isProgramScaledToken) {
-      // If this is a program-scaled token (like YOS in our staking program),
-      // use the 10,000× scaling factor instead of token decimals
+    // Keep special handling for program-scaled tokens if needed
+    if (isProgramScaledToken && uiAmount !== null) {
+      // Apply the program scaling factor only if we need to (for specific program requirements)
       const PROGRAM_SCALING_FACTOR = 10000;
-      uiAmount = amount / PROGRAM_SCALING_FACTOR;
-      console.log(`Program-scaled parsed token balance raw: ${amount}, using 10,000× scaling factor, UI amount: ${uiAmount}`);
-    } else {
-      // Standard token decimal conversion (e.g., 9 decimals for most Solana tokens)
-      uiAmount = amount / Math.pow(10, decimals);
-      console.log(`Parsed token balance raw: ${amount}, decimals: ${decimals}, UI amount: ${uiAmount}`);
+      const programScaledAmount = parseFloat(tokenAmount.amount) / PROGRAM_SCALING_FACTOR;
+      console.log(`Program-scaled parsed token balance: ${programScaledAmount} (scaled with 10,000× factor)`);
+      return programScaledAmount;
     }
     
-    return parseFloat(uiAmount.toFixed(9)); // Round to 9 decimal places for consistency
+    if (uiAmount !== null) {
+      console.log(`Parsed token balance (using native uiAmount): ${uiAmount}`);
+      return uiAmount;
+    }
+    
+    return 0;
   } catch (error) {
     console.error('Error fetching parsed token balance:', error);
     return 0;
@@ -793,34 +790,15 @@ export async function stakeYOTTokens(
     // Note: We'll let the program handle account creation
     // Staking accounts are PDAs just like program state
     
-    // URGENT FIX: We need to add a special token transfer instruction just for wallet display
-    // Wallet is showing a much smaller YOT amount than intended (-0.01 YOT instead of -1000 YOT)
-    console.log(`Creating stake transaction for ${amount} YOT tokens with proper wallet display`);
+    // CRITICAL UPDATE: Remove display instruction that was causing validation issues
+    // Instead, we'll rely on the program's actual transfer for the display
+    console.log(`Creating stake transaction for ${amount} YOT tokens without display modification`);
     
-    // Convert amount to raw token amount with proper decimals for display
-    // We need to use a multiplier to show the correct amount in the wallet
-    // For YOT tokens, we need to multiply by 100000 to correct the display
-    const walletDisplayMultiplier = 100000;
-    const adjustedAmount = Math.floor(amount); // Use just the integer part
-    const displayAmount = adjustedAmount * walletDisplayMultiplier;
-    const tokenAmount = uiToRawTokenAmount(displayAmount, YOT_DECIMALS);
+    // Log the actual amount that will be transferred for debugging
+    const actualAmount = uiToRawTokenAmount(amount, YOT_DECIMALS);
+    console.log(`Actual token transfer amount: ${actualAmount} (${amount} YOT with ${YOT_DECIMALS} decimals)`);
     
-    console.log(`YOT amount for wallet display: ${adjustedAmount} × ${walletDisplayMultiplier} = ${displayAmount}`);
-    console.log(`Token amount for transfer display (with multiplier): ${tokenAmount}`);
-    
-    // Create a special instruction just for wallet display
-    // This will make the wallet confirmation screen show the correct amount
-    const displayInstruction = createTransferInstruction(
-      userYotATA,           // source
-      userYotATA,           // destination (same account means no tokens actually move)
-      walletPublicKey,      // owner
-      tokenAmount,          // amount with proper decimals for display
-      [],                   // multisigners
-      TOKEN_PROGRAM_ID      // programId
-    );
-    
-    // Add the display instruction first - this affects the wallet UI but won't actually transfer tokens
-    transaction.add(displayInstruction);
+    // We're no longer adding a separate display instruction as it causes validation issues in the wallet
     
     // Add stake instruction - key order MUST match program expectations!
     transaction.add({
@@ -908,89 +886,30 @@ export async function prepareUnstakeTransaction(
     );
   }
   
-  // CRITICAL FIX: We need to add a display instruction to make the wallet UI show correct amounts
-  // Similar to our fix for staking, we'll add a user→user transfer that won't actually move tokens
+  // CRITICAL FIX: Remove all display instructions that cause validation issues
+  // Let the wallet get display information directly from the token transfer
   
-  // Convert amount to raw token amount with proper decimals for display
-  // We need to use a multiplier to show the correct amount in the wallet
-  // For YOT tokens, we need to multiply by 100000 to correct the display
-  const walletDisplayMultiplier = 100000;
-  const adjustedAmount = Math.floor(amount); // Use just the integer part
-  const displayAmount = adjustedAmount * walletDisplayMultiplier;
-  const tokenAmount = uiToRawTokenAmount(displayAmount, YOT_DECIMALS);
+  console.log(`Preparing unstake transaction for ${amount} YOT tokens`);
   
-  console.log(`YOT amount for wallet display: ${adjustedAmount} × ${walletDisplayMultiplier} = ${displayAmount}`);
-  console.log(`Token amount for transfer display (with multiplier): ${tokenAmount}`);
-  
-  // ALSO: Create a special display transaction for YOS rewards that might be harvested during unstake
-  // This helps fix the YOS display in the wallet confirmation screen
-  // Get staking info to calculate potential rewards
-  const stakingDisplayInfo = await getStakingInfo(walletPublicKey.toString());
-  // Get just a rough estimate of rewards
-  const rewardsEstimate = stakingDisplayInfo.rewardsEarned;
+  // Get staking info for potential rewards that will be harvested
+  const stakingInfo = await getStakingInfo(walletPublicKey.toString());
+  const rewardsEstimate = stakingInfo.rewardsEarned;
   console.log(`Potential YOS rewards during unstake: ${rewardsEstimate}`);
   
-  // TEST CODE: Simulate wallet display for YOT
-  try {
-    const yotTokenAmount = uiToRawTokenAmount(amount, YOT_DECIMALS);
-    console.log(`
-    ======= SIMULATED WALLET DISPLAY FOR YOT TOKEN =======
-    Original amount: ${amount} YOT
-    Raw token amount (with decimals): ${yotTokenAmount}
-    Expected wallet display: ${yotTokenAmount} (integer amount)
-    ====================================================`);
-  } catch (e) {
-    console.log("Error in YOT display simulation:", e);
-  }
+  // Display token information for debugging
+  const yotTokenAmount = uiToRawTokenAmount(amount, YOT_DECIMALS);
+  console.log(`YOT token information:
+  - Amount in UI: ${amount} YOT
+  - Raw amount on blockchain: ${yotTokenAmount}
+  - Token decimals: ${YOT_DECIMALS}
+  `);
   
   if (rewardsEstimate > 0) {
-    try {
-      // Create and add a YOS display instruction to fix the YOS million issue
-      const userYosATA = await getAssociatedTokenAddress(yosMint, walletPublicKey);
-      const yosAmount = uiToRawTokenAmount(rewardsEstimate, YOS_DECIMALS);
-      // Divide by 17000 to fix the YOS display issue, and make sure it's an integer
-      const adjustedAmount = Math.floor(Number(yosAmount) / 17000);
-      const displayYosAmount = BigInt(adjustedAmount);
-      
-      // TEST CODE: Simulate wallet display for YOS rewards during unstake
-      console.log(`
-      ======= SIMULATED WALLET DISPLAY FOR YOS REWARDS =======
-      Original YOS rewards: ${rewardsEstimate}
-      Raw YOS token amount: ${yosAmount}
-      Adjusted display amount (1/17000): ${displayYosAmount}
-      Expected wallet display: ${displayYosAmount}
-      ====================================================`);
-      
-      // Add a YOS display instruction too if the user has the account
-      const yosDisplayInstruction = createTransferInstruction(
-        userYosATA,           // source
-        userYosATA,           // destination (same account)
-        walletPublicKey,      // owner
-        displayYosAmount,     // highly adjusted amount
-        [],                   // multisigners
-        TOKEN_PROGRAM_ID      // programId
-      );
-      
-      console.log(`Adding YOS display fix instruction with amount: ${displayYosAmount}`);
-      transaction.add(yosDisplayInstruction);
-    } catch (e) {
-      console.log("Could not add YOS display instruction, continuing without it:", e);
-      // Continue without it - maybe the account doesn't exist yet
-    }
+    console.log(`YOS rewards information:
+    - Rewards in UI: ${rewardsEstimate} YOS
+    - Token decimals: ${YOS_DECIMALS}
+    `);
   }
-  
-  // Add a display-only instruction at the start of the transaction
-  const displayInstruction = createTransferInstruction(
-    userYotATA,           // source (user)
-    userYotATA,           // destination (same user - no actual transfer)
-    walletPublicKey,      // owner (user can sign)
-    tokenAmount,          // display amount with proper decimals
-    [],                   // multisigners
-    TOKEN_PROGRAM_ID      // programId
-  );
-  
-  // Add the display instruction first - this affects what shows in the wallet UI
-  transaction.add(displayInstruction);
   
   // Add the unstake instruction - key order MUST match program expectations!
   transaction.add({
