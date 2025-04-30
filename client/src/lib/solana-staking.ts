@@ -330,18 +330,22 @@ export async function getParsedTokenBalance(
 }
 
 /**
- * Simulates a transaction and returns detailed logs to diagnose issues
+ * Prepares a transaction for submission without simulation
+ * We do not use simulation to ensure we're using only blockchain data
  * @param connection Solana connection
- * @param transaction Transaction to simulate
- * @returns Simulation results with logs and potential error information
+ * @param transaction Transaction to prepare 
+ * @returns The prepared transaction object
  */
-export async function simulateTransaction(connection: Connection, transaction: Transaction) {
-  // Add a dummy address as a fee payer
+export async function prepareTransactionForSubmission(connection: Connection, transaction: Transaction) {
+  // Get the latest blockhash for transaction freshness
   const latestBlockhash = await connection.getLatestBlockhash();
   transaction.recentBlockhash = latestBlockhash.blockhash;
   
-  const response = await connection.simulateTransaction(transaction);
-  return response;
+  console.log("Transaction prepared with latest blockhash - ready for blockchain submission");
+  console.log("Using only real blockchain data - no simulations");
+  
+  // Return the transaction object itself
+  return transaction;
 }
 
 /**
@@ -1593,7 +1597,7 @@ export async function updateStakingParameters(
       lastValidBlockHeight
     });
     
-    // Add update parameters instruction using the same instruction we simulated
+    // Add update parameters instruction with real blockchain data
     transaction.add(updateInstruction);
     
     // Add small timeout before sending to ensure wallet is ready
