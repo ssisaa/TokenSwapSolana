@@ -1,5 +1,5 @@
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import MultiHubSwapCard from "@/components/MultiHubSwap/MultiHubSwapCard";
+import EnhancedMultiHubSwapCard from "@/components/MultiHubSwap/EnhancedMultiHubSwapCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMultiWallet } from "@/context/MultiWalletContext";
 
@@ -16,66 +16,67 @@ export default function MultiHubSwapPage() {
           </p>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="md:col-span-1">
-            <MultiHubSwapCard />
-          </div>
+        {/* Main swap interface with chart */}
+        <EnhancedMultiHubSwapCard />
+        
+        {/* Info cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Token Distribution</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                When you swap, your tokens are distributed as follows:
+              </p>
+              <ul className="list-disc list-inside text-sm text-muted-foreground pl-4 space-y-1">
+                <li><span className="font-medium">75%</span> goes directly to your wallet</li>
+                <li><span className="font-medium">20%</span> is contributed to the liquidity pool</li>
+                <li><span className="font-medium">5%</span> is given as YOS token cashback</li>
+                <li><span className="font-medium">0.1%</span> SOL commission to owner wallet</li>
+              </ul>
+            </CardContent>
+          </Card>
           
-          <div className="md:col-span-1">
-            <Card className="h-full">
-              <CardHeader>
-                <CardTitle>How It Works</CardTitle>
-                <CardDescription>
-                  Our multi-hub swap liquidity protocol
-                </CardDescription>
-              </CardHeader>
-              
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <h3 className="font-medium">Token Distribution</h3>
-                  <p className="text-sm text-muted-foreground">
-                    When you swap, your tokens are distributed as follows:
-                  </p>
-                  <ul className="list-disc list-inside text-sm text-muted-foreground pl-4 space-y-1">
-                    <li><span className="font-medium">75%</span> goes directly to your wallet</li>
-                    <li><span className="font-medium">20%</span> is contributed to the liquidity pool</li>
-                    <li><span className="font-medium">5%</span> is given as YOS token cashback</li>
-                  </ul>
-                </div>
-                
-                <div className="space-y-2">
-                  <h3 className="font-medium">Weekly YOS Rewards</h3>
-                  <p className="text-sm text-muted-foreground">
-                    For every contribution to liquidity, you'll earn weekly YOS rewards:
-                  </p>
-                  <ul className="list-disc list-inside text-sm text-muted-foreground pl-4 space-y-1">
-                    <li>Rewards are claimable once per week</li>
-                    <li>100% APR paid weekly in YOS tokens</li>
-                    <li>Rewards scale with your contribution amount</li>
-                  </ul>
-                </div>
-                
-                <div className="space-y-2">
-                  <h3 className="font-medium">Liquidity Benefits</h3>
-                  <p className="text-sm text-muted-foreground">
-                    By participating in this program, you help:
-                  </p>
-                  <ul className="list-disc list-inside text-sm text-muted-foreground pl-4 space-y-1">
-                    <li>Increase market liquidity and reduce slippage</li>
-                    <li>Stabilize token prices during high volume</li>
-                    <li>Support the ecosystem's growth</li>
-                  </ul>
-                </div>
-                
-                {!connected && (
-                  <div className="bg-muted p-4 rounded-lg mt-6">
-                    <p className="text-sm font-medium">Connect your wallet to start swapping and earning rewards!</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Weekly YOS Rewards</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                For every contribution to liquidity, you'll earn weekly YOS rewards:
+              </p>
+              <ul className="list-disc list-inside text-sm text-muted-foreground pl-4 space-y-1">
+                <li>Rewards are claimable once per week</li>
+                <li>100% APR paid weekly in YOS tokens</li>
+                <li>Rewards scale with your contribution amount</li>
+              </ul>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Multi-Hub Benefits</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Our multi-hub system provides these advantages:
+              </p>
+              <ul className="list-disc list-inside text-sm text-muted-foreground pl-4 space-y-1">
+                <li>Auto-switching between Jupiter & Raydium</li>
+                <li>Lower slippage with improved liquidity</li>
+                <li>Higher success rate on swap transactions</li>
+                <li>Everything processed on-chain for security</li>
+              </ul>
+            </CardContent>
+          </Card>
         </div>
+        
+        {!connected && (
+          <div className="bg-muted p-4 rounded-lg mt-6">
+            <p className="text-sm font-medium">Connect your wallet to start swapping and earning rewards!</p>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );
