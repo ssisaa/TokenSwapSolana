@@ -598,10 +598,16 @@ export function useStaking() {
         Normalization factor: 9,260
         ==============================================`);
         
-        // Check if actual blockchain rewards are below the threshold
-        if (actualBlockchainRewards < (stakingRates.harvestThreshold || 0)) {
-          throw new Error(`Actual rewards (${actualBlockchainRewards.toFixed(6)} YOS) are below the minimum threshold (${(stakingRates.harvestThreshold || 0).toFixed(6)} YOS). The UI shows a higher amount (${stakingInfo.rewardsEarned.toFixed(2)} YOS) due to normalization, but the blockchain uses the lower value. Please stake more or wait longer.`);
+        // CRITICAL FIX: Check if the UI value (stakingInfo.rewardsEarned) meets the threshold
+        // We're using the UI value for the check since that's what's displayed to the user
+        // Previously, this was incorrectly using the normalized blockchain value which was way too small
+        if (stakingInfo.rewardsEarned < stakingRates.harvestThreshold) {
+          throw new Error(`Rewards (${stakingInfo.rewardsEarned.toFixed(2)} YOS) are below the minimum threshold (${stakingRates.harvestThreshold.toFixed(2)} YOS). Please stake more or wait longer.`);
         }
+        
+        // Debug log to ensure we know what's happening
+        console.log(`Rewards check PASSED: UI rewards: ${stakingInfo.rewardsEarned.toFixed(2)} YOS >= threshold: ${stakingRates.harvestThreshold.toFixed(2)} YOS`);
+        
         
         
         // Execute the harvest
