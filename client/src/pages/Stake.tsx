@@ -538,10 +538,6 @@ export default function Stake() {
                             Minimum harvest amount: {typeof stakingRates?.harvestThreshold === 'number' ? 
                               stakingRates.harvestThreshold.toLocaleString('en-US', {maximumFractionDigits: 0}) : '0'} YOS
                           </p>
-                          <div className="mt-2 p-2 bg-amber-900/30 border border-amber-500/50 rounded-md">
-                            <p className="text-xs text-amber-300 font-medium mb-1">⚠️ Important Transaction Note</p>
-                            <p className="text-xs">Make sure to have enough SOL to cover transaction fees when harvesting rewards.</p>
-                          </div>
                         </div>
                       </div>
                     </div>
