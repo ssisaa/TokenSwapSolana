@@ -20,13 +20,15 @@ export default function MultiHubSwapPage() {
     isClaimingRewards
   } = useMultiHubSwap();
   
+  // Open wallet selector modal to connect
   const handleConnectWallet = () => {
-    if (wallet) {
+    try {
       connect();
-    } else {
+    } catch (error) {
+      console.error('Error connecting wallet:', error);
       toast({
-        title: 'Wallet not found',
-        description: 'Please install a Solana wallet extension to continue',
+        title: 'Wallet connection failed',
+        description: error instanceof Error ? error.message : 'Please install a Solana wallet extension to continue',
         variant: 'destructive'
       });
     }

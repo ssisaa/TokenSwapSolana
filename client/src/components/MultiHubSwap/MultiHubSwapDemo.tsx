@@ -372,8 +372,8 @@ export default function MultiHubSwapDemo() {
         <Button
           className="w-full"
           size="lg"
-          onClick={handleSwapClick}
-          disabled={loading || !estimatedAmount || estimatedAmount <= 0 || !walletConnected}
+          onClick={walletConnected ? handleSwapClick : () => connect()}
+          disabled={walletConnected && (loading || !estimatedAmount || estimatedAmount <= 0)}
         >
           {loading ? (
             <>

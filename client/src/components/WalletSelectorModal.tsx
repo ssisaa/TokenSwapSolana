@@ -23,24 +23,31 @@ export default function WalletSelectorModal() {
     // Simple detection for popular wallets
     const detectedWallets = [];
     
-    // Check for Phantom
+    // Enhanced Check for Phantom
     if (typeof window !== 'undefined' && window.solana && window.solana.isPhantom) {
       detectedWallets.push('Phantom');
+      console.log("Phantom wallet detection:", true);
     }
     
-    // Check for Solflare
-    if (typeof window !== 'undefined' && window.solflare) {
+    // Enhanced Check for Solflare (multiple detection methods)
+    if (typeof window !== 'undefined' && 
+        (window.solflare || 
+         (window.solana && window.solana.isSolflare) || 
+         (navigator.userAgent && navigator.userAgent.indexOf('Solflare') > -1))) {
       detectedWallets.push('Solflare');
+      console.log("Solflare wallet detection:", true);
     }
     
     // Check for other browser-extension Solana wallets
-    if (typeof window !== 'undefined' && window.solana && !window.solana.isPhantom) {
+    if (typeof window !== 'undefined' && window.solana && !window.solana.isPhantom && !window.solana.isSolflare) {
       detectedWallets.push('OtherWallets');
     }
     
-    console.log("Detected wallets:", detectedWallets);
+    // Log for debugging - all available wallets from the MultiWalletContext
+    console.log("Available wallets:", wallets.map(w => w.name));
+    
     setInstalledWallets(detectedWallets);
-  }, []);
+  }, [wallets]);
   
   // Try to connect with network options
   const handleConnect = async (walletName: string) => {

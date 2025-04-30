@@ -72,7 +72,8 @@ export function MultiWalletProvider({ children, cluster = SOLANA_CLUSTER as Clus
           return !!(
             typeof window !== 'undefined' && 
             (window.solflare || 
-            (navigator.userAgent && navigator.userAgent.indexOf('Solflare') > -1))
+             (typeof window.solana !== 'undefined' && window.solana.isSolflare) ||
+             (navigator.userAgent && navigator.userAgent.indexOf('Solflare') > -1))
           );
         }
         return false;
