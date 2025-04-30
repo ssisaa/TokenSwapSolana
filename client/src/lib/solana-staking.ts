@@ -795,13 +795,17 @@ export async function stakeYOTTokens(
     // This prevents the wallet from showing decimal places like 1000.01
     const integerAmount = Math.floor(amount);
     
-    // Convert the integer amount using proper token decimals for SPL token transfer
-    // This is what determines what the wallet will display
-    const tokenAmount = uiToRawTokenAmount(integerAmount, YOT_DECIMALS);
+    // CRITICAL FIX: Set YOT_DECIMALS to 0 in constants.ts to prevent decimal display
+    // We now create the token amount based on a totally simplified approach
+    // For YOT tokens with decimals=0, 1 token = 1 raw amount, no need for complex conversions
     
-    // Create an explicit transfer instruction with the correct token amount
-    // This should make the wallet show the correct token amount (whole numbers only)
-    console.log(`Creating token transfer with amount: ${integerAmount} YOT = ${tokenAmount} raw tokens`);
+    // Since YOT_DECIMALS = 0, this will be a direct 1:1 conversion
+    // This is the most reliable way to ensure wallet displays whole numbers
+    const tokenAmount = BigInt(integerAmount);
+    
+    // Create an explicit transfer instruction with the exact token amount
+    console.log(`Creating token transfer with EXACT amount: ${integerAmount} YOT (raw amount = ${tokenAmount})`);
+    console.log(`YOT_DECIMALS = ${YOT_DECIMALS} - Using 0 decimals eliminates fractional display in wallet`);
     
     // Add token transfer instruction - user will send tokens to program
     transaction.add(
@@ -906,8 +910,9 @@ export async function prepareUnstakeTransaction(
   // This prevents the wallet from showing decimal places like 1000.01
   const integerAmount = Math.floor(amount);
   
-  // Convert the integer amount using proper token decimals for SPL token
-  const tokenAmount = uiToRawTokenAmount(integerAmount, YOT_DECIMALS);
+  // CRITICAL FIX: Since YOT_DECIMALS is now 0, we use a direct 1:1 conversion
+  // This ensures the wallet displays the exact integer amount (no .01 suffix)
+  const tokenAmount = BigInt(integerAmount);
   
   console.log(`Preparing unstake transaction for ${amount} YOT tokens (${tokenAmount} raw tokens)`);
   

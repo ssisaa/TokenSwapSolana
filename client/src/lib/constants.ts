@@ -8,7 +8,7 @@ export const SOLANA_RPC_URL = ENDPOINT;
 // YOT Token (main token)
 export const YOT_TOKEN_ADDRESS = '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF';
 export const YOT_TOKEN_ACCOUNT = 'BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE';
-export const YOT_DECIMALS = 9; // Most Solana tokens have 9 decimals
+export const YOT_DECIMALS = 0; // CRITICAL FIX: Changed from 9 to 0 to prevent decimal display in wallet
 
 // YOS Token (staking reward token)
 export const YOS_TOKEN_ADDRESS = 'GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n';
@@ -37,3 +37,8 @@ export const CONFIRMATION_COUNT = 1;
 // Real program ID for YOT staking program
 // Updated on: April 27, 2025
 export const STAKING_PROGRAM_ID = '6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6';
+
+// Token display adjustment factors
+// These help correct the way tokens display in wallet confirmation screens
+export const PROGRAM_SCALING_FACTOR = 10000;     // Program's internal scaling factor
+export const YOS_WALLET_DISPLAY_ADJUSTMENT = 17000; // Wallet display adjustment for YOS tokens
