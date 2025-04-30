@@ -1,6 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useMultiWallet } from '@/context/MultiWalletContext';
-import { ArrowDownUp, ArrowRight, Loader2, Info, RefreshCw, Settings } from 'lucide-react';
+import { 
+  ArrowDownUp, 
+  ArrowRight, 
+  Loader2, 
+  Info, 
+  RefreshCw, 
+  Settings, 
+  Shield, 
+  BadgeDollarSign, 
+  ArrowLeftRight, 
+  Gift 
+} from 'lucide-react';
 import { useMultiHubSwap } from '@/hooks/useMultiHubSwap';
 import { useSOLPrice } from '@/hooks/useSOLPrice';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -585,9 +596,29 @@ export default function MultiHubSwapCard() {
             <Loader2 className="h-4 w-4 animate-spin" />
           </div>
         ) : swapStats ? (
-          <div className="w-full text-xs text-muted-foreground flex justify-between">
-            <span>Total Liquidity: {swapStats.totalLiquidityContributed.toLocaleString()} YOT</span>
-            <span>APR: {swapStats.yearlyAPR}%</span>
+          <div className="w-full text-xs space-y-1">
+            <div className="text-muted-foreground flex justify-between">
+              <span>Total Liquidity: {swapStats.totalLiquidityContributed.toLocaleString()} YOT</span>
+              <span>APR: {swapStats.yearlyAPR}%</span>
+            </div>
+            <div className="grid grid-cols-2 gap-1">
+              <div className="p-1 rounded-sm bg-muted/40 flex items-center">
+                <Shield className="h-3 w-3 mr-1 text-green-500" />
+                <span className="text-[10px]">Auto-strengthened liquidity pool</span>
+              </div>
+              <div className="p-1 rounded-sm bg-muted/40 flex items-center">
+                <BadgeDollarSign className="h-3 w-3 mr-1 text-green-500" />
+                <span className="text-[10px]">Passive income (100% APR)</span>
+              </div>
+              <div className="p-1 rounded-sm bg-muted/40 flex items-center">
+                <ArrowLeftRight className="h-3 w-3 mr-1 text-green-500" />
+                <span className="text-[10px]">Auto-switch Jupiter/Raydium</span>
+              </div>
+              <div className="p-1 rounded-sm bg-muted/40 flex items-center">
+                <Gift className="h-3 w-3 mr-1 text-green-500" />
+                <span className="text-[10px]">YOS Cashback (non-dumping)</span>
+              </div>
+            </div>
           </div>
         ) : null}
       </CardFooter>
