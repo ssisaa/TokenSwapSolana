@@ -1,248 +1,156 @@
-import { useState, useEffect } from 'react';
-import { useMultiWallet } from '@/context/MultiWalletContext';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from '@/hooks/use-toast';
-import { useSOLPrice } from './useSOLPrice';
+import { useState, useEffect, useCallback } from 'react';
+import { TokenMetadata } from '@/lib/token-search-api';
 import { 
-  swapAndDistribute,
-  claimWeeklyYosReward,
-  withdrawLiquidityContribution,
-  getLiquidityContributionInfo,
-  getMultiHubSwapStats
+  getMultiHubSwapEstimate, 
+  executeMultiHubSwap, 
+  SwapEstimate, 
+  SwapResult,
+  SwapProvider 
 } from '@/lib/multi-hub-swap';
-
-interface Distribution {
-  userPercent: number;
-  liquidityPercent: number;
-  cashbackPercent: number;
-}
-
-interface MultiHubSwapStats {
-  totalLiquidityContributed: number;
-  totalContributors: number;
-  totalYosRewarded: number;
-  weeklyRewardRate: number;
-  yearlyAPR: number;
-  buyDistribution: Distribution;
-  sellDistribution: Distribution;
-  commissionPercent: number;
-  yotPriceUsd: number;
-}
-
-interface LiquidityContributionInfo {
-  contributedAmount: number;
-  startTimestamp: number;
-  lastClaimTime: number;
-  totalClaimedYos: number;
-  canClaimReward: boolean;
-  nextClaimAvailable: string | null;
-  estimatedWeeklyReward: number;
-}
+import { useConnection, useWallet } from '@solana/wallet-adapter-react';
+import { useToast } from '@/hooks/use-toast';
 
 export function useMultiHubSwap() {
-  const { publicKey, wallet } = useMultiWallet();
-  const queryClient = useQueryClient();
-  const { solPrice } = useSOLPrice();
+  const { connection } = useConnection();
+  const wallet = useWallet();
+  const { toast } = useToast();
   
-  // Query for multi-hub swap stats
-  const { 
-    data: swapStats,
-    isLoading: isLoadingSwapStats,
-    error: swapStatsError,
-    refetch: refetchSwapStats
-  } = useQuery<MultiHubSwapStats>({
-    queryKey: ['multi-hub-swap-stats'],
-    queryFn: async () => {
-      console.log("Fetching multi-hub swap stats...");
-      return await getMultiHubSwapStats();
-    },
-    staleTime: 30 * 1000, // 30 seconds
-    gcTime: 5 * 60 * 1000, // 5 minutes
-  });
-
-  // Query for user's liquidity contribution info
-  const {
-    data: liquidityInfo,
-    isLoading: isLoadingLiquidityInfo,
-    error: liquidityInfoError,
-    refetch: refetchLiquidityInfo
-  } = useQuery<LiquidityContributionInfo>({
-    queryKey: ['liquidity-contribution', publicKey?.toString()],
-    queryFn: async () => {
-      if (!publicKey) {
-        return {
-          contributedAmount: 0,
-          startTimestamp: 0,
-          lastClaimTime: 0,
-          totalClaimedYos: 0,
-          canClaimReward: false,
-          nextClaimAvailable: null,
-          estimatedWeeklyReward: 0
-        };
+  const [fromToken, setFromToken] = useState<TokenMetadata | null>(null);
+  const [toToken, setToToken] = useState<TokenMetadata | null>(null);
+  const [fromAmount, setFromAmount] = useState<string>('');
+  const [toAmount, setToAmount] = useState<string>('');
+  const [swapEstimate, setSwapEstimate] = useState<SwapEstimate | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isSwapping, setIsSwapping] = useState<boolean>(false);
+  const [swapHistory, setSwapHistory] = useState<SwapResult[]>([]);
+  const [slippage, setSlippage] = useState<number>(0.01); // 1% default slippage
+  
+  // Calculate swap estimate when inputs change
+  useEffect(() => {
+    async function calculateSwapEstimate() {
+      if (!fromToken || !toToken || !fromAmount || parseFloat(fromAmount) <= 0) {
+        setSwapEstimate(null);
+        setToAmount('');
+        return;
       }
-      return await getLiquidityContributionInfo(publicKey.toString());
-    },
-    staleTime: 30 * 1000, // 30 seconds
-    gcTime: 5 * 60 * 1000, // 5 minutes
-    enabled: !!publicKey, // Only run if wallet is connected
-  });
-
-  // Mutation for swap and distribute
-  const swapAndDistributeMutation = useMutation({
-    mutationFn: async ({ amountIn, minAmountOut }: { amountIn: number, minAmountOut: number }) => {
-      if (!wallet) throw new Error("Wallet not connected");
-      return await swapAndDistribute(wallet, amountIn, minAmountOut);
-    },
-    onSuccess: () => {
-      toast({
-        title: "Swap Successful",
-        description: "Tokens have been swapped and distributed according to protocol rules.",
-      });
-      // Invalidate relevant queries
-      queryClient.invalidateQueries({ queryKey: ['liquidity-contribution'] });
-      queryClient.invalidateQueries({ queryKey: ['multi-hub-swap-stats'] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Swap Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Mutation for claiming weekly YOS rewards
-  const claimWeeklyRewardMutation = useMutation({
-    mutationFn: async () => {
-      if (!wallet) throw new Error("Wallet not connected");
-      return await claimWeeklyYosReward(wallet);
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Rewards Claimed",
-        description: `Successfully claimed ${data.claimedAmount.toFixed(2)} YOS rewards.`,
-      });
-      // Invalidate relevant queries
-      queryClient.invalidateQueries({ queryKey: ['liquidity-contribution'] });
-      queryClient.invalidateQueries({ queryKey: ['multi-hub-swap-stats'] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Claim Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Mutation for withdrawing liquidity
-  const withdrawLiquidityMutation = useMutation({
-    mutationFn: async () => {
-      if (!wallet) throw new Error("Wallet not connected");
-      return await withdrawLiquidityContribution(wallet);
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Liquidity Withdrawn",
-        description: `Successfully withdrew ${data.withdrawnAmount.toFixed(2)} YOT from liquidity pool.`,
-      });
-      // Invalidate relevant queries
-      queryClient.invalidateQueries({ queryKey: ['liquidity-contribution'] });
-      queryClient.invalidateQueries({ queryKey: ['multi-hub-swap-stats'] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Withdrawal Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Calculate time until next reward claim
-  const calculateTimeUntilNextClaim = (): { canClaim: boolean; timeLeft: string } => {
-    if (!liquidityInfo || !liquidityInfo.lastClaimTime) {
-      return { canClaim: false, timeLeft: "N/A" };
+      
+      setIsLoading(true);
+      try {
+        const estimate = await getMultiHubSwapEstimate(
+          fromToken,
+          toToken,
+          parseFloat(fromAmount)
+        );
+        
+        setSwapEstimate(estimate);
+        if (estimate) {
+          setToAmount(estimate.outputAmount.toFixed(toToken.decimals));
+        } else {
+          setToAmount('');
+        }
+      } catch (error) {
+        console.error('Error estimating swap:', error);
+        setSwapEstimate(null);
+        setToAmount('');
+      } finally {
+        setIsLoading(false);
+      }
     }
-
-    if (liquidityInfo.canClaimReward) {
-      return { canClaim: true, timeLeft: "Available now" };
+    
+    // Use debounce to avoid excessive API calls
+    const handler = setTimeout(() => {
+      calculateSwapEstimate();
+    }, 500);
+    
+    return () => clearTimeout(handler);
+  }, [fromToken, toToken, fromAmount]);
+  
+  // Reset form when wallet disconnects
+  useEffect(() => {
+    if (!wallet.connected) {
+      setSwapHistory([]);
     }
-
-    if (!liquidityInfo.nextClaimAvailable) {
-      return { canClaim: false, timeLeft: "Not available" };
+  }, [wallet.connected]);
+  
+  // Swap tokens
+  const executeSwap = useCallback(async () => {
+    if (!wallet.publicKey || !fromToken || !toToken || !fromAmount || !swapEstimate) {
+      return;
     }
-
-    const nextClaimTime = new Date(liquidityInfo.nextClaimAvailable).getTime();
-    const now = Date.now();
-    const diffMs = Math.max(0, nextClaimTime - now);
     
-    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    
-    if (days > 0) {
-      return { canClaim: false, timeLeft: `${days}d ${hours}h` };
-    } else if (hours > 0) {
-      return { canClaim: false, timeLeft: `${hours}h ${minutes}m` };
-    } else {
-      return { canClaim: false, timeLeft: `${minutes}m` };
+    setIsSwapping(true);
+    try {
+      const result = await executeMultiHubSwap(
+        wallet,
+        fromToken,
+        toToken,
+        parseFloat(fromAmount),
+        slippage
+      );
+      
+      // Add to swap history
+      setSwapHistory(prev => [result, ...prev]);
+      
+      // Show toast notification
+      if (result.success) {
+        toast({
+          title: 'Swap successful',
+          description: `Swapped ${result.fromAmount} ${result.fromToken.symbol} for ${result.toAmount.toFixed(6)} ${result.toToken.symbol}`,
+        });
+        
+        // Reset form
+        setFromAmount('');
+        setToAmount('');
+        setSwapEstimate(null);
+      } else {
+        toast({
+          title: 'Swap failed',
+          description: result.error || 'Unknown error',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Error executing swap:', error);
+      toast({
+        title: 'Swap failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSwapping(false);
     }
-  };
-
-  // Calculate USD value of contributed tokens
-  const calculateContributedValueUSD = (): number => {
-    if (!liquidityInfo || !solPrice) return 0;
-    
-    // For this example, we'll use a fictional YOT price as 1/100 of SOL price
-    const yotPrice = solPrice / 100;
-    return liquidityInfo.contributedAmount * yotPrice;
-  };
-
-  // Calculate USD value of weekly rewards
-  const calculateWeeklyRewardValueUSD = (): number => {
-    if (!liquidityInfo || !solPrice) return 0;
-    
-    // For this example, we'll use a fictional YOS price as 1/50 of SOL price
-    const yosPrice = solPrice / 50;
-    return liquidityInfo.estimatedWeeklyReward * yosPrice;
-  };
-
-  const claimingTimeInfo = calculateTimeUntilNextClaim();
-  const contributedValueUSD = calculateContributedValueUSD();
-  const weeklyRewardValueUSD = calculateWeeklyRewardValueUSD();
-
+  }, [wallet, fromToken, toToken, fromAmount, swapEstimate, slippage, toast]);
+  
+  // Swap tokens
+  const handleSwapTokens = useCallback(() => {
+    if (fromToken && toToken) {
+      const temp = fromToken;
+      setFromToken(toToken);
+      setToToken(temp);
+      setFromAmount(toAmount);
+      setToAmount(fromAmount);
+      setSwapEstimate(null);
+    }
+  }, [fromToken, toToken, fromAmount, toAmount]);
+  
   return {
-    // Data
-    swapStats,
-    liquidityInfo,
-    
-    // Loading states
-    isLoadingSwapStats,
-    isLoadingLiquidityInfo,
-    
-    // Errors
-    swapStatsError,
-    liquidityInfoError,
-    
-    // Mutations
-    swapAndDistributeMutation,
-    claimWeeklyRewardMutation,
-    withdrawLiquidityMutation,
-    
-    // Refetch functions
-    refetchSwapStats,
-    refetchLiquidityInfo,
-    
-    // Derived data
-    canClaimReward: claimingTimeInfo.canClaim,
-    timeUntilNextClaim: claimingTimeInfo.timeLeft,
-    contributedValueUSD,
-    weeklyRewardValueUSD,
-    
-    // Status flags
-    isSwapping: swapAndDistributeMutation.isPending,
-    isClaiming: claimWeeklyRewardMutation.isPending,
-    isWithdrawing: withdrawLiquidityMutation.isPending,
+    fromToken,
+    toToken,
+    fromAmount,
+    toAmount,
+    swapEstimate,
+    isLoading,
+    isSwapping,
+    swapHistory,
+    slippage,
+    setFromToken,
+    setToToken,
+    setFromAmount,
+    setToAmount,
+    setSlippage,
+    executeSwap,
+    handleSwapTokens,
+    connected: wallet.connected,
+    wallet
   };
 }

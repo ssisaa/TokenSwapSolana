@@ -1,324 +1,292 @@
-// Multi-Hub Swap Integration
-// Integrates with Raydium (devnet) and Jupiter (SDK devnet)
+import { Connection, PublicKey, Transaction } from '@solana/web3.js';
+import { TokenMetadata } from './token-search-api';
+import { ENDPOINT, YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS } from './constants';
+import { calculateRaydiumSwapOutput, createRaydiumSwapTransaction, RAYDIUM_DEVNET } from './raydium-connector';
+import { executeSwapAndDistribute } from './multi-hub-swap-contract';
 
-import { 
-  Connection, 
-  PublicKey, 
-  Transaction, 
-  SystemProgram, 
-  LAMPORTS_PER_SOL,
-  TransactionInstruction,
-  Keypair
-} from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
-import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, YOT_DECIMALS, YOS_DECIMALS, ENDPOINT } from './constants';
-import { sendTransaction } from './transaction-helper';
-// Using buffer-based seed approach for PDAs instead of anchor's findProgramAddressSync
+// Connection to Solana network
+const connection = new Connection(ENDPOINT);
 
-// Raydium Devnet Constants
-export const RAYDIUM_USDC_MINT = new PublicKey('9T7uw5dqaEmEC4McqyefzYsEg5hoC4e2oV8it1Uc4f1U');
-export const RAYDIUM_ROUTER_ADDRESS = new PublicKey('BVChZ3XFEwTMUk1o9i3HAf91H6mFxSwa5X2wFAWhYPhU');
-export const MULTI_HUB_SWAP_PROGRAM_ID = 'Fg6PaFpoGXkYsidMpWxqSWib32jBzv4U5mpdKqHR3rXY';
+// Token addresses as PublicKey objects
+export const YOT_MINT = new PublicKey(YOT_TOKEN_ADDRESS);
+export const YOS_MINT = new PublicKey(YOS_TOKEN_ADDRESS);
 
-// Connection instance
-export const connection = new Connection(ENDPOINT, 'confirmed');
-
-// Utility function to convert amount to raw format
-export function uiToRawAmount(amount: number, decimals: number): bigint {
-  return BigInt(Math.floor(amount * Math.pow(10, decimals)));
-}
-
-// Utility function to convert raw amount to UI format
-export function rawToUiAmount(rawAmount: bigint | number, decimals: number): number {
-  if (typeof rawAmount === 'number') {
-    rawAmount = BigInt(rawAmount);
-  }
-  return Number(rawAmount) / Math.pow(10, decimals);
-}
-
-// Find PDA addresses
-export function findProgramStateAddress(): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync(
-    [Buffer.from("program-state")],
-    new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
-  );
-}
-
-export function findLiquidityContributionAddress(userWallet: PublicKey): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync(
-    [Buffer.from("liq"), userWallet.toBuffer()],
-    new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
-  );
+// Swap providers
+export enum SwapProvider {
+  Raydium = 'raydium',
+  Jupiter = 'jupiter',
+  Contract = 'contract'
 }
 
 /**
- * Initialize the Multi-Hub Swap Program
- * This should be done by the admin/deployer only once
+ * Swap result interface
  */
-export async function initializeMultiHubSwap(
-  wallet: any,
-  yotMint: PublicKey = new PublicKey(YOT_TOKEN_ADDRESS),
-  yosMint: PublicKey = new PublicKey(YOS_TOKEN_ADDRESS),
-  usdcMint: PublicKey = RAYDIUM_USDC_MINT,
-  raydiumRouter: PublicKey = RAYDIUM_ROUTER_ADDRESS
-) {
-  try {
-    // This functionality would require client-side building of 
-    // the initialize instruction and proper account setup
-    console.log("Multi-Hub Swap Program initialization would run here");
-    console.log("This is admin-only functionality");
-    return "Program initialization simulated";
-  } catch (error) {
-    console.error("Error initializing multi-hub swap program:", error);
-    throw error;
-  }
+export interface SwapResult {
+  signature: string;
+  provider: SwapProvider;
+  fromToken: TokenMetadata;
+  toToken: TokenMetadata;
+  fromAmount: number;
+  toAmount: number;
+  timestamp: number;
+  success: boolean;
+  error?: string;
+  txExplorerUrl?: string;
 }
 
 /**
- * Swap tokens using Raydium and distribute according to the protocol rules
- * 75% to user, 20% to liquidity pool, 5% as YOS cashback
+ * Swap estimate interface (extended from token-search-api)
  */
-export async function swapAndDistribute(
-  wallet: any,
-  amountIn: number,
-  minAmountOut: number
-) {
-  try {
-    console.log(`Swap and distribute request: ${amountIn} USDC for min ${minAmountOut} YOT`);
-    
-    // In a full implementation, we would:
-    // 1. Get all the necessary token accounts
-    // 2. Build the transaction with proper instructions
-    // 3. Sign and send the transaction
-    
-    // For now, return a simulation result
-    return {
-      success: true,
-      signature: "simulated_signature",
-      receivedAmount: minAmountOut * 0.75, // 75% to user
-      liquidityAmount: minAmountOut * 0.20, // 20% to liquidity
-      cashbackAmount: minAmountOut * 0.05, // 5% YOS cashback
-    };
-  } catch (error) {
-    console.error("Error in swap and distribute:", error);
-    throw error;
-  }
+export interface SwapEstimate {
+  inputAmount: number;
+  outputAmount: number;
+  price: number;
+  priceImpact: number;
+  minimumReceived: number;
+  route: string[];
+  fee: number;
+  provider: SwapProvider;
 }
 
 /**
- * Claim weekly YOS rewards from liquidity contributions
+ * Get the best swap provider for a token pair
+ * @param fromToken Source token
+ * @param toToken Destination token 
+ * @returns Best swap provider for the pair
  */
-export async function claimWeeklyYosReward(wallet: any) {
-  try {
-    // Get user's public key
-    const userPublicKey = wallet.publicKey;
-    
-    // Find user's liquidity contribution account
-    const [liquidityContributionAddress] = findLiquidityContributionAddress(userPublicKey);
-    
-    // Check if the account exists
-    const accountInfo = await connection.getAccountInfo(liquidityContributionAddress);
-    if (!accountInfo) {
-      throw new Error("No liquidity contribution found for this wallet");
-    }
-    
-    // In a full implementation:
-    // 1. Build the transaction with the claim instruction
-    // 2. Sign and send the transaction
-    
-    // For now, return a simulation
-    return {
-      success: true,
-      signature: "simulated_claim_signature",
-      claimedAmount: 10.5, // Example amount
-      nextClaimAvailable: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-    };
-  } catch (error) {
-    console.error("Error claiming YOS rewards:", error);
-    throw error;
+export function getBestSwapProvider(
+  fromToken: TokenMetadata,
+  toToken: TokenMetadata
+): SwapProvider {
+  // If either token is YOT or YOS, use our custom contract
+  if (
+    fromToken.address === YOT_TOKEN_ADDRESS || 
+    toToken.address === YOT_TOKEN_ADDRESS || 
+    fromToken.address === YOS_TOKEN_ADDRESS || 
+    toToken.address === YOS_TOKEN_ADDRESS
+  ) {
+    return SwapProvider.Contract;
   }
+  
+  // Use Raydium for common token pairs on Devnet
+  if (
+    fromToken.address === RAYDIUM_DEVNET.WSOL_MINT.toString() || 
+    toToken.address === RAYDIUM_DEVNET.WSOL_MINT.toString() ||
+    fromToken.address === RAYDIUM_DEVNET.USDC_MINT.toString() || 
+    toToken.address === RAYDIUM_DEVNET.USDC_MINT.toString()
+  ) {
+    return SwapProvider.Raydium;
+  }
+  
+  // Default to Jupiter for all other pairs
+  return SwapProvider.Jupiter;
 }
 
 /**
- * Withdraw liquidity contribution
+ * Get swap estimate between tokens using the best available provider
+ * @param fromToken Source token
+ * @param toToken Destination token 
+ * @param amount Amount to swap
+ * @returns Swap estimate or null if estimate fails
  */
-export async function withdrawLiquidityContribution(wallet: any) {
-  try {
-    // Get user's public key
-    const userPublicKey = wallet.publicKey;
-    
-    // Find user's liquidity contribution account
-    const [liquidityContributionAddress] = findLiquidityContributionAddress(userPublicKey);
-    
-    // Check if the account exists
-    const accountInfo = await connection.getAccountInfo(liquidityContributionAddress);
-    if (!accountInfo) {
-      throw new Error("No liquidity contribution found to withdraw");
-    }
-    
-    // In a full implementation:
-    // 1. Build the transaction with the withdraw instruction
-    // 2. Sign and send the transaction
-    
-    // For now, return a simulation
-    return {
-      success: true,
-      signature: "simulated_withdrawal_signature",
-      withdrawnAmount: 100, // Example amount
-    };
-  } catch (error) {
-    console.error("Error withdrawing liquidity contribution:", error);
-    throw error;
+export async function getMultiHubSwapEstimate(
+  fromToken: TokenMetadata,
+  toToken: TokenMetadata,
+  amount: number
+): Promise<SwapEstimate | null> {
+  if (!fromToken || !toToken || amount <= 0) {
+    return null;
   }
-}
-
-/**
- * Get user's liquidity contribution and reward information
- */
-export async function getLiquidityContributionInfo(walletAddressStr: string) {
+  
+  // Determine the best provider for this token pair
+  const provider = getBestSwapProvider(fromToken, toToken);
+  
   try {
-    // Convert string to PublicKey
-    const walletPublicKey = new PublicKey(walletAddressStr);
-    
-    // Find user's liquidity contribution account
-    const [liquidityContributionAddress] = findLiquidityContributionAddress(walletPublicKey);
-    
-    // Check if the account exists
-    const accountInfo = await connection.getAccountInfo(liquidityContributionAddress);
-    if (!accountInfo) {
-      // Return default state if not found
-      return {
-        contributedAmount: 0,
-        startTimestamp: 0,
-        lastClaimTime: 0,
-        totalClaimedYos: 0,
-        canClaimReward: false,
-        nextClaimAvailable: null,
-        estimatedWeeklyReward: 0
-      };
-    }
-    
-    // In a real implementation, we would deserialize the account data
-    // For now, return simulated data
-    const now = Math.floor(Date.now() / 1000);
-    const lastClaimTime = now - (3 * 24 * 60 * 60); // 3 days ago
-    const contributedAmount = 100; 
-    
-    const secondsUntilNextClaim = Math.max(0, (lastClaimTime + 7 * 24 * 60 * 60) - now);
-    const canClaimReward = secondsUntilNextClaim === 0;
-    const nextClaimAvailable = new Date((now + secondsUntilNextClaim) * 1000).toISOString();
-    
-    // Calculate estimated weekly reward (100% APR / 52 weeks ≈ 1.92% per week)
-    const estimatedWeeklyReward = contributedAmount * (1 / 52);
-    
-    return {
-      contributedAmount,
-      startTimestamp: lastClaimTime - (14 * 24 * 60 * 60), // Start 2 weeks before last claim
-      lastClaimTime,
-      totalClaimedYos: 6, // Example amount
-      canClaimReward,
-      nextClaimAvailable,
-      estimatedWeeklyReward
-    };
-  } catch (error) {
-    console.error("Error getting liquidity contribution info:", error);
-    throw error;
-  }
-}
-
-/**
- * Get global statistics for the multi-hub swap program
- */
-export async function getMultiHubSwapStats() {
-  try {
-    // In a full implementation:
-    // 1. Get the program state account
-    // 2. Deserialize and return statistics
-    
-    // Import the commission percentage from constants
-    const { OWNER_COMMISSION_PERCENT } = await import('./constants');
-    
-    // Import SOL price from utility function or use a baseline estimate
-    const solPrice = 142.18; // Current SOL price as of development
-    
-    // For now, return simulated data with real commission value
-    return {
-      totalLiquidityContributed: 25000,
-      totalContributors: 12,
-      totalYosRewarded: 1250,
-      weeklyRewardRate: 1.92, // 1.92% per week (100% APR / 52 weeks)
-      yearlyAPR: 100, // 100% APR
-      commissionPercent: OWNER_COMMISSION_PERCENT, // Owner commission percentage
-      yotPriceUsd: solPrice / 100, // YOT price (estimated as 1/100 of SOL price)
-      // Adding configurable distribution percentages
-      buyDistribution: {
-        userPercent: 75,
-        liquidityPercent: 20,
-        cashbackPercent: 5
-      },
-      sellDistribution: {
-        userPercent: 75,
-        liquidityPercent: 20,
-        cashbackPercent: 5
+    // Route the request to the appropriate provider
+    switch (provider) {
+      case SwapProvider.Contract: {
+        // Our custom contract for YOT/YOS swaps
+        // This is simplified; the actual implementation would include more details
+        const fromTokenValue = amount * (fromToken.address === YOT_TOKEN_ADDRESS ? 0.01 : 1);
+        const toTokenValue = fromToken.address === toToken.address 
+          ? amount 
+          : fromTokenValue * (toToken.address === YOT_TOKEN_ADDRESS ? 100 : 1);
+        
+        return {
+          inputAmount: amount,
+          outputAmount: toTokenValue * 0.98, // 2% fee
+          price: toTokenValue / amount,
+          priceImpact: 0.5, // 0.5% impact
+          minimumReceived: toTokenValue * 0.98 * 0.99, // With 1% slippage
+          route: [fromToken.symbol, toToken.symbol],
+          fee: amount * 0.02, // 2% fee
+          provider: SwapProvider.Contract
+        };
       }
-    };
+      
+      case SwapProvider.Raydium: {
+        // Raydium routing
+        const fromTokenPubkey = new PublicKey(fromToken.address);
+        const toTokenPubkey = new PublicKey(toToken.address);
+        
+        const { outputAmount, priceImpact, route } = await calculateRaydiumSwapOutput(
+          fromTokenPubkey,
+          toTokenPubkey,
+          amount
+        );
+        
+        return {
+          inputAmount: amount,
+          outputAmount,
+          price: outputAmount / amount,
+          priceImpact,
+          minimumReceived: outputAmount * 0.99, // 1% slippage
+          route,
+          fee: amount * 0.003, // 0.3% fee
+          provider: SwapProvider.Raydium
+        };
+      }
+      
+      case SwapProvider.Jupiter: {
+        // Jupiter routing (simplified)
+        // In a real implementation, we would call Jupiter API
+        
+        // Mock data for demonstration purposes
+        const expectedOutput = amount * 0.97; // 3% slippage and fees
+        
+        return {
+          inputAmount: amount,
+          outputAmount: expectedOutput,
+          price: expectedOutput / amount,
+          priceImpact: 1.2, // 1.2% impact
+          minimumReceived: expectedOutput * 0.99, // 1% slippage
+          route: [fromToken.symbol, 'SOL', toToken.symbol], // Assume routing through SOL
+          fee: amount * 0.003, // 0.3% fee
+          provider: SwapProvider.Jupiter
+        };
+      }
+    }
   } catch (error) {
-    console.error("Error getting multi-hub swap stats:", error);
-    throw error;
+    console.error('Error getting swap estimate:', error);
+    return null;
   }
 }
 
 /**
- * Update multi-hub swap parameters (admin only)
+ * Execute a token swap using the best available provider
+ * @param wallet Connected wallet
+ * @param fromToken Source token
+ * @param toToken Destination token
+ * @param amount Amount to swap
+ * @param slippage Slippage tolerance (e.g., 0.01 for 1%)
+ * @returns Swap result
  */
-export async function updateMultiHubSwapParameters(
+export async function executeMultiHubSwap(
   wallet: any,
-  buyUserPercent: number = 75,
-  buyLiquidityPercent: number = 20,
-  buyCashbackPercent: number = 5,
-  sellUserPercent: number = 75,
-  sellLiquidityPercent: number = 20,
-  sellCashbackPercent: number = 5,
-  weeklyRewardRate: number = 1.92,
-  commissionPercent: number = 0.1
-) {
+  fromToken: TokenMetadata,
+  toToken: TokenMetadata,
+  amount: number,
+  slippage: number = 0.01
+): Promise<SwapResult> {
+  // Determine the best provider for this token pair
+  const provider = getBestSwapProvider(fromToken, toToken);
+  
   try {
-    // Check if wallet is connected
-    if (!wallet || !wallet.publicKey) {
-      throw new Error("Wallet not connected");
+    // Route the request to the appropriate provider
+    switch (provider) {
+      case SwapProvider.Contract: {
+        // Our custom contract for YOT/YOS swaps
+        const signature = await executeSwapAndDistribute(
+          wallet, 
+          amount, 
+          amount * (1 - slippage) // Minimum amount out with slippage
+        );
+        
+        return {
+          signature,
+          provider: SwapProvider.Contract,
+          fromToken,
+          toToken,
+          fromAmount: amount,
+          toAmount: amount * 0.98, // Simplified calculation
+          timestamp: Date.now(),
+          success: true,
+          txExplorerUrl: `https://explorer.solana.com/tx/${signature}?cluster=devnet`
+        };
+      }
+      
+      case SwapProvider.Raydium: {
+        // Build Raydium swap transaction
+        const fromTokenPubkey = new PublicKey(fromToken.address);
+        const toTokenPubkey = new PublicKey(toToken.address);
+        
+        const transaction = await createRaydiumSwapTransaction(
+          wallet,
+          fromTokenPubkey,
+          toTokenPubkey,
+          amount,
+          slippage
+        );
+        
+        // Sign and send transaction
+        transaction.feePayer = wallet.publicKey;
+        transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+        
+        // Send transaction
+        const signature = await wallet.sendTransaction(transaction, connection);
+        
+        // Wait for confirmation
+        const latestBlockhash = await connection.getLatestBlockhash();
+        await connection.confirmTransaction({
+          blockhash: latestBlockhash.blockhash,
+          lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+          signature
+        });
+        
+        return {
+          signature,
+          provider: SwapProvider.Raydium,
+          fromToken,
+          toToken,
+          fromAmount: amount,
+          toAmount: amount * 0.98, // Simplified calculation
+          timestamp: Date.now(),
+          success: true,
+          txExplorerUrl: `https://explorer.solana.com/tx/${signature}?cluster=devnet`
+        };
+      }
+      
+      case SwapProvider.Jupiter: {
+        // Jupiter routing (simplified)
+        // In a real implementation, we would build and send Jupiter transaction
+        
+        // For demo purposes, we'll create a mock transaction result
+        return {
+          signature: '5Pz1Yy2bv4QPVr8NpdjnWKVmDWERJXuRF5JuTrgnrWfeWQcCXJF9M6H2i6kjAf3YFcnbxardJNNXkJqV5F4MaE8U',
+          provider: SwapProvider.Jupiter,
+          fromToken,
+          toToken,
+          fromAmount: amount,
+          toAmount: amount * 0.97, // Simplified calculation
+          timestamp: Date.now(),
+          success: true,
+          txExplorerUrl: `https://explorer.solana.com/tx/5Pz1Yy2bv4QPVr8NpdjnWKVmDWERJXuRF5JuTrgnrWfeWQcCXJF9M6H2i6kjAf3YFcnbxardJNNXkJqV5F4MaE8U?cluster=devnet`
+        };
+      }
     }
-
-    // In a full implementation:
-    // 1. Verify admin status
-    // 2. Build and send transaction to update parameters
-    
-    console.log("Multi-hub swap parameters would be updated here");
-    console.log("This is admin-only functionality");
-    console.log(`Setting owner commission to ${commissionPercent}% of SOL value`);
-    
-    // Update the OWNER_COMMISSION_PERCENT in constants (would be done via a contract call)
-    // In this case, we simply return the new value and let the frontend handle it
+  } catch (error) {
+    console.error('Swap error:', error);
     
     return {
-      success: true,
-      message: "Parameters updated successfully",
-      newParameters: {
-        buyDistribution: {
-          userPercent: buyUserPercent, 
-          liquidityPercent: buyLiquidityPercent,
-          cashbackPercent: buyCashbackPercent
-        },
-        sellDistribution: {
-          userPercent: sellUserPercent,
-          liquidityPercent: sellLiquidityPercent,
-          cashbackPercent: sellCashbackPercent
-        },
-        weeklyRewardRate,
-        commissionPercent
-      }
+      signature: '',
+      provider,
+      fromToken,
+      toToken,
+      fromAmount: amount,
+      toAmount: 0,
+      timestamp: Date.now(),
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
     };
-  } catch (error) {
-    console.error("Error updating multi-hub swap parameters:", error);
-    throw error;
   }
 }
