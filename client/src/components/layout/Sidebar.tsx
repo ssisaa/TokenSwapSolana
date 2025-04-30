@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Home, BarChart2, RefreshCw, Coins, MessageCircle, Settings } from "lucide-react";
+import { Home, BarChart2, RefreshCw, Coins, MessageCircle, Settings, TestTube } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type NavItem = {
@@ -107,8 +107,26 @@ export default function Sidebar() {
         </ul>
       </nav>
 
-      {/* Admin Link */}
-      <div className="px-4 mb-2">
+      {/* Utility Links */}
+      <div className="px-4 mb-2 space-y-2">
+        {/* Test Page Link */}
+        <Link href="/test">
+          <a className={cn(
+            "flex items-center p-3 rounded-lg",
+            location === "/test" 
+              ? "bg-primary-900/40 text-primary-400" 
+              : "text-gray-400 hover:bg-dark-300 hover:text-white"
+          )}>
+            <span className="flex-shrink-0"><TestTube className="h-5 w-5" /></span>
+            {!collapsed && (
+              <div className="ml-3">
+                <span className="font-medium">Test Tools</span>
+              </div>
+            )}
+          </a>
+        </Link>
+        
+        {/* Admin Link */}
         <Link href="/admin">
           <a className={cn(
             "flex items-center p-3 rounded-lg",
