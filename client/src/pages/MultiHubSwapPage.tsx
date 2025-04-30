@@ -1,4 +1,3 @@
-import { useWallet } from '@solana/wallet-adapter-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -7,9 +6,10 @@ import { useToast } from '@/hooks/use-toast';
 import MultiHubSwapDemo from '@/components/MultiHubSwap/MultiHubSwapDemo';
 import useMultiHubSwap from '@/hooks/useMultiHubSwap';
 import { formatNumber, shortenAddress } from '@/lib/utils';
+import { useMultiWallet } from '@/context/MultiWalletContext';
 
 export default function MultiHubSwapPage() {
-  const wallet = useWallet();
+  const { wallet, connected: walletConnected, publicKey, connect } = useMultiWallet();
   const { toast } = useToast();
   const {
     userSwapInfo,
@@ -21,8 +21,8 @@ export default function MultiHubSwapPage() {
   } = useMultiHubSwap();
   
   const handleConnectWallet = () => {
-    if (wallet.wallet) {
-      wallet.connect();
+    if (wallet) {
+      connect();
     } else {
       toast({
         title: 'Wallet not found',
@@ -73,15 +73,15 @@ export default function MultiHubSwapPage() {
             <CardHeader>
               <CardTitle>Your Stats</CardTitle>
               <CardDescription>
-                {wallet.connected 
-                  ? `Connected: ${shortenAddress(wallet.publicKey?.toString() || '')}`
+                {walletConnected 
+                  ? `Connected: ${shortenAddress(publicKey?.toString() || '')}`
                   : 'Connect wallet to view stats'
                 }
               </CardDescription>
             </CardHeader>
             
             <CardContent className="space-y-6">
-              {!wallet.connected ? (
+              {!walletConnected ? (
                 <div className="flex justify-center p-4">
                   <Button onClick={handleConnectWallet}>
                     Connect Wallet
