@@ -191,36 +191,23 @@ export function useStaking() {
       queryClient.invalidateQueries({ queryKey: ['staking', publicKey.toString()] });
       queryClient.invalidateQueries({ queryKey: ['tokens'] });
       
-      // IMPORTANT: Immediately update the UI with the simulated result
-      // Get the current staking info (could be undefined if this is first stake)
-      const currentInfo = queryClient.getQueryData<StakingInfo>(['staking', publicKey.toString()]) || {
-        stakedAmount: 0,
-        startTimestamp: Math.floor(Date.now() / 1000),
-        lastHarvestTime: Math.floor(Date.now() / 1000),
-        totalHarvested: 0,
-        rewardsEarned: 0
-      };
-      
-      // Extract the stake amount from the variables
-      const amountToAdd = variables.amount;
-      
-      // Create a simulated updated staking info
-      const updatedInfo = {
-        ...currentInfo,
-        stakedAmount: (currentInfo.stakedAmount || 0) + amountToAdd,
-        // If this is the first stake, set the start timestamp
-        startTimestamp: currentInfo.startTimestamp || Math.floor(Date.now() / 1000),
-        lastHarvestTime: currentInfo.lastHarvestTime || Math.floor(Date.now() / 1000)
-      };
-      
-      console.log("Updating staking info with simulated data:", updatedInfo);
-      
-      // Update the cache with simulated data
-      queryClient.setQueryData(['staking', publicKey.toString()], updatedInfo);
+      // After the blockchain transaction is confirmed, we need to get fresh data
+      // Force a refresh with a slight delay to allow blockchain to update
+      setTimeout(async () => {
+        console.log("Refreshing staking data from blockchain after successful transaction");
+        
+        try {
+          // Explicitly refetch the staking data from the blockchain
+          await refetchStakingInfo();
+          console.log("Successfully refreshed staking data from blockchain");
+        } catch (refreshError) {
+          console.error("Error refreshing staking data:", refreshError);
+        }
+      }, 2000); // 2-second delay to ensure blockchain data is updated
       
       toast({
         title: "Tokens Staked",
-        description: `Successfully staked ${amountToAdd} YOT tokens.`,
+        description: `Successfully staked ${variables.amount} YOT tokens.`,
       });
     },
     onError: (error: Error) => {
@@ -385,25 +372,22 @@ export function useStaking() {
       queryClient.invalidateQueries({ queryKey: ['staking', publicKey.toString()] });
       queryClient.invalidateQueries({ queryKey: ['tokens'] });
       
-      // IMPORTANT: Immediately update the UI with the simulated result
-      // Get the current staking info
-      const currentInfo = queryClient.getQueryData<StakingInfo>(['staking', publicKey.toString()]);
-      
-      if (currentInfo) {
-        // Extract the unstake amount
-        const amountToSubtract = variables.amount;
+      // After the blockchain transaction is confirmed, we need to get fresh data
+      // Force a refresh with a slight delay to allow blockchain to update
+      setTimeout(async () => {
+        console.log("Refreshing staking data from blockchain after successful unstake");
         
-        // Create a simulated updated staking info
-        const updatedInfo = {
-          ...currentInfo,
-          stakedAmount: Math.max(0, currentInfo.stakedAmount - amountToSubtract)
-        };
-        
-        console.log("Updating staking info with simulated data:", updatedInfo);
-        
-        // Update the cache with simulated data
-        queryClient.setQueryData(['staking', publicKey.toString()], updatedInfo);
-      }
+        try {
+          // Explicitly refetch the staking data from the blockchain
+          await refetchStakingInfo();
+          console.log("Successfully refreshed staking data from blockchain after unstake");
+          
+          // Also refresh token balances since they've changed
+          queryClient.invalidateQueries({ queryKey: ['tokens'] });
+        } catch (refreshError) {
+          console.error("Error refreshing staking data after unstake:", refreshError);
+        }
+      }, 2000); // 2-second delay to ensure blockchain data is updated
       
       toast({
         title: "Tokens Unstaked",
@@ -628,24 +612,22 @@ export function useStaking() {
       queryClient.invalidateQueries({ queryKey: ['staking', publicKey.toString()] });
       queryClient.invalidateQueries({ queryKey: ['tokens'] });
       
-      // IMPORTANT: Immediately update the UI with the simulated result
-      // Get the current staking info
-      const currentInfo = queryClient.getQueryData<StakingInfo>(['staking', publicKey.toString()]);
-      
-      if (currentInfo) {
-        // Create a simulated updated staking info after harvest
-        const updatedInfo = {
-          ...currentInfo,
-          totalHarvested: currentInfo.totalHarvested + currentInfo.rewardsEarned,
-          rewardsEarned: 0,
-          lastHarvestTime: Math.floor(Date.now() / 1000)
-        };
+      // After the blockchain transaction is confirmed, we need to get fresh data
+      // Force a refresh with a slight delay to allow blockchain to update
+      setTimeout(async () => {
+        console.log("Refreshing staking data from blockchain after successful harvest");
         
-        console.log("Updating staking info with simulated data after harvest:", updatedInfo);
-        
-        // Update the cache with simulated data
-        queryClient.setQueryData(['staking', publicKey.toString()], updatedInfo);
-      }
+        try {
+          // Explicitly refetch the staking data from the blockchain
+          await refetchStakingInfo();
+          console.log("Successfully refreshed staking data from blockchain after harvest");
+          
+          // Also refresh token balances since they've changed
+          queryClient.invalidateQueries({ queryKey: ['tokens'] });
+        } catch (refreshError) {
+          console.error("Error refreshing staking data after harvest:", refreshError);
+        }
+      }, 2000); // 2-second delay to ensure blockchain data is updated
       
       // Check if this was an "already processed" transaction
       if (result.signature === "ALREADY_PROCESSED") {
@@ -654,13 +636,10 @@ export function useStaking() {
           description: "Your rewards were already harvested in a previous transaction. Your balance has been updated.",
         });
       } else {
-        // Calculate the rewards that were harvested for display
-        const harvestedAmount = currentInfo ? (currentInfo.rewardsEarned / 9260) : 0;
-        
         // Show a success toast
         toast({
           title: "Rewards Harvested",
-          description: `Successfully harvested ${harvestedAmount.toFixed(6)} YOS tokens.`,
+          description: "Successfully harvested YOS tokens. Your balance will update shortly.",
         });
       }
     },
