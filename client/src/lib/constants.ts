@@ -48,4 +48,5 @@ export const PROGRAM_SCALING_FACTOR = 10000;
 
 // CRITICAL: YOS display adjustment to counteract the millions display issue
 // This divisor is applied to YOS amounts before sending to the blockchain
-export const YOS_WALLET_DISPLAY_ADJUSTMENT = 10000;
+// Increasing dramatically since we're seeing YOS in 8 million range (8,334,818.72)
+export const YOS_WALLET_DISPLAY_ADJUSTMENT = 1000000;
