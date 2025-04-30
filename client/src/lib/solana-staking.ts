@@ -1047,45 +1047,14 @@ export async function prepareUnstakeTransaction(
     // This fixes the YOS display showing in millions
     
     // CRITICAL FIX - YOS MILLIONS DISPLAY ISSUE (Phantom showing 9,217,589.66 YOS)
-    // We're now using a self-transfer approach to fix the display in wallet
-    
-    // Calculate the exact amount that should show in wallet for this specific case
-    const targetWalletDisplay = 1.0; // We want to display 1.0 YOS in the wallet
-    
-    // Calculate how much this means as a blockchain amount
-    const displayFixAmount = uiToRawTokenAmount(targetWalletDisplay, YOS_DECIMALS);
-    
+    // USING ONLY REAL BLOCKCHAIN DATA - No wallet display fixes
     console.log(`
-    ===== YOS PHANTOM WALLET DISPLAY FIX (UNSTAKE) =====
-    Original rewards: ${rewardsEstimate} YOS
-    Using special self-transfer to fix wallet display
-    Target wallet display: ${targetWalletDisplay} YOS
-    Raw blockchain amount for this display: ${displayFixAmount}
-    ===============================================
+    ===== USING ONLY REAL BLOCKCHAIN DATA FOR UNSTAKE =====
+    Unstaking amount: ${amount} YOT
+    Rewards estimate: ${rewardsEstimate} YOS
+    Using purely blockchain-calculated values with no adjustments
+    ====================================================
     `);
-    
-    // Add a special token transfer instruction from user to self with the 1.0 YOS amount
-    // This won't actually transfer any tokens but will influence how Phantom displays the transaction
-    try {
-      // This instruction transfers from user to user (self transfer) with our target display amount
-      // It serves only to influence Phantom's display, not for actual token movement
-      const displayFixInstruction = createTransferInstruction(
-        userYosATA,              // source (user)
-        userYosATA,              // destination (same user - self transfer)
-        walletPublicKey,         // authority
-        displayFixAmount,        // amount that should display properly (1.0 YOS)
-        [],                      // multiSigners
-        TOKEN_PROGRAM_ID         // programId
-      );
-      
-      // Add this display fix instruction first
-      transaction.add(displayFixInstruction);
-      
-      console.log("Added special display fix instruction for Phantom Wallet");
-    } catch (error) {
-      console.warn("Could not add display fix instruction:", error);
-      // Continue with normal flow
-    }
     
     // For actual blockchain operations, we'll use the proper amount
     const yosTokenAmount = getWalletAdjustedYosAmount(rewardsEstimate);
@@ -1333,20 +1302,8 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     ====================================================
     `);
     
-    // TEST CODE: Simulate wallet display to verify our fix works
-    try {
-      const yosTokenAmount = uiToRawTokenAmount(displayRewards, YOS_DECIMALS);
-      const displayRatio = 17000; // Current ratio to fix YOS display
-      const simulatedWalletDisplay = Number(yosTokenAmount) / displayRatio;
-      console.log(`
-      ======= SIMULATED WALLET DISPLAY =======
-      Original YOS amount: ${displayRewards}
-      Raw YOS token amount (with token decimals): ${yosTokenAmount}
-      Simulated wallet would show (1/${displayRatio}): ${simulatedWalletDisplay}
-      =======================================`);
-    } catch (e) {
-      console.log("Error in display simulation:", e);
-    }
+    // Using only real blockchain data with no simulations
+    console.log("Using only real blockchain data - no simulations or display adjustments");
     
     console.log(`
     ========== HARVEST OPERATION DEBUG ==========
@@ -1473,49 +1430,17 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     ===================================================
     `);
     
-    // CRITICAL FIX: PHANTOM WALLET DISPLAY ISSUE
-    // Instead of relying on the program's harvest instruction alone, 
-    // we'll add a fake transfer instruction that only serves for proper wallet display
-    // The actual token transfer will still happen through the program's harvest instruction
-    
-    // Calculate the exact amount that should show in wallet for this specific case
-    // Based on screenshot evidence showing YOS rewards in Phantom wallet
-    // Using our program scaling factor of 9260
-    const targetWalletDisplay = displayRewards / YOS_WALLET_DISPLAY_ADJUSTMENT; // This should match what appears in the wallet
-    
-    // Calculate how much this means as a blockchain amount
-    const displayFixAmount = uiToRawTokenAmount(targetWalletDisplay, YOS_DECIMALS);
-    
+    // ONLY USE REAL BLOCKCHAIN DATA
+    // We won't add any display-only instructions
+    // The blockchain program will handle the actual token transfer
+
     console.log(`
-    ===== PHANTOM WALLET DISPLAY OVERRIDE =====
-    We're adding a special instruction to fix the wallet display
-    Target wallet display: ${targetWalletDisplay} YOS
-    Raw blockchain amount for this display: ${displayFixAmount}
+    ===== USING ONLY REAL BLOCKCHAIN DATA =====
+    Rewards amount: ${displayRewards} YOS
+    Program scaling factor: ${PROGRAM_SCALING_FACTOR}
+    Raw amount sent to blockchain: ${Math.round(displayRewards * PROGRAM_SCALING_FACTOR)}
     ========================================
     `);
-    
-    // Add a special token transfer instruction from user to self with the 1.0 YOS amount
-    // This won't actually transfer any tokens but will influence how Phantom displays the transaction
-    try {
-      // This instruction transfers from user to user (self transfer) with our target display amount
-      // It serves only to influence Phantom's display, not for actual token movement
-      const displayFixInstruction = createTransferInstruction(
-        userYosATA,              // source (user)
-        userYosATA,              // destination (same user - self transfer)
-        walletPublicKey,         // authority
-        displayFixAmount,        // amount that should display properly (1.0 YOS)
-        [],                      // multiSigners
-        TOKEN_PROGRAM_ID         // programId
-      );
-      
-      // Add this display fix instruction first
-      transaction.add(displayFixInstruction);
-      
-      console.log("Added special display fix instruction for Phantom Wallet");
-    } catch (error) {
-      console.warn("Could not add display fix instruction:", error);
-      // Continue with normal flow
-    }
     
     // Add harvest instruction - key order MUST match program expectations!
     transaction.add({
