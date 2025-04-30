@@ -297,13 +297,14 @@ export default function AdminTransactions() {
           onClick={handleRefresh} 
           variant="outline"
           disabled={isLoading}
+          className="gap-2 whitespace-nowrap"
         >
           {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            <RefreshCw className="h-4 w-4 mr-2" />
+            <RefreshCw className="h-4 w-4" />
           )}
-          Refresh Data
+          <span>Refresh Data</span>
         </Button>
       </div>
       
@@ -352,11 +353,11 @@ export default function AdminTransactions() {
               <p className="text-red-500">Error loading transactions</p>
               <Button 
                 variant="outline" 
-                className="mt-4"
+                className="mt-4 gap-2 whitespace-nowrap"
                 onClick={handleRefresh}
               >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Try Again
+                <RefreshCw className="h-4 w-4" />
+                <span>Try Again</span>
               </Button>
             </div>
           ) : sortedTransactions.length === 0 ? (
@@ -446,17 +447,17 @@ export default function AdminTransactions() {
                         {tx.txType === 'stake' ? (
                           <div className="flex items-center justify-end">
                             <ArrowUpRight className="h-4 w-4 mr-1 text-green-500" />
-                            <span>{tx.amount.toLocaleString()} YOT</span>
+                            <span>{tx.amount ? tx.amount.toFixed(4) : "0"} YOT</span>
                           </div>
                         ) : tx.txType === 'unstake' ? (
                           <div className="flex items-center justify-end">
                             <ArrowDownRight className="h-4 w-4 mr-1 text-amber-500" />
-                            <span>{tx.amount.toLocaleString()} YOT</span>
+                            <span>{tx.amount ? tx.amount.toFixed(4) : "0"} YOT</span>
                           </div>
                         ) : tx.txType === 'harvest' ? (
                           <div className="flex items-center justify-end">
                             <ArrowDownRight className="h-4 w-4 mr-1 text-purple-500" />
-                            <span>{tx.amount.toLocaleString()} YOS</span>
+                            <span>{tx.amount ? tx.amount.toFixed(4) : "0"} YOS</span>
                           </div>
                         ) : (
                           <span className="text-muted-foreground">-</span>
