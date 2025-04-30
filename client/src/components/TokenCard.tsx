@@ -50,7 +50,11 @@ export default function TokenCard({
       
       <div className="mt-3 relative z-10">
         <div className="flex items-baseline">
-          <span className="text-3xl font-bold text-white">{formatCurrency(balance)}</span>
+          <span className="text-3xl font-bold text-white">
+            {typeof balance === 'string' || typeof balance === 'number' 
+              ? formatCurrency(balance) 
+              : '-'}
+          </span>
           <span className="text-sm ml-2 text-gray-300 opacity-80">{symbol}</span>
         </div>
         {additionalInfo && (

@@ -34,17 +34,29 @@ export function formatNumber(value: number, decimals = 2): string {
  * @param decimals Number of decimal places
  * @returns Formatted currency string
  */
-export function formatCurrency(value: number, currency = 'USD', decimals = 2): string {
-  if (value === null || value === undefined || isNaN(value)) {
+export function formatCurrency(value: number | string, currency = 'USD', decimals = 2): string {
+  // Handle non-numeric values
+  if (value === null || value === undefined || isNaN(Number(value))) {
     return '-';
   }
   
-  return value.toLocaleString('en-US', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals
-  });
+  // Convert to number if string
+  const numValue = typeof value === 'string' ? parseFloat(value) : value;
+  
+  // Validate the currency code (must be 3 letters according to ISO 4217)
+  const validCurrency = /^[A-Z]{3}$/.test(currency) ? currency : 'USD';
+  
+  try {
+    return numValue.toLocaleString('en-US', {
+      style: 'currency',
+      currency: validCurrency,
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals
+    });
+  } catch (error) {
+    // Fallback if formatting fails
+    return `$${numValue.toFixed(decimals)}`;
+  }
 }
 
 /**
