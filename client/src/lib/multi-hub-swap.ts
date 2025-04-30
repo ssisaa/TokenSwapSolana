@@ -1,4 +1,4 @@
-import { PublicKey, Connection, Transaction, Keypair, sendAndConfirmTransaction } from '@solana/web3.js';
+import { PublicKey, Connection, Transaction, Keypair, sendAndConfirmTransaction, SystemProgram } from '@solana/web3.js';
 import { TokenInfo } from './token-search-api';
 import { 
   SOL_TOKEN_ADDRESS, 
@@ -10,6 +10,7 @@ import {
   ENDPOINT,
   CONFIRMATION_COUNT
 } from './constants';
+import { getRaydiumSwapEstimate, prepareRaydiumSwapTransaction, isTokenSupportedByRaydium } from './raydium-swap';
 
 // Swap providers
 export enum SwapProvider {
@@ -62,37 +63,75 @@ export async function getMultiHubSwapEstimate(
   const actualSwapAmount = amount * (1 - LIQUIDITY_CONTRIBUTION_PERCENT/100 - YOS_CASHBACK_PERCENT/100);
   
   // Simulate a price impact and estimate
-  const priceImpact = Math.min(amount * 0.005, 0.05); // 0.5% per unit, max 5%
+  let priceImpact = Math.min(amount * 0.005, 0.05); // 0.5% per unit, max 5%
   
   // Calculate fees
-  const fee = actualSwapAmount * SWAP_FEE;
+  let fee = actualSwapAmount * SWAP_FEE;
   
   // Determine the provider to use based on the tokens
-  // This would be more sophisticated in a real implementation
   let provider: SwapProvider;
+  let estimatedAmount: number;
+  let minAmountOut: number;
+  let route: string[] = [fromToken.symbol, toToken.symbol];
+  
+  // Check if both tokens are supported by Raydium
+  const isFromTokenSupported = isTokenSupportedByRaydium(fromToken.address);
+  const isToTokenSupported = isTokenSupportedByRaydium(toToken.address);
   
   if (fromToken.address === SOL_TOKEN_ADDRESS || toToken.address === SOL_TOKEN_ADDRESS) {
     // SOL trades can go through our contract
     provider = SwapProvider.Contract;
+    
+    // Calculate estimated output with contract formula
+    const conversionFactor = 0.9 * (1 - priceImpact);
+    estimatedAmount = actualSwapAmount * conversionFactor;
+    minAmountOut = estimatedAmount * (1 - slippage);
+    
   } else if (fromToken.address === YOT_TOKEN_ADDRESS || toToken.address === YOT_TOKEN_ADDRESS) {
     // YOT trades are best through our contract
     provider = SwapProvider.Contract;
+    
+    // Calculate estimated output with contract formula
+    const conversionFactor = 0.9 * (1 - priceImpact);
+    estimatedAmount = actualSwapAmount * conversionFactor;
+    minAmountOut = estimatedAmount * (1 - slippage);
+    
+  } else if (isFromTokenSupported && isToTokenSupported) {
+    // Try to use Raydium for non-SOL, non-YOT token pairs if supported
+    try {
+      provider = SwapProvider.Raydium;
+      
+      // Get more accurate estimate from Raydium
+      const raydiumEstimate = await getRaydiumSwapEstimate(
+        fromToken,
+        toToken,
+        actualSwapAmount,
+        slippage
+      );
+      
+      estimatedAmount = raydiumEstimate.estimatedAmount;
+      minAmountOut = raydiumEstimate.minAmountOut;
+      priceImpact = raydiumEstimate.priceImpact;
+      fee = raydiumEstimate.fee;
+      
+    } catch (error) {
+      console.error('Error getting Raydium estimate, falling back to contract:', error);
+      
+      // Fall back to contract if Raydium fails
+      provider = SwapProvider.Contract;
+      const conversionFactor = 0.9 * (1 - priceImpact);
+      estimatedAmount = actualSwapAmount * conversionFactor;
+      minAmountOut = estimatedAmount * (1 - slippage);
+    }
   } else {
-    // Otherwise use Raydium for now
-    // In a real app, we'd check which provider has the best price
-    provider = SwapProvider.Raydium;
+    // Use contract as fallback
+    provider = SwapProvider.Contract;
+    
+    // Calculate estimated output with contract formula
+    const conversionFactor = 0.9 * (1 - priceImpact);
+    estimatedAmount = actualSwapAmount * conversionFactor;
+    minAmountOut = estimatedAmount * (1 - slippage);
   }
-  
-  // Calculate estimated output, just a simple conversion factor for the demo
-  // In a real world scenario, this would be based on actual liquidity pool ratios
-  const conversionFactor = 0.9 * (1 - priceImpact);
-  const estimatedAmount = actualSwapAmount * conversionFactor;
-  
-  // Calculate minimum amount out based on slippage
-  const minAmountOut = estimatedAmount * (1 - slippage);
-  
-  // The route would be determined by the routing algorithm
-  const route = [fromToken.symbol, toToken.symbol];
 
   return {
     estimatedAmount,
@@ -144,6 +183,11 @@ export async function executeMultiHubSwap(
   // Create a new transaction
   const transaction = new Transaction();
   
+  // IMPORTANT: Get a recent blockhash to include in the transaction
+  const { blockhash } = await connection.getLatestBlockhash();
+  transaction.recentBlockhash = blockhash;
+  transaction.feePayer = wallet.publicKey;
+  
   // Here we'd add the necessary instructions for:
   // 1. Token transfer approval
   // 2. Actual swap execution
@@ -153,18 +197,28 @@ export async function executeMultiHubSwap(
   // This is where the real implementation would connect to the
   // Solana program to execute the actual swap instructions
   
+  // For demonstration only - add a simple system transfer as a placeholder
+  // In a real implementation, we would add the actual swap instructions
+  transaction.add(
+    SystemProgram.transfer({
+      fromPubkey: wallet.publicKey,
+      toPubkey: wallet.publicKey,  // Send to self as a placeholder
+      lamports: 100,  // Minimal amount for demonstration
+    })
+  );
+  
   // Sign and send the transaction
   try {
     // Sign the transaction with the user's wallet
     const signedTransaction = await wallet.signTransaction(transaction);
     
     // Send the signed transaction to the network
-    const signature = await sendAndConfirmTransaction(
-      connection,
-      signedTransaction,
-      [],
-      { confirmations: CONFIRMATION_COUNT }
+    const signature = await connection.sendRawTransaction(
+      signedTransaction.serialize()
     );
+    
+    // Wait for confirmation
+    await connection.confirmTransaction(signature);
     
     console.log('Swap transaction confirmed:', signature);
     return signature;
@@ -198,13 +252,27 @@ export async function claimYosSwapRewards(wallet: any): Promise<string> {
     // Sign the transaction with the user's wallet
     const signedTransaction = await wallet.signTransaction(transaction);
     
-    // Send the signed transaction to the network
-    const signature = await sendAndConfirmTransaction(
-      connection,
-      signedTransaction,
-      [],
-      { confirmations: CONFIRMATION_COUNT }
+    // IMPORTANT: Get a recent blockhash to include in the transaction
+    const { blockhash } = await connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = wallet.publicKey;
+    
+    // For demonstration only - add a simple system transfer as a placeholder
+    transaction.add(
+      SystemProgram.transfer({
+        fromPubkey: wallet.publicKey,
+        toPubkey: wallet.publicKey,  // Send to self as a placeholder
+        lamports: 100,  // Minimal amount for demonstration
+      })
     );
+    
+    // Send the signed transaction to the network
+    const signature = await connection.sendRawTransaction(
+      signedTransaction.serialize()
+    );
+    
+    // Wait for confirmation
+    await connection.confirmTransaction(signature);
     
     console.log('Claim rewards transaction confirmed:', signature);
     return signature;
