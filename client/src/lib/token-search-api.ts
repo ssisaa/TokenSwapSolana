@@ -155,11 +155,69 @@ export async function getTokenMetadata(address: string): Promise<TokenMetadata |
   
   // If not found in our lists, try to fetch it from the chain
   try {
-    // This would be a real on-chain lookup in a production environment
-    // For now, we'll just return null
-    return null;
+    return await validateTokenAddress(address);
   } catch (error) {
     console.error('Error fetching token metadata:', error);
+    return null;
+  }
+}
+
+/**
+ * Validate a token address and fetch metadata from the blockchain
+ * @param address Token address to validate
+ * @returns Token metadata if valid, null otherwise
+ */
+export async function validateTokenAddress(address: string): Promise<TokenMetadata | null> {
+  try {
+    // Validate the address is a proper public key
+    const pubkey = new PublicKey(address);
+    
+    // Create a connection to the Solana network
+    const connection = new Connection(ENDPOINT);
+    
+    // Check if this address is actually an SPL token mint
+    // Note: This is a simplified check. In production, you would do more validation
+    const accountInfo = await connection.getAccountInfo(pubkey);
+    
+    if (!accountInfo) {
+      console.log(`Token mint ${address} not found on chain`);
+      return null;
+    }
+    
+    // Basic check: Account needs to have data to be a token mint
+    if (!accountInfo.data || accountInfo.data.length === 0) {
+      console.log(`Token mint ${address} has no data`);
+      return null;
+    }
+    
+    // Check for SPL token program
+    const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+    if (!accountInfo.owner.equals(TOKEN_PROGRAM_ID)) {
+      console.log(`Address ${address} is not owned by the SPL Token program`);
+      return null;
+    }
+    
+    // Try to get token supply to verify it's a mint account
+    try {
+      // Check if this is a valid mint by trying to get its supply
+      // This will throw if it's not a valid mint
+      const supply = await connection.getTokenSupply(pubkey);
+      
+      // Create a generic token metadata
+      // In a production environment, we would fetch more details
+      return {
+        address: pubkey.toString(),
+        symbol: `Unknown`, // Ideally we'd fetch from token metadata program
+        name: `Token ${pubkey.toString().slice(0, 4)}...${pubkey.toString().slice(-4)}`,
+        decimals: supply.value.decimals,
+        logoURI: undefined, // No logo for custom tokens
+      };
+    } catch (error) {
+      console.error('Error validating token mint:', error);
+      return null;
+    }
+  } catch (error) {
+    console.error('Error validating token address:', error);
     return null;
   }
 }
