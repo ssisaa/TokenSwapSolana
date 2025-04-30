@@ -227,6 +227,40 @@ export default function WalletSelectorModal() {
           )}
         </div>
         
+        {installedWallets.length === 0 && (
+          <div className="border-t border-gray-200 p-4 mt-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">No wallets detected</h3>
+            <p className="text-xs text-gray-600 mb-2">Please install a Solana wallet extension:</p>
+            <div className="flex flex-col gap-2 mt-2">
+              <a 
+                href="https://phantom.app/download" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-xs flex items-center text-blue-600 hover:text-blue-800"
+              >
+                <svg className="h-4 w-4 mr-1" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="128" height="128" rx="64" fill="#AB9FF2"/>
+                  <path d="M110.584 64.9142H99.142C99.142 41.8371 80.214 23.0371 57.142 23.0371C36.1938 23.0371 18.453 38.3542 15.004 58.4599C14.4354 61.7113 14.143 65.0456 14.143 68.4628C14.143 94.0456 35.0724 114.965 60.5709 114.965C76.0995 114.965 89.6995 107.246 97.8523 95.2085C102.348 88.557 105.134 80.807 105.773 72.4628H110.584C111.348 72.4628 112 71.8113 112 71.0456V66.3314C112 65.5656 111.348 64.9142 110.584 64.9142ZM57.142 85.8113C47.2278 85.8113 39.1995 77.7828 39.1995 67.8685C39.1995 58.0371 47.2278 49.9257 57.142 49.9257C67.0563 49.9257 75.0847 57.9542 75.0847 67.8685C75.0847 77.7828 67.0563 85.8113 57.142 85.8113Z" fill="white"/>
+                </svg>
+                Install Phantom Wallet
+              </a>
+              <a 
+                href="https://solflare.com/download" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-xs flex items-center text-blue-600 hover:text-blue-800"
+              >
+                <svg className="h-4 w-4 mr-1" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="16" cy="16" r="16" fill="#FC9D00"/>
+                  <path d="M16 5C9.925 5 5 9.925 5 16C5 22.075 9.925 27 16 27C22.075 27 27 22.075 27 16C27 9.925 22.075 5 16 5ZM16 23.5C11.8578 23.5 8.5 20.1422 8.5 16C8.5 11.8578 11.8578 8.5 16 8.5C20.1422 8.5 23.5 11.8578 23.5 16C23.5 20.1422 20.1422 23.5 16 23.5Z" fill="white"/>
+                  <path d="M16 12C13.7912 12 12 13.7912 12 16C12 18.2088 13.7912 20 16 20C18.2088 20 20 18.2088 20 16C20 13.7912 18.2088 12 16 12Z" fill="white"/>
+                </svg>
+                Install Solflare Wallet
+              </a>
+            </div>
+          </div>
+        )}
+      
         <div className="border-t border-gray-200 p-4 text-xs text-center text-gray-500">
           By connecting, you agree to YOT Swap's Terms of Service and Privacy Policy
         </div>

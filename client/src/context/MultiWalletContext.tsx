@@ -53,42 +53,77 @@ export function MultiWalletProvider({ children, cluster = SOLANA_CLUSTER as Clus
     const availableWallets: WalletInfo[] = [];
 
     try {
+      // Define window object compatibility
+      if (typeof window === 'undefined') {
+        console.warn('Window object not available');
+        setWallets(availableWallets);
+        return;
+      }
+
+      // Ensure window.solana is set to at least an empty object for safety
+      if (!window.solana) {
+        console.log('No window.solana object found - setting empty fallback');
+        window.solana = {} as any;
+      }
+
+      // Ensure window.solflare is set to at least an empty object for safety
+      if (!window.solflare) {
+        console.log('No window.solflare object found - setting empty fallback');
+        window.solflare = {} as any;
+      }
+
       // Phantom Wallet - initialize with proper network type
-      const phantomAdapter = new PhantomWalletAdapter({ network: walletAdapterNetwork });
-      // Use a safer check for Phantom
-      const phantomInstalled = 
-        (typeof window !== 'undefined' && window.solana && window.solana.isPhantom);
+      try {
+        const phantomAdapter = new PhantomWalletAdapter({ network: walletAdapterNetwork });
+        // Use a safer check for Phantom with proper fallback
+        const phantomInstalled = !!(window.solana && window.solana.isPhantom);
+        console.log('Phantom wallet detection:', phantomInstalled);
+        
+        availableWallets.push({
+          name: 'Phantom',
+          icon: 'https://www.phantom.app/img/logo.png',
+          adapter: phantomAdapter,
+          installed: true // Always show Phantom as an option regardless of detection
+        });
+      } catch (error) {
+        console.error('Error initializing Phantom adapter:', error);
+      }
       
-      availableWallets.push({
-        name: 'Phantom',
-        icon: 'https://www.phantom.app/img/logo.png',
-        adapter: phantomAdapter,
-        installed: true // Always show Phantom as an option regardless of detection
-      });
-      
-      // Solflare Wallet with proper adapter - create and initialize properly
-      const solflareAdapter = new SolflareWalletAdapter({ network: walletAdapterNetwork });
-      // Check if Solflare is available via multiple detection methods
-      const solflareInstalled = 
-        (typeof window !== 'undefined' && window.solflare) || 
-        (typeof navigator !== 'undefined' && navigator.userAgent.indexOf('Solflare') > -1);
-      
-      availableWallets.push({
-        name: 'Solflare',
-        icon: 'https://solflare.com/logo.png',
-        adapter: solflareAdapter,
-        installed: true // Always show Solflare as an option regardless of detection
-      });
+      // Solflare Wallet with proper adapter
+      try {
+        const solflareAdapter = new SolflareWalletAdapter({ network: walletAdapterNetwork });
+        // Check if Solflare is available via multiple detection methods
+        const solflareInstalled = !!(
+          window.solflare || 
+          (typeof navigator !== 'undefined' && navigator.userAgent.indexOf('Solflare') > -1)
+        );
+        console.log('Solflare wallet detection:', solflareInstalled);
+        
+        availableWallets.push({
+          name: 'Solflare',
+          icon: 'https://solflare.com/logo.png',
+          adapter: solflareAdapter,
+          installed: true // Always show Solflare as an option regardless of detection
+        });
+      } catch (error) {
+        console.error('Error initializing Solflare adapter:', error);
+      }
       
       // Other Wallets (generic - could be browser extension or other)
-      const otherWalletInstalled = window.solana && !window.solana.isPhantom;
-      if (otherWalletInstalled) {
-        availableWallets.push({
-          name: 'OtherWallets',
-          icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMjEgMThWMTlDMjEgMjAuMTA0NiAyMC4xMDQ2IDIxIDE5IDIxSDVDMy44OTU0MyAyMSAzIDIwLjEwNDYgMyAxOVY1QzMgMy44OTU0MyAzLjg5NTQzIDMgNSAzSDE5QzIwLjEwNDYgMyAyMSAzLjg5NTQzIDIxIDVWNk0yMSAxMlYxMk0yMSA2VjYiIHN0cm9rZT0iIzk5OTk5OSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48L3N2Zz4=',
-          adapter: window.solana,
-          installed: true
-        });
+      try {
+        const otherWalletInstalled = !!(window.solana && !window.solana.isPhantom);
+        console.log('Other wallet detection:', otherWalletInstalled);
+        
+        if (otherWalletInstalled) {
+          availableWallets.push({
+            name: 'OtherWallets',
+            icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMjEgMThWMTlDMjEgMjAuMTA0NiAyMC4xMDQ2IDIxIDE5IDIxSDVDMy44OTU0MyAyMSAzIDIwLjEwNDYgMyAxOVY1QzMgMy44OTU0MyAzLjg5NTQzIDMgNSAzSDE5QzIwLjEwNDYgMyAyMSAzLjg5NTQzIDIxIDVWNk0yMSAxMlYxMk0yMSA2VjYiIHN0cm9rZT0iIzk5OTk5OSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48L3N2Zz4=',
+            adapter: window.solana,
+            installed: true
+          });
+        }
+      } catch (error) {
+        console.error('Error detecting other wallets:', error);
       }
       
       console.log("Available wallets:", availableWallets.map(w => w.name));
