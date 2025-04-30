@@ -200,11 +200,12 @@ export function getWalletAdjustedYosAmount(uiValue: number): bigint {
   // Apply the display adjustment factor and ensure integer result with Math.floor
   const walletAdjustedAmount = Math.floor(integerAmount / DISPLAY_ADJUSTMENT);
   
-  // CRITICAL FIX: Use direct BigInt multiplication to prevent any decimal errors
-  // This guarantees an integer amount for the wallet display without using uiToRawTokenAmount
-  const multiplier = BigInt(10 ** YOS_DECIMALS);
-  console.log(`YOS wallet display: ${uiValue} → ${walletAdjustedAmount} (integer adjustment)`);
-  return BigInt(walletAdjustedAmount) * multiplier;
+  // CRITICAL FIX: Use string concatenation to ensure exact precision
+  // This avoids any floating point issues that could occur with Math operations
+  const rawAmountString = walletAdjustedAmount.toString() + "000000000"; // 9 zeros for 9 decimals
+  
+  console.log(`YOS wallet display: ${uiValue} → ${walletAdjustedAmount} → ${rawAmountString} (string-based adjustment)`);
+  return BigInt(rawAmountString);
 }
 
 /**
@@ -239,14 +240,16 @@ export function rawToUiTokenAmount(rawAmount: bigint | number, decimals: number)
  * @returns Raw amount for blockchain that will display correctly in wallet
  */
 export function getWalletCompatibleYotAmount(amount: number): bigint {
-  // Step 1: Convert to integer to prevent any decimal display
-  const integerAmount = Math.floor(amount);
+  // CRITICAL FIX: Force integer conversion by using string manipulation first
+  // This eliminates any floating point representation issues
+  const integerString = Math.floor(amount).toString();
   
-  // Step 2: Multiply by exact 10^9 power for 9 decimals
-  const multiplier = Math.pow(10, YOT_DECIMALS);
+  // Use string + concatenation with zeros to ensure exact decimal precision
+  // This is much more reliable than floating point math for wallet display
+  const rawAmountString = integerString + "000000000"; // 9 zeros for 9 decimals
   
-  // Step 3: Avoid any JavaScript floating point issues
-  return BigInt(integerAmount * multiplier);
+  // Convert directly to BigInt from the precise string representation
+  return BigInt(rawAmountString);
 }
 
 /**

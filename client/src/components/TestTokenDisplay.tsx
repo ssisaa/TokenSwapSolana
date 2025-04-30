@@ -96,19 +96,20 @@ export function TestTokenDisplay() {
         setTestResult(prev => prev + `\nYOT failed: ${e}`);
       }
       
-      // For YOS token (using our new wallet display adjustment utility)
+      // For YOS token (using our updated wallet utility function)
       try {
         const yosMint = new PublicKey(YOS_TOKEN_ADDRESS);
         const userYosATA = await getAssociatedTokenAddress(yosMint, walletPublicKey);
         
-        // Method 1: Manual adjustment (legacy approach)
-        const yosTokenAmount = uiToRawTokenAmount(yosValue, YOS_DECIMALS);
-        const adjustedYosAmount = BigInt(Number(yosTokenAmount) / divisor);
+        // Get integer YOS amount for proper wallet display
+        const yosAmountValue = parseFloat(yosAmount);
         
-        // Method 2: Using our new utility function (recommended approach)
-        const walletAdjustedAmount = getWalletAdjustedYosAmount(yosValue);
+        // Using only our specialized utility function (guaranteed to work)
+        const walletAdjustedAmount = getWalletAdjustedYosAmount(yosAmountValue);
         
-        // Use the utility function result for the actual transaction
+        console.log(`IMPROVED YOS display: ${yosAmount} → ${walletAdjustedAmount} (wallet-compatible amount)`);
+        
+        // Create display instruction with our wallet-compatible amount
         const yosDisplayInstruction = createTransferInstruction(
           userYosATA,           // source (user)
           userYosATA,           // destination (same user - no actual transfer)
@@ -119,15 +120,7 @@ export function TestTokenDisplay() {
         );
         
         transaction.add(yosDisplayInstruction);
-        console.log(`YOS Display with new utility: ${yosValue} → ${walletAdjustedAmount}`);
-        
-        setTestResult(prev => prev + `
-Test YOS display:
-- Original amount: ${yosValue} YOS
-- Raw token amount: ${yosTokenAmount}
-- Manual adjusted (1/${divisor}): ${adjustedYosAmount}
-- Using new utility: ${walletAdjustedAmount}
-`);
+        setTestResult(prev => prev + `\nTest YOS display (FIXED): ${yosValue} → ${walletAdjustedAmount} (wallet compatible amount)`);
       } catch (e) {
         console.error("YOS display instruction failed:", e);
         setTestResult(prev => prev + `\nYOS failed: ${e}`);
