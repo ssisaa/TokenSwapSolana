@@ -22,6 +22,12 @@ export const POOL_SOL_ACCOUNT = '7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS';
 // Explorer URL
 export const EXPLORER_URL = 'https://explorer.solana.com';
 
+// Admin wallet address for commissions
+export const ADMIN_WALLET_ADDRESS = 'AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ';
+
+// Commission percentage (0.1% of SOL)
+export const OWNER_COMMISSION_PERCENT = 0.1;
+
 // Swap fee (0.3%)
 export const SWAP_FEE = 0.003;
 

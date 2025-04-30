@@ -1,7 +1,7 @@
-import { Connection, PublicKey, Transaction } from '@solana/web3.js';
-import { ENDPOINT, YOT_TOKEN_ADDRESS } from './constants';
+import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { ENDPOINT, YOT_TOKEN_ADDRESS, ADMIN_WALLET_ADDRESS, OWNER_COMMISSION_PERCENT } from './constants';
 import { getTokenByAddress, getSwapEstimate, TokenMetadata } from './token-search-api';
-import { buyAndDistribute } from './multi-hub-swap-contract';
+import { buyAndDistribute, connection as contractConnection } from './multi-hub-swap-contract';
 
 // Constants
 const JUPITER_ENABLED = true;
@@ -173,6 +173,41 @@ export async function swapToBuyYOT(
   // For demo purposes, we'll simulate that the swap happened successfully
   // and proceed directly to the buyAndDistribute contract call
 
+  // Create a transaction for the owner commission payment (0.1% of SOL)
+  const ownerWallet = new PublicKey(ADMIN_WALLET_ADDRESS);
+  const transaction = new Transaction();
+  
+  // Calculate commission amount (0.1% of the transaction value in SOL)
+  // For demonstration, using a fixed SOL value based on amount
+  const estimatedSolValue = route.estimatedAmount * 0.0000015; // Approximate SOL value of the YOT
+  const commissionAmount = estimatedSolValue * (OWNER_COMMISSION_PERCENT / 100);
+  const commissionLamports = Math.floor(commissionAmount * LAMPORTS_PER_SOL);
+  
+  console.log(`Adding owner commission: ${commissionAmount} SOL (${commissionLamports} lamports) to admin wallet`);
+  
+  // Only add commission transaction if the amount is greater than 0
+  if (commissionLamports > 0) {
+    // Create a transfer instruction to send the commission to the owner wallet
+    const transferInstruction = SystemProgram.transfer({
+      fromPubkey: wallet.publicKey,
+      toPubkey: ownerWallet,
+      lamports: commissionLamports
+    });
+    
+    transaction.add(transferInstruction);
+    
+    // Set recent blockhash and fee payer
+    transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+    transaction.feePayer = wallet.publicKey;
+    
+    // Sign and send transaction
+    const signedTransaction = await wallet.signTransaction(transaction);
+    const commissionSignature = await connection.sendRawTransaction(signedTransaction.serialize());
+    await connection.confirmTransaction(commissionSignature, 'confirmed');
+    
+    console.log(`Commission transaction confirmed: ${commissionSignature}`);
+  }
+  
   // Step 2: Call the Anchor smart contract to distribute the resulting YOT
   // This contract handles the 75/20/5 split and the 50/50 YOT/SOL liquidity contribution
   return await buyAndDistribute(
@@ -231,6 +266,41 @@ export async function swapToSellYOT(
   - User (${sellUserPercent}%): ${amount * (sellUserPercent/100)} YOT → ${route.estimatedAmount} ${toTokenAddress}
   - Liquidity (${sellLiquidityPercent}%): ${amount * (sellLiquidityPercent/100)} YOT (50/50 split with SOL)
   - Cashback (${sellCashbackPercent}%): ${amount * (sellCashbackPercent/100)} YOS`);
+  
+  // Create a transaction for the owner commission payment (0.1% of SOL)
+  const ownerWallet = new PublicKey(ADMIN_WALLET_ADDRESS);
+  const transaction = new Transaction();
+  
+  // Calculate commission amount (0.1% of the transaction value in SOL)
+  // For sell flow, we estimate the SOL value differently
+  const estimatedSolValue = amount * 0.0000015; // Approximate SOL value of the YOT being sold
+  const commissionAmount = estimatedSolValue * (OWNER_COMMISSION_PERCENT / 100);
+  const commissionLamports = Math.floor(commissionAmount * LAMPORTS_PER_SOL);
+  
+  console.log(`Adding owner commission: ${commissionAmount} SOL (${commissionLamports} lamports) to admin wallet`);
+  
+  // Only add commission transaction if the amount is greater than 0
+  if (commissionLamports > 0) {
+    // Create a transfer instruction to send the commission to the owner wallet
+    const transferInstruction = SystemProgram.transfer({
+      fromPubkey: wallet.publicKey,
+      toPubkey: ownerWallet,
+      lamports: commissionLamports
+    });
+    
+    transaction.add(transferInstruction);
+    
+    // Set recent blockhash and fee payer
+    transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+    transaction.feePayer = wallet.publicKey;
+    
+    // Sign and send transaction
+    const signedTransaction = await wallet.signTransaction(transaction);
+    const commissionSignature = await connection.sendRawTransaction(signedTransaction.serialize());
+    await connection.confirmTransaction(commissionSignature, 'confirmed');
+    
+    console.log(`Commission transaction confirmed: ${commissionSignature}`);
+  }
   
   // Step 1: Call the Anchor smart contract to handle liquidity contribution and cashback
   // In a real implementation, this would:

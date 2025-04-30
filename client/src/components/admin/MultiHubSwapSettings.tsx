@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useMultiWallet } from '@/context/MultiWalletContext';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Save, Percent } from 'lucide-react';
 import { updateMultiHubSwapParameters, getMultiHubSwapStats } from '@/lib/multi-hub-swap';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { OWNER_COMMISSION_PERCENT } from '@/lib/constants';
 
 export default function MultiHubSwapSettings() {
   const { wallet } = useMultiWallet();

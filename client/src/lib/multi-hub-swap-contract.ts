@@ -5,7 +5,8 @@ import {
   SystemProgram, 
   SYSVAR_RENT_PUBKEY,
   TransactionInstruction,
-  sendAndConfirmTransaction
+  sendAndConfirmTransaction,
+  LAMPORTS_PER_SOL
 } from '@solana/web3.js';
 import {
   TOKEN_PROGRAM_ID,
@@ -14,7 +15,7 @@ import {
   createMintToInstruction,
 } from '@solana/spl-token';
 import { Buffer } from 'buffer';
-import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, ENDPOINT } from './constants';
+import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, ENDPOINT, ADMIN_WALLET_ADDRESS } from './constants';
 
 // Program ID from the deployed Anchor program
 export const MULTI_HUB_SWAP_PROGRAM_ID = 'Fg6PaFpoGXkYsidMpWxqSWib32jBzv4U5mpdKqHR3rXY';
