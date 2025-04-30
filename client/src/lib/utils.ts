@@ -111,3 +111,64 @@ export function formatNumber(value: number, decimals: number = 4): string {
     maximumFractionDigits: decimals
   });
 }
+
+// Import token decimal constants from our constants file
+import { YOT_DECIMALS, YOS_DECIMALS } from './constants';
+
+/**
+ * Convert UI value to raw blockchain value for any token
+ * @param uiAmount UI-friendly token amount (e.g., 1.5 tokens)
+ * @param decimals Token decimals (e.g., 9 for most Solana tokens)
+ * @returns Raw blockchain amount as BigInt
+ */
+export function uiToRawTokenAmount(uiAmount: number, decimals: number): bigint {
+  // Ensure to multiply by 10^decimals for correct scaling
+  return BigInt(Math.round(uiAmount * Math.pow(10, decimals)));
+}
+
+/**
+ * Convert raw blockchain value to UI-friendly value for any token
+ * @param rawAmount Raw blockchain amount
+ * @param decimals Token decimals (e.g., 9 for most Solana tokens)
+ * @returns UI-friendly token amount
+ */
+export function rawToUiTokenAmount(rawAmount: bigint, decimals: number): number {
+  // Divide by 10^decimals to return the value in the correct human-readable format
+  return Number(rawAmount) / Math.pow(10, decimals);
+}
+
+/**
+ * Convert UI value to raw blockchain value for YOT tokens (9 decimals)
+ * @param uiAmount UI-friendly YOT amount
+ * @returns Raw blockchain amount for YOT
+ */
+export function uiToRawYOTAmount(uiAmount: number): bigint {
+  return uiToRawTokenAmount(uiAmount, YOT_DECIMALS);
+}
+
+/**
+ * Convert raw blockchain value to UI-friendly value for YOT tokens
+ * @param rawAmount Raw blockchain amount
+ * @returns UI-friendly YOT amount
+ */
+export function rawToUiYOTAmount(rawAmount: bigint): number {
+  return rawToUiTokenAmount(rawAmount, YOT_DECIMALS);
+}
+
+/**
+ * Convert UI value to raw blockchain value for YOS tokens (9 decimals)
+ * @param uiAmount UI-friendly YOS amount
+ * @returns Raw blockchain amount for YOS
+ */
+export function uiToRawYOSAmount(uiAmount: number): bigint {
+  return uiToRawTokenAmount(uiAmount, YOS_DECIMALS);
+}
+
+/**
+ * Convert raw blockchain value to UI-friendly value for YOS tokens
+ * @param rawAmount Raw blockchain amount
+ * @returns UI-friendly YOS amount
+ */
+export function rawToUiYOSAmount(rawAmount: bigint): number {
+  return rawToUiTokenAmount(rawAmount, YOS_DECIMALS);
+}

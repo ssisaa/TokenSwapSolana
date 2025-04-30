@@ -199,32 +199,25 @@ export function getWalletCompatibleYotAmount(amount: number): bigint {
 }
 
 export function getWalletAdjustedYosAmount(uiValue: number): bigint {
-  /**
-   * CRITICAL FIX: The wallet is STILL showing YOS in millions (+8,108,004.28 YOS in latest screenshot)
-   * Let's try a MICRO approach - using an extremely tiny amount that won't show in the wallet
-   */
-
-  // Use an extremely tiny value that's almost zero
-  // This should be so small it won't even appear in wallet interface
-  const MICRO_YOS_AMOUNT = 0.000001;  // One millionth of a YOS token - should be invisible
-  
-  // We need to log details about this fix
+  // Import YOS_WALLET_DISPLAY_ADJUSTMENT to counteract the millions display in wallet
   console.log(`
-  ===== MICRO YOS AMOUNT FIX (SOLVING MILLIONS DISPLAY) =====
-  Original YOS amount: ${uiValue}
-  IGNORING original amount and using MICRO amount: ${MICRO_YOS_AMOUNT} YOS
-  This is so tiny it should be invisible in wallet display
+  ===== YOS WALLET DISPLAY ADJUSTMENT =====
+  Original YOS amount: ${uiValue} YOS
+  Display adjustment factor: ${YOS_WALLET_DISPLAY_ADJUSTMENT}
+  Adjusted amount for wallet display: ${uiValue / YOS_WALLET_DISPLAY_ADJUSTMENT} YOS
   `);
   
-  // Calculate raw amount for the micro YOS amount
-  const rawAmount = uiToRawTokenAmount(MICRO_YOS_AMOUNT, YOS_DECIMALS);
+  // Apply the display adjustment divisor to counteract the millions display
+  const adjustedValue = uiValue / YOS_WALLET_DISPLAY_ADJUSTMENT;
   
-  console.log(`⭐⭐ YOS WALLET DISPLAY FIX (MICRO AMOUNT):
+  // Use our new token conversion function
+  const rawAmount = uiToRawYOSAmount(adjustedValue);
+  
+  console.log(`⭐⭐ YOS WALLET DISPLAY FIX:
   Original amount: ${uiValue} YOS
-  MICRO amount for display: ${MICRO_YOS_AMOUNT} YOS
+  Adjusted for display: ${adjustedValue} YOS (divided by ${YOS_WALLET_DISPLAY_ADJUSTMENT})
   Raw blockchain amount: ${rawAmount} tokens (${YOS_DECIMALS} decimals)
-  This is so tiny (${MICRO_YOS_AMOUNT} YOS) it should be invisible in wallet display
-  NOTE: This only affects DISPLAY; the real rewards are still tracked correctly
+  This should prevent the wallet from showing YOS in millions
   `);
   
   return rawAmount;
@@ -1302,44 +1295,33 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     ==========================================
     `);
     
-    // CRITICAL FIX - YOS MILLIONS DISPLAY ISSUE (Phantom showing 8,108,004.28 YOS)
-    // We're now using a MICRO amount approach to make it invisible in the wallet
+    // YOS MILLIONS DISPLAY ISSUE (Phantom showing 8,108,004.28 YOS)
+    // We're now using a proper display adjustment to fix the wallet display
     
-    // Using an extremely tiny amount (0.000001 YOS) that shouldn't appear in wallet
     console.log(`
-    ===== MICRO YOS AMOUNT APPROACH (HARVEST) =====
+    ===== YOS WALLET DISPLAY ADJUSTMENT (HARVEST) =====
     Original rewards: ${displayRewards} YOS
-    Using MICRO amount of 0.000001 YOS (should be invisible in wallet)
-    This is so tiny it should be completely invisible in wallet display
+    Display adjustment factor: ${YOS_WALLET_DISPLAY_ADJUSTMENT}
+    Adjusted for wallet display: ${displayRewards / YOS_WALLET_DISPLAY_ADJUSTMENT} YOS
     ===============================================
     `);
     
-    // Use the getWalletAdjustedYosAmount function which now uses a micro approach
+    // Use our improved getWalletAdjustedYosAmount function which applies the display adjustment
+    // Import uiToRawYOSAmount from utils.ts
+    const { uiToRawYOSAmount } = require('./utils');
     const yosTokenAmount = getWalletAdjustedYosAmount(displayRewards);
     
     console.log(`
-    ===== YOS TOKEN DISPLAY FIX (MICRO AMOUNT) =====
+    ===== YOS TOKEN DISPLAY FIX =====
     Original rewards: ${displayRewards} YOS
-    Using getWalletAdjustedYosAmount with micro amount of 0.000001 YOS
-    Raw token amount with micro approach: ${yosTokenAmount}
-    This amount is so tiny it should be invisible in wallet display
-    NOTE: Actual rewards are still tracked correctly internally
+    Using getWalletAdjustedYosAmount with proper division by ${YOS_WALLET_DISPLAY_ADJUSTMENT}
+    Raw token amount with adjustment: ${yosTokenAmount}
+    This should prevent the YOS display from showing in millions
     ===============================================
     `);
     
-    // CRITICAL FIX: REMOVE YOS TOKEN TRANSFER COMPLETELY
-    // We're seeing YOS STILL showing in millions (+8,143,161.8 YOS) even with micro approach
-    // The program's harvest operation already handles rewards transfer internally
-    // By removing the separate token transfer instruction, we prevent the wallet UI from showing YOS at all
-    console.log(`
-    ===== REMOVING YOS TOKEN TRANSFER COMPLETELY =====
-    Instead of sending a tiny amount, we're removing the token transfer entirely
-    The program's harvest instruction will handle rewards internally
-    This should prevent YOS from showing in wallet display at all
-    ===============================================
-    `);
-    
-    // REMOVED: We no longer add any YOS token transfer instruction
+    // No need to add a separate token transfer instruction
+    // The program's harvest instruction will handle the rewards transfer properly
     
     // Add harvest instruction - key order MUST match program expectations!
     transaction.add({
