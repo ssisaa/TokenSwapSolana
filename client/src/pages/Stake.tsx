@@ -503,7 +503,7 @@ export default function Stake() {
                           <div className="flex items-start">
                             <AlertCircle className="h-3 w-3 mr-1 mt-0.5 shrink-0 text-amber-400" />
                             <div className="text-xs text-amber-300">
-                              Due to a technical limitation, wallet transactions will show {formatNumber(stakingInfo.rewardsEarned / 1000, 8)} YOS instead of {formatNumber(stakingInfo.rewardsEarned, 8)} YOS
+                              Due to a technical limitation, wallet transactions will show {formatNumber(stakingInfo.rewardsEarned / 1005, 8)} YOS instead of {formatNumber(stakingInfo.rewardsEarned, 8)} YOS
                             </div>
                           </div>
                         </div>
@@ -548,7 +548,7 @@ export default function Stake() {
                           </p>
                           <div className="mt-2 p-2 bg-amber-900/30 border border-amber-500/50 rounded-md">
                             <p className="text-xs text-amber-300 font-medium mb-1">⚠️ Important Transaction Note</p>
-                            <p className="text-xs">Your wallet will show a smaller YOS amount ({formatNumber(stakingInfo.rewardsEarned / 1000, 6)} YOS) than calculated in the UI ({formatNumber(stakingInfo.rewardsEarned, 6)} YOS). This is normal due to a technical limitation with the token display.</p>
+                            <p className="text-xs">Your wallet will show a smaller YOS amount ({formatNumber(stakingInfo.rewardsEarned / 1005, 6)} YOS) than calculated in the UI ({formatNumber(stakingInfo.rewardsEarned, 6)} YOS). This is normal due to a technical limitation with the token display.</p>
                           </div>
                         </div>
                       </div>
