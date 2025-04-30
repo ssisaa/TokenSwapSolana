@@ -1137,36 +1137,18 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     ==========================================================
     `);
     
-    // CRITICAL FIX: We need to add a display-only instruction to fix the wallet UI
-    // When showing 335 YOS, the wallet is showing ~3M YOS
-    console.log(`Creating YOS display instruction with proper amount`);
+    // CRITICAL FIX: Remove display instructions that cause validation issues
+    // Let the wallet get display information directly from the token transfer
     
-    // Convert rewards to raw token amount with proper decimals for display
-    const yosTokenAmount = uiToRawTokenAmount(displayRewards, YOS_DECIMALS);
-    console.log(`YOS token amount for display: ${yosTokenAmount}`);
-    
-    // CRITICAL FIX: For YOS tokens, we need a much more aggressive adjustment to fix the display issue
-    // When showing 338 YOS, the wallet is showing 5,863,706 YOS - this is ~17,000x too large
-    // Try dividing by 17,000 to get closer to the actual amount and ensure it's an integer
-    const adjustedAmount = Math.floor(Number(yosTokenAmount) / 17000);
-    const displayAmount = BigInt(adjustedAmount);
-    console.log(`Highly adjusted display amount (1/17000th): ${displayAmount}`);
-    
-    // Create a different approach for wallet display using a dummy transfer from user to user
-    // This is better because we don't need to sign with the program authority
-    console.log("Creating a user→user display instruction instead");
-    const displayInstruction = createTransferInstruction(
-      userYosATA,           // source (user)
-      userYosATA,           // destination (same user)
-      walletPublicKey,      // owner (user can sign)
-      displayAmount,        // display amount - adjusted for wallet UI
-      [],                   // multisigners
-      TOKEN_PROGRAM_ID      // programId
-    );
-    
-    // Add the display instruction first - this affects the wallet UI but won't actually transfer
-    // since source and destination are the same, it's just for display purposes
-    transaction.add(displayInstruction);
+    console.log(`
+    ========= HARVEST YOS REWARDS INFO =========
+    Wallet address: ${walletPublicKey.toString()}
+    User YOS account: ${userYosATA.toString()}
+    Rewards to harvest: ${displayRewards.toFixed(6)} YOS
+    Program scaling factor: ${PROGRAM_SCALING_FACTOR}
+    Program rewards value: ${programRewards.toFixed(6)} YOS
+    ==========================================
+    `);
     
     // Add harvest instruction - key order MUST match program expectations!
     transaction.add({
