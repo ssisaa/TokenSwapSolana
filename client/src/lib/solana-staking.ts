@@ -111,16 +111,18 @@ function calculatePendingRewards(staking: {
   
   console.log(`LINEAR REWARDS CALCULATION: ${stakedAmount} × ${rateDecimal} × ${timeStakedSinceLastHarvest} = ${linearRewards}`);
   
-  // For UI display, we return the actual rewards amount without dividing by scaling factor
-  // Because the staked amount is already the UI display amount
-  // This correctly shows the rewards based on APR/APY
-  const displayRewards = linearRewards;
+  // For UI display, we need to account for the 9,260× program scaling factor
+  // The Solana program applies a 9,260× scaling factor internally
+  // So we need to divide by this factor for the correct UI display amount
+  const displayRewards = linearRewards / PROGRAM_SCALING_FACTOR;
   
   console.log(`LINEAR REWARDS CALCULATION (CORRECTED):`);
   console.log(`- Staked amount: ${stakedAmount} YOT tokens`);
   console.log(`- Rate: ${stakeRatePerSecond}% per second (${rateDecimal} as decimal)`);
   console.log(`- Time staked: ${timeStakedSinceLastHarvest} seconds`);
-  console.log(`- DISPLAY VALUE (ACTUAL YOS TO RECEIVE): ${displayRewards} YOS`);
+  console.log(`- Raw rewards calculation: ${linearRewards} YOS`);
+  console.log(`- Program scaling factor: ${PROGRAM_SCALING_FACTOR}`);
+  console.log(`- DISPLAY VALUE (ACTUAL YOS TO RECEIVE): ${displayRewards} YOS (${linearRewards} ÷ ${PROGRAM_SCALING_FACTOR})`);
   
   // Return the properly calculated rewards value
   return displayRewards;
@@ -1265,8 +1267,10 @@ export async function unstakeYOTTokens(
  * Harvest YOS rewards using the deployed program
  * UPDATED: Using simple linear interest calculation that matches the Solana program exactly
  * 
- * This function handles the YOS token display issue in Phantom Wallet by properly adjusting
- * the token amount with YOS_WALLET_DISPLAY_ADJUSTMENT before sending to the blockchain.
+ * This function applies two key adjustments to ensure correct rewards:
+ * 1. Divides the calculated rewards by the 9,260× program scaling factor for proper display
+ * 2. Handles the YOS token display issue in Phantom Wallet by properly adjusting
+ *    the token amount with YOS_WALLET_DISPLAY_ADJUSTMENT before sending to the blockchain
  * 
  * @param wallet The connected wallet
  * @returns Transaction signature

@@ -139,7 +139,7 @@ export default function StakingDashboard({ onTabChange }: StakingDashboardProps 
                 </div>
                 {stakingInfo.rewardsEarned > 0 && (
                   <div className="text-xs text-slate-300 mt-1">
-                    <span className="font-medium text-blue-400">Wallet will show:</span> {formatNumber(stakingInfo.rewardsEarned / 1005, 8)} YOS
+                    <span className="font-medium text-blue-400">Wallet will show:</span> {formatNumber(stakingInfo.rewardsEarned / 9260, 8)} YOS
                   </div>
                 )}
               </div>
