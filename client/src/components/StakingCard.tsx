@@ -409,8 +409,8 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                     <div className="text-xs text-gray-400">
                       <div>Raw Rewards: {stakingInfo.rewardsEarned.toFixed(2)}</div>
                       <div>Normalized (÷9260): {normalizedRewards.toFixed(2)}</div>
-                      <div>Threshold: {harvestThreshold}</div>
-                      <div>Progress: {progress.toFixed(2)}%</div>
+                      <div>Admin Threshold: {stakingRates?.harvestThreshold || 'Loading...'} YOS</div>
+                      <div>Current Progress: {progress.toFixed(2)}%</div>
                       <div>Button enabled: {canHarvest ? 'Yes' : 'No'}</div>
                     </div>
                   </div>
