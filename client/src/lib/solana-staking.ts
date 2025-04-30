@@ -214,15 +214,15 @@ function getWalletAdjustedYosAmount(uiValue: number): bigint {
   
   // Import YOS_WALLET_DISPLAY_ADJUSTMENT to counteract the display issue in wallet
   console.log(`
-  ===== YOS WALLET DISPLAY ADJUSTMENT (PRECISE FACTOR: 1005) =====
+  ===== YOS WALLET DISPLAY ADJUSTMENT (10^9 DECIMALS) =====
   Original YOS amount: ${uiValue} YOS
-  Display adjustment factor: ${YOS_WALLET_DISPLAY_ADJUSTMENT} (updated based on transaction test)
+  Display adjustment factor: ${YOS_WALLET_DISPLAY_ADJUSTMENT} (matching contract's get_wallet_adjusted_yos_amount)
   Adjusted amount for wallet display: ${uiValue / YOS_WALLET_DISPLAY_ADJUSTMENT} YOS
   YOS token decimals: ${YOS_DECIMALS}
   `);
   
-  // Apply the precise display adjustment divisor of 1005 based on actual transaction test
-  // Screenshot shows +0.08358 YOS instead of ~84 YOS
+  // Apply the same divisor as the contract (10^9) when adjusting YOS amounts
+  // This matches get_wallet_adjusted_yos_amount in the Solana program
   const adjustedValue = uiValue / YOS_WALLET_DISPLAY_ADJUSTMENT;
   
   // Use the token conversion function with YOS_DECIMALS
@@ -1457,9 +1457,9 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     console.log(`
     ===== YOS WALLET DISPLAY ADJUSTMENT (HARVEST) =====
     Original rewards: ${displayRewards} YOS
-    Updated display adjustment factor: ${YOS_WALLET_DISPLAY_ADJUSTMENT} (was 9,200,000)
+    Contract adjustment factor: ${YOS_WALLET_DISPLAY_ADJUSTMENT} (10^9 divisor from contract)
     Adjusted for wallet display: ${displayRewards / YOS_WALLET_DISPLAY_ADJUSTMENT} YOS
-    This should show in Phantom as: ~${(displayRewards / YOS_WALLET_DISPLAY_ADJUSTMENT).toFixed(5)} YOS
+    This should show in Phantom as: ~${(displayRewards / YOS_WALLET_DISPLAY_ADJUSTMENT).toFixed(9)} YOS
     ===============================================
     `);
     

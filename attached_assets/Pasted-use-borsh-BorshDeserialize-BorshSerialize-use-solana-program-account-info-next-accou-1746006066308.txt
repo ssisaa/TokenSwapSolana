@@ -1,0 +1,170 @@
+use borsh::{BorshDeserialize, BorshSerialize};
+use solana_program::{
+    account_info::{next_account_info, AccountInfo},
+    entrypoint,
+    entrypoint::ProgramResult,
+    msg,
+    program::{invoke, invoke_signed},
+    program_error::ProgramError,
+    pubkey::Pubkey,
+    sysvar::{clock::Clock, Sysvar},
+};
+use spl_token::state::{Account as TokenAccount};
+
+// Define the program entrypoint
+entrypoint!(process_instruction);
+
+// Define Instruction types
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
+pub enum StakingInstruction {
+    Initialize {
+        yot_mint: Pubkey,
+        yos_mint: Pubkey,
+        stake_rate_per_second: u64,
+        harvest_threshold: u64,
+    },
+    Stake { amount: u64 },
+    Unstake { amount: u64 },
+    Harvest,
+    UpdateParameters {
+        stake_rate_per_second: u64,
+        harvest_threshold: u64,
+    },
+}
+
+// Program State
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
+pub struct ProgramState {
+    pub admin: Pubkey,
+    pub yot_mint: Pubkey,
+    pub yos_mint: Pubkey,
+    pub stake_rate_per_second: u64,
+    pub harvest_threshold: u64,
+}
+
+// Define the YOS token's decimal adjustment (9 decimals for YOS)
+pub fn get_wallet_adjusted_yos_amount(amount: u64) -> u64 {
+    // Adjust for YOS token decimals (divide by 10^9)
+    amount / 10u64.pow(9) // Adjust for 9 decimals in YOS token
+}
+
+// Harvest logic updated to use adjusted YOS amount
+fn process_harvest(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+) -> ProgramResult {
+    let account_info_iter = &mut accounts.iter();
+
+    // Retrieve account information
+    let user_account = next_account_info(account_info_iter)?;
+    let user_yos_token_account = next_account_info(account_info_iter)?;
+    let program_yos_token_account = next_account_info(account_info_iter)?;
+    let user_staking_account = next_account_info(account_info_iter)?;
+    let program_state_account = next_account_info(account_info_iter)?;
+    let token_program = next_account_info(account_info_iter)?;
+    let program_authority = next_account_info(account_info_iter)?;
+    let clock = next_account_info(account_info_iter)?;
+
+    // Verify user signature
+    if !user_account.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    // Example: Raw YOS rewards (this should be calculated based on staking data)
+    let raw_rewards = 1000u64; // Example raw reward amount
+    let adjusted_rewards = get_wallet_adjusted_yos_amount(raw_rewards); // Adjust for 9 decimals
+    msg!("Adjusted YOS Amount for display: {}", adjusted_rewards);
+
+    // Transfer the adjusted amount to the user
+    invoke_signed(
+        &spl_token::instruction::transfer(
+            token_program.key,
+            program_yos_token_account.key,
+            user_yos_token_account.key,
+            program_authority.key,
+            &[],
+            adjusted_rewards, // Use the adjusted YOS amount
+        )?,
+        &[
+            program_yos_token_account.clone(),
+            user_yos_token_account.clone(),
+            program_authority.clone(),
+            token_program.clone(),
+        ],
+        &[&[b"authority", &[bump_seed]]],
+    )?;
+
+    msg!("Successfully harvested and transferred adjusted YOS tokens: {}", adjusted_rewards);
+    Ok(())
+}
+
+// Stake logic (handles staking logic, no changes for YOS token handling)
+fn process_stake(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    amount: u64,
+) -> ProgramResult {
+    // Process staking logic here (no changes for YOS token handling)
+    Ok(())
+}
+
+// Unstake logic (handles unstaking logic, no changes for YOS token handling)
+fn process_unstake(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    amount: u64,
+) -> ProgramResult {
+    // Process unstaking logic here (no changes for YOS token handling)
+    Ok(())
+}
+
+// Update parameters logic (no changes for YOS token handling)
+fn process_update_parameters(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    stake_rate_per_second: u64,
+    harvest_threshold: u64,
+) -> ProgramResult {
+    // Process update parameters logic here (no changes for YOS token handling)
+    Ok(())
+}
+
+// Program entrypoint (handles instruction dispatch)
+pub fn process_instruction(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    instruction_data: &[u8],
+) -> ProgramResult {
+    let instruction = StakingInstruction::try_from_slice(instruction_data)?;
+
+    match instruction {
+        StakingInstruction::Initialize { yot_mint, yos_mint, stake_rate_per_second, harvest_threshold } => {
+            process_initialize(program_id, accounts, yot_mint, yos_mint, stake_rate_per_second, harvest_threshold)
+        }
+        StakingInstruction::Stake { amount } => {
+            process_stake(program_id, accounts, amount)
+        }
+        StakingInstruction::Unstake { amount } => {
+            process_unstake(program_id, accounts, amount)
+        }
+        StakingInstruction::Harvest => {
+            process_harvest(program_id, accounts)
+        }
+        StakingInstruction::UpdateParameters { stake_rate_per_second, harvest_threshold } => {
+            process_update_parameters(program_id, accounts, stake_rate_per_second, harvest_threshold)
+        }
+    }
+}
+
+// Initialization function (handles program initialization)
+fn process_initialize(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    yot_mint: Pubkey,
+    yos_mint: Pubkey,
+    stake_rate_per_second: u64,
+    harvest_threshold: u64,
+) -> ProgramResult {
+    // Initialization logic here...
+    Ok(())
+}
