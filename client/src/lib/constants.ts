@@ -48,6 +48,6 @@ export const PROGRAM_SCALING_FACTOR = 10000;
 
 // CRITICAL: Production YOS token display adjustment
 // This MUST match the YOS_DISPLAY_NORMALIZATION_FACTOR in the Solana contract
-// Value: 9,260 - This produces the correct wallet display amount of 28.32 YOS
+// Value: 1,000 - A clean, round number that's easy to work with
 // DO NOT CHANGE this value unless simultaneously updating the contract
-export const YOS_WALLET_DISPLAY_ADJUSTMENT = 9260; // Production value
+export const YOS_WALLET_DISPLAY_ADJUSTMENT = 1000; // Production value
