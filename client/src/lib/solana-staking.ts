@@ -198,19 +198,34 @@ export function getWalletCompatibleYotAmount(amount: number): bigint {
   return rawAmount;
 }
 
-export function getWalletAdjustedYosAmount(uiValue: number): bigint {
+export /**
+ * CRITICAL FIX: Get wallet-adjusted YOS amount to prevent millions display
+ * This function is specifically designed to fix the YOS token display issue in Phantom Wallet
+ * The wallet is displaying YOS amounts in millions (e.g., 8,334,818.72 YOS) instead of ~8.33 YOS
+ * 
+ * @param uiValue The UI value of YOS tokens that should be displayed
+ * @returns The raw blockchain amount that will result in proper wallet display
+ */
+function getWalletAdjustedYosAmount(uiValue: number): bigint {
+  if (uiValue <= 0) {
+    console.warn("Cannot adjust zero or negative YOS amount:", uiValue);
+    return BigInt(0);
+  }
+  
   // Import YOS_WALLET_DISPLAY_ADJUSTMENT to counteract the millions display in wallet
   console.log(`
   ===== YOS WALLET DISPLAY ADJUSTMENT =====
   Original YOS amount: ${uiValue} YOS
   Display adjustment factor: ${YOS_WALLET_DISPLAY_ADJUSTMENT}
   Adjusted amount for wallet display: ${uiValue / YOS_WALLET_DISPLAY_ADJUSTMENT} YOS
+  YOS token decimals: ${YOS_DECIMALS}
   `);
   
   // Apply the display adjustment divisor to counteract the millions display
   const adjustedValue = uiValue / YOS_WALLET_DISPLAY_ADJUSTMENT;
   
   // Use the token conversion function with YOS_DECIMALS
+  // This ensures the proper number of decimal places (9) are applied
   const rawAmount = uiToRawTokenAmount(adjustedValue, YOS_DECIMALS);
   
   console.log(`⭐⭐ YOS WALLET DISPLAY FIX:
@@ -627,6 +642,16 @@ function encodeUnstakeInstruction(amount: number): Buffer {
   return data;
 }
 
+/**
+ * Encode harvest instruction for the staking program
+ * 
+ * CRITICAL: This function handles the YOS token display issue by properly adjusting
+ * the token amount sent to the wallet. The issue is that Phantom Wallet is displaying
+ * YOS amounts in millions (e.g., 8,334,818.72 YOS) instead of ~8.33 YOS.
+ * 
+ * @param rewardsAmount Optional rewards amount to override blockchain calculation
+ * @returns Buffer with encoded instruction
+ */
 function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
   // CRITICAL FIX: The harvest instruction needs special handling
   // The Solana program uses a 10,000× multiplier internally, but we also need to handle YOS decimals
@@ -637,9 +662,20 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     const data = Buffer.alloc(9); // instruction type (1) + rewards amount (8)
     data.writeUInt8(StakingInstructionType.Harvest, 0);
     
-    // FINAL TOKEN METADATA SOLUTION FOR PHANTOM WALLET DISPLAY: 
-    // The problem is that rewards show up in millions (e.g., 8,334,818.72 YOS)
-    // We need to try a new approach - send the precise amount without any adjustment factor
+    // LSP Error Handling: Check for invalid rewards amount
+    if (rewardsAmount <= 0) {
+      console.error("Invalid rewards amount:", rewardsAmount);
+      throw new Error("Cannot harvest zero or negative rewards");
+    }
+    
+    console.log(`
+    ============ HARVEST REWARDS AMOUNT DEBUG ==============
+    Original UI rewards amount: ${rewardsAmount.toFixed(6)} YOS
+    YOS_DECIMALS (token metadata): ${YOS_DECIMALS}
+    YOS_WALLET_DISPLAY_ADJUSTMENT: ${YOS_WALLET_DISPLAY_ADJUSTMENT}
+    PROGRAM_SCALING_FACTOR: ${PROGRAM_SCALING_FACTOR}
+    ======================================================
+    `);
     
     // BLOCKCHAIN TOKEN AMOUNT: 
     // 1. Convert directly to raw amount with token decimals (9)
@@ -669,18 +705,23 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     
     // Ensure we don't exceed the maximum u64 value
     if (contractAmount > Number.MAX_SAFE_INTEGER) {
+      console.error("Amount too large for transaction encoding:", contractAmount);
       throw new Error("Amount too large for transaction encoding");
     }
     
     // Write the contract amount to the data buffer
-    data.writeBigUInt64LE(BigInt(contractAmount), 1);
+    try {
+      data.writeBigUInt64LE(BigInt(contractAmount), 1);
+    } catch (error) {
+      console.error("Error writing contract amount to buffer:", error);
+      throw new Error(`Failed to encode harvest instruction: ${error.message}`);
+    }
     
     // This exact final amount will be used for the transaction that Phantom shows
     console.log(`
     ===== FINAL TRANSACTION AMOUNT FOR PHANTOM WALLET =====
     Data buffer contains amount: ${contractAmount}
-    Target display in Phantom: ${adjustedDisplayRewards} YOS (will this match?)
-    Your screenshot shows: 8,334,818.72 YOS for what should be ~8.33 YOS
+    Target display in Phantom: ${adjustedDisplayRewards} YOS (if display adjustment works correctly)
     ======================================================
     `);
     
