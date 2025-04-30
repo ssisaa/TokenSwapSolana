@@ -44,6 +44,7 @@
     "@solana/spl-token": "^0.4.13",
     "@solana/wallet-adapter-base": "^0.9.26",
     "@solana/wallet-adapter-phantom": "^0.9.27",
+    "@solana/wallet-adapter-solflare": "^0.6.31",
     "@solana/web3.js": "^1.98.2",
     "@tailwindcss/vite": "^4.1.3",
     "@tanstack/react-query": "^5.60.5",

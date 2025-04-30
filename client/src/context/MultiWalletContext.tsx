@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useCallback, ReactNode, useContext } from 'react';
 import { PhantomWalletAdapter } from '@solana/wallet-adapter-phantom';
-import { WalletError } from '@solana/wallet-adapter-base';
+import { SolflareWalletAdapter } from '@solana/wallet-adapter-solflare';
+import { WalletError, WalletAdapter } from '@solana/wallet-adapter-base';
 import { Cluster, PublicKey } from '@solana/web3.js';
 import { CLUSTER } from '../lib/constants';
 
@@ -44,8 +45,8 @@ export function MultiWalletProvider({ children, cluster = CLUSTER }: MultiWallet
   useEffect(() => {
     const availableWallets: WalletInfo[] = [];
 
-    // Phantom Wallet
     try {
+      // Phantom Wallet
       const phantomAdapter = new PhantomWalletAdapter();
       const phantomInstalled = window.solana && window.solana.isPhantom;
       
@@ -56,24 +57,30 @@ export function MultiWalletProvider({ children, cluster = CLUSTER }: MultiWallet
         installed: !!phantomInstalled
       });
       
-      // Solflare Wallet (detecting presence only)
-      const solflareInstalled = window.solflare;
+      // Solflare Wallet with proper adapter
+      const solflareAdapter = new SolflareWalletAdapter();
+      const solflareInstalled = window.solflare || typeof navigator !== 'undefined' && 
+        navigator.userAgent.indexOf('Solflare') > -1;
+      
       availableWallets.push({
         name: 'Solflare',
         icon: 'https://solflare.com/logo.png',
-        adapter: solflareInstalled || {},
-        installed: !!solflareInstalled
+        adapter: solflareAdapter,
+        installed: solflareInstalled || true // Always show Solflare as an option
       });
       
       // Other Wallets (generic - could be browser extension or other)
       const otherWalletInstalled = window.solana && !window.solana.isPhantom;
-      availableWallets.push({
-        name: 'OtherWallets',
-        icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMjEgMThWMTlDMjEgMjAuMTA0NiAyMC4xMDQ2IDIxIDE5IDIxSDVDMy44OTU0MyAyMSAzIDIwLjEwNDYgMyAxOVY1QzMgMy44OTU0MyAzLjg5NTQzIDMgNSAzSDE5QzIwLjEwNDYgMyAyMSAzLjg5NTQzIDIxIDVWNk0yMSAxMlYxMk0yMSA2VjYiIHN0cm9rZT0iIzk5OTk5OSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48L3N2Zz4=',
-        adapter: otherWalletInstalled ? window.solana : {},
-        installed: !!otherWalletInstalled
-      });
+      if (otherWalletInstalled) {
+        availableWallets.push({
+          name: 'OtherWallets',
+          icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMjEgMThWMTlDMjEgMjAuMTA0NiAyMC4xMDQ2IDIxIDE5IDIxSDVDMy44OTU0MyAyMSAzIDIwLjEwNDYgMyAxOVY1QzMgMy44OTU0MyAzLjg5NTQzIDMgNSAzSDE5QzIwLjEwNDYgMyAyMSAzLjg5NTQzIDIxIDVWNk0yMSAxMlYxMk0yMSA2VjYiIHN0cm9rZT0iIzk5OTk5OSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48L3N2Zz4=',
+          adapter: window.solana,
+          installed: true
+        });
+      }
       
+      console.log("Available wallets:", availableWallets.map(w => w.name));
       setWallets(availableWallets);
     } catch (error) {
       console.error("Error initializing wallets:", error);
