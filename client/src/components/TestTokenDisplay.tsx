@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMultiWallet } from '@/context/MultiWalletContext';
-import { uiToRawTokenAmount } from '@/lib/solana-staking';
+import { uiToRawTokenAmount, getWalletAdjustedYosAmount } from '@/lib/solana-staking';
 import { 
   YOT_TOKEN_ADDRESS, 
   YOS_TOKEN_ADDRESS,
@@ -79,31 +79,38 @@ export function TestTokenDisplay() {
         setTestResult(prev => prev + `\nYOT failed: ${e}`);
       }
       
-      // For YOS token (with divisor for display fix)
+      // For YOS token (using our new wallet display adjustment utility)
       try {
         const yosMint = new PublicKey(YOS_TOKEN_ADDRESS);
         const userYosATA = await getAssociatedTokenAddress(yosMint, walletPublicKey);
         
-        // Convert to raw token amount with token decimals
+        // Method 1: Manual adjustment (legacy approach)
         const yosTokenAmount = uiToRawTokenAmount(yosValue, YOS_DECIMALS);
-        
-        // Adjust for display using the divisor
         const adjustedYosAmount = BigInt(Number(yosTokenAmount) / divisor);
         
-        // Create a "display-only" instruction (source = destination = user ATA)
+        // Method 2: Using our new utility function (recommended approach)
+        const walletAdjustedAmount = getWalletAdjustedYosAmount(yosValue);
+        
+        // Use the utility function result for the actual transaction
         const yosDisplayInstruction = createTransferInstruction(
           userYosATA,           // source (user)
           userYosATA,           // destination (same user - no actual transfer)
           walletPublicKey,      // owner (user can sign)
-          adjustedYosAmount,   // adjusted display amount 
+          walletAdjustedAmount, // amount from our specialized utility function
           [],                   // multisigners
           TOKEN_PROGRAM_ID      // programId
         );
         
         transaction.add(yosDisplayInstruction);
-        console.log(`YOS Display: ${yosValue} → raw ${yosTokenAmount} → adjusted ${adjustedYosAmount} (1/${divisor})`);
+        console.log(`YOS Display with new utility: ${yosValue} → ${walletAdjustedAmount}`);
         
-        setTestResult(prev => prev + `\nTest YOS display: ${yosValue} → ${yosTokenAmount} → adjusted ${adjustedYosAmount} (1/${divisor})`);
+        setTestResult(prev => prev + `
+Test YOS display:
+- Original amount: ${yosValue} YOS
+- Raw token amount: ${yosTokenAmount}
+- Manual adjusted (1/${divisor}): ${adjustedYosAmount}
+- Using new utility: ${walletAdjustedAmount}
+`);
       } catch (e) {
         console.error("YOS display instruction failed:", e);
         setTestResult(prev => prev + `\nYOS failed: ${e}`);

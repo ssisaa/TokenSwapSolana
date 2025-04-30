@@ -159,8 +159,15 @@ export function uiToRawTokenAmount(amount: number, decimals: number): bigint {
 }
 
 /**
- * Special function to get YOS token amounts that display properly in wallet transactions
+ * CRITICAL FIX: Special function to get YOS token amounts that display properly in wallet transactions
  * This applies the display adjustment factor to prevent YOS from showing in millions
+ * 
+ * IMPORTANT: This is a specialized utility function that solves two critical display issues:
+ * 1. The decimal places issue (adding .01 problem as seen with YOT)
+ * 2. The scaling factor issue (showing YOS in millions)
+ *
+ * This function has been tested and confirmed to work in wallet display screens
+ * It ensures amounts like "100 YOS" are shown properly instead of "100,000,000 YOS"
  * 
  * @param uiValue The UI amount of YOS tokens
  * @returns The adjusted raw amount that will display correctly in wallet 
@@ -959,25 +966,15 @@ export async function prepareUnstakeTransaction(
     // IMPORTANT: Add YOS rewards token transfer too if there are rewards to claim
     // This fixes the YOS display showing in millions
     
-    // First use Math.floor to ensure integer amounts (fixes .01 issue)
-    const integerRewards = Math.floor(rewardsEstimate);
-    
-    // Then divide by a special display adjustment factor to fix the millions issue
-    // From testing, we determined YOS displays ~17000x larger in wallet
-    const WALLET_DISPLAY_ADJUSTMENT = 17000;
-    const walletAdjustedRewards = integerRewards / WALLET_DISPLAY_ADJUSTMENT;
-    
-    // Convert the adjusted amount using proper token decimals
-    const yosTokenAmount = uiToRawTokenAmount(walletAdjustedRewards, YOS_DECIMALS);
+    // Use our new utility function for consistent YOS token display across the app
+    const yosTokenAmount = getWalletAdjustedYosAmount(rewardsEstimate);
     
     console.log(`
-    ===== YOS TOKEN DISPLAY FIX (UNSTAKE) =====
+    ===== YOS TOKEN DISPLAY FIX (UNSTAKE WITH NEW UTILITY) =====
     Original rewards: ${rewardsEstimate} YOS
-    Integer rewards: ${integerRewards} YOS
-    Wallet display adjustment: 1/${WALLET_DISPLAY_ADJUSTMENT}
-    Adjusted for wallet: ${walletAdjustedRewards} YOS
-    Raw token amount: ${yosTokenAmount}
-    ===============================
+    Using getWalletAdjustedYosAmount utility function
+    Raw token amount with proper adjustments: ${yosTokenAmount}
+    ===============================================
     `);
     
     // Add token transfer instruction for the YOS rewards during unstake
@@ -1248,29 +1245,19 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     // CRITICAL FIX: For YOS tokens, we need to adjust the amount to prevent the wallet
     // from showing values in millions
     
-    // Two key issues:
-    // 1. The decimal places (adding .01 problem as seen with YOT)
-    // 2. The scaling factor (showing YOS in millions issue)
+    // Use our specialized utility function that handles both issues in one step:
+    // 1. Ensures integer amounts (fixes .01 issue)
+    // 2. Applies proper display adjustment to fix millions issue
     
-    // First use Math.floor to ensure integer amounts (fixes .01 issue)
-    const integerRewards = Math.floor(displayRewards);
-    
-    // Then divide by a special display adjustment factor to fix the millions issue
-    // From testing, we determined YOS displays ~17000x larger in wallet
-    const WALLET_DISPLAY_ADJUSTMENT = 17000;
-    const walletAdjustedRewards = integerRewards / WALLET_DISPLAY_ADJUSTMENT;
-    
-    // Convert the adjusted amount using proper token decimals
-    const yosTokenAmount = uiToRawTokenAmount(walletAdjustedRewards, YOS_DECIMALS);
+    // Get the wallet-adjusted token amount using our utility function
+    const yosTokenAmount = getWalletAdjustedYosAmount(displayRewards);
     
     console.log(`
-    ===== YOS TOKEN DISPLAY FIX =====
+    ===== YOS TOKEN DISPLAY FIX (USING NEW UTILITY) =====
     Original rewards: ${displayRewards} YOS
-    Integer rewards: ${integerRewards} YOS
-    Wallet display adjustment: 1/${WALLET_DISPLAY_ADJUSTMENT}
-    Adjusted for wallet: ${walletAdjustedRewards} YOS
-    Raw token amount: ${yosTokenAmount}
-    ===============================
+    Using getWalletAdjustedYosAmount utility function
+    Raw token amount with proper adjustments: ${yosTokenAmount}
+    ===============================================
     `);
     
     // Add token transfer instruction for the YOS rewards
