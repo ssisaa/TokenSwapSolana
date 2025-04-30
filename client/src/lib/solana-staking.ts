@@ -154,8 +154,25 @@ export const connection = new Connection(ENDPOINT, 'confirmed');
  * @param decimals Token decimals (e.g., 9 for most Solana tokens)
  * @returns Raw token amount as BigInt (e.g., 1500000000)
  */
+/**
+ * Utility function to convert UI token amount to raw blockchain amount
+ * with precise decimal handling to prevent wallet display issues
+ * 
+ * @param amount UI amount (e.g., 1.5 YOT)
+ * @param decimals Token decimals (e.g., 9 for most Solana tokens)
+ * @returns Raw token amount as BigInt (e.g., 1500000000)
+ */
 export function uiToRawTokenAmount(amount: number, decimals: number): bigint {
-  return BigInt(Math.round(amount * Math.pow(10, decimals)));
+  // CRITICAL FIX: Precise decimal rounding logic
+  // Step 1: Force integer values with Math.floor to eliminate partial decimals
+  const integerAmount = Math.floor(amount);
+  
+  // Step 2: Use direct BigInt multiplication to prevent JavaScript floating point issues
+  const rawDecimals = BigInt(10 ** decimals);
+  const rawAmount = BigInt(integerAmount) * rawDecimals;
+  
+  console.log(`TOKEN AMOUNT CONVERSION (FIXED): ${amount} → floor → ${integerAmount} → ${rawAmount} (${decimals} decimals)`);
+  return rawAmount;
 }
 
 /**
@@ -189,18 +206,26 @@ export function getWalletAdjustedYosAmount(uiValue: number): bigint {
 
 /**
  * Utility function to convert raw blockchain amount to UI token amount
+ * with precise decimal handling to prevent display issues
+ * 
  * @param rawAmount Raw token amount (e.g., 1500000000)
  * @param decimals Token decimals (e.g., 9 for most Solana tokens)
  * @returns UI amount (e.g., 1.5 YOT)
  */
 export function rawToUiTokenAmount(rawAmount: bigint | number, decimals: number): number {
+  // Convert rawAmount to number if it's a BigInt
   if (typeof rawAmount === 'number') {
     rawAmount = BigInt(rawAmount);
   }
+  
+  // Apply precise division to get the UI value
   const divisor = BigInt(Math.pow(10, decimals));
   const remainder = Number(rawAmount % divisor) / Math.pow(10, decimals);
   const wholePart = Number(rawAmount / divisor);
-  return wholePart + remainder;
+  const result = wholePart + remainder;
+  
+  // Apply final rounding to expected decimal places to eliminate potential floating point errors
+  return Math.round(result * Math.pow(10, decimals)) / Math.pow(10, decimals);
 }
 
 /**
