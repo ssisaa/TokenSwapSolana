@@ -938,8 +938,9 @@ export async function prepareUnstakeTransaction(
   // This prevents the wallet from showing decimal places like 1000.01
   const integerAmount = Math.floor(amount);
   
-  // CRITICAL FIX: Since YOT_DECIMALS is now 0, we use a direct 1:1 conversion
-  // This ensures the wallet displays the exact integer amount (no .01 suffix)
+  // CRITICAL FIX: DIRECT INTEGER VALUE WITH NO CONVERSIONS
+  // This is the most fundamental fix required to address the .01 display issue
+  // We bypass ALL decimal conversion logic completely and use the raw integer value
   const tokenAmount = BigInt(integerAmount);
   
   console.log(`Preparing unstake transaction for ${amount} YOT tokens (${tokenAmount} raw tokens)`);

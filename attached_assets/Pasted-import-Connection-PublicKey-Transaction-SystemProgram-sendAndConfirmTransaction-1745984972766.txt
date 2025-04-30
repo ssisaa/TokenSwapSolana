@@ -1,0 +1,66 @@
+import {
+  Connection,
+  PublicKey,
+  Transaction,
+  SystemProgram,
+  sendAndConfirmTransaction,
+  LAMPORTS_PER_SOL,
+  SYSVAR_CLOCK_PUBKEY,
+  TransactionInstruction
+} from '@solana/web3.js';
+import {
+  TOKEN_PROGRAM_ID,
+  getAssociatedTokenAddress,
+  createAssociatedTokenAccountInstruction,
+  getAccount,
+  createTransferInstruction
+} from '@solana/spl-token';
+import {
+  YOT_TOKEN_ADDRESS,
+  YOS_TOKEN_ADDRESS,
+  YOT_DECIMALS,
+  YOS_DECIMALS,
+  STAKING_PROGRAM_ID,
+  ENDPOINT,
+  YOS_WALLET_DISPLAY_ADJUSTMENT
+} from './constants';
+
+const PROGRAM_SCALING_FACTOR = 10000;
+
+async function getYOTStaked(staker: string, connection: Connection) {
+  const publicKey = new PublicKey(staker);
+  const YOTTokenAccount = await getAssociatedTokenAddress(YOT_TOKEN_ADDRESS, publicKey, false);
+  const accountInfo = await connection.getAccountInfo(YOTTokenAccount);
+
+  if (!accountInfo) return 0;
+
+  const stakingAmount = accountInfo.lamports / Math.pow(10, YOT_DECIMALS); // Correcting the YOT decimals
+  return stakingAmount;
+}
+
+async function getYOSRewards(staker: string, connection: Connection) {
+  const publicKey = new PublicKey(staker);
+  const YOSTokenAccount = await getAssociatedTokenAddress(YOS_TOKEN_ADDRESS, publicKey, false);
+  const accountInfo = await connection.getAccountInfo(YOSTokenAccount);
+
+  if (!accountInfo) return 0;
+
+  const rewardsAmount = accountInfo.lamports / Math.pow(10, YOS_DECIMALS); // Correcting the YOS decimals
+  return rewardsAmount;
+}
+
+async function stakeYOTTokens(transaction: Transaction) {
+  // Implement staking logic here
+  // Ensure the YOT token amount is handled correctly with decimals
+}
+
+async function unstakeYOTTokens(transaction: Transaction) {
+  // Implement unstaking logic here
+  // Ensure the YOT token amount is handled correctly with decimals
+}
+
+async function harvestYOSRewards(transaction: Transaction) {
+  // Implement harvest logic here
+}
+
+export { getYOTStaked, getYOSRewards, stakeYOTTokens, unstakeYOTTokens, harvestYOSRewards };
