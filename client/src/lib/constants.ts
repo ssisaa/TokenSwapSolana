@@ -38,11 +38,14 @@ export const CONFIRMATION_COUNT = 1;
 // Updated on: April 27, 2025
 export const STAKING_PROGRAM_ID = '6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6';
 
-// Token display adjustment factors
-// These help correct the way tokens display in wallet confirmation screens
-export const PROGRAM_SCALING_FACTOR = 1;     // CRITICAL FIX: Program doesn't use a scaling factor - it uses token decimal conversion
+// TOKEN DECIMAL SETTINGS - EXACT VALUES WITH NO ADJUSTMENTS
+// Based on user requirements: "Want exacted amount what user staked not some extra multiple"
+// We are removing all adjustment factors and using raw blockchain values directly
 
-// CRITICAL FIX FOR YOS DISPLAY IN MILLIONS
-// Based on evidence from screenshot showing 7,390,340.26 YOS
-// We should be seeing around 700 YOS, so we need a divisor of approximately 10,000
-export const YOS_WALLET_DISPLAY_ADJUSTMENT = 10000; // Updated based on latest screenshot evidence
+// CRITICAL: Set program scaling factor to 1 (no scaling)
+// The program does not use any scaling factor - just direct token decimal conversion (9 decimals)
+export const PROGRAM_SCALING_FACTOR = 1;
+
+// CRITICAL: Remove YOS display adjustment to show exact values
+// User demands exact amounts with no adjustments
+export const YOS_WALLET_DISPLAY_ADJUSTMENT = 1;
