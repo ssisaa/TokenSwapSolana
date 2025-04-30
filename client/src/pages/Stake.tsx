@@ -408,9 +408,6 @@ export default function Stake() {
                           <p>
                             Staking locks your YOT tokens in the smart contract and automatically begins generating YOS rewards at {(stakingRates?.dailyAPY || 0).toFixed(2)}% daily APY (compound interest).
                           </p>
-                          <p className="mt-2 font-medium text-amber-300">
-                            Minimum staking amount: {stakingRates?.stakeThreshold || 0} YOT
-                          </p>
                         </div>
                       </div>
                     </div>
@@ -470,9 +467,6 @@ export default function Stake() {
                         <div className="text-gray-300">
                           <p>
                             Unstaking will return your YOT tokens to your wallet. There is no lock-up period or penalties for unstaking.
-                          </p>
-                          <p className="mt-2 font-medium text-amber-300">
-                            Minimum unstake amount: {stakingRates?.unstakeThreshold || 0} YOT
                           </p>
                         </div>
                       </div>
