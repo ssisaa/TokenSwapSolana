@@ -57,17 +57,9 @@ export function TestTokenDisplay() {
         const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
         const userYotATA = await getAssociatedTokenAddress(yotMint, walletPublicKey);
         
-        // EMERGENCY FIX FOR 1000.01 ISSUE
-        // ABSOLUTELY NO DECIMAL CONVERSION, USE DIRECT INTEGER VALUE
-        // Convert to a string integer, then to BigInt with direct multiplication
-        const integerYotValue = Math.floor(yotValue);
-        
-        // DIRECT BIGINT CONVERSION: 1000 → 1000000000000
-        // YOT has 9 decimals, so we multiply by 10^9
-        const rawDecimals = 1000000000; // 10^9 (9 decimals)
-        const yotTokenAmount = BigInt(integerYotValue) * BigInt(rawDecimals);
-        
-        console.log(`FIXED YOT DISPLAY: Using proper decimal conversion: ${yotValue} YOT → ${yotTokenAmount} (with ${YOT_DECIMALS} decimals)`);
+        // IMPROVED WALLET DISPLAY FIX 
+        // Simply log some info for debugging
+        console.log(`Converting ${yotValue} YOT for wallet display - using our specialized wallet-compatible function`);
         
         // Create a "display-only" instruction (source = destination = user ATA)
         // The key to fixing this issue is to use the Solana SDK properly
@@ -96,9 +88,9 @@ export function TestTokenDisplay() {
         );
         
         transaction.add(yotDisplayInstruction);
-        console.log(`YOT Display FIXED: ${yotValue} → raw amount ${yotTokenAmount} (direct integer)`);
+        console.log(`YOT Display FIXED: ${yotValue} → raw amount ${walletCompatibleAmount} (direct integer)`);
         
-        setTestResult(prev => prev + `\nTest YOT display (FIXED): ${yotValue} → ${yotTokenAmount} (direct integer value)`);
+        setTestResult(prev => prev + `\nTest YOT display (FIXED): ${yotValue} → ${walletCompatibleAmount} (wallet compatible amount)`);
       } catch (e) {
         console.error("YOT display instruction failed:", e);
         setTestResult(prev => prev + `\nYOT failed: ${e}`);
