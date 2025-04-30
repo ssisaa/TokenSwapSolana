@@ -1320,6 +1320,11 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       throw new Error(errorMsg);
     }
     
+    // CRITICAL: Ensure same unstake logic applies to harvest
+    // Do NOT enforce threshold check here - the UI already handles it
+    // The smart contract will still validate but we're not blocking on frontend
+    // This matches the behavior of unstakeYOTTokens where harvesting is allowed
+    
     // CRITICAL: The Solana program uses a 9,260× multiplier internally
     // We must match this exact scaling factor for blockchain compatibility
     // Using the global PROGRAM_SCALING_FACTOR imported from constants.ts
@@ -1364,13 +1369,9 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     // DEBUGGING: Log the rewards amount to verify
     console.log(`DEBUG: Pending rewards = ${displayRewards} YOS (threshold is ${harvestThreshold} YOS)`);
     
-    // Only proceed if rewards are > 0
-    if (displayRewards <= 0) {
-      throw new Error("No rewards to harvest");
-    }
-    
-    // Skip threshold check - user has confirmed rewards are 4.5 YOS, which is above threshold
-    // We'll handle this in the UI if needed, but not block the transaction
+    // Skip threshold check - we have already validated in the UI layer
+    // This matches the behavior in unstakeYOTTokens which successfully harvests rewards during unstake
+    // We won't block the transaction from the client since the smart contract will handle validation
     
     // Perform safety check on program YOS token balance
     try {
@@ -1539,13 +1540,27 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       data: encodeHarvestInstruction(displayRewards)
     });
     
-    // Sign and send the transaction using universal wallet adapter
+    // Sign and send the transaction using our universal wallet adapter
     console.log("Sending harvest transaction with universal wallet adapter...");
-    const signature = await sendTransaction(wallet, transaction, connection);
-    await connection.confirmTransaction(signature, 'confirmed');
-    console.log("Harvest transaction confirmed:", signature);
+    console.log(`Transaction has ${transaction.instructions.length} instructions`);
     
-    return signature;
+    try {
+      // Use the same transaction helper that works for unstaking
+      console.log("Using sendTransactionWithWallet for harvest operation...");
+      const signature = await sendTransactionWithWallet(wallet, transaction, connection);
+      console.log("Transaction sent with signature:", signature);
+      await connection.confirmTransaction(signature, 'confirmed');
+      console.log("Harvest transaction confirmed successfully:", signature);
+      return signature;
+    } catch (sendError: any) {
+      // Provide helpful error messages for common issues
+      if (sendError.message && sendError.message.includes('User rejected')) {
+        throw new Error('Transaction was rejected in your wallet. Please approve the transaction to harvest.');
+      }
+      
+      console.error('Error sending harvest transaction:', sendError);
+      throw new Error(`Failed to harvest: ${sendError.message || 'Unknown error'}`);
+    }
   } catch (error) {
     console.error('Error harvesting YOS rewards:', error);
     throw error;
