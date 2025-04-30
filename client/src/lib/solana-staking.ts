@@ -1228,8 +1228,9 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     
     // CRITICAL FIX: For YOS tokens, we need a much more aggressive adjustment to fix the display issue
     // When showing 338 YOS, the wallet is showing 5,863,706 YOS - this is ~17,000x too large
-    // Try dividing by 17,000 to get closer to the actual amount
-    const displayAmount = BigInt(Number(yosTokenAmount) / 17000);
+    // Try dividing by 17,000 to get closer to the actual amount and ensure it's an integer
+    const adjustedAmount = Math.floor(Number(yosTokenAmount) / 17000);
+    const displayAmount = BigInt(adjustedAmount);
     console.log(`Highly adjusted display amount (1/17000th): ${displayAmount}`);
     
     // Create a different approach for wallet display using a dummy transfer from user to user
