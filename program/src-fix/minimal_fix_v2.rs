@@ -1,17 +1,14 @@
 // This is a minimal patch file that shows only what needs to be changed
 // in your existing contract to fix the YOS display issue.
 
-// ----------------- LINE 22-24 -----------------
-// CHANGE THIS:
-// CRITICAL FIX: Add display normalization factor to fix wallet display issue
-// Based on the observed behavior, Phantom Wallet shows YOS rewards as millions
-// This factor will be applied during token transfers to normalize the display
+// ----------------- FIND THIS CONSTANT IN YOUR CODE -----------------
+// ORIGINAL DEFINITION:
 const YOS_DISPLAY_NORMALIZATION_FACTOR: u64 = 9_200_000;
 
-// TO THIS:
+// CHANGE TO:
 // CRITICAL FIX: We don't need a divisor, we should NOT reduce the YOS amount
 // The display issue occurs because we're dividing when we should be showing the full amount
-// Set this to 1 to show the actual intended amount
+// Set this to 1 to show the actual intended amount (181 YOS instead of 0.00181)
 const YOS_DISPLAY_NORMALIZATION_FACTOR: u64 = 1; // Don't divide at all
 
 // ---------------------------------------------
