@@ -201,8 +201,8 @@ export function getWalletCompatibleYotAmount(amount: number): bigint {
 export /**
  * CRITICAL FIX: Get wallet-adjusted YOS amount to prevent display issues
  * This function is specifically designed to fix the YOS token display issue in Phantom Wallet
- * Based on contract implementation, we now use a divisor of 1,000,000,000 (10^9) to fix wallet display
- * This matches the Solana program's get_wallet_adjusted_yos_amount function
+ * Based on new contract implementation, we don't need any division - we want to display 
+ * the full amount (181 YOS, not 0.00181 YOS)
  * 
  * @param uiValue The UI value of YOS tokens that should be displayed
  * @returns The raw blockchain amount that will result in proper wallet display
@@ -213,18 +213,17 @@ function getWalletAdjustedYosAmount(uiValue: number): bigint {
     return BigInt(0);
   }
   
-  // Import YOS_WALLET_DISPLAY_ADJUSTMENT to counteract the display issue in wallet
+  // We no longer need to adjust YOS amounts - the contract won't divide them
   console.log(`
-  ===== YOS WALLET DISPLAY ADJUSTMENT (10^9 DECIMALS) =====
+  ===== YOS WALLET DISPLAY (NO ADJUSTMENT) =====
   Original YOS amount: ${uiValue} YOS
-  Display adjustment factor: ${YOS_WALLET_DISPLAY_ADJUSTMENT} (matching contract's get_wallet_adjusted_yos_amount)
-  Adjusted amount for wallet display: ${uiValue / YOS_WALLET_DISPLAY_ADJUSTMENT} YOS
+  Display adjustment factor: ${YOS_WALLET_DISPLAY_ADJUSTMENT} (no adjustment)
+  Final amount for wallet display: ${uiValue} YOS (unchanged)
   YOS token decimals: ${YOS_DECIMALS}
   `);
   
-  // Apply the same divisor as the contract (10^9) when adjusting YOS amounts
-  // This matches get_wallet_adjusted_yos_amount in the Solana program
-  const adjustedValue = uiValue / YOS_WALLET_DISPLAY_ADJUSTMENT;
+  // No adjustment needed - pass through the original value
+  const adjustedValue = uiValue; // No division
   
   // Use the token conversion function with YOS_DECIMALS
   // This ensures the proper number of decimal places (9) are applied
@@ -232,9 +231,9 @@ function getWalletAdjustedYosAmount(uiValue: number): bigint {
   
   console.log(`⭐⭐ YOS WALLET DISPLAY FIX (IMPROVED):
   Original amount: ${uiValue} YOS
-  Adjusted for display: ${adjustedValue} YOS (divided by ${YOS_WALLET_DISPLAY_ADJUSTMENT})
+  Final amount for display: ${adjustedValue} YOS (unchanged)
   Raw blockchain amount: ${rawAmount} tokens (${YOS_DECIMALS} decimals)
-  This should make wallet show approximately ${adjustedValue.toFixed(5)} YOS
+  This should make wallet show exactly ${adjustedValue.toFixed(5)} YOS
   `);
   
   return rawAmount;

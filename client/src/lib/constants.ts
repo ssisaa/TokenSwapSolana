@@ -46,9 +46,8 @@ export const STAKING_PROGRAM_ID = '6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6'
 // We need to account for the fact that the Solana program internally uses a 10,000x multiplier
 export const PROGRAM_SCALING_FACTOR = 10000;
 
-// CRITICAL: YOS display adjustment to counteract the millions display issue
-// This divisor is applied to YOS amounts before sending to the blockchain
-// The smart contract is directly dividing by 10^9 (1,000,000,000) for YOS tokens
-// (as seen in the get_wallet_adjusted_yos_amount function in the Rust code)
-// Our client-side calculation should match this exact divisor
-export const YOS_WALLET_DISPLAY_ADJUSTMENT = 1000000000; // 10^9
+// CRITICAL: We don't need a display adjustment for YOS tokens
+// The contract should be set to not divide the token amount (factor = 1)
+// The full amount should be displayed in the wallet without any scaling
+// We want the wallet to show exactly what we calculate (181 YOS, not 0.00181)
+export const YOS_WALLET_DISPLAY_ADJUSTMENT = 1; // No adjustment
