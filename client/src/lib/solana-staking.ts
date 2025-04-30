@@ -86,7 +86,7 @@ function formatNumber(num: number | bigint): string {
 /**
  * Calculate pending rewards using SIMPLE LINEAR INTEREST
  * This function calculates rewards exactly as the Solana program does,
- * including the 10,000× scaling factor built into the contract.
+ * including the 9,260× scaling factor built into the contract.
  * 
  * @param staking Object containing staked amount, time staked, and rate
  * @returns Scaled rewards value that matches what the blockchain will transfer
@@ -102,9 +102,9 @@ function calculatePendingRewards(staking: {
   // We need to convert it to decimal (0.000000125) for the calculation
   const rateDecimal = stakeRatePerSecond / 100;
   
-  // IMPORTANT: The Solana program uses a 10,000× multiplier internally
+  // IMPORTANT: The Solana program uses a 9,260× multiplier internally
   // We must match this exact scaling factor for compatibility with the deployed program
-  const scalingFactor = 10000;
+  // Using the global PROGRAM_SCALING_FACTOR from constants.ts
   
   // SIMPLE LINEAR INTEREST: principal * rate * time
   const linearRewards = stakedAmount * rateDecimal * timeStakedSinceLastHarvest;
@@ -291,7 +291,7 @@ export async function getTokenBalance(
  * @param connection Solana connection
  * @param owner The owner's public key
  * @param mint The mint address of the token
- * @param isProgramScaledToken Optional flag to indicate if this is a token using our program's 10,000× scaling factor
+ * @param isProgramScaledToken Optional flag to indicate if this is a token using our program's 9,260× scaling factor
  * @returns Human-readable UI token amount with proper decimal handling
  */
 export async function getParsedTokenBalance(
@@ -2197,12 +2197,12 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // Read total harvested rewards (8 bytes, 64-bit unsigned integer)
     const totalHarvestedRaw = data.readBigUInt64LE(56);
     
-    // CRITICAL FIX: The program uses a 10,000× multiplier NOT token decimals
-    // So we must divide by 10000 to get the actual token amount users receive
+    // CRITICAL FIX: The program uses a 9,260× multiplier NOT token decimals
+    // So we must divide by 9260 to get the actual token amount users receive
     // Using the global PROGRAM_SCALING_FACTOR constant (9260) from constants.ts
     const totalHarvested = Number(totalHarvestedRaw) / PROGRAM_SCALING_FACTOR;
     
-    console.log(`Raw total harvested from blockchain: ${totalHarvestedRaw}, converted using 10,000× program scaling: ${totalHarvested} YOS`);
+    console.log(`Raw total harvested from blockchain: ${totalHarvestedRaw}, converted using ${PROGRAM_SCALING_FACTOR}× program scaling: ${totalHarvested} YOS`);
     
     // Get the staking rate from the program state
     // First read stake rate (8 bytes, 64-bit unsigned integer) from blockchain
@@ -2249,7 +2249,7 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     // CRITICAL ISSUE: SOLANA PROGRAM HAS AN ARTIFICIALLY HIGH SCALING FACTOR
     // We need to divide by this factor in the UI to show actual normalized rates
     // but keep it in the actual transaction for compatibility with the deployed program
-    const scalingFactor = 10000;
+    // Use the global PROGRAM_SCALING_FACTOR from constants.ts (9260)
     
     // Simple linear calculation that matches the blockchain
     const secondsInDay = 86400;
