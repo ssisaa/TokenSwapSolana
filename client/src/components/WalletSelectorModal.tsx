@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMultiWallet } from '@/context/MultiWalletContext';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { ChevronRight } from 'lucide-react';
@@ -14,24 +14,61 @@ export default function WalletSelectorModal() {
     connecting
   } = useMultiWallet();
 
+  const [connectorError, setConnectorError] = useState<string | null>(null);
+  const [installedWallets, setInstalledWallets] = useState<string[]>([]);
   const { toast } = useToast();
+  
+  // Check for installed wallets on component mount
+  useEffect(() => {
+    // Simple detection for popular wallets
+    const wallets = [];
+    
+    // Check for Phantom
+    if (typeof window !== 'undefined' && window.solana && window.solana.isPhantom) {
+      wallets.push('Phantom');
+    }
+    
+    // Check for Solflare
+    if (typeof window !== 'undefined' && window.solflare) {
+      wallets.push('Solflare');
+    }
+    
+    // Check for other browser-extension Solana wallets
+    if (typeof window !== 'undefined' && window.solana && !window.solana.isPhantom) {
+      wallets.push('OtherWallets');
+    }
+    
+    console.log("Detected wallets:", wallets);
+    setInstalledWallets(wallets);
+  }, []);
   
   const handleConnect = async (walletName: string) => {
     try {
+      setConnectorError(null);
       await connect(walletName);
       setShowWalletSelector(false);
     } catch (error) {
       console.error('Failed to connect:', error);
       
-      // Show user-friendly error message
+      // Show user-friendly error message and store for display
       if (error instanceof Error) {
+        setConnectorError(error.message);
+        
         // Check for specific non-Solana wallet errors
-        if (error.message.includes('Solana-compatible') || 
-            error.message.includes('wrong network')) {
+        if (error.message.includes('install a Solana wallet') || 
+            error.message.includes('not found') ||
+            error.message.includes('not installed')) {
           toast({
             variant: "destructive",
-            title: "Wallet Connection Error",
-            description: "Please connect to a Solana-compatible wallet on the correct network",
+            title: "Wallet Not Found",
+            description: "Please install the wallet extension and refresh the page",
+          });
+        } else if (error.message.includes('Solana-compatible') || 
+                  error.message.includes('wrong network')) {
+          toast({
+            variant: "destructive",
+            title: "Wallet Network Error",
+            description: "Please connect to a Solana-compatible wallet on the devnet network",
           });
         } else {
           toast({
@@ -41,6 +78,7 @@ export default function WalletSelectorModal() {
           });
         }
       } else {
+        setConnectorError("Unknown error occurred");
         toast({
           variant: "destructive",
           title: "Wallet Connection Error",
@@ -63,16 +101,40 @@ export default function WalletSelectorModal() {
         
         <div className="p-6">
           <h2 className="text-xl font-bold text-black mb-1">Connect Wallet</h2>
-          <p className="text-gray-600 text-sm mb-6">
+          <p className="text-gray-600 text-sm mb-4">
             Select a wallet to connect to YOT Swap
           </p>
+          
+          {/* Display detected wallet information */}
+          <div className="mb-4 p-3 bg-blue-50 rounded-lg text-sm">
+            <div className="font-semibold text-blue-700 mb-1">Wallet Detection</div>
+            <div className="text-blue-600">
+              {installedWallets.length > 0 ? (
+                <div>Detected wallets: {installedWallets.join(', ')}</div>
+              ) : (
+                <div>No Solana wallets detected. Make sure you have a wallet extension installed.</div>
+              )}
+            </div>
+          </div>
+          
+          {/* Display error if one occurred */}
+          {connectorError && (
+            <div className="mb-4 p-3 bg-red-50 rounded-lg text-sm text-red-600">
+              <div className="font-semibold text-red-700 mb-1">Connection Error</div>
+              <div>{connectorError}</div>
+            </div>
+          )}
           
           <div className="space-y-2">
             {/* Phantom Wallet */}
             <button
               onClick={() => handleConnect('Phantom')}
               disabled={connecting}
-              className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition"
+              className={`w-full flex items-center justify-between p-4 ${
+                installedWallets.includes('Phantom') 
+                  ? 'bg-green-50 hover:bg-green-100' 
+                  : 'bg-gray-50 hover:bg-gray-100'
+              } rounded-lg transition`}
             >
               <div className="flex items-center">
                 <div className="bg-purple-500 h-10 w-10 rounded-full flex items-center justify-center mr-3">
@@ -83,7 +145,14 @@ export default function WalletSelectorModal() {
                     <path fill="white" d="M8.60001 11.7C8.36001 12.02 8.06001 12.28 7.74001 12.5C7.26001 12.8 6.70001 12.98 6.12001 13.02C5.54001 13.06 4.96001 12.96 4.42001 12.7C3.02001 12.06 2.24001 10.6 2.34001 9.14001C2.36001 8.86001 2.42001 8.58001 2.52001 8.32001C2.00001 8.38001 1.50001 8.56001 1.08001 8.86001C0.38001 9.36001 -0.0399902 10.14 0.00001 10.98C0.04001 11.82 0.54001 12.54 1.28001 12.96L6.14001 15.72C6.44001 15.88 6.64001 16.2 6.64001 16.54V20.5C6.64001 21.04 7.08001 21.5 7.64001 21.5C8.20001 21.5 8.64001 21.06 8.64001 20.5V16.54C8.64001 15.5 8.04001 14.56 7.14001 14.06L4.42001 12.56C4.94001 12.76 5.52001 12.82 6.08001 12.68C6.76001 12.52 7.36001 12.12 7.78001 11.54C7.88001 11.42 7.96001 11.28 8.04001 11.14C8.30001 10.66 8.44001 10.12 8.46001 9.58001C8.68001 10.4 8.78001 11.04 8.60001 11.7Z"/>
                   </svg>
                 </div>
-                <span className="font-medium text-black">Phantom</span>
+                <div className="flex flex-col">
+                  <span className="font-medium text-black">Phantom</span>
+                  {installedWallets.includes('Phantom') ? (
+                    <span className="text-xs text-green-600">Detected</span>
+                  ) : (
+                    <span className="text-xs text-gray-500">Not detected</span>
+                  )}
+                </div>
               </div>
               <ChevronRight className="h-5 w-5 text-gray-400" />
             </button>
@@ -92,7 +161,11 @@ export default function WalletSelectorModal() {
             <button
               onClick={() => handleConnect('Solflare')}
               disabled={connecting}
-              className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition"
+              className={`w-full flex items-center justify-between p-4 ${
+                installedWallets.includes('Solflare') 
+                  ? 'bg-green-50 hover:bg-green-100' 
+                  : 'bg-gray-50 hover:bg-gray-100'
+              } rounded-lg transition`}
             >
               <div className="flex items-center">
                 <div className="bg-blue-500 h-10 w-10 rounded-full flex items-center justify-center mr-3">
@@ -101,7 +174,14 @@ export default function WalletSelectorModal() {
                     <path fill="white" d="M17.5 27c-5.2 0-9.5-4.3-9.5-9.5S12.3 8 17.5 8s9.5 4.3 9.5 9.5-4.3 9.5-9.5 9.5z"/>
                   </svg>
                 </div>
-                <span className="font-medium text-black">Solflare</span>
+                <div className="flex flex-col">
+                  <span className="font-medium text-black">Solflare</span>
+                  {installedWallets.includes('Solflare') ? (
+                    <span className="text-xs text-green-600">Detected</span>
+                  ) : (
+                    <span className="text-xs text-gray-500">Not detected</span>
+                  )}
+                </div>
               </div>
               <ChevronRight className="h-5 w-5 text-gray-400" />
             </button>
@@ -110,7 +190,11 @@ export default function WalletSelectorModal() {
             <button
               onClick={() => handleConnect('OtherWallets')}
               disabled={connecting}
-              className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition"
+              className={`w-full flex items-center justify-between p-4 ${
+                installedWallets.includes('OtherWallets') 
+                  ? 'bg-green-50 hover:bg-green-100' 
+                  : 'bg-gray-50 hover:bg-gray-100'
+              } rounded-lg transition`}
             >
               <div className="flex items-center">
                 <div className="bg-gray-400 h-10 w-10 rounded-full flex items-center justify-center mr-3">
@@ -119,11 +203,28 @@ export default function WalletSelectorModal() {
                     <line x1="5" y1="12" x2="19" y2="12"></line>
                   </svg>
                 </div>
-                <span className="font-medium text-black">Other Wallets</span>
+                <div className="flex flex-col">
+                  <span className="font-medium text-black">Other Wallets</span>
+                  {installedWallets.includes('OtherWallets') ? (
+                    <span className="text-xs text-green-600">Detected</span>
+                  ) : (
+                    <span className="text-xs text-gray-500">Not detected</span>
+                  )}
+                </div>
               </div>
               <ChevronRight className="h-5 w-5 text-gray-400" />
             </button>
           </div>
+          
+          {connecting && (
+            <div className="mt-4 flex items-center justify-center text-blue-600">
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Connecting...
+            </div>
+          )}
         </div>
         
         <div className="border-t border-gray-200 p-4 text-xs text-center text-gray-500">
