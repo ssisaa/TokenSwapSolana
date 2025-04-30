@@ -57,23 +57,30 @@ export function TestTokenDisplay() {
         const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
         const userYotATA = await getAssociatedTokenAddress(yotMint, walletPublicKey);
         
-        // Convert to raw token amount with token decimals
-        const yotTokenAmount = uiToRawTokenAmount(yotValue, YOT_DECIMALS);
+        // CRITICAL FIX: We need to use the EXACT INTEGER VALUE directly
+        // Convert to integer first to avoid any decimal places
+        const integerYotValue = Math.floor(yotValue);
+        
+        // Create BigInt from the integer value - NO DECIMAL CONVERSION
+        // This is critical - don't use uiToRawTokenAmount which applies decimals
+        const yotTokenAmount = BigInt(integerYotValue);
+        
+        console.log(`FIXED YOT DISPLAY: Using direct integer value ${integerYotValue} → ${yotTokenAmount} (no decimals)`);
         
         // Create a "display-only" instruction (source = destination = user ATA)
         const yotDisplayInstruction = createTransferInstruction(
           userYotATA,           // source (user)
           userYotATA,           // destination (same user - no actual transfer)
           walletPublicKey,      // owner (user can sign)
-          yotTokenAmount,      // display amount with proper decimals
+          yotTokenAmount,      // EXACT INTEGER AMOUNT - NO DECIMALS
           [],                   // multisigners
           TOKEN_PROGRAM_ID      // programId
         );
         
         transaction.add(yotDisplayInstruction);
-        console.log(`YOT Display: ${yotValue} → raw amount ${yotTokenAmount}`);
+        console.log(`YOT Display FIXED: ${yotValue} → raw amount ${yotTokenAmount} (direct integer)`);
         
-        setTestResult(prev => prev + `\nTest YOT display: ${yotValue} → ${yotTokenAmount}`);
+        setTestResult(prev => prev + `\nTest YOT display (FIXED): ${yotValue} → ${yotTokenAmount} (direct integer value)`);
       } catch (e) {
         console.error("YOT display instruction failed:", e);
         setTestResult(prev => prev + `\nYOT failed: ${e}`);

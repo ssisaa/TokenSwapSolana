@@ -518,14 +518,17 @@ function encodeStakeInstruction(amount: number): Buffer {
   // CRITICAL FIX: We need to ensure the program instruction amount matches what the program expects
   // The wallet display amount is determined by the Token Transfer instruction, not our instruction
   
+  // CRITICAL: First ensure we have an integer value
+  const integerAmount = Math.floor(amount);
+  
   // Convert to our program's expected format (using 10000 as scaling factor)
-  const contractAmount = Math.round(amount * PROGRAM_SCALING_FACTOR);
+  const contractAmount = Math.round(integerAmount * PROGRAM_SCALING_FACTOR);
   // Convert to bigint for transaction encoding
   const rawAmount = BigInt(contractAmount);
   
-  console.log(`STAKING INSTRUCTION: Converting UI value ${amount} YOT for contract instruction`);
-  console.log(`Program contract amount: ${amount} × ${PROGRAM_SCALING_FACTOR} = ${contractAmount}`);
-  console.log(`This is separate from the token transfer amount which uses ${YOT_DECIMALS} decimals`);
+  console.log(`STAKING INSTRUCTION: Converting UI value ${integerAmount} YOT for contract instruction`);
+  console.log(`Program contract amount: ${integerAmount} × ${PROGRAM_SCALING_FACTOR} = ${contractAmount}`);
+  console.log(`This is separate from the token transfer amount which now uses INTEGER values with no decimals`);
   
   // Ensure we don't exceed the maximum u64 value
   if (rawAmount > BigInt("18446744073709551615")) {
@@ -817,23 +820,20 @@ export async function stakeYOTTokens(
     // Note: We'll let the program handle account creation
     // Staking accounts are PDAs just like program state
     
-    // CRITICAL FIX: Add direct token transfer instruction with EXACT integer amount
+    // SUPER CRITICAL FIX: DIRECT INTEGER TOKEN TRANSFER
     // This ensures proper wallet display while maintaining program compatibility
     
-    // IMPORTANT: Use Math.floor to ensure we have an exact integer amount of tokens
-    // This prevents the wallet from showing decimal places like 1000.01
+    // STEP 1: Force integer amount (no decimals allowed!)
     const integerAmount = Math.floor(amount);
     
-    // CRITICAL FIX: Do NOT use any decimals or scaling factors for YOT tokens
-    // This is the most direct approach possible - use the raw integer value
-    // with no decimals, no scaling, no adjustments of any kind
-    
-    // For SPL token transfers with YOT_DECIMALS = 0, we need to use BigInt with no decimal conversion
+    // STEP 2: MOST CRITICAL FIX - Use DIRECT INTEGER VALUE with ABSOLUTELY NO conversions
+    // Do NOT use uiToRawTokenAmount or any other decimal conversion - this is the root issue!
+    // There should be no scaling, no decimal places, no adjustments of any kind
     const tokenAmount = BigInt(integerAmount);
     
     // Create an explicit transfer instruction with the exact integer token amount with no decimals
-    console.log(`Creating YOT token transfer with EXACT WHOLE NUMBER: ${integerAmount} YOT tokens`);
-    console.log(`Using raw amount = ${tokenAmount} with NO DECIMALS, NO ADJUSTMENTS, NO SCALING FACTOR`);
+    console.log(`ABSOLUTE FIX - Creating YOT token transfer with EXACT INTEGER: ${integerAmount} YOT tokens`);
+    console.log(`Using raw BigInt amount = ${tokenAmount} with ABSOLUTELY NO CONVERSIONS OR DECIMALS`);
     
     // Add token transfer instruction - user will send tokens to program
     transaction.add(
@@ -841,7 +841,7 @@ export async function stakeYOTTokens(
         userYotATA,                 // source
         programYotATA,              // destination
         walletPublicKey,            // owner of source
-        tokenAmount                 // amount with proper decimal places (from integer amount)
+        tokenAmount                 // DIRECT INTEGER VALUE - No decimal conversion whatsoever
       )
     );
     
