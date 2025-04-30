@@ -47,11 +47,15 @@ export default function MultiHubSwapCard() {
     const numAmount = parseFloat(amountIn) || 0;
     const totalYot = numAmount * usdcToYotRate;
     
-    // Distribution according to protocol: 75% user, 20% liquidity, 5% cashback
-    setEstimatedYot(totalYot * 0.75);
-    setEstimatedLiquidity(totalYot * 0.20);
-    setEstimatedCashback(totalYot * 0.05);
-  }, [amountIn]);
+    // Distribution according to configured percentages (defaults: 75% user, 20% liquidity, 5% cashback)
+    const userPercent = swapStats?.buyDistribution?.userPercent || 75;
+    const liquidityPercent = swapStats?.buyDistribution?.liquidityPercent || 20;
+    const cashbackPercent = swapStats?.buyDistribution?.cashbackPercent || 5;
+    
+    setEstimatedYot(totalYot * (userPercent / 100));
+    setEstimatedLiquidity(totalYot * (liquidityPercent / 100));
+    setEstimatedCashback(totalYot * (cashbackPercent / 100));
+  }, [amountIn, swapStats]);
 
   // Function to handle swap
   const handleSwap = async () => {
@@ -164,7 +168,7 @@ export default function MultiHubSwapCard() {
               <div className="space-y-2 rounded-lg bg-accent/20 p-3">
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center">
-                    <span>Liquidity Contribution (20%)</span>
+                    <span>Liquidity Contribution ({swapStats?.buyDistribution?.liquidityPercent || 20}%)</span>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -173,7 +177,7 @@ export default function MultiHubSwapCard() {
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p className="max-w-xs">20% of YOT goes to liquidity pool. Earn weekly YOS rewards.</p>
+                          <p className="max-w-xs">{swapStats?.buyDistribution?.liquidityPercent || 20}% of YOT goes to liquidity pool. Earn weekly YOS rewards.</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -183,7 +187,7 @@ export default function MultiHubSwapCard() {
                 
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center">
-                    <span>YOS Cashback (5%)</span>
+                    <span>YOS Cashback ({swapStats?.buyDistribution?.cashbackPercent || 5}%)</span>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -192,7 +196,7 @@ export default function MultiHubSwapCard() {
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p className="max-w-xs">Receive 5% instant cashback in YOS tokens.</p>
+                          <p className="max-w-xs">Receive {swapStats?.buyDistribution?.cashbackPercent || 5}% instant cashback in YOS tokens.</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>

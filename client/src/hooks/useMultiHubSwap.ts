@@ -11,12 +11,20 @@ import {
   getMultiHubSwapStats
 } from '@/lib/multi-hub-swap';
 
+interface Distribution {
+  userPercent: number;
+  liquidityPercent: number;
+  cashbackPercent: number;
+}
+
 interface MultiHubSwapStats {
   totalLiquidityContributed: number;
   totalContributors: number;
   totalYosRewarded: number;
   weeklyRewardRate: number;
   yearlyAPR: number;
+  buyDistribution: Distribution;
+  sellDistribution: Distribution;
 }
 
 interface LiquidityContributionInfo {

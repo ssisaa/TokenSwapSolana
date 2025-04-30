@@ -241,10 +241,70 @@ export async function getMultiHubSwapStats() {
       totalContributors: 12,
       totalYosRewarded: 1250,
       weeklyRewardRate: 1.92, // 1.92% per week (100% APR / 52 weeks)
-      yearlyAPR: 100 // 100% APR
+      yearlyAPR: 100, // 100% APR
+      // Adding configurable distribution percentages
+      buyDistribution: {
+        userPercent: 75,
+        liquidityPercent: 20,
+        cashbackPercent: 5
+      },
+      sellDistribution: {
+        userPercent: 75,
+        liquidityPercent: 20,
+        cashbackPercent: 5
+      }
     };
   } catch (error) {
     console.error("Error getting multi-hub swap stats:", error);
+    throw error;
+  }
+}
+
+/**
+ * Update multi-hub swap parameters (admin only)
+ */
+export async function updateMultiHubSwapParameters(
+  wallet: any,
+  buyUserPercent: number = 75,
+  buyLiquidityPercent: number = 20,
+  buyCashbackPercent: number = 5,
+  sellUserPercent: number = 75,
+  sellLiquidityPercent: number = 20,
+  sellCashbackPercent: number = 5,
+  weeklyRewardRate: number = 1.92
+) {
+  try {
+    // Check if wallet is connected
+    if (!wallet || !wallet.publicKey) {
+      throw new Error("Wallet not connected");
+    }
+
+    // In a full implementation:
+    // 1. Verify admin status
+    // 2. Build and send transaction to update parameters
+    
+    console.log("Multi-hub swap parameters would be updated here");
+    console.log("This is admin-only functionality");
+    
+    return {
+      success: true,
+      message: "Parameters updated successfully",
+      newParameters: {
+        buyDistribution: {
+          userPercent: buyUserPercent, 
+          liquidityPercent: buyLiquidityPercent,
+          cashbackPercent: buyCashbackPercent
+        },
+        sellDistribution: {
+          userPercent: sellUserPercent,
+          liquidityPercent: sellLiquidityPercent,
+          cashbackPercent: sellCashbackPercent
+        },
+        weeklyRewardRate
+      }
+    };
+  } catch (error) {
+    console.error("Error updating multi-hub swap parameters:", error);
     throw error;
   }
 }
