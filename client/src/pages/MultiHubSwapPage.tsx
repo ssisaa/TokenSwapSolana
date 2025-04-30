@@ -50,7 +50,7 @@ export default function MultiHubSwapPage() {
                   </p>
                   <ul className="list-disc list-inside text-sm text-muted-foreground pl-4 space-y-1">
                     <li>Rewards are claimable once per week</li>
-                    <li>104% APY paid in YOS tokens</li>
+                    <li>100% APR paid weekly in YOS tokens</li>
                     <li>Rewards scale with your contribution amount</li>
                   </ul>
                 </div>

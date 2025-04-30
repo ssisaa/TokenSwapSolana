@@ -16,7 +16,7 @@ interface MultiHubSwapStats {
   totalContributors: number;
   totalYosRewarded: number;
   weeklyRewardRate: number;
-  yearlyAPY: number;
+  yearlyAPR: number;
 }
 
 interface LiquidityContributionInfo {

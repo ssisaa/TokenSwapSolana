@@ -208,8 +208,8 @@ export async function getLiquidityContributionInfo(walletAddressStr: string) {
     const canClaimReward = secondsUntilNextClaim === 0;
     const nextClaimAvailable = new Date((now + secondsUntilNextClaim) * 1000).toISOString();
     
-    // Calculate estimated weekly reward (2% of contribution)
-    const estimatedWeeklyReward = contributedAmount * 0.02;
+    // Calculate estimated weekly reward (100% APR / 52 weeks ≈ 1.92% per week)
+    const estimatedWeeklyReward = contributedAmount * (1 / 52);
     
     return {
       contributedAmount,
@@ -240,8 +240,8 @@ export async function getMultiHubSwapStats() {
       totalLiquidityContributed: 25000,
       totalContributors: 12,
       totalYosRewarded: 1250,
-      weeklyRewardRate: 2, // 2% per week
-      yearlyAPY: 104, // 104% APY
+      weeklyRewardRate: 1.92, // 1.92% per week (100% APR / 52 weeks)
+      yearlyAPR: 100 // 100% APR
     };
   } catch (error) {
     console.error("Error getting multi-hub swap stats:", error);

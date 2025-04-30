@@ -306,7 +306,7 @@ export default function MultiHubSwapCard() {
         ) : swapStats ? (
           <div className="w-full text-xs text-muted-foreground flex justify-between">
             <span>Total Liquidity: {swapStats.totalLiquidityContributed.toLocaleString()} YOT</span>
-            <span>APY: {swapStats.yearlyAPY}%</span>
+            <span>APR: {swapStats.yearlyAPR}%</span>
           </div>
         ) : null}
       </CardFooter>
