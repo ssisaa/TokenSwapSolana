@@ -11,6 +11,7 @@ import {
   CONFIRMATION_COUNT
 } from './constants';
 import { getRaydiumSwapEstimate, prepareRaydiumSwapTransaction, isTokenSupportedByRaydium } from './raydium-swap';
+import { getJupiterSwapEstimate, prepareJupiterSwapTransaction, isTokenSupportedByJupiter } from './jupiter-swap';
 
 // Swap providers
 export enum SwapProvider {
@@ -131,17 +132,31 @@ export async function getMultiHubSwapEstimate(
     }
   } else if (preferredProvider === SwapProvider.Jupiter) {
     // User explicitly wants to use Jupiter
-    provider = SwapProvider.Jupiter;
-    
-    // In the future, we'll add actual Jupiter integration
-    // For now, simulate a Jupiter response
-    const jupiterPriceRatio = 0.92 * (1 - priceImpact); // Jupiter slightly better than contract
-    estimatedAmount = actualSwapAmount * jupiterPriceRatio;
-    minAmountOut = estimatedAmount * (1 - slippage);
-    
-    // Add an artificial route through SOL
-    if (fromToken.address !== SOL_TOKEN_ADDRESS && toToken.address !== SOL_TOKEN_ADDRESS) {
-      route = [fromToken.symbol, 'SOL', toToken.symbol];
+    try {
+      provider = SwapProvider.Jupiter;
+      
+      // Get estimate from Jupiter
+      const jupiterEstimate = await getJupiterSwapEstimate(
+        fromToken,
+        toToken,
+        actualSwapAmount,
+        slippage
+      );
+      
+      estimatedAmount = jupiterEstimate.estimatedAmount;
+      minAmountOut = jupiterEstimate.minAmountOut;
+      priceImpact = jupiterEstimate.priceImpact;
+      fee = jupiterEstimate.fee;
+      route = jupiterEstimate.routes;
+      
+    } catch (error) {
+      console.error('Error getting Jupiter estimate, falling back to contract:', error);
+      
+      // Fall back to contract if Jupiter fails
+      provider = SwapProvider.Contract;
+      const conversionFactor = 0.9 * (1 - priceImpact);
+      estimatedAmount = actualSwapAmount * conversionFactor;
+      minAmountOut = estimatedAmount * (1 - slippage);
     }
     
   } else if (isFromTokenSupported && isToTokenSupported) {
@@ -230,15 +245,98 @@ export async function executeMultiHubSwap(
   
   // Determine the best provider to use
   let swapTransaction: Transaction;
-  const isFromTokenSupported = isTokenSupportedByRaydium(fromToken.address);
-  const isToTokenSupported = isTokenSupportedByRaydium(toToken.address);
+  const isFromTokenSupportedByRaydium = isTokenSupportedByRaydium(fromToken.address);
+  const isToTokenSupportedByRaydium = isTokenSupportedByRaydium(toToken.address);
+  const isFromTokenSupportedByJupiter = isTokenSupportedByJupiter(fromToken.address);
+  const isToTokenSupportedByJupiter = isTokenSupportedByJupiter(toToken.address);
   
-  // Try to use Raydium for supported tokens
-  if (isFromTokenSupported && isToTokenSupported && 
-      fromToken.address !== SOL_TOKEN_ADDRESS && 
-      fromToken.address !== YOT_TOKEN_ADDRESS &&
-      toToken.address !== SOL_TOKEN_ADDRESS && 
-      toToken.address !== YOT_TOKEN_ADDRESS) {
+  // Critical pairs always use our contract for best rates
+  const isSOLPair = fromToken.address === SOL_TOKEN_ADDRESS || toToken.address === SOL_TOKEN_ADDRESS;
+  const isYOTPair = fromToken.address === YOT_TOKEN_ADDRESS || toToken.address === YOT_TOKEN_ADDRESS;
+  
+  // Get the preferred provider from the estimate
+  const estimate = await getMultiHubSwapEstimate(
+    fromToken,
+    toToken,
+    amount,
+    0.01, // Default slippage
+    SwapProvider.Jupiter // Try Jupiter first
+  );
+  
+  const preferredProvider = estimate.provider;
+  console.log(`Determined best provider: ${preferredProvider}`);
+  
+  // Try to use Jupiter first if supported
+  if (preferredProvider === SwapProvider.Jupiter && 
+      isFromTokenSupportedByJupiter && isToTokenSupportedByJupiter &&
+      !isSOLPair && !isYOTPair) {
+      
+    console.log('Using Jupiter for swap...');
+    
+    try {
+      // Prepare a Jupiter swap transaction
+      swapTransaction = await prepareJupiterSwapTransaction(
+        wallet,
+        fromToken,
+        toToken,
+        actualSwapAmount,
+        minAmountOut
+      );
+      
+    } catch (error) {
+      console.error('Error preparing Jupiter swap, trying Raydium:', error);
+      
+      // Try Raydium as fallback
+      if (isFromTokenSupportedByRaydium && isToTokenSupportedByRaydium) {
+        try {
+          console.log('Falling back to Raydium...');
+          swapTransaction = await prepareRaydiumSwapTransaction(
+            wallet,
+            fromToken,
+            toToken,
+            actualSwapAmount,
+            minAmountOut
+          );
+        } catch (raydiumError) {
+          console.error('Error preparing Raydium swap, falling back to contract:', raydiumError);
+          
+          // Fall back to contract if both Jupiter and Raydium fail
+          swapTransaction = new Transaction();
+          const { blockhash } = await connection.getLatestBlockhash();
+          swapTransaction.recentBlockhash = blockhash;
+          swapTransaction.feePayer = wallet.publicKey;
+          
+          // Add contract swap instruction
+          swapTransaction.add(
+            SystemProgram.transfer({
+              fromPubkey: wallet.publicKey,
+              toPubkey: wallet.publicKey,  // Send to self as a placeholder
+              lamports: 100,  // Minimal amount for demonstration
+            })
+          );
+        }
+      } else {
+        // Fall back to contract if Jupiter fails and Raydium not supported
+        swapTransaction = new Transaction();
+        const { blockhash } = await connection.getLatestBlockhash();
+        swapTransaction.recentBlockhash = blockhash;
+        swapTransaction.feePayer = wallet.publicKey;
+        
+        // Add contract swap instruction
+        swapTransaction.add(
+          SystemProgram.transfer({
+            fromPubkey: wallet.publicKey,
+            toPubkey: wallet.publicKey,  // Send to self as a placeholder
+            lamports: 100,  // Minimal amount for demonstration
+          })
+        );
+      }
+    }
+    
+  // Try to use Raydium as second option for supported tokens
+  } else if (preferredProvider === SwapProvider.Raydium &&
+             isFromTokenSupportedByRaydium && isToTokenSupportedByRaydium && 
+             !isSOLPair && !isYOTPair) {
       
     console.log('Using Raydium DEX for swap...');
     

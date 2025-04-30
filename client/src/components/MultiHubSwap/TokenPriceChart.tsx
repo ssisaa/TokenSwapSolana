@@ -19,7 +19,7 @@ interface ChartCandle {
 // Note: In a real implementation, we would use Jupiter or Raydium APIs
 // This version uses Connection to fetch real-time swap quotes
 import { Connection, PublicKey } from '@solana/web3.js';
-import { SOLANA_RPC_ENDPOINT } from '@/lib/constants';
+import { SOLANA_RPC_URL } from '@/lib/constants';
 
 // Fetch real swap price data
 const fetchRealPriceData = async (
@@ -29,7 +29,7 @@ const fetchRealPriceData = async (
 ): Promise<ChartCandle[]> => {
   try {
     // Create a connection to Solana
-    const connection = new Connection(SOLANA_RPC_ENDPOINT);
+    const connection = new Connection(SOLANA_RPC_URL);
     
     // For now, we'll use a simplified approach since historical DEX data 
     // requires specialized indexers or APIs
