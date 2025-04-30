@@ -507,14 +507,7 @@ export default function Stake() {
                           ></div>
                         </div>
                         
-                        {/* Debug information */}
-                        <div className="text-xs text-gray-400 mt-1 mb-2">
-                          <div>Raw Rewards: {rawRewards.toFixed(2)}</div>
-                          <div>Normalized (÷9260): {normalizedRewards.toFixed(2)}</div>
-                          <div>Admin Threshold: {harvestThreshold} YOS</div>
-                          <div>Current Progress: {progress.toFixed(2)}%</div>
-                          <div>Button enabled: {canHarvest ? 'Yes' : 'No'}</div>
-                        </div>
+                        {/* Hidden debug information */}
                         
 
                         
@@ -550,10 +543,6 @@ export default function Stake() {
                         <div className="text-gray-300">
                           <p>
                             Harvesting will claim your earned YOS rewards and send them to your wallet. You can harvest anytime rewards are available.
-                          </p>
-                          <p className="mt-2 mb-2 font-medium text-amber-300">
-                            Minimum harvest amount: {typeof stakingRates?.harvestThreshold === 'number' ? 
-                              stakingRates.harvestThreshold.toLocaleString('en-US', {maximumFractionDigits: 0}) : '0'} YOS
                           </p>
                         </div>
                       </div>

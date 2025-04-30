@@ -405,16 +405,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                     </div>
                   </div>
                   
-                  {/* Debug information */}
-                  <div className="border-t border-slate-700 pt-2 mt-2">
-                    <div className="text-xs text-gray-400">
-                      <div>Raw Rewards: {rawRewards.toFixed(2)}</div>
-                      <div>Normalized (÷9260): {normalizedRewards.toFixed(2)}</div>
-                      <div>Admin Threshold: {stakingRates?.harvestThreshold || 'Loading...'} YOS</div>
-                      <div>Current Progress: {progress.toFixed(2)}%</div>
-                      <div>Button enabled: {canHarvest ? 'Yes' : 'No'}</div>
-                    </div>
-                  </div>
+                  {/* Debug information hidden */}
                   
                   <div className="flex flex-col space-y-2 mt-3">
                     <Button 
