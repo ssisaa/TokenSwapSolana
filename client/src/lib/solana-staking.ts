@@ -201,7 +201,8 @@ export function getWalletCompatibleYotAmount(amount: number): bigint {
 export /**
  * CRITICAL FIX: Get wallet-adjusted YOS amount to prevent display issues
  * This function is specifically designed to fix the YOS token display issue in Phantom Wallet
- * Based on testing, we now use a divisor of 823 (not 9,200,000) to fix wallet display
+ * Based on contract implementation, we now use a divisor of 1,000,000,000 (10^9) to fix wallet display
+ * This matches the Solana program's get_wallet_adjusted_yos_amount function
  * 
  * @param uiValue The UI value of YOS tokens that should be displayed
  * @returns The raw blockchain amount that will result in proper wallet display
