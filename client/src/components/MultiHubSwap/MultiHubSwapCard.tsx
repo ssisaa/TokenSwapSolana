@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Card,
   CardContent,
@@ -15,7 +15,11 @@ import {
   ChevronDown,
   RefreshCw,
   Info,
-  AlertCircle
+  AlertCircle,
+  Search, 
+  X, 
+  CircleDashed,
+  Copy,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,15 +29,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
-  Search, 
-  X, 
-  CircleDashed,
-  Copy,
-} from 'lucide-react';
-import { fetchSolanaTokens } from '@/lib/token-search-api';
-import { TokenInfo } from '@/lib/token-search-api';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { fetchSolanaTokens, TokenInfo } from '@/lib/token-search-api';
 import { SOL_TOKEN_ADDRESS, YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS } from '@/lib/constants';
 import useMultiHubSwap from '@/hooks/useMultiHubSwap';
 import { formatNumber } from '@/lib/utils';
@@ -85,7 +82,7 @@ export default function MultiHubSwapCard() {
     ];
     
     // Filter based on search
-    let filtered = tokens.filter(token => {
+    let filtered = tokens.filter((token: TokenInfo) => {
       if (!searchValue) return true;
       
       const searchLower = searchValue.toLowerCase();
@@ -98,7 +95,7 @@ export default function MultiHubSwapCard() {
     });
     
     // Sort tokens
-    filtered.sort((a, b) => {
+    filtered.sort((a: TokenInfo, b: TokenInfo) => {
       const aPriority = priorityTokens.indexOf(a.address);
       const bPriority = priorityTokens.indexOf(b.address);
       
@@ -116,7 +113,7 @@ export default function MultiHubSwapCard() {
   const popularTokens = useMemo(() => {
     if (!tokens) return [];
     
-    return tokens.filter(token => 
+    return tokens.filter((token: TokenInfo) => 
       ['So11111111111111111111111111111111111111112', 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', 'RAY111111111111111111111111111111111111111'].includes(token.address)
     );
   }, [tokens]);
@@ -312,7 +309,7 @@ export default function MultiHubSwapCard() {
                     <div>
                       <p className="text-sm text-blue-400 mb-2">Popular tokens</p>
                       <div className="grid grid-cols-4 gap-2">
-                        {popularTokens.map(token => (
+                        {popularTokens.map((token: TokenInfo) => (
                           <Button
                             key={token.address}
                             variant="outline"
@@ -321,7 +318,7 @@ export default function MultiHubSwapCard() {
                               setFromToken(token);
                               setFromDialogOpen(false);
                             }}
-                            disabled={toToken && token.address === toToken.address}
+                            disabled={toToken ? token.address === toToken.address : false}
                           >
                             <Avatar className="h-5 w-5 mr-2">
                               <AvatarImage src={token.logoURI} alt={token.symbol} />
@@ -364,7 +361,7 @@ export default function MultiHubSwapCard() {
                         <div className="space-y-1">
                           {filteredTokens
                             .filter(token => !toToken || token.address !== toToken.address)
-                            .map(token => (
+                            .map((token: TokenInfo) => (
                             <div
                               key={token.address}
                               onClick={() => {
@@ -529,7 +526,7 @@ export default function MultiHubSwapCard() {
                     <div>
                       <p className="text-sm text-blue-400 mb-2">Popular tokens</p>
                       <div className="grid grid-cols-4 gap-2">
-                        {popularTokens.map(token => (
+                        {popularTokens.map((token: TokenInfo) => (
                           <Button
                             key={token.address}
                             variant="outline"
@@ -538,7 +535,7 @@ export default function MultiHubSwapCard() {
                               setToToken(token);
                               setToDialogOpen(false);
                             }}
-                            disabled={fromToken && token.address === fromToken.address}
+                            disabled={fromToken ? token.address === fromToken.address : false}
                           >
                             <Avatar className="h-5 w-5 mr-2">
                               <AvatarImage src={token.logoURI} alt={token.symbol} />
@@ -581,7 +578,7 @@ export default function MultiHubSwapCard() {
                         <div className="space-y-1">
                           {filteredTokens
                             .filter(token => !fromToken || token.address !== fromToken.address)
-                            .map(token => (
+                            .map((token: TokenInfo) => (
                             <div
                               key={token.address}
                               onClick={() => {
