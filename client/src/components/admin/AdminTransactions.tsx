@@ -447,17 +447,17 @@ export default function AdminTransactions() {
                         {tx.txType === 'stake' ? (
                           <div className="flex items-center justify-end">
                             <ArrowUpRight className="h-4 w-4 mr-1 text-green-500" />
-                            <span>{tx.amount ? tx.amount.toFixed(4) : "0"} YOT</span>
+                            <span>{tx.amount ? Number(tx.amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4}) : "0"} YOT</span>
                           </div>
                         ) : tx.txType === 'unstake' ? (
                           <div className="flex items-center justify-end">
                             <ArrowDownRight className="h-4 w-4 mr-1 text-amber-500" />
-                            <span>{tx.amount ? tx.amount.toFixed(4) : "0"} YOT</span>
+                            <span>{tx.amount ? Number(tx.amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4}) : "0"} YOT</span>
                           </div>
                         ) : tx.txType === 'harvest' ? (
                           <div className="flex items-center justify-end">
                             <ArrowDownRight className="h-4 w-4 mr-1 text-purple-500" />
-                            <span>{tx.amount ? tx.amount.toFixed(4) : "0"} YOS</span>
+                            <span>{tx.amount ? Number(tx.amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4}) : "0"} YOS</span>
                           </div>
                         ) : (
                           <span className="text-muted-foreground">-</span>
