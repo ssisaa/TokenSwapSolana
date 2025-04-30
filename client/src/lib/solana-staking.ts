@@ -210,8 +210,8 @@ export function getWalletAdjustedYosAmount(uiValue: number): bigint {
   // Apply the display adjustment divisor to counteract the millions display
   const adjustedValue = uiValue / YOS_WALLET_DISPLAY_ADJUSTMENT;
   
-  // Use our new token conversion function
-  const rawAmount = uiToRawYOSAmount(adjustedValue);
+  // Use the token conversion function with YOS_DECIMALS
+  const rawAmount = uiToRawTokenAmount(adjustedValue, YOS_DECIMALS);
   
   console.log(`⭐⭐ YOS WALLET DISPLAY FIX:
   Original amount: ${uiValue} YOS
@@ -629,7 +629,7 @@ function encodeUnstakeInstruction(amount: number): Buffer {
 
 function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
   // CRITICAL FIX: The harvest instruction needs special handling
-  // The Solana program uses a 10,000× multiplier internally, BUT there's also a token decimals adjustment
+  // The Solana program uses a 10,000× multiplier internally, but we also need to handle YOS decimals
   
   if (rewardsAmount !== undefined) {
     // Enhanced version with explicit rewards amount parameter
@@ -639,21 +639,23 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     
     // CRITICAL FIX FOR PHANTOM WALLET DISPLAY: 
     // The problem is that rewards show up in millions (e.g., 7,390,340.26 YOS)
-    // We need to dramatically reduce this value for the contract instruction
+    // We need to apply our wallet display adjustment
     
-    // Import the YOS_WALLET_DISPLAY_ADJUSTMENT from constants
-    // This value is now set to 10000 based on screenshot evidence
+    // Step 1: Apply the display adjustment to counteract millions display
     const adjustedRewards = rewardsAmount / YOS_WALLET_DISPLAY_ADJUSTMENT;
     
     // Step 2: Calculate the contract amount using the PROGRAM_SCALING_FACTOR
     // This is what the program expects
     const contractAmount = Math.round(adjustedRewards * PROGRAM_SCALING_FACTOR);
     
-    console.log(`🔄 YOS HARVEST WITH PHANTOM WALLET FIX:`);
-    console.log(`- Original amount: ${rewardsAmount} YOS`);
-    console.log(`- Phantom adjustment: ÷ ${YOS_WALLET_DISPLAY_ADJUSTMENT} = ${adjustedRewards} YOS`);
-    console.log(`- Program scaling: × ${PROGRAM_SCALING_FACTOR} = ${contractAmount}`);
-    console.log(`- Final contract value: ${contractAmount}`);
+    console.log(`
+    ===== YOS HARVEST WITH DISPLAY ADJUSTMENT =====
+    Original amount: ${rewardsAmount} YOS
+    Wallet display adjustment: ÷ ${YOS_WALLET_DISPLAY_ADJUSTMENT} = ${adjustedRewards} YOS
+    Program scaling: × ${PROGRAM_SCALING_FACTOR} = ${contractAmount}
+    Final contract value: ${contractAmount}
+    ===========================================
+    `);
     
     // Ensure we don't exceed the maximum u64 value
     if (contractAmount > Number.MAX_SAFE_INTEGER) {
@@ -663,8 +665,12 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     // Write the contract amount to the data buffer
     data.writeBigUInt64LE(BigInt(contractAmount), 1);
     
-    console.log(`📱 PHANTOM WALLET YOS FIX: Applying 1/${YOS_WALLET_DISPLAY_ADJUSTMENT} divisor to counteract millions display`);
-    console.log(`This should display as approximately ${rewardsAmount/YOS_WALLET_DISPLAY_ADJUSTMENT} YOS in wallet`);
+    console.log(`
+    ===== PHANTOM WALLET YOS DISPLAY FIX =====
+    Applied 1/${YOS_WALLET_DISPLAY_ADJUSTMENT} divisor to counteract millions display
+    This should display as approximately ${adjustedRewards} YOS in wallet
+    ========================================
+    `);
     
     return data;
   } else {
@@ -1307,8 +1313,7 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     `);
     
     // Use our improved getWalletAdjustedYosAmount function which applies the display adjustment
-    // Import uiToRawYOSAmount from utils.ts
-    const { uiToRawYOSAmount } = require('./utils');
+    // This function already handles the display adjustment internally
     const yosTokenAmount = getWalletAdjustedYosAmount(displayRewards);
     
     console.log(`
