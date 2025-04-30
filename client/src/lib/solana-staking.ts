@@ -10,6 +10,7 @@ import {
   TransactionInstruction
 } from '@solana/web3.js';
 import { sendTransaction } from './transaction-helper';
+import { sendTransactionWithWallet } from './wallet-adapter';
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getAccount, createTransferInstruction } from '@solana/spl-token';
 import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, YOT_DECIMALS, YOS_DECIMALS, STAKING_PROGRAM_ID, ENDPOINT, YOS_WALLET_DISPLAY_ADJUSTMENT, PROGRAM_SCALING_FACTOR } from './constants';
 
@@ -939,8 +940,9 @@ export async function stakeYOTTokens(
       data: encodeStakeInstruction(amount)
     });
     
-    // Sign and send the transaction
-    const signature = await wallet.sendTransaction(transaction, connection);
+    // Sign and send the transaction using universal wallet adapter
+    console.log("Using universal wallet adapter for stake transaction");
+    const signature = await sendTransactionWithWallet(wallet, transaction, connection);
     await connection.confirmTransaction(signature, 'confirmed');
     
     return signature;
@@ -1235,7 +1237,9 @@ export async function unstakeYOTTokens(
       console.log("Sending unstake transaction with simplified structure...");
       console.log(`Transaction has ${transaction.instructions.length} instructions`);
       
-      const signature = await wallet.sendTransaction(transaction, connection);
+      // Sign and send the transaction using universal wallet adapter
+      console.log("Using universal wallet adapter for unstake transaction");
+      const signature = await sendTransactionWithWallet(wallet, transaction, connection);
       console.log("Transaction sent with signature:", signature);
       await connection.confirmTransaction(signature, 'confirmed');
       console.log("Transaction confirmed successfully");
