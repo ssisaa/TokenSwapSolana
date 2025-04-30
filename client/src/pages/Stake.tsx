@@ -492,6 +492,14 @@ export default function Stake() {
                           ></div>
                         </div>
                         
+                        {/* Debug information */}
+                        <div className="text-xs text-gray-400 mt-1 mb-2">
+                          <div>Raw Rewards: {stakingInfo.rewardsEarned.toFixed(2)}</div>
+                          <div>Normalized (÷9260): {(stakingInfo.rewardsEarned / 9260).toFixed(2)}</div>
+                          <div>Threshold: {stakingRates?.harvestThreshold || 1}</div>
+                          <div>Progress: {Math.min(100, ((stakingInfo.rewardsEarned / 9260) / (stakingRates?.harvestThreshold || 1)) * 100).toFixed(2)}%</div>
+                        </div>
+                        
 
                         
                         <div className="flex justify-between items-center text-xs">

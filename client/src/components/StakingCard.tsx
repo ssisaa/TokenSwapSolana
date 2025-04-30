@@ -106,13 +106,18 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
   // CRITICAL FIX: Ensure proper normalization for YOS rewards with 9260 factor
   // This matches the display in wallet which shows normalized values
   const normalizedRewards = stakingInfo.rewardsEarned / 9260;
-  const canHarvest = normalizedRewards > 0 && normalizedRewards >= (stakingRates?.harvestThreshold || 1);
+  const harvestThreshold = stakingRates?.harvestThreshold || 1;
+  const progress = (normalizedRewards / harvestThreshold) * 100;
+  
+  // Allow harvest when progress is 100% or more (equals or exceeds threshold)
+  const canHarvest = normalizedRewards > 0 && progress >= 100;
   
   // Debug the values to see why the button is disabled
   console.log("HARVEST DEBUG:", {
     rewardsEarnedRaw: stakingInfo.rewardsEarned,
     normalizedRewards,
-    harvestThreshold: stakingRates?.harvestThreshold || 1,
+    harvestThreshold,
+    progress: progress.toFixed(2) + '%',
     canHarvest,
     buttonDisabled: !canHarvest || isHarvesting || !connected,
     isHarvesting,
@@ -385,17 +390,28 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                   <div className="space-y-2 mt-2">
                     <div className="w-full bg-slate-700 rounded-full h-2.5">
                       <div 
-                        className={`h-2.5 rounded-full ${normalizedRewards >= (stakingRates?.harvestThreshold || 1) ? 'bg-green-500' : 'bg-blue-600'}`}
+                        className={`h-2.5 rounded-full ${progress >= 100 ? 'bg-green-500' : 'bg-blue-600'}`}
                         style={{ 
-                          width: `${Math.min(100, (normalizedRewards / (stakingRates?.harvestThreshold || 1)) * 100)}%` 
+                          width: `${Math.min(100, progress)}%` 
                         }}
                       ></div>
                     </div>
                     <div className="flex justify-between items-center text-xs">
                       <span className="text-gray-400">0</span>
-                      <span className={`font-medium ${normalizedRewards >= (stakingRates?.harvestThreshold || 1) ? 'text-green-400' : 'text-amber-400'}`}>
-                        Minimum harvest amount: {(stakingRates?.harvestThreshold || 1).toLocaleString('en-US')} YOS
+                      <span className={`font-medium ${progress >= 100 ? 'text-green-400' : 'text-amber-400'}`}>
+                        Minimum harvest amount: {harvestThreshold.toLocaleString('en-US')} YOS
                       </span>
+                    </div>
+                  </div>
+                  
+                  {/* Debug information */}
+                  <div className="border-t border-slate-700 pt-2 mt-2">
+                    <div className="text-xs text-gray-400">
+                      <div>Raw Rewards: {stakingInfo.rewardsEarned.toFixed(2)}</div>
+                      <div>Normalized (÷9260): {normalizedRewards.toFixed(2)}</div>
+                      <div>Threshold: {harvestThreshold}</div>
+                      <div>Progress: {progress.toFixed(2)}%</div>
+                      <div>Button enabled: {canHarvest ? 'Yes' : 'No'}</div>
                     </div>
                   </div>
                   
