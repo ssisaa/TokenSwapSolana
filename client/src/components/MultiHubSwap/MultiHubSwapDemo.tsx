@@ -94,7 +94,7 @@ export default function MultiHubSwapDemo() {
     try {
       setLoading(true);
       const parsedAmount = parseFloat(amount);
-      const swapResult = await executeMultiHubSwap(
+      const signature = await executeMultiHubSwap(
         wallet,
         fromToken,
         toToken,
@@ -102,7 +102,8 @@ export default function MultiHubSwapDemo() {
         slippage / 100
       );
       
-      if (swapResult.success) {
+      // Transaction signature means success
+      if (signature) {
         toast({
           title: 'Swap successful',
           description: `Swapped ${parsedAmount} ${fromToken.symbol} to approximately ${estimatedAmount?.toFixed(4)} ${toToken.symbol}`,
@@ -111,7 +112,7 @@ export default function MultiHubSwapDemo() {
       } else {
         toast({
           title: 'Swap failed',
-          description: swapResult.error || 'Unknown error occurred',
+          description: 'Unknown error occurred',
           variant: 'destructive'
         });
       }
@@ -139,9 +140,9 @@ export default function MultiHubSwapDemo() {
     
     try {
       setClaimLoading(true);
-      const claimResult = await claimYosSwapRewards(wallet);
+      const signature = await claimYosSwapRewards(wallet);
       
-      if (claimResult.success) {
+      if (signature) {
         toast({
           title: 'Rewards claimed successfully',
           description: `Your YOS rewards have been transferred to your wallet`,
@@ -151,7 +152,7 @@ export default function MultiHubSwapDemo() {
       } else {
         toast({
           title: 'Failed to claim rewards',
-          description: claimResult.error || 'Unknown error occurred',
+          description: 'Unknown error occurred',
           variant: 'destructive'
         });
       }

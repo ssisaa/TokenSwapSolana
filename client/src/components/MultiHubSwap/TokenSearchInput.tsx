@@ -32,6 +32,7 @@ interface TokenSearchInputProps {
   selectedToken: TokenInfo | null;
   onSelect: (token: TokenInfo) => void;
   exclude?: string[];
+  excludeTokens?: string[];  // For backward compatibility
   disabled?: boolean;
 }
 
@@ -39,6 +40,7 @@ export function TokenSearchInput({
   selectedToken, 
   onSelect, 
   exclude = [],
+  excludeTokens = [],
   disabled = false
 }: TokenSearchInputProps) {
   const [open, setOpen] = useState(false);
@@ -61,7 +63,8 @@ export function TokenSearchInput({
     
     // Filter tokens
     let filtered = tokens.filter(token => {
-      if (exclude.includes(token.address)) return false;
+      // Check both exclude lists
+      if (exclude.includes(token.address) || excludeTokens.includes(token.address)) return false;
       
       if (!searchValue) return true;
       
@@ -92,7 +95,7 @@ export function TokenSearchInput({
     });
     
     return filtered;
-  }, [tokens, searchValue, exclude]);
+  }, [tokens, searchValue, exclude, excludeTokens]);
 
   // Close popover when token is selected
   useEffect(() => {
