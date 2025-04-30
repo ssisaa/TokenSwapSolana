@@ -920,6 +920,19 @@ export async function prepareUnstakeTransaction(
   const rewardsEstimate = stakingDisplayInfo.rewardsEarned;
   console.log(`Potential YOS rewards during unstake: ${rewardsEstimate}`);
   
+  // TEST CODE: Simulate wallet display for YOT
+  try {
+    const yotTokenAmount = uiToRawTokenAmount(amount, YOT_TOKEN_DECIMALS);
+    console.log(`
+    ======= SIMULATED WALLET DISPLAY FOR YOT TOKEN =======
+    Original amount: ${amount} YOT
+    Raw token amount (with decimals): ${yotTokenAmount}
+    Expected wallet display: ${yotTokenAmount} (integer amount)
+    ====================================================`);
+  } catch (e) {
+    console.log("Error in YOT display simulation:", e);
+  }
+  
   if (rewardsEstimate > 0) {
     try {
       // Create and add a YOS display instruction to fix the YOS million issue
@@ -927,6 +940,15 @@ export async function prepareUnstakeTransaction(
       const yosAmount = uiToRawTokenAmount(rewardsEstimate, YOS_TOKEN_DECIMALS);
       // Divide by 17000 to fix the YOS display issue
       const displayYosAmount = BigInt(Number(yosAmount) / 17000);
+      
+      // TEST CODE: Simulate wallet display for YOS rewards during unstake
+      console.log(`
+      ======= SIMULATED WALLET DISPLAY FOR YOS REWARDS =======
+      Original YOS rewards: ${rewardsEstimate}
+      Raw YOS token amount: ${yosAmount}
+      Adjusted display amount (1/17000): ${displayYosAmount}
+      Expected wallet display: ${displayYosAmount}
+      ====================================================`);
       
       // Add a YOS display instruction too if the user has the account
       const yosDisplayInstruction = createTransferInstruction(
@@ -1100,6 +1122,21 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     // Calculate the raw rewards value that will be used by the program (10,000× multiplier)
     // This is what the blockchain will actually calculate and transfer
     const programRewards = displayRewards * PROGRAM_SCALING_FACTOR;
+    
+    // TEST CODE: Simulate wallet display to verify our fix works
+    try {
+      const yosTokenAmount = uiToRawTokenAmount(displayRewards, YOS_TOKEN_DECIMALS);
+      const displayRatio = 17000; // Current ratio to fix YOS display
+      const simulatedWalletDisplay = Number(yosTokenAmount) / displayRatio;
+      console.log(`
+      ======= SIMULATED WALLET DISPLAY =======
+      Original YOS amount: ${displayRewards}
+      Raw YOS token amount (with token decimals): ${yosTokenAmount}
+      Simulated wallet would show (1/${displayRatio}): ${simulatedWalletDisplay}
+      =======================================`);
+    } catch (e) {
+      console.log("Error in display simulation:", e);
+    }
     
     console.log(`
     ========== HARVEST OPERATION DEBUG ==========
