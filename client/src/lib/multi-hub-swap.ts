@@ -44,12 +44,18 @@ export interface SwapEstimate {
 
 /**
  * Get a swap estimate based on input/output tokens and amount
+ * @param fromToken Source token
+ * @param toToken Destination token
+ * @param amount Amount to swap
+ * @param slippage Slippage tolerance (default 1%)
+ * @param preferredProvider Optional preferred provider to use
  */
 export async function getMultiHubSwapEstimate(
   fromToken: TokenInfo,
   toToken: TokenInfo,
   amount: number,
-  slippage = 0.01
+  slippage = 0.01,
+  preferredProvider?: SwapProvider
 ): Promise<SwapEstimate> {
   // This will be implemented with actual blockchain calls
   // For now, return a simulated estimate with placeholder values
@@ -78,8 +84,17 @@ export async function getMultiHubSwapEstimate(
   const isFromTokenSupported = isTokenSupportedByRaydium(fromToken.address);
   const isToTokenSupported = isTokenSupportedByRaydium(toToken.address);
   
-  if (fromToken.address === SOL_TOKEN_ADDRESS || toToken.address === SOL_TOKEN_ADDRESS) {
-    // SOL trades can go through our contract
+  // Use specified provider if possible
+  if (preferredProvider) {
+    console.log(`Using preferred provider: ${preferredProvider}`);
+  }
+  
+  // Critical pairs always use our contract for best rates
+  const isSOLPair = fromToken.address === SOL_TOKEN_ADDRESS || toToken.address === SOL_TOKEN_ADDRESS;
+  const isYOTPair = fromToken.address === YOT_TOKEN_ADDRESS || toToken.address === YOT_TOKEN_ADDRESS;
+  
+  if (isSOLPair || isYOTPair) {
+    // SOL and YOT trades always go through our contract for best efficiency
     provider = SwapProvider.Contract;
     
     // Calculate estimated output with contract formula
@@ -87,17 +102,50 @@ export async function getMultiHubSwapEstimate(
     estimatedAmount = actualSwapAmount * conversionFactor;
     minAmountOut = estimatedAmount * (1 - slippage);
     
-  } else if (fromToken.address === YOT_TOKEN_ADDRESS || toToken.address === YOT_TOKEN_ADDRESS) {
-    // YOT trades are best through our contract
-    provider = SwapProvider.Contract;
+  } else if (preferredProvider === SwapProvider.Raydium && isFromTokenSupported && isToTokenSupported) {
+    // User explicitly wants to use Raydium and the tokens are supported
+    try {
+      provider = SwapProvider.Raydium;
+      
+      // Get more accurate estimate from Raydium
+      const raydiumEstimate = await getRaydiumSwapEstimate(
+        fromToken,
+        toToken,
+        actualSwapAmount,
+        slippage
+      );
+      
+      estimatedAmount = raydiumEstimate.estimatedAmount;
+      minAmountOut = raydiumEstimate.minAmountOut;
+      priceImpact = raydiumEstimate.priceImpact;
+      fee = raydiumEstimate.fee;
+      
+    } catch (error) {
+      console.error('Error getting Raydium estimate, falling back to contract:', error);
+      
+      // Fall back to contract if Raydium fails
+      provider = SwapProvider.Contract;
+      const conversionFactor = 0.9 * (1 - priceImpact);
+      estimatedAmount = actualSwapAmount * conversionFactor;
+      minAmountOut = estimatedAmount * (1 - slippage);
+    }
+  } else if (preferredProvider === SwapProvider.Jupiter) {
+    // User explicitly wants to use Jupiter
+    provider = SwapProvider.Jupiter;
     
-    // Calculate estimated output with contract formula
-    const conversionFactor = 0.9 * (1 - priceImpact);
-    estimatedAmount = actualSwapAmount * conversionFactor;
+    // In the future, we'll add actual Jupiter integration
+    // For now, simulate a Jupiter response
+    const jupiterPriceRatio = 0.92 * (1 - priceImpact); // Jupiter slightly better than contract
+    estimatedAmount = actualSwapAmount * jupiterPriceRatio;
     minAmountOut = estimatedAmount * (1 - slippage);
+    
+    // Add an artificial route through SOL
+    if (fromToken.address !== SOL_TOKEN_ADDRESS && toToken.address !== SOL_TOKEN_ADDRESS) {
+      route = [fromToken.symbol, 'SOL', toToken.symbol];
+    }
     
   } else if (isFromTokenSupported && isToTokenSupported) {
-    // Try to use Raydium for non-SOL, non-YOT token pairs if supported
+    // Default to Raydium for pairs it supports (when no preference specified)
     try {
       provider = SwapProvider.Raydium;
       

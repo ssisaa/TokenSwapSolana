@@ -11,14 +11,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RaydiumPoolConfig, getSOLPools, getSwappableTokens } from '@/lib/raydium-pools';
 import { SOL_TOKEN_ADDRESS } from '@/lib/constants';
 import { TokenInfo } from '@/lib/token-search-api';
+import { SwapProvider } from '@/lib/multi-hub-swap';
+import useMultiHubSwap from '@/hooks/useMultiHubSwap';
 
 export default function PoolExplorer() {
+  const { preferredProvider, setPreferredProvider } = useMultiHubSwap();
+  
   const [solPools, setSolPools] = useState<RaydiumPoolConfig[]>([]);
   const [selectedToken, setSelectedToken] = useState<string>(SOL_TOKEN_ADDRESS);
   const [swappablePairs, setSwappablePairs] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [loadingPairs, setLoadingPairs] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [activeProvider, setActiveProvider] = useState<SwapProvider>(preferredProvider || SwapProvider.Raydium);
   
   // Fetch SOL pools on component mount
   useEffect(() => {
@@ -70,13 +75,91 @@ export default function PoolExplorer() {
     );
   });
   
+  // Sync with preferred provider from the swap module
+  useEffect(() => {
+    if (preferredProvider) {
+      setActiveProvider(preferredProvider);
+    }
+  }, [preferredProvider]);
+  
+  // Update preferred provider when changing active provider in the explorer
+  const handleProviderChange = (provider: SwapProvider) => {
+    setActiveProvider(provider);
+    if (setPreferredProvider) {
+      setPreferredProvider(provider);
+    }
+  };
+  
+  // Mock Jupiter pools for demonstration
+  const jupiterPools = [
+    {
+      name: "SOL-USDC",
+      baseToken: { symbol: "SOL", mint: SOL_TOKEN_ADDRESS },
+      quoteToken: { symbol: "USDC", mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" },
+      liquidityUsd: 1250000
+    },
+    {
+      name: "SOL-USDT",
+      baseToken: { symbol: "SOL", mint: SOL_TOKEN_ADDRESS },
+      quoteToken: { symbol: "USDT", mint: "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB" },
+      liquidityUsd: 980000
+    },
+    {
+      name: "SOL-mSOL",
+      baseToken: { symbol: "SOL", mint: SOL_TOKEN_ADDRESS },
+      quoteToken: { symbol: "mSOL", mint: "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So" },
+      liquidityUsd: 2150000
+    },
+    {
+      name: "SOL-BTC",
+      baseToken: { symbol: "SOL", mint: SOL_TOKEN_ADDRESS },
+      quoteToken: { symbol: "BTC", mint: "9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E" },
+      liquidityUsd: 580000
+    },
+    {
+      name: "SOL-ETH",
+      baseToken: { symbol: "SOL", mint: SOL_TOKEN_ADDRESS },
+      quoteToken: { symbol: "ETH", mint: "2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk" },
+      liquidityUsd: 1720000
+    },
+    {
+      name: "SOL-YOT",
+      baseToken: { symbol: "SOL", mint: SOL_TOKEN_ADDRESS },
+      quoteToken: { symbol: "YOT", mint: "2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF" },
+      liquidityUsd: 125000
+    }
+  ];
+  
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>Raydium Pool Explorer</CardTitle>
-        <CardDescription>
-          Explore Raydium liquidity pools on devnet for multi-hop swaps
-        </CardDescription>
+        <div className="flex justify-between items-center">
+          <div>
+            <CardTitle>Pool Explorer</CardTitle>
+            <CardDescription>
+              Explore liquidity pools on Solana devnet for multi-hop swaps
+            </CardDescription>
+          </div>
+          
+          <div className="bg-dark-300 rounded-md p-1 flex text-xs mt-2">
+            <Button 
+              variant={activeProvider === SwapProvider.Raydium ? "secondary" : "ghost"}
+              size="sm" 
+              className="h-7 px-3 rounded-sm text-xs"
+              onClick={() => handleProviderChange(SwapProvider.Raydium)}
+            >
+              Raydium
+            </Button>
+            <Button 
+              variant={activeProvider === SwapProvider.Jupiter ? "secondary" : "ghost"}
+              size="sm" 
+              className="h-7 px-3 rounded-sm text-xs"
+              onClick={() => handleProviderChange(SwapProvider.Jupiter)}
+            >
+              Jupiter
+            </Button>
+          </div>
+        </div>
       </CardHeader>
       
       <CardContent>
@@ -102,9 +185,13 @@ export default function PoolExplorer() {
                 <div className="flex justify-center py-8">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
-              ) : filteredPools.length === 0 ? (
+              ) : activeProvider === SwapProvider.Raydium && filteredPools.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
-                  No pools found matching your search criteria
+                  No Raydium pools found matching your search criteria
+                </div>
+              ) : activeProvider === SwapProvider.Jupiter && jupiterPools.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No Jupiter pools found matching your search criteria
                 </div>
               ) : (
                 <ScrollArea className="h-[400px]">
@@ -114,67 +201,132 @@ export default function PoolExplorer() {
                         <TableHead>Pool</TableHead>
                         <TableHead>Base Token</TableHead>
                         <TableHead>Quote Token</TableHead>
-                        <TableHead>LP Mint</TableHead>
+                        {activeProvider === SwapProvider.Raydium ? (
+                          <TableHead>LP Mint</TableHead>
+                        ) : (
+                          <TableHead>Liquidity</TableHead>
+                        )}
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredPools.map((pool) => (
-                        <TableRow key={pool.id}>
-                          <TableCell>
-                            <div className="font-medium">{pool.name}</div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline">
-                                {pool.baseSymbol}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">
-                                {pool.baseMint.slice(0, 4)}...{pool.baseMint.slice(-4)}
+                      {activeProvider === SwapProvider.Raydium ? (
+                        // Raydium pools
+                        filteredPools.map((pool) => (
+                          <TableRow key={pool.id}>
+                            <TableCell>
+                              <div className="font-medium">{pool.name}</div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline">
+                                  {pool.baseSymbol}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  {pool.baseMint.slice(0, 4)}...{pool.baseMint.slice(-4)}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline">
+                                  {pool.quoteSymbol}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  {pool.quoteMint.slice(0, 4)}...{pool.quoteMint.slice(-4)}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-xs">
+                                {pool.lpMint.slice(0, 4)}...{pool.lpMint.slice(-4)}
                               </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline">
-                                {pool.quoteSymbol}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">
-                                {pool.quoteMint.slice(0, 4)}...{pool.quoteMint.slice(-4)}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-xs">
-                              {pool.lpMint.slice(0, 4)}...{pool.lpMint.slice(-4)}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => setSelectedToken(pool.baseMint === SOL_TOKEN_ADDRESS ? pool.quoteMint : pool.baseMint)}
-                              >
-                                View Routes
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                asChild
-                              >
-                                <a
-                                  href={`https://explorer.solana.com/address/${pool.lpMint}?cluster=devnet`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => setSelectedToken(pool.baseMint === SOL_TOKEN_ADDRESS ? pool.quoteMint : pool.baseMint)}
                                 >
-                                  <ExternalLink className="h-4 w-4" />
-                                </a>
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                                  View Routes
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  asChild
+                                >
+                                  <a
+                                    href={`https://explorer.solana.com/address/${pool.lpMint}?cluster=devnet`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    <ExternalLink className="h-4 w-4" />
+                                  </a>
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        // Jupiter pools
+                        jupiterPools.map((pool, index) => (
+                          <TableRow key={index}>
+                            <TableCell>
+                              <div className="font-medium">{pool.name}</div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline">
+                                  {pool.baseToken.symbol}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  {pool.baseToken.mint.slice(0, 4)}...{pool.baseToken.mint.slice(-4)}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline">
+                                  {pool.quoteToken.symbol}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  {pool.quoteToken.mint.slice(0, 4)}...{pool.quoteToken.mint.slice(-4)}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-xs font-medium">
+                                ${(pool.liquidityUsd).toLocaleString()}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => setSelectedToken(pool.baseToken.mint === SOL_TOKEN_ADDRESS ? pool.quoteToken.mint : pool.baseToken.mint)}
+                                >
+                                  View Routes
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  asChild
+                                >
+                                  <a
+                                    href={`https://explorer.solana.com/address/${pool.baseToken.mint}?cluster=devnet`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    <ExternalLink className="h-4 w-4" />
+                                  </a>
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </ScrollArea>
