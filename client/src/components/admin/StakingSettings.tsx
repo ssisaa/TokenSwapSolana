@@ -496,7 +496,7 @@ export default function StakingSettings() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="harvestThreshold">Harvest Threshold (YOS)</Label>
+              <Label htmlFor="harvestThreshold">Minimum harvest amount (YOS)</Label>
               <Input
                 id="harvestThreshold"
                 type="text"

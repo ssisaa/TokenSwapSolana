@@ -139,14 +139,8 @@ export default function Stake() {
                 <div className="space-y-2">
                   {/* Show the actual value (without multiplier) as the primary display */}
                   <div className="flex items-baseline gap-1">
-                    <span className="text-xl font-bold text-white">{formatNumber(stakingInfo.rewardsEarned / 10000)}</span>
+                    <span className="text-xl font-bold text-white">{formatNumber(stakingInfo.rewardsEarned / 9260)}</span>
                     <span className="text-sm font-semibold text-green-400">YOS</span>
-                  </div>
-                  
-                  {/* Info about the program multiplier */}
-                  <div className="text-xs p-2 text-amber-400 bg-amber-950/30 rounded border border-amber-700/50 mb-1">
-                    <InfoIcon className="h-3 w-3 inline mr-1" />
-                    <span className="font-semibold">NOTE:</span> Program has a built-in multiplier, shown values are corrected
                   </div>
                   
                   {/* Simplified explanation without mentioning the internal multiplier */}
@@ -209,7 +203,7 @@ export default function Stake() {
                     
                     <div className="flex justify-between">
                       <span className="text-gray-400">Pending Rewards:</span>
-                      <span className="font-medium text-white">{formatNumber(isLoading ? 0 : stakingInfo.rewardsEarned / 10000)} YOS</span>
+                      <span className="font-medium text-white">{formatNumber(isLoading ? 0 : stakingInfo.rewardsEarned / 9260)} YOS</span>
                     </div>
                     
                     <div className="flex justify-between">
@@ -228,7 +222,7 @@ export default function Stake() {
                     
                     <div className="flex justify-between">
                       <span className="text-gray-400">Total Harvested:</span>
-                      <span className="font-medium text-white">{formatNumber(isLoading ? 0 : stakingInfo.totalHarvested / 10000)} YOS</span>
+                      <span className="font-medium text-white">{formatNumber(isLoading ? 0 : stakingInfo.totalHarvested / 9260)} YOS</span>
                     </div>
                   </div>
                 </CardContent>

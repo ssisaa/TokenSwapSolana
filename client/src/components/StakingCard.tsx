@@ -336,14 +336,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                       {isUnstaking ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : 'Unstake'}
                     </Button>
                   </div>
-                  <Alert className="mt-4 bg-amber-950/30 border-amber-700">
-                    <AlertTriangle className="h-4 w-4 text-amber-500" />
-                    <AlertTitle className="text-amber-400 text-xs font-medium">Important Warning</AlertTitle>
-                    <AlertDescription className="text-amber-200 text-xs">
-                      Due to a contract issue, only unstake small amounts at a time (less than 10 YOT) 
-                      to avoid transaction failures. A fix will be deployed soon.
-                    </AlertDescription>
-                  </Alert>
+
                   
                   {stakingInfo.rewardsEarned > 0 && (
                     <Alert className="mt-4 bg-blue-950/30 border-blue-700">
@@ -383,15 +376,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                       Harvest Rewards
                     </Button>
                   </div>
-                  <Alert className="mt-4 bg-amber-950/30 border-amber-700">
-                    <AlertTriangle className="h-4 w-4 text-amber-500" />
-                    <AlertTitle className="text-amber-400 text-xs font-medium">Wallet Display Discrepancy</AlertTitle>
-                    <AlertDescription className="text-amber-200 text-xs">
-                      <strong>Important:</strong> Due to a scaling factor in the Solana program, your wallet will show a much larger amount 
-                      (10,000× the displayed value) when confirming the transaction. The displayed amount is what you'll actually receive - 
-                      the wallet just shows the pre-scaled internal value.
-                    </AlertDescription>
-                  </Alert>
+
                   
                   <div className="bg-dark-300 border border-border p-3 rounded-lg text-sm mt-4">
                     <div className="flex items-start">
