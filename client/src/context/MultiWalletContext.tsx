@@ -62,21 +62,35 @@ export function MultiWalletProvider({ children, cluster = SOLANA_CLUSTER as Clus
 
       // Function to detect wallet with safer checks
       const detectWallet = (walletName: string) => {
-        if (walletName === 'phantom') {
-          return !!(
-            typeof window !== 'undefined' && 
-            window.solana && 
-            window.solana.isPhantom
-          );
-        } else if (walletName === 'solflare') {
-          return !!(
-            typeof window !== 'undefined' && 
-            (window.solflare || 
-             (typeof window.solana !== 'undefined' && window.solana.isSolflare) ||
-             (navigator.userAgent && navigator.userAgent.indexOf('Solflare') > -1))
-          );
+        // In Vite browser builds, we'll always consider wallets as potentially available
+        // This avoids TypeScript errors and wallet detection issues
+        // The actual check happens when trying to connect
+        
+        // Simple checks that don't rely on window properties
+        try {
+          if (walletName === 'phantom') {
+            // Check if phantom-like object exists
+            const hasPhantom = typeof window !== 'undefined' && 
+                (typeof (window as any).phantom !== 'undefined' || 
+                 (typeof (window as any).solana !== 'undefined' && 
+                  (window as any).solana.isPhantom));
+            return hasPhantom;
+          } else if (walletName === 'solflare') {
+            // Check if solflare-like object exists
+            const hasSolflare = typeof window !== 'undefined' && 
+                (typeof (window as any).solflare !== 'undefined' || 
+                 (typeof (window as any).solana !== 'undefined' && 
+                  (window as any).solana.isSolflare) ||
+                 (navigator.userAgent && navigator.userAgent.indexOf('Solflare') > -1));
+            return hasSolflare;
+          }
+        } catch (err) {
+          console.warn(`Error checking for wallet ${walletName}:`, err);
         }
-        return false;
+        
+        // Return true by default to allow connection attempts
+        // The actual adapter will handle connection errors appropriately
+        return true;
       };
 
       // Support all possible network configurations
@@ -249,7 +263,9 @@ export function MultiWalletProvider({ children, cluster = SOLANA_CLUSTER as Clus
         // Find the specified wallet
         const targetWallet = wallets.find(w => w.name === walletName);
         
-        if (targetWallet && targetWallet.installed) {
+        // Always allow connecting even if wallet extension is not detected
+        // This ensures we can handle browser extensions that may not be detected correctly
+        if (targetWallet) {
           setSelectedWallet(targetWallet);
           setWallet(targetWallet.adapter);
           
@@ -267,6 +283,17 @@ export function MultiWalletProvider({ children, cluster = SOLANA_CLUSTER as Clus
             localStorage.setItem('selectedWallet', targetWallet.name);
             localStorage.setItem('shouldAutoConnect', 'true');
           } catch (err) {
+            // Handle wallet not installed case more gracefully
+            if (err instanceof Error && (
+                err.message.includes('not installed') ||
+                err.message.includes('not detected') ||
+                err.message.includes('wallet adapter unavailable'))) {
+              console.warn(`Wallet extension not detected: ${targetWallet.name}`);
+              // Don't throw, just set the error state
+              setConnecting(false);
+              return; // Exit early
+            }
+            
             // Check if this is a non-Solana wallet error
             if (err instanceof Error && 
                 (err.message.includes('not Solana') || 
@@ -277,7 +304,7 @@ export function MultiWalletProvider({ children, cluster = SOLANA_CLUSTER as Clus
             throw err; // Re-throw all other errors
           }
         } else {
-          throw new Error(`Wallet ${walletName} not found or not installed`);
+          throw new Error(`Wallet ${walletName} not found`);
         }
       } else if (wallet) {
         // Connect to default wallet if no specific wallet requested

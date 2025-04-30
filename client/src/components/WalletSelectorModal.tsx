@@ -23,19 +23,29 @@ export default function WalletSelectorModal() {
     // Simple detection for popular wallets
     const detectedWallets = [];
     
-    // Enhanced Check for Phantom
-    if (typeof window !== 'undefined' && window.solana && window.solana.isPhantom) {
-      detectedWallets.push('Phantom');
-      console.log("Phantom wallet detection:", true);
+    // Enhanced Check for Phantom with fallback for new wallet versions
+    try {
+      if (typeof window !== 'undefined' && 
+          ((window as any).phantom?.solana || // New phantom structure
+           (window.solana && window.solana.isPhantom))) { // Legacy structure
+        detectedWallets.push('Phantom');
+        console.log("Phantom wallet detection:", true);
+      }
+    } catch (err) {
+      console.warn("Error checking for Phantom:", err);
     }
     
     // Enhanced Check for Solflare (multiple detection methods)
-    if (typeof window !== 'undefined' && 
-        (window.solflare || 
-         (window.solana && window.solana.isSolflare) || 
-         (navigator.userAgent && navigator.userAgent.indexOf('Solflare') > -1))) {
-      detectedWallets.push('Solflare');
-      console.log("Solflare wallet detection:", true);
+    try {
+      if (typeof window !== 'undefined' && 
+          ((window as any).solflare || 
+           (window.solana && window.solana.isSolflare) || 
+           (navigator.userAgent && navigator.userAgent.indexOf('Solflare') > -1))) {
+        detectedWallets.push('Solflare');
+        console.log("Solflare wallet detection:", true);
+      }
+    } catch (err) {
+      console.warn("Error checking for Solflare:", err);
     }
     
     // Check for other browser-extension Solana wallets
@@ -59,12 +69,22 @@ export default function WalletSelectorModal() {
     
     // Get wallet network information
     const getWalletNetworkInfo = () => {
-      if (typeof window !== 'undefined' && window.solana) {
-        // Try to detect the network from Phantom
-        if (window.solana.isPhantom) {
-          const network = window.solana._network;
-          return network ? network : 'unknown';
+      try {
+        if (typeof window !== 'undefined') {
+          // Try to detect the network from Phantom
+          if (window.solana && window.solana.isPhantom) {
+            const network = (window.solana as any)._network;
+            return network ? network : 'unknown';
+          }
+          
+          // Try to detect from phantom new structure
+          if ((window as any).phantom?.solana) {
+            const network = (window as any).phantom.solana._network;
+            return network ? network : 'unknown';
+          }
         }
+      } catch (err) {
+        console.warn("Error detecting wallet network:", err);
       }
       return 'unknown';
     };
@@ -83,20 +103,23 @@ export default function WalletSelectorModal() {
     }
     
     try {
-      // Try connecting with the base wallet name first
+      // First, try to connect with wallet + network combinations which are more reliable
+      const preferredNetwork = 'devnet'; // We prefer devnet for our app
       try {
-        console.log(`Trying to connect to ${walletName}...`);
-        await connect(walletName);
+        const specificWalletName = `${walletName} (${preferredNetwork})`;
+        console.log(`Trying to connect to ${specificWalletName}...`);
+        
+        await connect(specificWalletName);
         connected = true;
         setShowWalletSelector(false);
         return;
       } catch (initialError) {
-        console.log(`Initial connection attempt failed, trying with network options...`);
+        console.log(`Preferred network connection failed:`, initialError);
         lastError = initialError;
       }
       
-      // Try with explicit network options
-      for (const network of networks) {
+      // If preferred network failed, try other explicit network options
+      for (const network of networks.filter(n => n !== preferredNetwork)) {
         try {
           const networkWalletName = `${walletName} (${network})`;
           console.log(`Trying to connect to ${networkWalletName}...`);
@@ -111,6 +134,18 @@ export default function WalletSelectorModal() {
         }
       }
       
+      // Finally try the base wallet name as fallback
+      try {
+        console.log(`Trying to connect to ${walletName} without network...`);
+        await connect(walletName);
+        connected = true;
+        setShowWalletSelector(false);
+        return;
+      } catch (error) {
+        console.log(`Base wallet connection failed:`, error);
+        lastError = error;
+      }
+      
       // If we get here, all connection attempts failed
       throw lastError || new Error("Failed to connect to wallet");
     } catch (error) {
@@ -118,15 +153,25 @@ export default function WalletSelectorModal() {
       
       // Show user-friendly error message and store for display
       if (error instanceof Error) {
-        setConnectorError(error.message);
+        let errorMessage = error.message;
         
-        // Check for specific non-Solana wallet errors
+        // Improve error message for common cases
+        if (errorMessage === "No wallet adapter available") {
+          errorMessage = "No wallet extension detected. Please install a Solana wallet extension.";
+        } else if (errorMessage.includes("not installed") || errorMessage.includes("detected")) {
+          errorMessage = "Wallet extension not detected or not properly installed. Please install the wallet and refresh."; 
+        }
+        
+        setConnectorError(errorMessage);
+        
+        // Check for specific non-Solana wallet errors with improved messaging
         if (error.message.includes('install a Solana wallet') || 
             error.message.includes('not found') ||
-            error.message.includes('not installed')) {
+            error.message.includes('not installed') ||
+            error.message.includes('No wallet adapter')) {
           toast({
             variant: "destructive",
-            title: "Wallet Not Found",
+            title: "Wallet Not Detected",
             description: "Please install the wallet extension and refresh the page",
           });
         } else if (error.message.includes('Solana-compatible') || 
@@ -140,7 +185,7 @@ export default function WalletSelectorModal() {
           toast({
             variant: "destructive",
             title: "Wallet Connection Error",
-            description: error.message,
+            description: errorMessage,
           });
         }
       } else {
