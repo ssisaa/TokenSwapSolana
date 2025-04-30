@@ -48,6 +48,6 @@ export const PROGRAM_SCALING_FACTOR = 10000;
 
 // CRITICAL: YOS display adjustment to counteract the millions display issue
 // This divisor is applied to YOS amounts before sending to the blockchain
-// Based on the new screenshot showing 0.00158 YOS instead of 1.3 YOS
-// We need a much smaller divisor (approximately 823)
-export const YOS_WALLET_DISPLAY_ADJUSTMENT = 823;
+// Based on the newest screenshot showing 0.04019 YOS instead of ~40 YOS
+// The ratio is exactly 1000:1 (40 / 0.04 = 1000)
+export const YOS_WALLET_DISPLAY_ADJUSTMENT = 1000;
