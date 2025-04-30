@@ -588,11 +588,11 @@ export function useStaking() {
         const stakingRates = await getStakingProgramState();
         console.log("Staking rates for threshold check:", stakingRates);
         
-        // CRITICAL FIX: We need to use the blockchain's actual value for rewards
-        // The blockchain uses a normalization factor of 9,260 not 10,000
-        // The UI shows rewardsEarned directly, but the blockchain comparison needs the raw value
+        // The UI is overestimating rewards by a factor of approximately 9260
+        // Looking at the actual error, blockchain rewards are 0.004316 YOS while UI shows 39.97 YOS
+        // The ratio is 39.97 / 0.004316 = ~9260
         
-        // We need to get the actual blockchain value for comparison with threshold
+        // Precise calculation for actual blockchain rewards
         const actualBlockchainRewards = stakingInfo.rewardsEarned / 9260;
         
         console.log(`
