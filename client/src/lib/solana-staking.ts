@@ -237,13 +237,13 @@ export function getWalletAdjustedYosAmount(uiValue: number): bigint {
    * CRITICAL PHANTOM WALLET COMPATIBILITY FIX FOR YOS TOKENS
    * 
    * This function is specifically designed to fix two major YOS token display issues:
-   * 1. YOS displays in millions (e.g., 7,094,606.62 YOS instead of ~700 YOS)
+   * 1. YOS displays in millions (e.g., 7,390,340.26 YOS instead of ~700 YOS)
    * 2. Small YOS amounts might display as negative values (same issue as YOT)
    */
   
-  // STEP 1: Apply a MAJOR display adjustment (key insight from screenshot)
-  // Based on user-provided evidence, we need to apply a scaling factor of 1/10000
-  const PHANTOM_YOS_DIVISOR = 10000;
+  // STEP 1: Apply a MAJOR display adjustment
+  // Using the updated YOS_WALLET_DISPLAY_ADJUSTMENT = 10000 from constants.ts
+  // Based on recent screenshot evidence showing 7,390,340.26 YOS
   
   // STEP 2: Ensure the input value is valid and positive
   const validValue = Math.max(0, uiValue);
@@ -255,7 +255,7 @@ export function getWalletAdjustedYosAmount(uiValue: number): bigint {
   }
   
   // STEP 4: Apply the major divisor to fix millions display issue
-  const adjustedValue = validValue / PHANTOM_YOS_DIVISOR;
+  const adjustedValue = validValue / YOS_WALLET_DISPLAY_ADJUSTMENT;
   
   // STEP 5: SPECIAL HANDLING for small amounts (similar to YOT fix)
   if (adjustedValue <= 1) {
@@ -266,7 +266,7 @@ export function getWalletAdjustedYosAmount(uiValue: number): bigint {
     // Convert directly to token amount with proper decimal scaling
     const rawAmount = BigInt(Math.floor(smallAmountAdjustment * 1e9));
     
-    console.log(`⭐⭐ PHANTOM WALLET YOS FIX (SMALL AMOUNT): ${uiValue} YOS → reduced by 1/${PHANTOM_YOS_DIVISOR} → ${adjustedValue} YOS → adjusted UP to ${smallAmountAdjustment} YOS → raw ${rawAmount}`);
+    console.log(`⭐⭐ PHANTOM WALLET YOS FIX (SMALL AMOUNT): ${uiValue} YOS → reduced by 1/${YOS_WALLET_DISPLAY_ADJUSTMENT} → ${adjustedValue} YOS → adjusted UP to ${smallAmountAdjustment} YOS → raw ${rawAmount}`);
     console.log(`This should display correctly in wallet (not negative and not in millions)`);
     
     return rawAmount;
@@ -285,7 +285,7 @@ export function getWalletAdjustedYosAmount(uiValue: number): bigint {
   // Combine integer and padded fractional parts to create the raw amount string
   const rawAmountString = integerPart + paddedFractional;
   
-  console.log(`📱 PHANTOM WALLET YOS FIX (NORMAL AMOUNT): ${uiValue} YOS → divided by ${PHANTOM_YOS_DIVISOR} → ${adjustedValue} YOS → raw ${rawAmountString}`);
+  console.log(`📱 PHANTOM WALLET YOS FIX (NORMAL AMOUNT): ${uiValue} YOS → divided by ${YOS_WALLET_DISPLAY_ADJUSTMENT} → ${adjustedValue} YOS → raw ${rawAmountString}`);
   console.log(`This should display correctly in Phantom Wallet (not in millions)`);
   
   // Convert to BigInt for blockchain transmission
@@ -338,9 +338,9 @@ export async function getTokenBalance(
     // Keep special handling for program-scaled tokens if needed
     if (isProgramScaledToken && uiAmount !== null) {
       // Apply the program scaling factor only if we need to (for specific program requirements)
-      const PROGRAM_SCALING_FACTOR = 10000;
+      // Now using the imported constant from constants.ts
       const programScaledAmount = parseFloat(balanceInfo.value.amount) / PROGRAM_SCALING_FACTOR;
-      console.log(`Program-scaled token balance: ${programScaledAmount} (scaled with 10,000× factor)`);
+      console.log(`Program-scaled token balance: ${programScaledAmount} (scaled with ${PROGRAM_SCALING_FACTOR}× factor)`);
       return programScaledAmount;
     }
     
@@ -385,9 +385,9 @@ export async function getParsedTokenBalance(
     // Keep special handling for program-scaled tokens if needed
     if (isProgramScaledToken && uiAmount !== null) {
       // Apply the program scaling factor only if we need to (for specific program requirements)
-      const PROGRAM_SCALING_FACTOR = 10000;
+      // Using the imported constant from constants.ts
       const programScaledAmount = parseFloat(tokenAmount.amount) / PROGRAM_SCALING_FACTOR;
-      console.log(`Program-scaled parsed token balance: ${programScaledAmount} (scaled with 10,000× factor)`);
+      console.log(`Program-scaled parsed token balance: ${programScaledAmount} (scaled with ${PROGRAM_SCALING_FACTOR}× factor)`);
       return programScaledAmount;
     }
     
@@ -714,13 +714,12 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     data.writeUInt8(StakingInstructionType.Harvest, 0);
     
     // CRITICAL FIX FOR PHANTOM WALLET DISPLAY: 
-    // The problem is that rewards show up in millions (e.g., 7,094,606.62 YOS)
+    // The problem is that rewards show up in millions (e.g., 7,390,340.26 YOS)
     // We need to dramatically reduce this value for the contract instruction
     
-    // Step 1: Scale down rewards by a large factor to counteract Phantom's display magnification
-    // Based on the screenshot evidence, we need to apply a scaling factor of around 1/10000
-    const PHANTOM_YOS_DIVISOR = 10000;
-    const adjustedRewards = rewardsAmount / PHANTOM_YOS_DIVISOR;
+    // Import the YOS_WALLET_DISPLAY_ADJUSTMENT from constants
+    // This value is now set to 10000 based on screenshot evidence
+    const adjustedRewards = rewardsAmount / YOS_WALLET_DISPLAY_ADJUSTMENT;
     
     // Step 2: Calculate the contract amount using the PROGRAM_SCALING_FACTOR
     // This is what the program expects
@@ -728,7 +727,7 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     
     console.log(`🔄 YOS HARVEST WITH PHANTOM WALLET FIX:`);
     console.log(`- Original amount: ${rewardsAmount} YOS`);
-    console.log(`- Phantom adjustment: ÷ ${PHANTOM_YOS_DIVISOR} = ${adjustedRewards} YOS`);
+    console.log(`- Phantom adjustment: ÷ ${YOS_WALLET_DISPLAY_ADJUSTMENT} = ${adjustedRewards} YOS`);
     console.log(`- Program scaling: × ${PROGRAM_SCALING_FACTOR} = ${contractAmount}`);
     console.log(`- Final contract value: ${contractAmount}`);
     
@@ -740,8 +739,8 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     // Write the contract amount to the data buffer
     data.writeBigUInt64LE(BigInt(contractAmount), 1);
     
-    console.log(`📱 PHANTOM WALLET YOS FIX: Applying 1/${PHANTOM_YOS_DIVISOR} divisor to counteract millions display`);
-    console.log(`This should display as approximately ${rewardsAmount/PHANTOM_YOS_DIVISOR} YOS in wallet`);
+    console.log(`📱 PHANTOM WALLET YOS FIX: Applying 1/${YOS_WALLET_DISPLAY_ADJUSTMENT} divisor to counteract millions display`);
+    console.log(`This should display as approximately ${rewardsAmount/YOS_WALLET_DISPLAY_ADJUSTMENT} YOS in wallet`);
     
     return data;
   } else {
