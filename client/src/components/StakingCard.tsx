@@ -103,12 +103,15 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
   };
 
   // Check if rewards can be harvested
-  // CRITICAL FIX: Ensure that rewards > threshold and add debugging
-  const canHarvest = stakingInfo.rewardsEarned > 0 && stakingInfo.rewardsEarned >= (stakingRates?.harvestThreshold || 1);
+  // CRITICAL FIX: Ensure proper normalization for YOS rewards with 9260 factor
+  // This matches the display in wallet which shows normalized values
+  const normalizedRewards = stakingInfo.rewardsEarned / 9260;
+  const canHarvest = normalizedRewards > 0 && normalizedRewards >= (stakingRates?.harvestThreshold || 1);
   
   // Debug the values to see why the button is disabled
   console.log("HARVEST DEBUG:", {
-    rewardsEarned: stakingInfo.rewardsEarned,
+    rewardsEarnedRaw: stakingInfo.rewardsEarned,
+    normalizedRewards,
     harvestThreshold: stakingRates?.harvestThreshold || 1,
     canHarvest,
     buttonDisabled: !canHarvest || isHarvesting || !connected,
@@ -142,7 +145,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                 <div className="flex justify-between">
                   <span className="text-gray-400">Pending Rewards:</span>
                   <div className="text-right">
-                    <span className="font-medium text-white">{formatNumber(stakingInfo.rewardsEarned)} YOS</span>
+                    <span className="font-medium text-white">{formatNumber(normalizedRewards, 2)} YOS</span>
                   </div>
                 </div>
                 <Alert className="mt-2 bg-blue-950/30 border-blue-700">
@@ -168,7 +171,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                 <div className="flex justify-between">
                   <span className="text-gray-400">Total Harvested:</span>
                   <div className="text-right">
-                    <span className="font-medium text-white">{formatNumber(stakingInfo.totalHarvested)} YOS</span>
+                    <span className="font-medium text-white">{formatNumber(stakingInfo.totalHarvested / 9260, 2)} YOS</span>
                   </div>
                 </div>
               </div>
@@ -354,7 +357,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                       <Bell className="h-4 w-4 text-blue-500" />
                       <AlertTitle className="text-blue-400 text-xs font-medium">Pending Rewards</AlertTitle>
                       <AlertDescription className="text-blue-200 text-xs">
-                        You have <strong>{formatNumber(stakingInfo.rewardsEarned)} YOS</strong> in unclaimed rewards.
+                        You have <strong>{formatNumber(normalizedRewards, 2)} YOS</strong> in unclaimed rewards.
                         Consider harvesting your rewards before unstaking to avoid losing them.
                       </AlertDescription>
                     </Alert>
@@ -374,7 +377,7 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                   <div className="flex justify-between items-center">
                     <h3 className="text-lg font-semibold text-white">Harvest Rewards</h3>
                     <span className="text-sm text-gray-400">
-                      <span className="font-medium text-white">{formatNumber(stakingInfo.rewardsEarned, 8)}</span> YOS available
+                      <span className="font-medium text-white">{formatNumber(normalizedRewards, 2)}</span> YOS available
                     </span>
                   </div>
                   
@@ -382,15 +385,15 @@ export default function StakingCard({ defaultTab = 'stake' }: StakingCardProps) 
                   <div className="space-y-2 mt-2">
                     <div className="w-full bg-slate-700 rounded-full h-2.5">
                       <div 
-                        className={`h-2.5 rounded-full ${stakingInfo.rewardsEarned >= (stakingRates?.harvestThreshold || 1) ? 'bg-green-500' : 'bg-blue-600'}`}
+                        className={`h-2.5 rounded-full ${normalizedRewards >= (stakingRates?.harvestThreshold || 1) ? 'bg-green-500' : 'bg-blue-600'}`}
                         style={{ 
-                          width: `${Math.min(100, (stakingInfo.rewardsEarned / (stakingRates?.harvestThreshold || 1)) * 100)}%` 
+                          width: `${Math.min(100, (normalizedRewards / (stakingRates?.harvestThreshold || 1)) * 100)}%` 
                         }}
                       ></div>
                     </div>
                     <div className="flex justify-between items-center text-xs">
                       <span className="text-gray-400">0</span>
-                      <span className={`font-medium ${stakingInfo.rewardsEarned >= (stakingRates?.harvestThreshold || 1) ? 'text-green-400' : 'text-amber-400'}`}>
+                      <span className={`font-medium ${normalizedRewards >= (stakingRates?.harvestThreshold || 1) ? 'text-green-400' : 'text-amber-400'}`}>
                         Minimum harvest amount: {(stakingRates?.harvestThreshold || 1).toLocaleString('en-US')} YOS
                       </span>
                     </div>
