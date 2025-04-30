@@ -1154,6 +1154,7 @@ export async function prepareUnstakeTransaction(
 /**
  * Unstake YOT tokens using the deployed program
  * CRITICAL FIX: We need to properly handle the 10,000x multiplier issue when unstaking
+ * UPDATED: Fixed the wallet display issue with correct divisor matching smart contract
  */
 export async function unstakeYOTTokens(
   wallet: any,
@@ -1184,19 +1185,70 @@ export async function unstakeYOTTokens(
     const stakingRates = await getStakingProgramState();
     console.log("Staking rates for threshold check:", stakingRates);
     
-    // Log detailed rewards and stake information
-    console.log("Now executing actual unstake operation...");
+    // Create a simplified transaction with a clean unstake instruction
+    const transaction = new Transaction();
+    console.log("Creating simplified transaction for unstaking...");
     
-    // Create transaction
-    const transaction = await prepareUnstakeTransaction(wallet, amount);
+    // Get token addresses
+    const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
+    const yosMint = new PublicKey(YOS_TOKEN_ADDRESS);
     
-    // Add detailed logging right before sending the transaction
-    console.log(`Ready to unstake ${amount} YOT tokens`);
-    console.log(`Transaction prepared with ${transaction.instructions.length} instructions`);
+    // Get account addresses
+    const userYotATA = await getAssociatedTokenAddress(yotMint, walletPublicKey);
+    const userYosATA = await getAssociatedTokenAddress(yosMint, walletPublicKey);
+    
+    // Get PDA addresses
+    const [programState] = findProgramStateAddress();
+    const [stakingAccount] = findStakingAccountAddress(walletPublicKey);
+    const [programAuthority] = findProgramAuthorityAddress();
+    
+    // Get program token accounts
+    const programYotATA = await getAssociatedTokenAddress(yotMint, programAuthority, true);
+    const programYosATA = await getAssociatedTokenAddress(yosMint, programAuthority, true);
+    
+    // Create YOS token account if it doesn't exist
+    try {
+      await getAccount(connection, userYosATA);
+    } catch (error) {
+      console.log("Creating YOS token account first...");
+      transaction.add(
+        createAssociatedTokenAccountInstruction(
+          walletPublicKey,
+          userYosATA,
+          walletPublicKey,
+          yosMint
+        )
+      );
+    }
+    
+    // Use simple token amount conversion directly without extra adjustments
+    const tokenAmount = uiToRawTokenAmount(amount, YOT_DECIMALS);
+    console.log(`Unstaking ${amount} YOT tokens (${tokenAmount} raw tokens)`);
+    
+    // Add the unstake instruction with the exact same account order
+    // as expected by the Solana program
+    transaction.add({
+      keys: [
+        { pubkey: walletPublicKey, isSigner: true, isWritable: true },         // user_account
+        { pubkey: userYotATA, isSigner: false, isWritable: true },             // user_yot_token_account
+        { pubkey: programYotATA, isSigner: false, isWritable: true },          // program_yot_token_account
+        { pubkey: userYosATA, isSigner: false, isWritable: true },             // user_yos_token_account
+        { pubkey: programYosATA, isSigner: false, isWritable: true },          // program_yos_token_account
+        { pubkey: stakingAccount, isSigner: false, isWritable: true },         // user_staking_account
+        { pubkey: programState, isSigner: false, isWritable: false },          // program_state_account
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },      // token_program
+        { pubkey: programAuthority, isSigner: false, isWritable: false },      // program_authority
+        { pubkey: new PublicKey('SysvarC1ock11111111111111111111111111111111'), isSigner: false, isWritable: false }, // clock sysvar
+      ],
+      programId: new PublicKey(STAKING_PROGRAM_ID),
+      data: encodeUnstakeInstruction(amount)
+    });
     
     // Sign and send the transaction with better error handling
     try {
-      console.log("Sending unstake transaction...");
+      console.log("Sending unstake transaction with simplified structure...");
+      console.log(`Transaction has ${transaction.instructions.length} instructions`);
+      
       const signature = await wallet.sendTransaction(transaction, connection);
       console.log("Transaction sent with signature:", signature);
       await connection.confirmTransaction(signature, 'confirmed');
@@ -1208,19 +1260,13 @@ export async function unstakeYOTTokens(
         throw new Error('Transaction was rejected in your wallet. Please approve the transaction to unstake.');
       }
       
-      // Check if this is a simulation error
-      if (sendError.message && sendError.message.includes('Transaction simulation failed')) {
-        console.error("Transaction simulation failed. Details:", sendError);
-        
-        if (sendError.logs) {
-          console.error("Transaction logs:", sendError.logs.join('\n'));
-        }
-        
-        throw new Error(`Unstake failed: Transaction simulation error. Please try a smaller amount or contact support.`);
+      console.error('Error sending unstake transaction:', sendError);
+      
+      // For debugging purposes
+      if (sendError.logs) {
+        console.error("Transaction logs:", sendError.logs);
       }
       
-      // Default error handling
-      console.error('Error sending unstake transaction:', sendError);
       throw new Error(`Failed to unstake: ${sendError.message || 'Unknown error'}`);
     }
   } catch (error) {
