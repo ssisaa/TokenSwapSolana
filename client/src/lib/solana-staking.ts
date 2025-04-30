@@ -10,84 +10,63 @@ import {
   TransactionInstruction
 } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getAccount, createTransferInstruction } from '@solana/spl-token';
-import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, YOT_DECIMALS, YOS_DECIMALS, STAKING_PROGRAM_ID, ENDPOINT, YOS_WALLET_DISPLAY_ADJUSTMENT } from './constants';
+import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, YOT_DECIMALS, YOS_DECIMALS, STAKING_PROGRAM_ID, ENDPOINT, YOS_WALLET_DISPLAY_ADJUSTMENT, PROGRAM_SCALING_FACTOR } from './constants';
 
-// GLOBAL SCALING FACTOR for all blockchain interactions
-// This is used consistently across all token operations to ensure compatibility
-// with the deployed Solana program
-const PROGRAM_SCALING_FACTOR = 10000;
-
-// Use imported YOT_DECIMALS and YOS_DECIMALS from constants.ts
-// This ensures consistency across the application
+// CRITICAL FIX: No additional scaling factors or adjustments!
+// User needs EXACT amount with no adjustments at all
+// Just use token decimals (9 for both YOT and YOS)
 
 /**
  * Convert UI value to raw blockchain value for YOT tokens
  * 
- * CRITICAL FIX: For YOT tokens we need to include BOTH the token's native decimals (9)
- * AND the program's scaling factor (10000) to get the correct value
+ * CRITICAL FIX: Using EXACT token amounts with proper decimal conversion
+ * No additional multipliers or divisors
  * 
  * @param uiValue The value shown in UI (e.g., 5.23 tokens)
- * @returns The scaled value for blockchain with both adjustments applied
+ * @returns The exact raw amount for blockchain processing
  */
 export function uiToRawYot(uiValue: number): bigint {
-  // CRITICAL FIX TAKE 4:
-  // We need to apply both token decimals AND program scaling factor to get
-  // the raw value that displays correctly in the Phantom wallet
+  // Use the standardized token decimal conversion
+  const exactRawAmount = uiToRawTokenAmount(uiValue, YOT_DECIMALS);
   
-  // First convert to token decimals (this makes it display properly in wallet)
-  const withDecimals = uiValue * Math.pow(10, YOT_DECIMALS);
+  console.log(`YOT CONVERSION (EXACT): UI ${uiValue} → Raw token amount ${exactRawAmount} (${YOT_DECIMALS} decimals)`);
   
-  // Now apply program scaling - this is what the contract needs
-  const scaledAmount = Math.round(uiValue * PROGRAM_SCALING_FACTOR);
-  
-  console.log(`YOT CONVERSION (FIXED v4): UI ${uiValue} → Display value ${withDecimals} → Contract value ${scaledAmount}`);
-  console.log(`Step 1: Token decimals for display: ${uiValue} × 10^${YOT_DECIMALS} = ${withDecimals}`);
-  console.log(`Step 2: Program scaling for contract: ${uiValue} × ${PROGRAM_SCALING_FACTOR} = ${scaledAmount}`);
-  
-  // Return the PROGRAM_SCALING_FACTOR value as that's what the contract needs
-  // The token decimals are automatically handled by the token program
-  return BigInt(scaledAmount);
+  return exactRawAmount;
 }
 
 /**
  * Convert UI value to raw blockchain value for YOS tokens
- * Applies only the program's scaling factor - token decimals are handled separately
+ * Using standard token decimal conversion with no adjustments
  * 
  * @param uiValue The value shown in UI (e.g., 5.23 tokens)
- * @returns The scaled value for blockchain compatible with the program
+ * @returns The exact raw value for blockchain with no adjustments
  */
 export function uiToRawYos(uiValue: number): bigint {
-  // CRITICAL FIX TAKE 2:
-  // For YOS tokens we need a similar approach to YOT
+  // Use the standardized token decimal conversion
+  const exactRawAmount = uiToRawTokenAmount(uiValue, YOS_DECIMALS);
   
-  // For YOS, we need to apply both decimals (10^9) and program scaling (10000)
-  // But in a way that preserves the original value
-  // So we'll use decimals * 0.0001 instead of * 10000
-  const amountWithDecimals = uiValue * Math.pow(10, YOS_DECIMALS);
-  const programScaled = Math.round(amountWithDecimals * 0.0001);
+  console.log(`YOS CONVERSION (EXACT): UI ${uiValue} → Raw token amount ${exactRawAmount} (${YOS_DECIMALS} decimals)`);
   
-  console.log(`YOS CONVERSION (FIXED v2): UI ${uiValue} → Raw blockchain value ${programScaled}`);
-  console.log(`Step 1: Applied token decimals: ${uiValue} × 10^${YOS_DECIMALS} = ${amountWithDecimals}`);
-  console.log(`Step 2: Applied inverse program scaling: ${amountWithDecimals} × 0.0001 = ${programScaled}`);
-  
-  return BigInt(programScaled);
+  return exactRawAmount;
 }
 
 /**
- * Convert raw blockchain value to UI value using the consistent 10000 scaling factor
- * @param rawValue The blockchain raw value (e.g., 52300)
- * @returns The UI display value (e.g., 5.23 tokens)
+ * Convert raw blockchain value to UI value using standard token decimal conversion
+ * @param rawValue The blockchain raw value 
+ * @param decimals Token decimals (9 for both YOT and YOS)
+ * @returns The UI display value
  */
-export function rawToUi(rawValue: number): number {
-  return rawValue / PROGRAM_SCALING_FACTOR;
+export function rawToUi(rawValue: number, decimals: number = YOT_DECIMALS): number {
+  return rawValue / Math.pow(10, decimals);
 }
 
 /**
- * Legacy uiToRaw function - maintained for backward compatibility
- * New code should use the specific token versions above
+ * DEPRECATED: Legacy scaling functions
+ * Use uiToRawTokenAmount or token-specific functions instead
  */
 export function uiToRaw(uiValue: number): number {
-  return Math.round(uiValue * PROGRAM_SCALING_FACTOR);
+  console.warn("DEPRECATED: uiToRaw is deprecated, use uiToRawTokenAmount instead");
+  return Math.round(uiValue * Math.pow(10, YOT_DECIMALS));
 }
 
 // Create a connection to the Solana devnet
@@ -163,15 +142,14 @@ export const connection = new Connection(ENDPOINT, 'confirmed');
  * @returns Raw token amount as BigInt (e.g., 1500000000)
  */
 export function uiToRawTokenAmount(amount: number, decimals: number): bigint {
-  // CRITICAL FIX: Precise decimal rounding logic
-  // Step 1: Force integer values with Math.floor to eliminate partial decimals
-  const integerAmount = Math.floor(amount);
+  // CRITICAL FIX: Use Math.round to ensure exact amounts
+  // This properly handles the token amount conversion to avoid any decimal issues
   
-  // Step 2: Use direct BigInt multiplication to prevent JavaScript floating point issues
-  const rawDecimals = BigInt(10 ** decimals);
-  const rawAmount = BigInt(integerAmount) * rawDecimals;
+  // Multiply by 10^decimals and round to avoid any floating-point errors
+  const rawAmount = BigInt(Math.round(amount * Math.pow(10, decimals)));
   
-  console.log(`TOKEN AMOUNT CONVERSION (FIXED): ${amount} → floor → ${integerAmount} → ${rawAmount} (${decimals} decimals)`);
+  console.log(`TOKEN AMOUNT CONVERSION (EXACT): ${amount} → ${rawAmount} (${decimals} decimals)`);
+  console.log(`This is the EXACT raw amount that will be sent to the blockchain`);
   return rawAmount;
 }
 
@@ -260,19 +238,20 @@ export function getWalletAdjustedYosAmount(uiValue: number): bigint {
  * @returns UI amount (e.g., 1.5 YOT)
  */
 export function rawToUiTokenAmount(rawAmount: bigint | number, decimals: number): number {
-  // Convert rawAmount to number if it's a BigInt
-  if (typeof rawAmount === 'number') {
-    rawAmount = BigInt(rawAmount);
-  }
+  // CRITICAL FIX: Simple and direct conversion for display with proper rounding
   
-  // Apply precise division to get the UI value
-  const divisor = BigInt(Math.pow(10, decimals));
-  const remainder = Number(rawAmount % divisor) / Math.pow(10, decimals);
-  const wholePart = Number(rawAmount / divisor);
-  const result = wholePart + remainder;
+  // Convert rawAmount to string if it's a BigInt to avoid loss of precision
+  const rawAmountValue = typeof rawAmount === 'bigint' ? rawAmount.toString() : rawAmount.toString();
   
-  // Apply final rounding to expected decimal places to eliminate potential floating point errors
-  return Math.round(result * Math.pow(10, decimals)) / Math.pow(10, decimals);
+  // Direct division approach - simple and reliable
+  const result = Number(rawAmountValue) / Math.pow(10, decimals);
+  
+  // Round to exactly the number of decimal places for display
+  // This eliminates any floating point errors that could appear in the UI
+  const rounded = parseFloat(result.toFixed(decimals));
+  
+  console.log(`RAW TO UI CONVERSION: ${rawAmountValue} → ${result} → rounded to ${rounded} (${decimals} decimals)`);
+  return rounded;
 }
 
 // Note: getWalletCompatibleYotAmount already implemented above
@@ -294,18 +273,14 @@ export async function getTokenBalance(
     const balanceInfo = await connection.getTokenAccountBalance(tokenAccount);
     const uiAmount = balanceInfo.value.uiAmount;
     
-    // Keep special handling for program-scaled tokens if needed
-    if (isProgramScaledToken && uiAmount !== null) {
-      // Apply the program scaling factor only if we need to (for specific program requirements)
-      // Now using the imported constant from constants.ts
-      const programScaledAmount = parseFloat(balanceInfo.value.amount) / PROGRAM_SCALING_FACTOR;
-      console.log(`Program-scaled token balance: ${programScaledAmount} (scaled with ${PROGRAM_SCALING_FACTOR}× factor)`);
-      return programScaledAmount;
-    }
-    
+    // Use EXACT amounts with proper rounding for all token balances
     if (uiAmount !== null) {
-      console.log(`Token balance (using native uiAmount): ${uiAmount}`);
-      return uiAmount;
+      // Round to exactly the number of decimal places for display consistency
+      const decimals = balanceInfo.value.decimals;
+      const roundedAmount = parseFloat(uiAmount.toFixed(decimals));
+      
+      console.log(`Token balance (exact with rounding): ${roundedAmount} (${decimals} decimals)`);
+      return roundedAmount;
     }
     
     return 0;
@@ -341,18 +316,14 @@ export async function getParsedTokenBalance(
     const tokenAmount = accounts.value[0].account.data.parsed.info.tokenAmount;
     const uiAmount = tokenAmount.uiAmount;
     
-    // Keep special handling for program-scaled tokens if needed
-    if (isProgramScaledToken && uiAmount !== null) {
-      // Apply the program scaling factor only if we need to (for specific program requirements)
-      // Using the imported constant from constants.ts
-      const programScaledAmount = parseFloat(tokenAmount.amount) / PROGRAM_SCALING_FACTOR;
-      console.log(`Program-scaled parsed token balance: ${programScaledAmount} (scaled with ${PROGRAM_SCALING_FACTOR}× factor)`);
-      return programScaledAmount;
-    }
-    
+    // Use EXACT amounts with proper rounding for all token balances
     if (uiAmount !== null) {
-      console.log(`Parsed token balance (using native uiAmount): ${uiAmount}`);
-      return uiAmount;
+      // Round to exactly the number of decimal places for display consistency
+      const decimals = tokenAmount.decimals;
+      const roundedAmount = parseFloat(uiAmount.toFixed(decimals));
+      
+      console.log(`Parsed token balance (exact with rounding): ${roundedAmount} (${decimals} decimals)`);
+      return roundedAmount;
     }
     
     return 0;
