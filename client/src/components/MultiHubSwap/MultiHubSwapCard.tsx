@@ -34,6 +34,7 @@ import { fetchSolanaTokens, TokenInfo } from '@/lib/token-search-api';
 import { SOL_TOKEN_ADDRESS, YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS } from '@/lib/constants';
 import useMultiHubSwap from '@/hooks/useMultiHubSwap';
 import { formatNumber } from '@/lib/utils';
+import TokenPriceChart from './TokenPriceChart';
 import { SwapProvider } from '@/lib/multi-hub-swap';
 
 export default function MultiHubSwapCard() {
@@ -714,6 +715,11 @@ export default function MultiHubSwapCard() {
             <span>Multi-Hub Swap</span>
           </div>
         </div>
+        
+        {/* Token Price Chart */}
+        {fromToken && toToken && (
+          <TokenPriceChart fromToken={fromToken} toToken={toToken} />
+        )}
         
         {amount && parseFloat(amount) > 0 && (
           <>
