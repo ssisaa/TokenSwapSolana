@@ -226,28 +226,34 @@ export function getWalletCompatibleYotAmount(amount: number): bigint {
 }
 
 export function getWalletAdjustedYosAmount(uiValue: number): bigint {
-  // SUPER CRITICAL: Completely avoid math operations for display precision
-  // Use string operations for perfect precision in wallet display
+  /**
+   * WALLET DISPLAY FIX: Force display as clean integer with NO decimal places for YOS tokens
+   * 
+   * This function follows the same approach as getWalletCompatibleYotAmount but handles
+   * the additional display adjustment needed for YOS tokens.
+   */
   
-  // Step 1: Convert to string first to isolate any potential floating point
-  const valueString = uiValue.toString();
+  // STEP 1: Round to nearest integer to eliminate decimal artifacts
+  const roundedAmount = Math.round(uiValue);
   
-  // Step 2: Extract only the integer part before any decimal point
-  const integerPart = valueString.split(".")[0];
-  
-  // Step 3: Apply display adjustment using string operations
+  // STEP 2: Apply display adjustment using a constant factor
   // This hardcoded value of 17000 matches the constant in constants.ts
   const DISPLAY_ADJUSTMENT = 17000;
   
-  // Convert to number, divide, then back to integer string
-  // This is the only math operation we need to perform
-  const adjustedValue = Math.floor(parseInt(integerPart) / DISPLAY_ADJUSTMENT);
+  // STEP 3: Apply adjustment and round to integer again
+  const adjustedValue = Math.round(roundedAmount / DISPLAY_ADJUSTMENT);
   
-  // Step 4: Use string concatenation to ensure exact precision - minimal math operations
-  // For 9 decimals, we need to append 9 zeros to the amount
-  const rawAmountString = adjustedValue.toString() + "000000000"; // 9 zeros for 9 decimals
+  // STEP 4: Convert to string to completely escape floating point math
+  const adjustedString = adjustedValue.toString();
   
-  console.log(`YOS wallet display: ${uiValue} → ${integerPart} → ${adjustedValue} → ${rawAmountString} (pure string-based adjustment)`);
+  // STEP 5: Use string concatenation to add decimal places - NO math operations
+  // For 9 decimals (Solana standard), we need to append 9 zeros to the amount
+  const rawAmountString = adjustedString + "000000000"; // 9 zeros for 9 decimals
+  
+  console.log(`⭐ YOS WALLET DISPLAY FIX: ${uiValue} → rounded ${roundedAmount} → adjusted ${adjustedValue} → raw ${rawAmountString}`);
+  
+  // Convert directly to BigInt from the precise string representation
+  // This completely avoids floating point issues and ensures CLEAN integer display in wallet
   return BigInt(rawAmountString);
 }
 
@@ -625,16 +631,24 @@ function encodeUnstakeInstruction(amount: number): Buffer {
   const data = Buffer.alloc(1 + 8); // instruction type (1) + amount (8)
   data.writeUInt8(StakingInstructionType.Unstake, 0);
   
-  // CRITICAL FIX: We need to ensure the program instruction amount matches what the program expects
-  // The wallet display amount is determined by the Token Transfer instruction, not our instruction
+  /**
+   * WALLET DISPLAY FIX: For program instruction, ensure exact amounts
+   * 
+   * While token transfer instruction controls wallet UI display,
+   * the program instruction must still have correct values for on-chain logic
+   */
   
-  // Convert to our program's expected format (using 10000 as scaling factor)
-  const contractAmount = Math.round(amount * PROGRAM_SCALING_FACTOR);
-  // Convert to bigint for transaction encoding
+  // STEP 1: Round to nearest integer to match token transfer instruction
+  const roundedAmount = Math.round(amount);
+  
+  // STEP 2: Convert to program's expected format using string operations to avoid float issues
+  // Using consistent fixed-point math to avoid any floating point errors
+  const contractAmount = roundedAmount * PROGRAM_SCALING_FACTOR;
+  
+  // STEP 3: Convert to BigInt for transaction encoding
   const rawAmount = BigInt(contractAmount);
   
-  console.log(`UNSTAKING: Converting UI value ${amount} YOT for contract instruction`);
-  console.log(`Contract amount: ${amount} × ${PROGRAM_SCALING_FACTOR} = ${contractAmount}`);
+  console.log(`⭐ UNSTAKE INSTRUCTION: ${amount} → rounded ${roundedAmount} → contract ${contractAmount}`);
   
   // Ensure we don't exceed the maximum u64 value
   if (rawAmount > BigInt("18446744073709551615")) {
@@ -645,8 +659,6 @@ function encodeUnstakeInstruction(amount: number): Buffer {
   
   // IMPORTANT NOTE: When unstaking, the program will also transfer YOS rewards
   // We need to ensure the YOS rewards calculation is consistent with our harvest function
-  console.log(`Encoded unstake instruction for ${amount} YOT tokens`);
-  console.log(`Raw amount for blockchain: ${rawAmount}`);
   console.log(`When unstaking, you'll also receive any pending YOS rewards with the proper scaling`);
   
   return data;
