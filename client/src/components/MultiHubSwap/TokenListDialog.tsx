@@ -1,6 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
   Dialog,
   DialogContent,
   DialogHeader,
@@ -8,40 +7,39 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Search, 
-  CircleDashed, 
-  ChevronsUpDown,
+  X, 
+  CircleDashed,
   Copy,
-  X
+  ExternalLink,
+  ChevronsUpDown,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchSolanaTokens } from '@/lib/token-search-api';
 import { TokenInfo } from '@/lib/token-search-api';
 import { SOL_TOKEN_ADDRESS, YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, EXPLORER_URL } from '@/lib/constants';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
-interface TokenSearchDialogProps {
+interface TokenListDialogProps {
   selectedToken: TokenInfo | null;
   onSelect: (token: TokenInfo) => void;
   exclude?: string[];
-  excludeTokens?: string[];  // For backward compatibility
   disabled?: boolean;
 }
 
-export function TokenSearchDialog({ 
+export function TokenListDialog({ 
   selectedToken, 
   onSelect, 
   exclude = [],
-  excludeTokens = [],
   disabled = false
-}: TokenSearchDialogProps) {
+}: TokenListDialogProps) {
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
-  const [searchTab, setSearchTab] = useState<'symbol' | 'address'>('symbol');
   
   const { data: tokens, isLoading: tokensLoading } = useQuery({
     queryKey: ['solana-tokens'],
@@ -55,26 +53,25 @@ export function TokenSearchDialog({
     const priorityTokens = [
       SOL_TOKEN_ADDRESS,
       YOT_TOKEN_ADDRESS,
-      YOS_TOKEN_ADDRESS
+      YOS_TOKEN_ADDRESS,
+      'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC devnet
+      'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB' // USDT devnet
     ];
     
     // Filter tokens
     let filtered = tokens.filter(token => {
-      // Check both exclude lists
-      if (exclude.includes(token.address) || excludeTokens.includes(token.address)) return false;
+      // Check exclude list
+      if (exclude.includes(token.address)) return false;
       
       if (!searchValue) return true;
       
       const searchLower = searchValue.toLowerCase();
       
-      if (searchTab === 'address') {
-        return token.address.toLowerCase().includes(searchLower);
-      } else {
-        return (
-          token.symbol.toLowerCase().includes(searchLower) ||
-          token.name.toLowerCase().includes(searchLower)
-        );
-      }
+      return (
+        token.symbol.toLowerCase().includes(searchLower) ||
+        token.name.toLowerCase().includes(searchLower) ||
+        token.address.toLowerCase().includes(searchLower)
+      );
     });
     
     // Sort tokens: priority tokens first, then by symbol
@@ -96,7 +93,17 @@ export function TokenSearchDialog({
     });
     
     return filtered;
-  }, [tokens, searchValue, searchTab, exclude, excludeTokens]);
+  }, [tokens, searchValue, exclude]);
+
+  // Get popular tokens
+  const popularTokens = useMemo(() => {
+    if (!tokens) return [];
+    
+    return tokens.filter(token => 
+      ['So11111111111111111111111111111111111111112', 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', 'RAY111111111111111111111111111111111111111'].includes(token.address) 
+      && !exclude.includes(token.address)
+    );
+  }, [tokens, exclude]);
 
   // Handle token selection
   const handleTokenSelect = (token: TokenInfo) => {
@@ -109,22 +116,13 @@ export function TokenSearchDialog({
   useEffect(() => {
     if (!open) {
       setSearchValue('');
-      setSearchTab('symbol');
     }
   }, [open]);
-  
-  // Extract the recently used tokens
-  const recentTokens = useMemo(() => {
-    if (!tokens) return [];
-    
-    // In a real app, we'd track this in localStorage
-    // For now, just use the 3 primary tokens as "recent"
-    return tokens.filter(token => 
-      [SOL_TOKEN_ADDRESS, YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS].includes(token.address) &&
-      !exclude.includes(token.address) && 
-      !excludeTokens.includes(token.address)
-    );
-  }, [tokens, exclude, excludeTokens]);
+
+  const copyAddress = (e: React.MouseEvent, address: string) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(address);
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -165,51 +163,53 @@ export function TokenSearchDialog({
           </DialogClose>
         </DialogHeader>
         
-        <div className="p-4 space-y-4">
+        <div className="space-y-4 px-4 pb-4">
           {/* Search Bar */}
           <div className="relative w-full">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-muted-foreground" />
-            </div>
             <Input 
               placeholder="Search by token or paste address"
-              className="pl-10 pr-10 py-6 w-full bg-[#111729] border-0 focus-visible:ring-1 focus-visible:ring-[#2D4380] text-sm rounded-lg"
+              className="pl-10 py-6 w-full bg-[#111729] border-0 focus-visible:ring-0 text-sm rounded-lg"
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
             />
-            <div className="absolute inset-y-0 right-2 flex items-center">
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
-                <Search className="h-4 w-4" />
-              </Button>
+            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-muted-foreground" />
             </div>
+            {searchValue && (
+              <div className="absolute inset-y-0 right-3 flex items-center">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-5 w-5 text-muted-foreground"
+                  onClick={() => setSearchValue('')}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
           </div>
           
           {/* Popular Tokens */}
-          {!searchValue && (
+          {!searchValue && popularTokens.length > 0 && (
             <div>
-              <p className="text-sm text-blue-400 font-medium mb-2">Popular tokens</p>
+              <p className="text-sm text-blue-400 mb-2">Popular tokens</p>
               <div className="grid grid-cols-4 gap-2">
-                {tokens && 
-                  tokens
-                    .filter(token => ['So11111111111111111111111111111111111111112', 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', YOT_TOKEN_ADDRESS].includes(token.address))
-                    .filter(token => !exclude.includes(token.address) && !excludeTokens.includes(token.address))
-                    .map(token => (
-                      <Button
-                        key={token.address}
-                        variant="outline"
-                        className="flex items-center justify-center h-12 py-5 px-3 bg-[#111729] border-0 hover:bg-[#1a2340] rounded-md"
-                        onClick={() => handleTokenSelect(token)}
-                      >
-                        <Avatar className="h-5 w-5 mr-2">
-                          <AvatarImage src={token.logoURI} alt={token.symbol} />
-                          <AvatarFallback>
-                            <CircleDashed className="h-3 w-3 text-muted-foreground" />
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm font-medium">{token.symbol}</span>
-                      </Button>
-                    ))
-                }
+                {popularTokens.map(token => (
+                  <Button
+                    key={token.address}
+                    variant="outline"
+                    className="flex items-center justify-center h-12 py-5 px-3 bg-[#111729] border-0 hover:bg-[#1a2340] rounded-md"
+                    onClick={() => handleTokenSelect(token)}
+                  >
+                    <Avatar className="h-5 w-5 mr-2">
+                      <AvatarImage src={token.logoURI} alt={token.symbol} />
+                      <AvatarFallback>
+                        <CircleDashed className="h-3 w-3 text-muted-foreground" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm font-medium">{token.symbol}</span>
+                  </Button>
+                ))}
               </div>
             </div>
           )}
@@ -217,8 +217,8 @@ export function TokenSearchDialog({
           {/* Token List Section */}
           <div>
             <div className="flex justify-between items-center mb-2">
-              <p className="text-sm text-blue-400 font-medium">Token</p>
-              <p className="text-sm text-blue-400 font-medium">Balance/Address</p>
+              <p className="text-sm text-blue-400">Token</p>
+              <p className="text-sm text-blue-400">Balance/Address</p>
             </div>
             
             {tokensLoading ? (
@@ -241,11 +241,10 @@ export function TokenSearchDialog({
               <ScrollArea className="h-[300px] pr-2">
                 <div className="space-y-1">
                   {filteredTokens.map(token => (
-                    <Button
+                    <div
                       key={token.address}
-                      variant="ghost"
-                      className="w-full justify-between py-4 px-2 h-auto bg-transparent hover:bg-[#111729] rounded-md"
                       onClick={() => handleTokenSelect(token)}
+                      className="flex justify-between items-center py-3 px-2 hover:bg-[#111729] rounded-md cursor-pointer relative"
                     >
                       <div className="flex items-center gap-3">
                         <Avatar className="h-6 w-6">
@@ -273,10 +272,7 @@ export function TokenSearchDialog({
                             variant="ghost" 
                             size="icon" 
                             className="h-5 w-5 ml-1 text-blue-400 hover:text-blue-300 p-0"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigator.clipboard.writeText(token.address);
-                            }}
+                            onClick={(e) => copyAddress(e, token.address)}
                           >
                             <Copy className="h-3 w-3" />
                           </Button>
@@ -286,7 +282,7 @@ export function TokenSearchDialog({
                       {selectedToken?.address === token.address && (
                         <div className="absolute right-2 text-green-500">✓</div>
                       )}
-                    </Button>
+                    </div>
                   ))}
                 </div>
               </ScrollArea>
