@@ -25,6 +25,8 @@ interface MultiHubSwapStats {
   yearlyAPR: number;
   buyDistribution: Distribution;
   sellDistribution: Distribution;
+  commissionPercent: number;
+  yotPriceUsd: number;
 }
 
 interface LiquidityContributionInfo {
