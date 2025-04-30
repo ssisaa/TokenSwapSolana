@@ -22,7 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { TokenSearchInput } from './TokenSearchInput';
+import { TokenSearchDialog } from './TokenSearchDialog';
 import useMultiHubSwap from '@/hooks/useMultiHubSwap';
 import { formatNumber } from '@/lib/utils';
 import { SwapProvider } from '@/lib/multi-hub-swap';
@@ -170,7 +170,7 @@ export default function MultiHubSwapCard() {
               />
             </div>
             
-            <TokenSearchInput
+            <TokenSearchDialog
               selectedToken={fromToken}
               onSelect={setFromToken}
               exclude={toToken ? [toToken.address] : []}
@@ -219,7 +219,7 @@ export default function MultiHubSwapCard() {
               )}
             </div>
             
-            <TokenSearchInput
+            <TokenSearchDialog
               selectedToken={toToken}
               onSelect={setToToken}
               exclude={fromToken ? [fromToken.address] : []}

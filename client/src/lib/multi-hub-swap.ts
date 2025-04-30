@@ -180,37 +180,74 @@ export async function executeMultiHubSwap(
     YOS cashback: ${yosCashback} (5%)
   `);
   
-  // Create a new transaction
-  const transaction = new Transaction();
+  // Determine the best provider to use
+  let swapTransaction: Transaction;
+  const isFromTokenSupported = isTokenSupportedByRaydium(fromToken.address);
+  const isToTokenSupported = isTokenSupportedByRaydium(toToken.address);
   
-  // IMPORTANT: Get a recent blockhash to include in the transaction
-  const { blockhash } = await connection.getLatestBlockhash();
-  transaction.recentBlockhash = blockhash;
-  transaction.feePayer = wallet.publicKey;
-  
-  // Here we'd add the necessary instructions for:
-  // 1. Token transfer approval
-  // 2. Actual swap execution
-  // 3. Liquidity contribution
-  // 4. YOS cashback distribution
-  
-  // This is where the real implementation would connect to the
-  // Solana program to execute the actual swap instructions
-  
-  // For demonstration only - add a simple system transfer as a placeholder
-  // In a real implementation, we would add the actual swap instructions
-  transaction.add(
-    SystemProgram.transfer({
-      fromPubkey: wallet.publicKey,
-      toPubkey: wallet.publicKey,  // Send to self as a placeholder
-      lamports: 100,  // Minimal amount for demonstration
-    })
-  );
+  // Try to use Raydium for supported tokens
+  if (isFromTokenSupported && isToTokenSupported && 
+      fromToken.address !== SOL_TOKEN_ADDRESS && 
+      fromToken.address !== YOT_TOKEN_ADDRESS &&
+      toToken.address !== SOL_TOKEN_ADDRESS && 
+      toToken.address !== YOT_TOKEN_ADDRESS) {
+      
+    console.log('Using Raydium DEX for swap...');
+    
+    try {
+      // Prepare a Raydium swap transaction
+      swapTransaction = await prepareRaydiumSwapTransaction(
+        wallet,
+        fromToken,
+        toToken,
+        actualSwapAmount,
+        minAmountOut
+      );
+      
+    } catch (error) {
+      console.error('Error preparing Raydium swap, falling back to contract:', error);
+      
+      // Fall back to contract swap
+      swapTransaction = new Transaction();
+      // Get recent blockhash
+      const { blockhash } = await connection.getLatestBlockhash();
+      swapTransaction.recentBlockhash = blockhash;
+      swapTransaction.feePayer = wallet.publicKey;
+      
+      // Add contract swap instruction
+      swapTransaction.add(
+        SystemProgram.transfer({
+          fromPubkey: wallet.publicKey,
+          toPubkey: wallet.publicKey,  // Send to self as a placeholder
+          lamports: 100,  // Minimal amount for demonstration
+        })
+      );
+    }
+    
+  } else {
+    console.log('Using contract swap...');
+    
+    // Use our contract for SOL or YOT trades
+    swapTransaction = new Transaction();
+    // Get recent blockhash
+    const { blockhash } = await connection.getLatestBlockhash();
+    swapTransaction.recentBlockhash = blockhash;
+    swapTransaction.feePayer = wallet.publicKey;
+    
+    // Add contract swap instruction
+    swapTransaction.add(
+      SystemProgram.transfer({
+        fromPubkey: wallet.publicKey,
+        toPubkey: wallet.publicKey,  // Send to self as a placeholder
+        lamports: 100,  // Minimal amount for demonstration
+      })
+    );
+  }
   
   // Sign and send the transaction
   try {
     // Sign the transaction with the user's wallet
-    const signedTransaction = await wallet.signTransaction(transaction);
+    const signedTransaction = await wallet.signTransaction(swapTransaction);
     
     // Send the signed transaction to the network
     const signature = await connection.sendRawTransaction(
