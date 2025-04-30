@@ -83,7 +83,7 @@ export default function Stake() {
   };
   
   // Check if rewards can be harvested
-  const canHarvest = stakingInfo.rewardsEarned > 0;
+  const canHarvest = (stakingInfo.rewardsEarned / 9260) >= (stakingRates?.harvestThreshold || 0);
   
   return (
     <DashboardLayout>
@@ -471,7 +471,7 @@ export default function Stake() {
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="text-lg font-semibold text-white">Harvest Rewards</h3>
                       <span className="text-sm text-gray-400">
-                        <span className="font-medium text-white">{formatNumber(stakingInfo.rewardsEarned / 10000)}</span> YOS available
+                        <span className="font-medium text-white">{formatNumber(stakingInfo.rewardsEarned / 9260)}</span> YOS available
                       </span>
                     </div>
 
@@ -480,14 +480,14 @@ export default function Stake() {
                       <div className="bg-dark-100 rounded-md border border-slate-700 p-4">
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-sm text-gray-300">Available rewards:</span>
-                          <span className="text-sm font-medium text-white">{formatNumber(stakingInfo.rewardsEarned / 10000)} YOS</span>
+                          <span className="text-sm font-medium text-white">{formatNumber(stakingInfo.rewardsEarned / 9260)} YOS</span>
                         </div>
                         
                         <div className="w-full bg-slate-700 rounded-full h-2.5 mb-1">
                           <div 
-                            className={`h-2.5 rounded-full ${(stakingInfo.rewardsEarned / 10000) >= (stakingRates?.harvestThreshold || 1) ? 'bg-green-500' : 'bg-blue-600'}`}
+                            className={`h-2.5 rounded-full ${(stakingInfo.rewardsEarned / 9260) >= (stakingRates?.harvestThreshold || 1) ? 'bg-green-500' : 'bg-blue-600'}`}
                             style={{ 
-                              width: `${Math.min(100, ((stakingInfo.rewardsEarned / 10000) / (stakingRates?.harvestThreshold || 1)) * 100)}%` 
+                              width: `${Math.min(100, ((stakingInfo.rewardsEarned / 9260) / (stakingRates?.harvestThreshold || 1)) * 100)}%` 
                             }}
                           ></div>
                         </div>
@@ -496,8 +496,8 @@ export default function Stake() {
                         
                         <div className="flex justify-between items-center text-xs">
                           <span className="text-gray-400">0</span>
-                          <span className={`font-medium ${stakingInfo.rewardsEarned >= (stakingRates?.harvestThreshold || 0) ? 'text-green-400' : 'text-amber-400'}`}>
-                            Threshold: {typeof stakingRates?.harvestThreshold === 'number' ? 
+                          <span className={`font-medium ${(stakingInfo.rewardsEarned / 9260) >= (stakingRates?.harvestThreshold || 0) ? 'text-green-400' : 'text-amber-400'}`}>
+                            Minimum harvest amount: {typeof stakingRates?.harvestThreshold === 'number' ? 
                               stakingRates.harvestThreshold.toLocaleString('en-US', {maximumFractionDigits: 0}) : '0'} YOS
                           </span>
                         </div>
@@ -512,11 +512,11 @@ export default function Stake() {
                         Harvest Rewards
                       </Button>
                       
-                      {stakingInfo.rewardsEarned < (stakingRates?.harvestThreshold || 0) && (
+                      {(stakingInfo.rewardsEarned / 9260) < (stakingRates?.harvestThreshold || 0) && (
                         <div className="text-xs text-amber-400 flex items-center">
                           <span className="mr-1">⚠️</span>
                           Need at least {typeof stakingRates?.harvestThreshold === 'number' ? 
-                              stakingRates.harvestThreshold.toLocaleString('en-US', {maximumFractionDigits: 0}) : '0'} YOS to harvest (you have {formatNumber(stakingInfo.rewardsEarned, 6)})
+                              stakingRates.harvestThreshold.toLocaleString('en-US', {maximumFractionDigits: 0}) : '0'} YOS to harvest (you have {formatNumber(stakingInfo.rewardsEarned / 9260, 6)})
                         </div>
                       )}
                     </div>

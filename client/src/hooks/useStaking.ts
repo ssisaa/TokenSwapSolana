@@ -485,13 +485,8 @@ export function useStaking() {
         throw new Error('Wallet public key not available');
       }
       
-      // CRITICAL FIX: Display multiplier warning in UI before harvesting
-      toast({
-        title: "⚠️ Multiplier Warning",
-        description: `Due to a known issue in the Solana program, your wallet will show a value about 10,000× larger than expected. This is a display issue only. The actual amount being transferred is correct.`,
-        duration: 10000, // 10 seconds
-        variant: "destructive", // Use destructive to highlight importance
-      });
+      // No multiplier warning is needed now as we consistently use the 9260 factor
+      console.log("Preparing to harvest YOS rewards...");
       
       try {
         console.log("Starting harvest operation with detailed debugging...");
@@ -732,7 +727,7 @@ export function useStaking() {
           title: "Rewards Below Threshold",
           description: errorMessage,
           variant: 'destructive',
-          duration: 10000, // Show for 10 seconds so user can read it
+          duration: 10000 // Show for 10 seconds so user can read it
         });
       } else {
         toast({
