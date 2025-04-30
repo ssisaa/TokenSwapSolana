@@ -44,12 +44,12 @@ export default function MultiHubSwapDemo() {
         const parsedAmount = parseFloat(amount);
         const estimate = await getMultiHubSwapEstimate(fromToken, toToken, parsedAmount);
         
-        if (estimate.success && estimate.estimatedAmount !== undefined) {
+        if (estimate && estimate.estimatedAmount !== undefined) {
           setEstimatedAmount(estimate.estimatedAmount);
           setRouteProvider(estimate.provider ?? SwapProvider.Contract);
         } else {
           setEstimatedAmount(null);
-          console.error('Failed to get estimate:', estimate.error);
+          console.error('Failed to get estimate');
         }
       } catch (error) {
         console.error('Error getting swap estimate:', error);

@@ -3,7 +3,7 @@ import { PhantomWalletAdapter } from '@solana/wallet-adapter-phantom';
 import { SolflareWalletAdapter } from '@solana/wallet-adapter-solflare';
 import { WalletError, WalletAdapter } from '@solana/wallet-adapter-base';
 import { Cluster, PublicKey } from '@solana/web3.js';
-import { CLUSTER } from '../lib/constants';
+import { SOLANA_CLUSTER } from '../lib/constants';
 
 interface WalletInfo {
   name: string;
@@ -32,7 +32,7 @@ interface MultiWalletProviderProps {
   cluster?: Cluster;
 }
 
-export function MultiWalletProvider({ children, cluster = CLUSTER }: MultiWalletProviderProps) {
+export function MultiWalletProvider({ children, cluster = SOLANA_CLUSTER as Cluster }: MultiWalletProviderProps) {
   const [wallets, setWallets] = useState<WalletInfo[]>([]);
   const [selectedWallet, setSelectedWallet] = useState<WalletInfo | null>(null);
   const [wallet, setWallet] = useState<any>(null);

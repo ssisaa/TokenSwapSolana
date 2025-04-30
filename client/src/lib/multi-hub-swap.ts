@@ -1,246 +1,215 @@
-import { Connection, PublicKey } from '@solana/web3.js';
-import { ENDPOINT, SOL_TOKEN_ADDRESS, YOT_TOKEN_ADDRESS, SWAP_FEE } from './constants';
-import { executeSwapAndDistribute, claimYosRewards } from './multi-hub-swap-contract';
+import { PublicKey, Connection, Transaction, Keypair, sendAndConfirmTransaction } from '@solana/web3.js';
+import { TokenInfo } from './token-search-api';
+import { 
+  SOL_TOKEN_ADDRESS, 
+  YOT_TOKEN_ADDRESS,
+  YOS_TOKEN_ADDRESS,
+  LIQUIDITY_CONTRIBUTION_PERCENT,
+  YOS_CASHBACK_PERCENT,
+  SWAP_FEE,
+  ENDPOINT,
+  CONFIRMATION_COUNT
+} from './constants';
 
-/**
- * Enum representing different swap providers
- */
+// Swap providers
 export enum SwapProvider {
-  Raydium = 'raydium',
-  Jupiter = 'jupiter',
-  Contract = 'contract'
+  Direct = 'direct',  // Direct swap through our contract
+  Contract = 'contract', // Multi-hub-swap contract
+  Raydium = 'raydium', // Raydium DEX
+  Jupiter = 'jupiter'  // Jupiter Aggregator
 }
 
-/**
- * Interface for token metadata
- */
-export interface TokenMetadata {
-  address: string;
-  symbol: string;
-  name: string;
-  decimals: number;
-  logoURI?: string;
+// Swap summary information for the UI
+export interface SwapSummary {
+  fromAmount: number;
+  estimatedOutputAmount: number;
+  minReceived: number;
+  priceImpact: number;
+  fee: number;
+  liquidityContribution: number;
+  yosCashback: number;
+  provider: SwapProvider;
 }
 
-/**
- * Interface for swap estimate
- */
+// Swap estimate to be returned to callers
 export interface SwapEstimate {
-  success: boolean;
-  estimatedAmount?: number;
-  error?: string;
-  provider?: SwapProvider;
+  estimatedAmount: number;
+  minAmountOut: number;
+  priceImpact: number;
+  liquidityFee: number;
+  route: string[];
+  provider: SwapProvider;
 }
 
 /**
- * Interface for swap result
- */
-export interface SwapResult {
-  success: boolean;
-  signature?: string;
-  error?: string;
-  fromToken?: TokenMetadata;
-  toToken?: TokenMetadata;
-  fromAmount?: number;
-  toAmount?: number;
-}
-
-// Initialize Solana connection
-const connection = new Connection(ENDPOINT, 'confirmed');
-
-/**
- * Gets a swap estimate through the appropriate provider
- * @param fromToken Source token
- * @param toToken Destination token
- * @param amount Amount to swap
- * @returns Swap estimate
+ * Get a swap estimate based on input/output tokens and amount
  */
 export async function getMultiHubSwapEstimate(
-  fromToken: TokenMetadata,
-  toToken: TokenMetadata,
-  amount: number
+  fromToken: TokenInfo,
+  toToken: TokenInfo,
+  amount: number,
+  slippage = 0.01
 ): Promise<SwapEstimate> {
-  if (!fromToken || !toToken || amount <= 0) {
-    return {
-      success: false,
-      error: 'Invalid swap parameters'
-    };
+  // This will be implemented with actual blockchain calls
+  // For now, return a simulated estimate with placeholder values
+  
+  if (!fromToken || !toToken || !amount || amount <= 0) {
+    throw new Error('Invalid swap parameters');
+  }
+
+  // Calculate 75% of the amount (the part that actually gets swapped after contributions)
+  // The other 25% is split as: 20% to liquidity pool, 5% to YOS cashback
+  const actualSwapAmount = amount * (1 - LIQUIDITY_CONTRIBUTION_PERCENT/100 - YOS_CASHBACK_PERCENT/100);
+  
+  // Simulate a price impact and estimate
+  const priceImpact = Math.min(amount * 0.005, 0.05); // 0.5% per unit, max 5%
+  
+  // Calculate fees
+  const fee = actualSwapAmount * SWAP_FEE;
+  
+  // Determine the provider to use based on the tokens
+  // This would be more sophisticated in a real implementation
+  let provider: SwapProvider;
+  
+  if (fromToken.address === SOL_TOKEN_ADDRESS || toToken.address === SOL_TOKEN_ADDRESS) {
+    // SOL trades can go through our contract
+    provider = SwapProvider.Contract;
+  } else if (fromToken.address === YOT_TOKEN_ADDRESS || toToken.address === YOT_TOKEN_ADDRESS) {
+    // YOT trades are best through our contract
+    provider = SwapProvider.Contract;
+  } else {
+    // Otherwise use Raydium for now
+    // In a real app, we'd check which provider has the best price
+    provider = SwapProvider.Raydium;
   }
   
-  try {
-    // Calculate a simple price estimate for demo purposes
-    // In a real app, we would query actual DEX prices
-    let estimatedAmount = 0;
-    let provider = SwapProvider.Contract;
-    
-    // Simplified price calculations for the demo
-    if (fromToken.address === SOL_TOKEN_ADDRESS && toToken.address === YOT_TOKEN_ADDRESS) {
-      // SOL -> YOT: 1 SOL = 24,500 YOT (example rate)
-      estimatedAmount = amount * 24500 * (1 - SWAP_FEE / 100);
-      provider = SwapProvider.Contract;
-    } else if (fromToken.address === YOT_TOKEN_ADDRESS && toToken.address === SOL_TOKEN_ADDRESS) {
-      // YOT -> SOL: 24,500 YOT = 1 SOL (example rate)
-      estimatedAmount = amount / 24500 * (1 - SWAP_FEE / 100);
-      provider = SwapProvider.Contract;
-    } else {
-      // For other token pairs, use appropriate DEX integrations
-      // For demo, just use a random conversion rate between 0.5 and 1.5
-      const rate = 0.5 + Math.random();
-      estimatedAmount = amount * rate * (1 - SWAP_FEE / 100);
-      
-      // Randomly choose between Raydium and Jupiter for demo
-      provider = Math.random() > 0.5 ? SwapProvider.Raydium : SwapProvider.Jupiter;
-    }
-    
-    return {
-      success: true,
-      estimatedAmount,
-      provider
-    };
-  } catch (error) {
-    console.error('Error estimating swap:', error);
-    return {
-      success: false,
-      error: 'Failed to get swap estimate'
-    };
-  }
+  // Calculate estimated output, just a simple conversion factor for the demo
+  // In a real world scenario, this would be based on actual liquidity pool ratios
+  const conversionFactor = 0.9 * (1 - priceImpact);
+  const estimatedAmount = actualSwapAmount * conversionFactor;
+  
+  // Calculate minimum amount out based on slippage
+  const minAmountOut = estimatedAmount * (1 - slippage);
+  
+  // The route would be determined by the routing algorithm
+  const route = [fromToken.symbol, toToken.symbol];
+
+  return {
+    estimatedAmount,
+    minAmountOut,
+    priceImpact,
+    liquidityFee: fee,
+    route,
+    provider
+  };
 }
 
 /**
- * Executes a swap through the appropriate provider
- * @param wallet Connected wallet
+ * Execute a multi-hub swap transaction
+ * @param wallet Connected wallet adapter
  * @param fromToken Source token
  * @param toToken Destination token
- * @param amount Amount to swap
- * @param slippage Slippage tolerance (e.g., 0.01 for 1%)
- * @param provider Optional specific provider to use
- * @returns Swap result with transaction signature
+ * @param amount Amount to swap (in UI format)
+ * @param minAmountOut Minimum output amount expected
+ * @returns Transaction signature
  */
 export async function executeMultiHubSwap(
   wallet: any,
-  fromToken: TokenMetadata,
-  toToken: TokenMetadata,
+  fromToken: TokenInfo,
+  toToken: TokenInfo,
   amount: number,
-  slippage: number = 0.01,
-  provider?: SwapProvider
-): Promise<SwapResult> {
+  minAmountOut: number
+): Promise<string> {
+  if (!wallet.publicKey || !wallet.signTransaction) {
+    throw new Error('Wallet not connected');
+  }
+
+  const connection = new Connection(ENDPOINT);
+  
+  // Calculate the actual distribution values based on our formula:
+  // - 75% of amount goes to actual swap
+  // - 20% goes to SOL-YOT liquidity pool
+  // - 5% goes to YOS rewards
+  const actualSwapAmount = amount * (1 - LIQUIDITY_CONTRIBUTION_PERCENT/100 - YOS_CASHBACK_PERCENT/100);
+  const liquidityContribution = amount * (LIQUIDITY_CONTRIBUTION_PERCENT / 100);
+  const yosCashback = amount * (YOS_CASHBACK_PERCENT / 100);
+  
+  console.log(`Executing swap with distribution:
+    Total amount: ${amount}
+    Actual swap: ${actualSwapAmount} (75%)
+    Liquidity contribution: ${liquidityContribution} (20%)
+    YOS cashback: ${yosCashback} (5%)
+  `);
+  
+  // Create a new transaction
+  const transaction = new Transaction();
+  
+  // Here we'd add the necessary instructions for:
+  // 1. Token transfer approval
+  // 2. Actual swap execution
+  // 3. Liquidity contribution
+  // 4. YOS cashback distribution
+  
+  // This is where the real implementation would connect to the
+  // Solana program to execute the actual swap instructions
+  
+  // Sign and send the transaction
   try {
-    // For demo purposes, we'll use the contract implementation for all swaps
-    // In a real app, we'd use different providers based on the token pair
+    // Sign the transaction with the user's wallet
+    const signedTransaction = await wallet.signTransaction(transaction);
     
-    // Calculate minimum amount out with slippage
-    const estimate = await getMultiHubSwapEstimate(fromToken, toToken, amount);
-    if (!estimate.success || !estimate.estimatedAmount) {
-      return {
-        success: false,
-        error: estimate.error || 'Failed to get swap estimate'
-      };
-    }
-    
-    const minAmountOut = estimate.estimatedAmount * (1 - slippage);
-    
-    // Execute the swap using the contract
-    const signature = await executeSwapAndDistribute(
-      wallet, 
-      amount, 
-      minAmountOut
+    // Send the signed transaction to the network
+    const signature = await sendAndConfirmTransaction(
+      connection,
+      signedTransaction,
+      [],
+      { confirmations: CONFIRMATION_COUNT }
     );
     
-    return {
-      success: true,
-      signature,
-      fromToken,
-      toToken,
-      fromAmount: amount,
-      toAmount: estimate.estimatedAmount
-    };
+    console.log('Swap transaction confirmed:', signature);
+    return signature;
   } catch (error) {
     console.error('Error executing swap:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    };
+    throw error;
   }
 }
 
 /**
- * Claims YOS rewards from swap cashbacks
- * @param wallet Connected wallet
- * @returns Claim result with transaction signature
+ * Claim YOS rewards from previous swaps
+ * @param wallet Connected wallet adapter
+ * @returns Transaction signature
  */
-export async function claimYosSwapRewards(wallet: any): Promise<SwapResult> {
+export async function claimYosSwapRewards(wallet: any): Promise<string> {
+  if (!wallet.publicKey || !wallet.signTransaction) {
+    throw new Error('Wallet not connected');
+  }
+  
+  const connection = new Connection(ENDPOINT);
+  
+  // Create a new transaction
+  const transaction = new Transaction();
+  
+  // Here we'd add the necessary instructions to:
+  // 1. Check for available YOS rewards
+  // 2. Transfer YOS rewards to the user's wallet
+  
+  // Sign and send the transaction
   try {
-    const signature = await claimYosRewards(wallet);
+    // Sign the transaction with the user's wallet
+    const signedTransaction = await wallet.signTransaction(transaction);
     
-    return {
-      success: true,
-      signature
-    };
+    // Send the signed transaction to the network
+    const signature = await sendAndConfirmTransaction(
+      connection,
+      signedTransaction,
+      [],
+      { confirmations: CONFIRMATION_COUNT }
+    );
+    
+    console.log('Claim rewards transaction confirmed:', signature);
+    return signature;
   } catch (error) {
     console.error('Error claiming rewards:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    };
-  }
-}
-
-/**
- * Gets user's multi-hub swap information
- * @param walletAddress User's wallet address
- * @returns User's swap and contribution information
- */
-export async function getUserSwapInfo(walletAddress: string) {
-  try {
-    // In a real app, we would fetch this data from the blockchain
-    // For demo, return dummy data
-    return {
-      totalSwapped: 1250.75,
-      totalContributed: 250.15,
-      pendingRewards: 62.54,
-      totalRewardsClaimed: 125.30
-    };
-  } catch (error) {
-    console.error('Error getting user swap info:', error);
     throw error;
   }
-}
-
-/**
- * Gets global multi-hub swap statistics
- * @returns Global swap and contribution statistics
- */
-export async function getGlobalSwapStats() {
-  try {
-    // In a real app, we would fetch this data from the blockchain
-    // For demo, return dummy data
-    return {
-      totalSwapVolume: 1250000.50,
-      totalLiquidityContributed: 250000.10,
-      totalRewardsDistributed: 62500.25,
-      uniqueUsers: 750
-    };
-  } catch (error) {
-    console.error('Error getting global swap stats:', error);
-    throw error;
-  }
-}
-
-/**
- * Calculates fees for a swap operation
- * @param amount Amount to swap
- * @returns Fee breakdown
- */
-export function calculateSwapFees(amount: number) {
-  const fee = amount * (SWAP_FEE / 100);
-  const liquidityContribution = amount * 0.2; // 20% to liquidity
-  const cashbackReward = amount * 0.05; // 5% as YOS rewards
-  const userReceives = amount * 0.75; // 75% to user
-  
-  return {
-    fee,
-    liquidityContribution,
-    cashbackReward,
-    userReceives
-  };
 }

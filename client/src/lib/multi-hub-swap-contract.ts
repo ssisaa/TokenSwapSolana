@@ -1,297 +1,207 @@
-import { 
-  Connection, 
-  PublicKey, 
-  Transaction, 
-  SystemProgram, 
-  TransactionInstruction, 
-  sendAndConfirmTransaction
-} from '@solana/web3.js';
-import { 
-  ENDPOINT, 
-  PROGRAM_ID,
-  YOT_TOKEN_ADDRESS,
-  YOS_TOKEN_ADDRESS,
-  SOL_TOKEN_ADDRESS
-} from './constants';
-
-// Initialize Solana connection
-const connection = new Connection(ENDPOINT, 'confirmed');
-
-// Instruction types for the MultiHubSwap program
-enum MultiHubSwapInstructionType {
-  Initialize = 0,
-  SwapAndDistribute = 1,
-  ClaimRewards = 2,
-  WithdrawLiquidity = 3,
-  UpdateParameters = 4
-}
+import { PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL, Connection } from '@solana/web3.js';
+import { SOLANA_RPC_URL, MULTI_HUB_SWAP_PROGRAM_ID } from './constants';
 
 /**
- * Find a program address for a seed
- * @param seeds Seeds for the PDA
+ * Find a program-derived address
+ * @param seeds Seeds used to derive the address
  * @param programId Program ID
  * @returns Program address and bump seed
  */
-function findProgramAddress(seeds: Buffer[], programId: PublicKey): [PublicKey, number] {
-  const key = seeds.reduce((acc, seed) => acc + seed.toString('hex'), '') + programId.toBase58();
-  
-  // Deterministic "random" number based on input - this is a simplified version
-  // In production, you would use actual PublicKey.findProgramAddressSync
-  let bump = 255;
-  const hash = Array.from(key).reduce((a, b) => (a * 31 + b.charCodeAt(0)) | 0, 0);
-  bump = (hash % 256) % 256;
-  
-  // Create a deterministic address based on input
-  const address = new PublicKey(
-    Buffer.from(
-      Array.from(key).map((char, i) => char.charCodeAt(0) ^ (i % 256))
-    )
-  );
-  
+export function findProgramAddress(
+  seeds: (Buffer | Uint8Array)[],
+  programId: PublicKey
+): [PublicKey, number] {
+  const [address, bump] = PublicKey.findProgramAddressSync(seeds, programId);
   return [address, bump];
 }
 
 /**
- * Find the program state PDA
- * @returns Program state address and bump seed
- */
-function findProgramStateAddress(): [PublicKey, number] {
-  return findProgramAddress(
-    [Buffer.from('program_state')],
-    new PublicKey(PROGRAM_ID)
-  );
-}
-
-/**
- * Find the program authority PDA
- * @returns Program authority address and bump seed
- */
-function findProgramAuthorityAddress(): [PublicKey, number] {
-  return findProgramAddress(
-    [Buffer.from('authority')],
-    new PublicKey(PROGRAM_ID)
-  );
-}
-
-/**
- * Find the swap account PDA for a wallet
- * @param walletAddress User's wallet address
- * @returns Swap account address and bump seed
- */
-function findSwapAccountAddress(walletAddress: PublicKey): [PublicKey, number] {
-  return findProgramAddress(
-    [Buffer.from('swap_account'), walletAddress.toBuffer()],
-    new PublicKey(PROGRAM_ID)
-  );
-}
-
-/**
- * Find the contribution account PDA for a wallet
- * @param walletAddress User's wallet address
- * @returns Contribution account address and bump seed
- */
-function findContributionAccountAddress(walletAddress: PublicKey): [PublicKey, number] {
-  return findProgramAddress(
-    [Buffer.from('contribution'), walletAddress.toBuffer()],
-    new PublicKey(PROGRAM_ID)
-  );
-}
-
-/**
- * Encode a swap and distribute instruction
- * @param amount Amount of tokens to swap
- * @param minAmountOut Minimum amount of tokens to receive (with slippage)
+ * Creates a buffer containing the encoded swap instruction
+ * @param amount Amount to swap (in raw token units)
  * @returns Encoded instruction data
  */
-function encodeSwapInstruction(amount: number, minAmountOut: number): Buffer {
-  const instructionLayout = Buffer.alloc(9);
+export function encodeSwapInstruction(amount: bigint): Buffer {
+  const instructionBuffer = Buffer.alloc(9);
   
-  // Instruction type (1 byte)
-  instructionLayout.writeUInt8(MultiHubSwapInstructionType.SwapAndDistribute, 0);
+  // Instruction index for the swap operation (e.g., 1 for 'swap')
+  instructionBuffer.writeUInt8(1, 0);
   
-  // Amount (4 bytes)
-  instructionLayout.writeUInt32LE(amount, 1);
+  // Write the amount as a 64-bit value (8 bytes)
+  instructionBuffer.writeBigUInt64LE(amount, 1);
   
-  // Minimum amount out (4 bytes)
-  instructionLayout.writeUInt32LE(minAmountOut, 5);
-  
-  return instructionLayout;
+  return instructionBuffer;
 }
 
 /**
- * Encode a claim rewards instruction
+ * Creates a buffer containing the encoded claim rewards instruction
  * @returns Encoded instruction data
  */
-function encodeClaimRewardsInstruction(): Buffer {
-  const instructionLayout = Buffer.alloc(1);
+export function encodeClaimRewardsInstruction(): Buffer {
+  const instructionBuffer = Buffer.alloc(1);
   
-  // Instruction type (1 byte)
-  instructionLayout.writeUInt8(MultiHubSwapInstructionType.ClaimRewards, 0);
+  // Instruction index for the claim rewards operation (e.g., 2 for 'claim_rewards')
+  instructionBuffer.writeUInt8(2, 0);
   
-  return instructionLayout;
+  return instructionBuffer;
 }
 
 /**
- * Execute a swap with automatic liquidity contribution and YOS rewards
- * @param wallet Connected wallet
- * @param amount Amount of tokens to swap
- * @param minAmountOut Minimum amount of tokens to receive (with slippage)
- * @returns Transaction signature
+ * Creates a buffer containing the encoded update parameters instruction
+ * @param liquidityContributionPercent Percentage of swap to contribute to liquidity (e.g., 20)
+ * @param yosCashbackPercent Percentage of swap to convert to YOS rewards (e.g., 5)
+ * @param ownerCommissionPercent Percentage of SOL swap for owner commission (e.g., 0.1)
+ * @returns Encoded instruction data
  */
-export async function executeSwapAndDistribute(
-  wallet: any,
-  amount: number,
-  minAmountOut: number
-): Promise<string> {
-  if (!wallet.publicKey) {
-    throw new Error('Wallet not connected');
-  }
-
-  try {
-    // Find all necessary program addresses
-    const [programState] = findProgramStateAddress();
-    const [programAuthority] = findProgramAuthorityAddress();
-    const [swapAccount] = findSwapAccountAddress(wallet.publicKey);
-    const [contributionAccount] = findContributionAccountAddress(wallet.publicKey);
-    
-    // Create the instruction
-    const instruction = new TransactionInstruction({
-      keys: [
-        { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
-        { pubkey: programState, isSigner: false, isWritable: true },
-        { pubkey: programAuthority, isSigner: false, isWritable: true },
-        { pubkey: swapAccount, isSigner: false, isWritable: true },
-        { pubkey: contributionAccount, isSigner: false, isWritable: true },
-        { pubkey: new PublicKey(YOT_TOKEN_ADDRESS), isSigner: false, isWritable: false },
-        { pubkey: new PublicKey(YOS_TOKEN_ADDRESS), isSigner: false, isWritable: false },
-        { pubkey: new PublicKey(SOL_TOKEN_ADDRESS), isSigner: false, isWritable: false },
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-      ],
-      programId: new PublicKey(PROGRAM_ID),
-      data: encodeSwapInstruction(amount, minAmountOut)
-    });
-    
-    // Create and sign the transaction
-    const transaction = new Transaction().add(instruction);
-    transaction.feePayer = wallet.publicKey;
-    transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-    
-    // Sign the transaction with the wallet adapter
-    const signed = await wallet.signTransaction(transaction);
-    
-    // Send the signed transaction
-    const signature = await connection.sendRawTransaction(signed.serialize());
-    
-    // Wait for confirmation
-    await connection.confirmTransaction(signature, 'confirmed');
-    
-    return signature;
-  } catch (error) {
-    console.error('Error in executeSwapAndDistribute:', error);
-    throw error;
-  }
+export function encodeUpdateParametersInstruction(
+  liquidityContributionPercent: number,
+  yosCashbackPercent: number,
+  ownerCommissionPercent: number
+): Buffer {
+  const instructionBuffer = Buffer.alloc(13);
+  
+  // Instruction index for update parameters (e.g., 3 for 'update_parameters')
+  instructionBuffer.writeUInt8(3, 0);
+  
+  // Write the parameters
+  instructionBuffer.writeUInt32LE(Math.floor(liquidityContributionPercent * 100), 1); // As basis points
+  instructionBuffer.writeUInt32LE(Math.floor(yosCashbackPercent * 100), 5); // As basis points
+  instructionBuffer.writeUInt32LE(Math.floor(ownerCommissionPercent * 100), 9); // As basis points
+  
+  return instructionBuffer;
 }
 
 /**
- * Claim available YOS rewards
- * @param wallet Connected wallet
- * @returns Transaction signature
+ * Gets stats for a specific user from the swap program
+ * @param walletAddress User's wallet address
+ * @returns User's swap stats or null if not found
  */
-export async function claimYosRewards(wallet: any): Promise<string> {
-  if (!wallet.publicKey) {
-    throw new Error('Wallet not connected');
-  }
-
+export async function getUserSwapStats(walletAddress: string): Promise<any | null> {
   try {
-    // Find all necessary program addresses
-    const [programState] = findProgramStateAddress();
-    const [programAuthority] = findProgramAuthorityAddress();
-    const [swapAccount] = findSwapAccountAddress(wallet.publicKey);
-    const [contributionAccount] = findContributionAccountAddress(wallet.publicKey);
+    const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
+    const programId = new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID);
+    const userPubkey = new PublicKey(walletAddress);
     
-    // Create the instruction
-    const instruction = new TransactionInstruction({
-      keys: [
-        { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
-        { pubkey: programState, isSigner: false, isWritable: true },
-        { pubkey: programAuthority, isSigner: false, isWritable: true },
-        { pubkey: swapAccount, isSigner: false, isWritable: true },
-        { pubkey: contributionAccount, isSigner: false, isWritable: true },
-        { pubkey: new PublicKey(YOS_TOKEN_ADDRESS), isSigner: false, isWritable: false },
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-      ],
-      programId: new PublicKey(PROGRAM_ID),
-      data: encodeClaimRewardsInstruction()
-    });
+    // Find user swap account address
+    const [swapAccountPDA] = findProgramAddress(
+      [Buffer.from('swap_account'), userPubkey.toBuffer()],
+      programId
+    );
     
-    // Create and sign the transaction
-    const transaction = new Transaction().add(instruction);
-    transaction.feePayer = wallet.publicKey;
-    transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+    // Get the account data
+    const accountInfo = await connection.getAccountInfo(swapAccountPDA);
     
-    // Sign the transaction with the wallet adapter
-    const signed = await wallet.signTransaction(transaction);
+    if (!accountInfo) {
+      // Account doesn't exist yet
+      return null;
+    }
     
-    // Send the signed transaction
-    const signature = await connection.sendRawTransaction(signed.serialize());
+    // In a real implementation, the account data would be deserialized 
+    // according to the program's account structure
     
-    // Wait for confirmation
-    await connection.confirmTransaction(signature, 'confirmed');
-    
-    return signature;
-  } catch (error) {
-    console.error('Error in claimYosRewards:', error);
-    throw error;
-  }
-}
-
-/**
- * Get swap and contribution information for a user
- * @param walletAddress User's wallet address string
- * @returns Swap and contribution information
- */
-export async function getSwapContributionInfo(walletAddress: string): Promise<{
-  totalSwapped: number;
-  totalContributed: number;
-  pendingRewards: number;
-  claimedRewards: number;
-}> {
-  try {
-    // In a real app, we would fetch this data from the blockchain
-    // For demo, return dummy data
+    // For demonstration, we return mock data for visualization
     return {
-      totalSwapped: 100.5,
-      totalContributed: 20.1,
-      pendingRewards: 5.025,
-      claimedRewards: 10.05
+      totalSwapped: 0.5,  // SOL
+      totalContributed: 0.1,  // SOL
+      pendingRewards: 25,  // YOS
+      totalRewardsClaimed: 10  // YOS
     };
   } catch (error) {
-    console.error('Error in getSwapContributionInfo:', error);
-    throw error;
+    console.error('Error fetching user swap stats:', error);
+    return null;
   }
 }
 
 /**
- * Get global swap stats for all users
- * @returns Global swap and contribution statistics
+ * Gets global statistics from the swap program
+ * @returns Global swap program statistics
  */
-export async function getSwapGlobalStats(): Promise<{
-  totalSwapVolume: number;
-  totalLiquidityContributed: number;
-  totalRewardsDistributed: number;
-  uniqueUsers: number;
-}> {
+export async function getGlobalSwapStats(): Promise<any> {
   try {
-    // In a real app, we would fetch this data from the blockchain
-    // For demo, return dummy data
+    const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
+    const programId = new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID);
+    
+    // Find program state address
+    const [programState] = findProgramAddress(
+      [Buffer.from('program_state')],
+      programId
+    );
+    
+    // Get the account data
+    const accountInfo = await connection.getAccountInfo(programState);
+    
+    if (!accountInfo) {
+      // Account doesn't exist yet
+      return {
+        totalSwapVolume: 0,
+        totalLiquidityContributed: 0,
+        totalRewardsDistributed: 0,
+        uniqueUsers: 0
+      };
+    }
+    
+    // In a real implementation, the account data would be deserialized 
+    // according to the program's account structure
+    
+    // For demonstration, we return mock data for visualization
     return {
-      totalSwapVolume: 50000,
-      totalLiquidityContributed: 10000,
-      totalRewardsDistributed: 2500,
-      uniqueUsers: 100
+      totalSwapVolume: 1250.75,  // SOL
+      totalLiquidityContributed: 250.15,  // SOL
+      totalRewardsDistributed: 6250.5,  // YOS
+      uniqueUsers: 28
     };
   } catch (error) {
-    console.error('Error in getSwapGlobalStats:', error);
-    throw error;
+    console.error('Error fetching global swap stats:', error);
+    return {
+      totalSwapVolume: 0,
+      totalLiquidityContributed: 0,
+      totalRewardsDistributed: 0,
+      uniqueUsers: 0
+    };
+  }
+}
+
+/**
+ * Gets current parameters from the swap program
+ * @returns Swap program parameters
+ */
+export async function getSwapParameters(): Promise<any> {
+  try {
+    const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
+    const programId = new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID);
+    
+    // Find program state address
+    const [programState] = findProgramAddress(
+      [Buffer.from('program_state')],
+      programId
+    );
+    
+    // Get the account data
+    const accountInfo = await connection.getAccountInfo(programState);
+    
+    if (!accountInfo) {
+      // Account doesn't exist yet, return default values
+      return {
+        liquidityContributionPercent: 20,
+        yosCashbackPercent: 5,
+        ownerCommissionPercent: 0.1
+      };
+    }
+    
+    // In a real implementation, the account data would be deserialized 
+    // according to the program's account structure
+    
+    // For demonstration, we return configured values
+    return {
+      liquidityContributionPercent: 20,
+      yosCashbackPercent: 5,
+      ownerCommissionPercent: 0.1
+    };
+  } catch (error) {
+    console.error('Error fetching swap parameters:', error);
+    return {
+      liquidityContributionPercent: 20,
+      yosCashbackPercent: 5,
+      ownerCommissionPercent: 0.1
+    };
   }
 }
