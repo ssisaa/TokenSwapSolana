@@ -712,9 +712,9 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     // Write the contract amount to the data buffer
     try {
       data.writeBigUInt64LE(BigInt(contractAmount), 1);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error writing contract amount to buffer:", error);
-      throw new Error(`Failed to encode harvest instruction: ${error.message}`);
+      throw new Error(`Failed to encode harvest instruction: ${error.message || "Unknown error"}`);
     }
     
     // This exact final amount will be used for the transaction that Phantom shows
@@ -1218,22 +1218,34 @@ export async function unstakeYOTTokens(
 /**
  * Harvest YOS rewards using the deployed program
  * UPDATED: Using simple linear interest calculation that matches the Solana program exactly
+ * 
+ * This function handles the YOS token display issue in Phantom Wallet by properly adjusting
+ * the token amount with YOS_WALLET_DISPLAY_ADJUSTMENT before sending to the blockchain.
+ * 
+ * @param wallet The connected wallet
+ * @returns Transaction signature
  */
 export async function harvestYOSRewards(wallet: any): Promise<string> {
+  // LSP Error Handling: Check wallet connection
   if (!wallet || !wallet.publicKey) {
+    console.error("Wallet connection error - wallet not connected");
     throw new Error('Wallet not connected');
   }
   
   const walletPublicKey = wallet.publicKey;
   
   try {
-    console.log("Starting harvest with updated calculation...");
+    console.log("Starting harvest with updated calculation and enhanced logging...");
+    
+    // LSP Error Handling: Log wallet details for troubleshooting
+    console.log(`Wallet address: ${walletPublicKey.toString()}`);
     
     // Get token addresses
     const yosMint = new PublicKey(YOS_TOKEN_ADDRESS);
     
     // Get the associated token address for YOS
     const userYosATA = await getAssociatedTokenAddress(yosMint, walletPublicKey);
+    console.log(`User's YOS token account: ${userYosATA.toString()}`);
     
     // Find program PDAs
     const [programState] = findProgramStateAddress();
@@ -1242,12 +1254,20 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     
     // Get program authority's token address
     const programYosATA = await getAssociatedTokenAddress(yosMint, programAuthority, true);
+    console.log(`Program's YOS token account: ${programYosATA.toString()}`);
     
     // Get the staking info to see the rewards amount
     const stakingInfo = await getStakingInfo(walletPublicKey.toString());
     
     // Using the normalized UI rewards value (already divided by 10,000 in calculatePendingRewards)
     const displayRewards = stakingInfo.rewardsEarned;
+    
+    // LSP Error Handling: Check for valid rewards amount
+    if (displayRewards <= 0) {
+      const errorMsg = `No rewards available to harvest (${displayRewards} YOS)`;
+      console.error(errorMsg);
+      throw new Error(errorMsg);
+    }
     
     // CRITICAL: The Solana program uses a 10,000× multiplier internally
     // We must match this exact scaling factor for blockchain compatibility
@@ -1256,6 +1276,15 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     // Calculate the raw rewards value that will be used by the program (10,000× multiplier)
     // This is what the blockchain will actually calculate and transfer
     const programRewards = displayRewards * PROGRAM_SCALING_FACTOR;
+    
+    console.log(`
+    =========== TOKEN AMOUNT DEBUG FOR HARVEST ===========
+    Original rewards amount: ${displayRewards} YOS
+    Program-scaled amount (×${PROGRAM_SCALING_FACTOR}): ${programRewards} YOS
+    YOS token decimals: ${YOS_DECIMALS}
+    YOS wallet display adjustment: ${YOS_WALLET_DISPLAY_ADJUSTMENT}
+    ====================================================
+    `);
     
     // TEST CODE: Simulate wallet display to verify our fix works
     try {
