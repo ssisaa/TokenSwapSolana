@@ -23,6 +23,7 @@ export default function useMultiHubSwap() {
   const [toToken, setToToken] = useState<TokenInfo | null>(null);
   const [amount, setAmount] = useState<string>('');
   const [slippage, setSlippage] = useState<number>(0.01); // 1% default
+  const [preferredProvider, setPreferredProvider] = useState<SwapProvider>(SwapProvider.Raydium);
   
   // Derived state
   const [swapSummary, setSwapSummary] = useState<SwapSummary | null>(null);
@@ -60,7 +61,7 @@ export default function useMultiHubSwap() {
     isLoading: estimateLoading,
     refetch
   } = useQuery<SwapEstimate>({
-    queryKey: ['swapEstimate', fromToken?.address, toToken?.address, amount, slippage],
+    queryKey: ['swapEstimate', fromToken?.address, toToken?.address, amount, slippage, preferredProvider],
     queryFn: async () => {
       if (!fromToken || !toToken || !amount || parseFloat(amount) <= 0) {
         return {
@@ -69,7 +70,7 @@ export default function useMultiHubSwap() {
           priceImpact: 0,
           liquidityFee: 0,
           route: [],
-          provider: SwapProvider.Direct
+          provider: preferredProvider || SwapProvider.Direct
         };
       }
       
@@ -78,7 +79,8 @@ export default function useMultiHubSwap() {
           fromToken,
           toToken,
           parseFloat(amount),
-          slippage
+          slippage,
+          preferredProvider
         );
       } catch (error) {
         console.error('Error getting swap estimate:', error);
@@ -88,7 +90,7 @@ export default function useMultiHubSwap() {
           priceImpact: 0,
           liquidityFee: 0,
           route: [],
-          provider: SwapProvider.Direct
+          provider: preferredProvider || SwapProvider.Direct
         };
       }
     },
@@ -251,6 +253,8 @@ export default function useMultiHubSwap() {
     swapSummary,
     isValid,
     refreshEstimate: refetch,
+    preferredProvider,
+    setPreferredProvider,
     
     // User and global stats
     userSwapInfo,

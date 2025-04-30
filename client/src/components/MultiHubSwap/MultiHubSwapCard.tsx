@@ -54,7 +54,9 @@ export default function MultiHubSwapCard() {
     swap,
     isSwapping,
     swapSummary,
-    isValid
+    isValid,
+    preferredProvider,
+    setPreferredProvider
   } = useMultiHubSwap();
 
   const [slippageInput, setSlippageInput] = useState(slippage * 100 + '');
@@ -710,9 +712,29 @@ export default function MultiHubSwapCard() {
             </PopoverContent>
           </Popover>
           
-          <div className="flex items-center text-xs text-muted-foreground">
-            <ArrowRightLeft className="mr-1 h-3 w-3" />
-            <span>Multi-Hub Swap</span>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center text-xs text-muted-foreground">
+              <ArrowRightLeft className="mr-1 h-3 w-3" />
+              <span>Exchange:</span>
+            </div>
+            <div className="bg-dark-300 rounded-md p-1 flex text-xs">
+              <Button 
+                variant={swapEstimate?.provider === SwapProvider.Raydium ? "secondary" : "ghost"}
+                size="sm" 
+                className="h-6 px-2 rounded-sm text-xs"
+                onClick={() => swapEstimate?.provider !== SwapProvider.Raydium && setPreferredProvider && setPreferredProvider(SwapProvider.Raydium)}
+              >
+                Raydium
+              </Button>
+              <Button 
+                variant={swapEstimate?.provider === SwapProvider.Jupiter ? "secondary" : "ghost"}
+                size="sm" 
+                className="h-6 px-2 rounded-sm text-xs"
+                onClick={() => swapEstimate?.provider !== SwapProvider.Jupiter && setPreferredProvider && setPreferredProvider(SwapProvider.Jupiter)}
+              >
+                Jupiter
+              </Button>
+            </div>
           </div>
         </div>
         
