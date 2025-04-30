@@ -57,13 +57,15 @@ export function TestTokenDisplay() {
         const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
         const userYotATA = await getAssociatedTokenAddress(yotMint, walletPublicKey);
         
-        // SUPER CRITICAL FIX: Use toFixed(9) and parseFloat to handle 9 decimal places
-        // This ensures proper decimal formatting for 9-decimal tokens
-        const formattedYotValue = parseFloat(yotValue.toFixed(0)); // No decimal places for clean display
+        // EMERGENCY FIX FOR 1000.01 ISSUE
+        // ABSOLUTELY NO DECIMAL CONVERSION, USE DIRECT INTEGER VALUE
+        // Convert to a string integer, then to BigInt with direct multiplication
+        const integerYotValue = Math.floor(yotValue);
         
-        // Then convert to blockchain amount with proper decimals
-        // This ensures we send EXACTLY 1000, not 1000.01
-        const yotTokenAmount = uiToRawTokenAmount(formattedYotValue, YOT_DECIMALS);
+        // DIRECT BIGINT CONVERSION: 1000 → 1000000000000
+        // YOT has 9 decimals, so we multiply by 10^9
+        const rawDecimals = 1000000000; // 10^9 (9 decimals)
+        const yotTokenAmount = BigInt(integerYotValue) * BigInt(rawDecimals);
         
         console.log(`FIXED YOT DISPLAY: Using proper decimal conversion: ${yotValue} YOT → ${yotTokenAmount} (with ${YOT_DECIMALS} decimals)`);
         
