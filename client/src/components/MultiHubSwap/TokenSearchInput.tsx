@@ -134,22 +134,25 @@ export function TokenSearchInput({
         </Button>
       </PopoverTrigger>
       <PopoverContent 
-        className="w-[250px] p-0 bg-dark-200 border-dark-300"
+        className="w-[300px] p-0"
         align="start"
       >
-        <Command className="bg-transparent">
-          <CommandInput 
-            placeholder="Search token..." 
-            className="h-9 text-sm"
-            value={searchValue}
-            onValueChange={setSearchValue}
-          />
+        <Command>
+          <div className="flex items-center border-b px-3">
+            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+            <input
+              className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              placeholder="Search token..."
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+            />
+          </div>
           
           {tokensLoading ? (
             <div className="p-2 space-y-2">
-              <Skeleton className="h-10 w-full bg-dark-300" />
-              <Skeleton className="h-10 w-full bg-dark-300" />
-              <Skeleton className="h-10 w-full bg-dark-300" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
             </div>
           ) : (
             <CommandList className="max-h-[300px]">
@@ -163,15 +166,16 @@ export function TokenSearchInput({
                     key={token.address}
                     value={token.address}
                     onSelect={() => onSelect(token)}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 py-2 px-2 cursor-pointer hover:bg-accent"
                   >
-                    <Avatar className="h-6 w-6">
+                    <Avatar className="h-8 w-8 rounded-full">
                       <AvatarImage 
                         src={token.logoURI} 
                         alt={token.symbol}
+                        className="object-cover"
                       />
-                      <AvatarFallback>
-                        <CircleDashed className="h-4 w-4 text-muted-foreground" />
+                      <AvatarFallback className="bg-muted">
+                        {token.symbol.substring(0, 2)}
                       </AvatarFallback>
                     </Avatar>
                     

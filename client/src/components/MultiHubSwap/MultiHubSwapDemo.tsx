@@ -12,6 +12,7 @@ import { getMultiHubSwapEstimate, executeMultiHubSwap, claimYosSwapRewards, Swap
 import { defaultTokens } from '@/lib/token-search-api';
 import { SOL_SYMBOL, YOT_SYMBOL, SOL_TOKEN_ADDRESS, YOT_TOKEN_ADDRESS } from '@/lib/constants';
 import { useMultiWallet } from '@/context/MultiWalletContext';
+import { getTokenBalance, formatTokenBalance } from '@/lib/wallet-utils';
 
 export default function MultiHubSwapDemo() {
   const { wallet = null, connected: walletConnected = false, connect } = useMultiWallet() || {};
@@ -30,6 +31,11 @@ export default function MultiHubSwapDemo() {
   const [routeProvider, setRouteProvider] = useState(SwapProvider.Contract);
   const [availableRewards, setAvailableRewards] = useState(0);
   const [claimLoading, setClaimLoading] = useState(false);
+  
+  // Token balance state
+  const [fromTokenBalance, setFromTokenBalance] = useState<number | null>(null);
+  const [toTokenBalance, setToTokenBalance] = useState<number | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
   
   // Get swap estimate when tokens or amount changes
   useEffect(() => {
@@ -61,6 +67,40 @@ export default function MultiHubSwapDemo() {
     
     getEstimate();
   }, [fromToken, toToken, amount]);
+  
+  // Fetch token balances from the blockchain when the wallet or tokens change
+  useEffect(() => {
+    async function fetchTokenBalances() {
+      if (!walletConnected || !wallet?.publicKey) {
+        setFromTokenBalance(null);
+        setToTokenBalance(null);
+        return;
+      }
+      
+      setBalanceLoading(true);
+      
+      try {
+        // Fetch balances for both tokens
+        if (fromToken) {
+          const balance = await getTokenBalance(wallet.publicKey.toString(), fromToken.address);
+          setFromTokenBalance(balance);
+          console.log(`Fetched ${fromToken.symbol} balance: ${balance}`);
+        }
+        
+        if (toToken) {
+          const balance = await getTokenBalance(wallet.publicKey.toString(), toToken.address);
+          setToTokenBalance(balance);
+          console.log(`Fetched ${toToken.symbol} balance: ${balance}`);
+        }
+      } catch (error) {
+        console.error('Error fetching token balances:', error);
+      } finally {
+        setBalanceLoading(false);
+      }
+    }
+    
+    fetchTokenBalances();
+  }, [walletConnected, wallet?.publicKey, fromToken?.address, toToken?.address]);
   
   // Simulate fetching available rewards
   useEffect(() => {
@@ -199,7 +239,13 @@ export default function MultiHubSwapDemo() {
           <div className="flex justify-between">
             <label className="text-sm font-medium">From</label>
             <label className="text-sm text-muted-foreground">
-              Balance: {walletConnected ? '0.00' : 'Connect wallet'}
+              Balance: {
+                walletConnected 
+                  ? balanceLoading 
+                    ? <Loader2 className="h-3 w-3 inline animate-spin ml-1" /> 
+                    : formatTokenBalance(fromTokenBalance)
+                  : 'Connect wallet'
+              }
             </label>
           </div>
           
@@ -236,7 +282,13 @@ export default function MultiHubSwapDemo() {
           <div className="flex justify-between">
             <label className="text-sm font-medium">To (estimated)</label>
             <label className="text-sm text-muted-foreground">
-              Balance: {walletConnected ? '0.00' : 'Connect wallet'}
+              Balance: {
+                walletConnected 
+                  ? balanceLoading 
+                    ? <Loader2 className="h-3 w-3 inline animate-spin ml-1" /> 
+                    : formatTokenBalance(toTokenBalance)
+                  : 'Connect wallet'
+              }
             </label>
           </div>
           
@@ -266,43 +318,51 @@ export default function MultiHubSwapDemo() {
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground">Route Provider</span>
             <div className="flex space-x-1">
-              {[SwapProvider.Contract, SwapProvider.Raydium, SwapProvider.Jupiter].map((provider) => (
+              {[
+                { id: SwapProvider.Contract, name: 'YOT' },
+                { id: SwapProvider.Raydium, name: 'Raydium' },
+                { id: SwapProvider.Jupiter, name: 'Jupiter' }
+              ].map((provider) => (
                 <button
-                  key={provider}
+                  key={provider.id}
                   onClick={async () => {
+                    // First directly set the UI state
+                    setRouteProvider(provider.id);
+                    
+                    // Then recalculate the estimate with the chosen provider
                     try {
                       setEstimateLoading(true);
                       if (!fromToken || !toToken || !amount || parseFloat(amount) <= 0) return;
                       
                       const parsedAmount = parseFloat(amount);
+                      console.log(`Getting estimate with provider: ${provider.id}`);
+                      
                       const estimate = await getMultiHubSwapEstimate(
                         fromToken, 
                         toToken, 
                         parsedAmount,
                         slippage / 100, 
-                        provider
+                        provider.id
                       );
                       
                       if (estimate && estimate.estimatedAmount !== undefined) {
                         setEstimatedAmount(estimate.estimatedAmount);
-                        setRouteProvider(estimate.provider ?? SwapProvider.Contract);
+                        // Don't override the provider we just set
+                        //setRouteProvider(estimate.provider ?? SwapProvider.Contract);
                       }
                     } catch (error) {
-                      console.error('Error getting estimate with provider:', error);
+                      console.error(`Error getting estimate with provider ${provider.id}:`, error);
                     } finally {
                       setEstimateLoading(false);
                     }
                   }}
                   className={`px-2 py-0.5 text-xs rounded-md ${
-                    routeProvider === provider
+                    routeProvider === provider.id
                       ? 'bg-primary text-white'
                       : 'bg-muted hover:bg-primary/20'
                   }`}
                 >
-                  {provider === SwapProvider.Contract ? 'YOT' : 
-                   provider === SwapProvider.Raydium ? 'Raydium' : 
-                   provider === SwapProvider.Jupiter ? 'Jupiter' : 
-                   provider}
+                  {provider.name}
                 </button>
               ))}
             </div>
