@@ -392,7 +392,7 @@ export async function validateStakingAccounts(wallet: any) {
     }
     
     try {
-      // For YOS balance, we need to check if it's from the program (using 10,000× scaling)
+      // For YOS balance, we need to check if it's from the program (using 9,260× scaling)
       // or a regular token account (using standard 9 decimals)
       // For this function, we'll use standard decimals as we're checking the user's wallet
       yosBalance = await getParsedTokenBalance(connection, walletPublicKey, yosMint);
@@ -595,7 +595,7 @@ function encodeUnstakeInstruction(amount: number): Buffer {
    * CRITICAL FIX: We're seeing the same issue as with stake - the wallet shows the correct token
    * amount (-1000 YOT for staking) but the blockchain program only receives 0.1 tokens.
    * 
-   * We need to use proper token decimal conversion without the 10000x scaling factor.
+   * We need to use proper token decimal conversion without the 9260x scaling factor.
    */
   
   // STEP 1: Ensure amount is valid and positive
@@ -639,7 +639,7 @@ function encodeUnstakeInstruction(amount: number): Buffer {
  */
 function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
   // CRITICAL FIX: The harvest instruction needs special handling
-  // The Solana program uses a 10,000× multiplier internally, but we also need to handle YOS decimals
+  // The Solana program uses a 9,260× multiplier internally, but we also need to handle YOS decimals
   
   if (rewardsAmount !== undefined) {
     // Enhanced version with explicit rewards amount parameter
@@ -1370,9 +1370,9 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     // Perform safety check on program YOS token balance
     try {
       // CRITICAL FIX: Use the new getTokenBalance function with isProgramScaledToken=true
-      // This ensures we handle the program's 10,000x scaling factor correctly
+      // This ensures we handle the program's 9,260x scaling factor correctly
       const programYosBalance = await getTokenBalance(connection, programYosATA, true);
-      console.log(`Program YOS balance (with 10,000× program scaling): ${programYosBalance.toFixed(4)} YOS`);
+      console.log(`Program YOS balance (with ${PROGRAM_SCALING_FACTOR}× program scaling): ${programYosBalance.toFixed(4)} YOS`);
       
       // Compare program balance with programRewards (actual amount needed by the contract)
       if (programYosBalance < displayRewards) {
@@ -1530,7 +1530,7 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       ],
       programId: new PublicKey(STAKING_PROGRAM_ID),
       // Use our encoding function with the display rewards amount - it will scale it internally
-      // The harvestInstruction encoding function handles the scaling using the 10,000x multiplier
+      // The harvestInstruction encoding function handles the scaling using the 9,260x multiplier
       data: encodeHarvestInstruction(displayRewards)
     });
     
