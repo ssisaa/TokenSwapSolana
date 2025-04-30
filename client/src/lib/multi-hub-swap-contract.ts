@@ -59,6 +59,12 @@ function encodeU64(value: number): Buffer {
 /**
  * Buy and distribute YOT tokens with cashback in YOS
  * This implements the buy_and_distribute instruction from the program
+ * 
+ * The Anchor contract handles:
+ * 1. 75% of YOT tokens go directly to user
+ * 2. 20% of YOT tokens go to SOL-YOT liquidity pool (auto-split 50/50)
+ * 3. 5% given as YOS cashback tokens
+ * 4. Records user's liquidity contribution for weekly rewards
  */
 export async function buyAndDistribute(
   wallet: any,
@@ -70,6 +76,11 @@ export async function buyAndDistribute(
   try {
     if (!wallet || !wallet.publicKey) {
       throw new Error("Wallet not connected");
+    }
+
+    // Validate percentages match contract expectations
+    if (buyUserPercent !== 75 || buyLiquidityPercent !== 20 || buyCashbackPercent !== 5) {
+      console.warn("Warning: Custom percentages were provided, but the contract uses fixed values: 75% user, 20% liquidity, 5% cashback");
     }
 
     const userPublicKey = wallet.publicKey;
@@ -84,8 +95,12 @@ export async function buyAndDistribute(
     // Find program controlled accounts
     const [liquidityContributionAddress] = findLiquidityContributionAddress(userPublicKey);
     
-    // Find vault and liquidity pool addresses (these would be program controlled accounts)
+    // Find vault and liquidity pool addresses
+    // The vault holds user's YOT that will be distributed according to specified percentages
     const vaultYotAddress = await getAssociatedTokenAddress(yotMint, new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID), true);
+    
+    // The liquidity pool receives the 20% contribution
+    // Half of this (10% of total) is kept as YOT, the other half is converted to SOL
     const liquidityYotAddress = await getAssociatedTokenAddress(yotMint, new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID), true);
 
     // Convert amount to raw token amount
@@ -113,6 +128,13 @@ export async function buyAndDistribute(
       ],
       programId: program,
       data
+    });
+
+    console.log("Preparing buyAndDistribute transaction with: ", {
+      totalAmount: amountIn,
+      userPortion: amountIn * 0.75,
+      liquidityPortion: amountIn * 0.20, // 10% YOT + 10% SOL automatically split by contract
+      cashbackPortion: amountIn * 0.05,
     });
 
     // Create and sign transaction

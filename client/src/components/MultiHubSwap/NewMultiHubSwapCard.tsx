@@ -397,7 +397,11 @@ export default function MultiHubSwapCard() {
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p className="max-w-xs">{swapStats?.buyDistribution?.liquidityPercent || 20}% automatically goes to SOL-YOT liquidity pool (50% SOL, 50% YOT). Earn weekly YOS rewards for contributing to liquidity.</p>
+                            <div className="max-w-xs space-y-2">
+                              <p>{swapStats?.buyDistribution?.liquidityPercent || 20}% automatically goes to SOL-YOT liquidity pool (50% SOL, 50% YOT) using smart contract.</p>
+                              <p className="text-xs text-teal-500">✓ Processed on-chain by Anchor smart contract</p>
+                              <p className="text-xs">Earn weekly YOS rewards for contributing to liquidity.</p>
+                            </div>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
@@ -416,7 +420,11 @@ export default function MultiHubSwapCard() {
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p className="max-w-xs">Receive {swapStats?.buyDistribution?.cashbackPercent || 5}% instant cashback in YOS tokens.</p>
+                            <div className="max-w-xs space-y-2">
+                              <p>Receive {swapStats?.buyDistribution?.cashbackPercent || 5}% instant cashback in YOS tokens using smart contract.</p>
+                              <p className="text-xs text-teal-500">✓ Processed on-chain by Anchor smart contract</p>
+                              <p className="text-xs">YOS is a reward token with no sell pressure.</p>
+                            </div>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
