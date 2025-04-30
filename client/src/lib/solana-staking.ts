@@ -10,7 +10,7 @@ import {
   TransactionInstruction
 } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getAccount, createTransferInstruction } from '@solana/spl-token';
-import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, YOT_DECIMALS, YOS_DECIMALS, STAKING_PROGRAM_ID, ENDPOINT } from './constants';
+import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, YOT_DECIMALS, YOS_DECIMALS, STAKING_PROGRAM_ID, ENDPOINT, YOS_WALLET_DISPLAY_ADJUSTMENT } from './constants';
 
 // GLOBAL SCALING FACTOR for all blockchain interactions
 // This is used consistently across all token operations to ensure compatibility
@@ -169,8 +169,12 @@ export function getWalletAdjustedYosAmount(uiValue: number): bigint {
   // First ensure integer amounts to avoid decimal display issues (.01 suffix)
   const integerAmount = Math.floor(uiValue);
   
-  // Apply the display adjustment factor from constants.ts
-  const walletAdjustedAmount = integerAmount / YOS_WALLET_DISPLAY_ADJUSTMENT;
+  // Use a hardcoded value of 17000 for the wallet display adjustment
+  // This matches the constant in constants.ts
+  const DISPLAY_ADJUSTMENT = 17000;
+  
+  // Apply the display adjustment factor
+  const walletAdjustedAmount = integerAmount / DISPLAY_ADJUSTMENT;
   
   // Convert to proper token amount with decimals
   return uiToRawTokenAmount(walletAdjustedAmount, YOS_DECIMALS);
@@ -813,17 +817,16 @@ export async function stakeYOTTokens(
     // This prevents the wallet from showing decimal places like 1000.01
     const integerAmount = Math.floor(amount);
     
-    // CRITICAL FIX: Set YOT_DECIMALS to 0 in constants.ts to prevent decimal display
-    // We now create the token amount based on a totally simplified approach
-    // For YOT tokens with decimals=0, 1 token = 1 raw amount, no need for complex conversions
+    // CRITICAL FIX: Do NOT use any decimals or scaling factors for YOT tokens
+    // This is the most direct approach possible - use the raw integer value
+    // with no decimals, no scaling, no adjustments of any kind
     
-    // Since YOT_DECIMALS = 0, this will be a direct 1:1 conversion
-    // This is the most reliable way to ensure wallet displays whole numbers
+    // For SPL token transfers with YOT_DECIMALS = 0, we need to use BigInt with no decimal conversion
     const tokenAmount = BigInt(integerAmount);
     
-    // Create an explicit transfer instruction with the exact token amount
-    console.log(`Creating token transfer with EXACT amount: ${integerAmount} YOT (raw amount = ${tokenAmount})`);
-    console.log(`YOT_DECIMALS = ${YOT_DECIMALS} - Using 0 decimals eliminates fractional display in wallet`);
+    // Create an explicit transfer instruction with the exact integer token amount with no decimals
+    console.log(`Creating YOT token transfer with EXACT WHOLE NUMBER: ${integerAmount} YOT tokens`);
+    console.log(`Using raw amount = ${tokenAmount} with NO DECIMALS, NO ADJUSTMENTS, NO SCALING FACTOR`);
     
     // Add token transfer instruction - user will send tokens to program
     transaction.add(
