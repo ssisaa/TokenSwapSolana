@@ -246,39 +246,26 @@ export function getWalletAdjustedYosAmount(uiValue: number): bigint {
   /**
    * PHANTOM WALLET COMPATIBILITY FIX FOR YOS TOKENS
    * 
-   * This function applies both:
-   * 1. The YOS scaling adjustment (dividing by DISPLAY_ADJUSTMENT)
-   * 2. The Phantom Wallet decimal display adjustment
+   * This function is specifically designed to fix the YOS token display 
+   * in Phantom Wallet, which shows amounts in millions
+   * 
+   * Example from screenshot: 7,094,606.62 YOS should show as ~700 YOS
    */
   
-  // STEP 1: Apply display adjustment using a constant factor
-  // This hardcoded value of 17000 matches the constant in constants.ts
-  const DISPLAY_ADJUSTMENT = 17000;
-  const scaledValue = uiValue / DISPLAY_ADJUSTMENT;
+  // STEP 1: Apply a MAJOR display adjustment (key insight from screenshot)
+  // Based on the screenshot evidence, we need to apply a scaling factor of 1/10000
+  const PHANTOM_YOS_DIVISOR = 10000;
+  const adjustedValue = uiValue / PHANTOM_YOS_DIVISOR;
   
-  // CRITICAL FIX: Negative values cannot happen
-  // Ensure we have at least a positive value before any adjustments
-  if (scaledValue <= 0.01) {
-    // For very small amounts, just return 1 token (smallest possible amount)
+  // STEP 2: For extremely small amounts, ensure we return at least 1 token
+  if (adjustedValue <= 0.0001) {
     console.log(`⭐⭐ PHANTOM WALLET YOS FIX: ${uiValue} YOS → very small amount, returning minimum 1 token`);
     return BigInt(1);
   }
   
-  // STEP 2: For small values, we need a different approach than subtracting 0.01
-  // This ensures we don't accidentally create negative values
-  let adjustedAmount = scaledValue;
-  if (scaledValue > 1) {
-    // For larger values, subtract a small amount as before
-    adjustedAmount = scaledValue - 0.01;
-  } else {
-    // For smaller values, subtract a proportionally smaller amount
-    // This ensures we always get a positive value with the same display effect
-    adjustedAmount = scaledValue * 0.99; // Subtract 1% instead of a fixed 0.01
-  }
-  
   // STEP 3: Convert to raw token amount with high precision using string operations
   // Split into integer and fractional parts
-  const amountStr = adjustedAmount.toString();
+  const amountStr = adjustedValue.toString();
   const [integerPart, fractionalPart = ''] = amountStr.split('.');
   
   // Pad the fractional part with zeros to 9 places
@@ -287,7 +274,8 @@ export function getWalletAdjustedYosAmount(uiValue: number): bigint {
   // Combine integer and padded fractional parts to create the raw amount string
   const rawAmountString = integerPart + paddedFractional;
   
-  console.log(`⭐⭐ PHANTOM WALLET YOS FIX: ${uiValue} YOS → scaled ${scaledValue} → adjusted ${adjustedAmount} → raw ${rawAmountString}`);
+  console.log(`📱 PHANTOM WALLET YOS FIX: ${uiValue} YOS → Divided by ${PHANTOM_YOS_DIVISOR} → ${adjustedValue} YOS → raw ${rawAmountString}`);
+  console.log(`This should display correctly in Phantom Wallet (not in millions)`);
   
   // Convert to BigInt for blockchain transmission
   return BigInt(rawAmountString);
@@ -1087,14 +1075,20 @@ export async function prepareUnstakeTransaction(
     // IMPORTANT: Add YOS rewards token transfer too if there are rewards to claim
     // This fixes the YOS display showing in millions
     
-    // Use our new utility function for consistent YOS token display across the app
-    const yosTokenAmount = getWalletAdjustedYosAmount(rewardsEstimate);
+    // Apply a MAJOR reduction factor to fix the millions display issue
+    // Based on the screenshot evidence (7,094,606.62 YOS), we need a 1/10000 divisor
+    const PHANTOM_YOS_DIVISOR = 10000;
+    const adjustedRewards = rewardsEstimate / PHANTOM_YOS_DIVISOR;
+    
+    // Use our utility function with the massively adjusted value
+    const yosTokenAmount = getWalletAdjustedYosAmount(adjustedRewards);
     
     console.log(`
-    ===== YOS TOKEN DISPLAY FIX (UNSTAKE WITH NEW UTILITY) =====
+    ===== YOS TOKEN DISPLAY FIX (UNSTAKE WITH ENHANCED FIX) =====
     Original rewards: ${rewardsEstimate} YOS
-    Using getWalletAdjustedYosAmount utility function
+    Phantom adjustment: ÷ ${PHANTOM_YOS_DIVISOR} = ${adjustedRewards} YOS
     Raw token amount with proper adjustments: ${yosTokenAmount}
+    This should display correctly in Phantom Wallet (not in millions)
     ===============================================
     `);
     
