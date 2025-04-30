@@ -25,6 +25,7 @@ export default function MultiHubSwapSettings() {
   const [sellCashbackPercent, setSellCashbackPercent] = useState<number>(5);
   
   const [weeklyRewardRate, setWeeklyRewardRate] = useState<number>(1.92);
+  const [commissionPercent, setCommissionPercent] = useState<number>(OWNER_COMMISSION_PERCENT);
   const [activeTab, setActiveTab] = useState<string>('buy');
   
   // Query to get current settings
@@ -38,18 +39,28 @@ export default function MultiHubSwapSettings() {
   
   // Mutation to update settings
   const updateSettingsMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (params: {
+      buyUserPercent: number;
+      buyLiquidityPercent: number;
+      buyCashbackPercent: number;
+      sellUserPercent: number;
+      sellLiquidityPercent: number;
+      sellCashbackPercent: number;
+      weeklyRewardRate: number;
+      commissionPercent: number;
+    }) => {
       if (!wallet) throw new Error("Wallet not connected");
       
       return await updateMultiHubSwapParameters(
         wallet,
-        buyUserPercent,
-        buyLiquidityPercent,
-        buyCashbackPercent,
-        sellUserPercent,
-        sellLiquidityPercent,
-        sellCashbackPercent,
-        weeklyRewardRate
+        params.buyUserPercent,
+        params.buyLiquidityPercent,
+        params.buyCashbackPercent,
+        params.sellUserPercent,
+        params.sellLiquidityPercent,
+        params.sellCashbackPercent,
+        params.weeklyRewardRate,
+        params.commissionPercent
       );
     },
     onSuccess: () => {
@@ -82,6 +93,11 @@ export default function MultiHubSwapSettings() {
       setSellCashbackPercent(swapStats.sellDistribution.cashbackPercent);
       
       setWeeklyRewardRate(swapStats.weeklyRewardRate);
+      
+      // Set commission percentage if available
+      if (swapStats.commissionPercent !== undefined) {
+        setCommissionPercent(swapStats.commissionPercent);
+      }
     }
   }, [swapStats]);
   
@@ -117,7 +133,17 @@ export default function MultiHubSwapSettings() {
       return;
     }
     
-    updateSettingsMutation.mutate();
+    // Call the mutation with all parameters including commission
+    updateSettingsMutation.mutate({
+      buyUserPercent,
+      buyLiquidityPercent,
+      buyCashbackPercent,
+      sellUserPercent,
+      sellLiquidityPercent,
+      sellCashbackPercent,
+      weeklyRewardRate,
+      commissionPercent
+    });
   };
   
   return (
@@ -141,6 +167,7 @@ export default function MultiHubSwapSettings() {
                 <TabsTrigger value="buy">Buy Distribution</TabsTrigger>
                 <TabsTrigger value="sell">Sell Distribution</TabsTrigger>
                 <TabsTrigger value="rewards">Reward Rates</TabsTrigger>
+                <TabsTrigger value="commission">Owner Commission</TabsTrigger>
               </TabsList>
               
               <TabsContent value="buy" className="space-y-4">
@@ -282,6 +309,50 @@ export default function MultiHubSwapSettings() {
                   <p className="text-xs text-muted-foreground">
                     This is an estimate based on consistent weekly distribution. Default is 1.92% weekly (100% APR).
                   </p>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="commission" className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="commissionPercent">Owner Commission (% of SOL)</Label>
+                  <Input 
+                    id="commissionPercent"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="5"
+                    value={commissionPercent}
+                    onChange={(e) => setCommissionPercent(Number(e.target.value))}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Percentage of SOL that goes to owner wallet on each transaction
+                  </p>
+                </div>
+                
+                <div className="py-2 px-4 bg-muted rounded space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span>Current Commission:</span>
+                    <span className="font-semibold">{commissionPercent}% of SOL value</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    This is a small commission paid in SOL to the owner wallet on every transaction. 
+                    Default is 0.1% of the SOL equivalent value of the transaction.
+                  </p>
+                </div>
+                
+                <div className="py-2 px-4 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-md">
+                  <div className="flex items-start gap-2">
+                    <Percent className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-amber-800 dark:text-amber-300 font-medium">
+                        Commission Recommendation
+                      </p>
+                      <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                        We recommend keeping the commission between 0.1% and 1% to maintain 
+                        competitive transaction costs while still generating revenue for the platform.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </TabsContent>
             </Tabs>

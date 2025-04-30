@@ -235,13 +235,17 @@ export async function getMultiHubSwapStats() {
     // 1. Get the program state account
     // 2. Deserialize and return statistics
     
-    // For now, return simulated data
+    // Import the commission percentage from constants
+    const { OWNER_COMMISSION_PERCENT } = await import('./constants');
+    
+    // For now, return simulated data with real commission value
     return {
       totalLiquidityContributed: 25000,
       totalContributors: 12,
       totalYosRewarded: 1250,
       weeklyRewardRate: 1.92, // 1.92% per week (100% APR / 52 weeks)
       yearlyAPR: 100, // 100% APR
+      commissionPercent: OWNER_COMMISSION_PERCENT, // Owner commission percentage
       // Adding configurable distribution percentages
       buyDistribution: {
         userPercent: 75,
@@ -271,7 +275,8 @@ export async function updateMultiHubSwapParameters(
   sellUserPercent: number = 75,
   sellLiquidityPercent: number = 20,
   sellCashbackPercent: number = 5,
-  weeklyRewardRate: number = 1.92
+  weeklyRewardRate: number = 1.92,
+  commissionPercent: number = 0.1
 ) {
   try {
     // Check if wallet is connected
@@ -285,6 +290,10 @@ export async function updateMultiHubSwapParameters(
     
     console.log("Multi-hub swap parameters would be updated here");
     console.log("This is admin-only functionality");
+    console.log(`Setting owner commission to ${commissionPercent}% of SOL value`);
+    
+    // Update the OWNER_COMMISSION_PERCENT in constants (would be done via a contract call)
+    // In this case, we simply return the new value and let the frontend handle it
     
     return {
       success: true,
@@ -300,7 +309,8 @@ export async function updateMultiHubSwapParameters(
           liquidityPercent: sellLiquidityPercent,
           cashbackPercent: sellCashbackPercent
         },
-        weeklyRewardRate
+        weeklyRewardRate,
+        commissionPercent
       }
     };
   } catch (error) {
