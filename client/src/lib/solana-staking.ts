@@ -189,6 +189,29 @@ export function uiToRawTokenAmount(amount: number, decimals: number): bigint {
  * @param uiValue The UI amount of YOS tokens
  * @returns The adjusted raw amount that will display correctly in wallet 
  */
+/**
+ * CRITICAL: Wallet-compatible token amount conversion for YOT token
+ * Ensures that the displayed amount in wallet will be exact integers with no decimal artifact
+ * Uses string-based conversion to avoid JavaScript floating-point math issues
+ * 
+ * @param amount UI amount to display in wallet
+ * @returns Raw amount for blockchain that will display correctly in wallet
+ */
+export function getWalletCompatibleYotAmount(amount: number): bigint {
+  // First ensure we're working with an integer amount to eliminate decimal display issues
+  const integerAmount = Math.floor(amount);
+  
+  // CRITICAL FIX: Use string concatenation to ensure exact precision
+  // This avoids any floating point issues that could occur with Math operations
+  // For 9 decimals, we need to append 9 zeros to the amount
+  const rawAmountString = integerAmount.toString() + "000000000"; // 9 zeros for 9 decimals
+  
+  console.log(`YOT wallet display: ${amount} → ${integerAmount} → ${rawAmountString} (string-based adjustment)`);
+  
+  // Convert directly to BigInt from the precise string representation
+  return BigInt(rawAmountString);
+}
+
 export function getWalletAdjustedYosAmount(uiValue: number): bigint {
   // First ensure integer amounts to avoid decimal display issues (.01 suffix)
   const integerAmount = Math.floor(uiValue);
@@ -232,25 +255,7 @@ export function rawToUiTokenAmount(rawAmount: bigint | number, decimals: number)
   return Math.round(result * Math.pow(10, decimals)) / Math.pow(10, decimals);
 }
 
-/**
- * Wallet-compatible token amount conversion for YOT token
- * Ensures that the displayed amount in wallet will be exact integers with no decimal
- * 
- * @param amount UI amount to display in wallet
- * @returns Raw amount for blockchain that will display correctly in wallet
- */
-export function getWalletCompatibleYotAmount(amount: number): bigint {
-  // CRITICAL FIX: Force integer conversion by using string manipulation first
-  // This eliminates any floating point representation issues
-  const integerString = Math.floor(amount).toString();
-  
-  // Use string + concatenation with zeros to ensure exact decimal precision
-  // This is much more reliable than floating point math for wallet display
-  const rawAmountString = integerString + "000000000"; // 9 zeros for 9 decimals
-  
-  // Convert directly to BigInt from the precise string representation
-  return BigInt(rawAmountString);
-}
+// Note: getWalletCompatibleYotAmount already implemented above
 
 /**
  * Fetch token balance using TokenAccount (raw account address)
