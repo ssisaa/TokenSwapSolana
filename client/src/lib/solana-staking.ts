@@ -1494,9 +1494,9 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
     // The actual token transfer will still happen through the program's harvest instruction
     
     // Calculate the exact amount that should show in wallet for this specific case
-    // Based on screenshot evidence showing +0.08358 YOS for approximately 84 YOS
+    // Based on screenshot evidence showing +0.0234 YOS in Phantom wallet
     // Using our precise adjustment factor of 1005
-    const targetWalletDisplay = 1.3 / 1005; // Results in approximately +0.00129 YOS in wallet
+    const targetWalletDisplay = displayRewards / YOS_WALLET_DISPLAY_ADJUSTMENT; // This should match what appears in the wallet
     
     // Calculate how much this means as a blockchain amount
     const displayFixAmount = uiToRawTokenAmount(targetWalletDisplay, YOS_DECIMALS);

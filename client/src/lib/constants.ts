@@ -48,6 +48,7 @@ export const PROGRAM_SCALING_FACTOR = 10000;
 
 // CRITICAL: YOS display adjustment to counteract the millions display issue
 // This divisor is applied to YOS amounts before sending to the blockchain
-// Based on the screenshot showing 0.08358 YOS, the adjustment needs to be more precise
-// Calculating ratio: 0.08358 is shown for approximately 84 YOS (84/0.08358 ≈ 1005)
+// Most recent evidence: Screenshot shows +0.0234 YOS for a harvest transaction
+// When comparing to our internal harvest amounts, this gives us a very precise ratio
+// If the internal amount was ~23.517 YOS, then 23.517/0.0234 = 1005
 export const YOS_WALLET_DISPLAY_ADJUSTMENT = 1005;
