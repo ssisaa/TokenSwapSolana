@@ -67,12 +67,61 @@ export const defaultTokens: TokenInfo[] = [
 
 /**
  * Fetches Solana tokens including default and important tokens
- * This can be extended to use the Solana token registry API in the future
+ * Uses both default tokens and data from the Solana token registry API
  */
 export async function fetchSolanaTokens(): Promise<TokenInfo[]> {
-  // For now, just return our default tokens
-  // In a production app, you would fetch from Solana token registry
-  return defaultTokens;
+  try {
+    // First, try to fetch tokens from the Solana token registry API
+    const response = await fetch('https://cdn.jsdelivr.net/gh/solana-labs/token-list@main/src/tokens/solana.tokenlist.json');
+    
+    if (!response.ok) {
+      console.warn('Failed to fetch Solana token list, using default tokens only');
+      return defaultTokens;
+    }
+    
+    const data = await response.json();
+    
+    if (!data || !Array.isArray(data.tokens)) {
+      console.warn('Invalid token list format, using default tokens only');
+      return defaultTokens;
+    }
+    
+    // Map the API response to our TokenInfo format
+    const apiTokens: TokenInfo[] = data.tokens
+      // Filter to include only devnet tokens for testing
+      .filter((token: any) => 
+        token.chainId === 103 || // Filter for devnet tokens
+        token.address === SOL_TOKEN_ADDRESS // Always include SOL
+      )
+      // Map to our TokenInfo format
+      .map((token: any) => ({
+        address: token.address,
+        symbol: token.symbol,
+        name: token.name,
+        logoURI: token.logoURI,
+        decimals: token.decimals,
+        tags: token.tags
+      }))
+      // Limit to a reasonable number to prevent performance issues
+      .slice(0, 50);
+    
+    // Make sure our default tokens are included
+    const allTokens = [...defaultTokens];
+    
+    // Add tokens from API if they don't already exist
+    apiTokens.forEach(apiToken => {
+      if (!allTokens.some(token => token.address === apiToken.address)) {
+        allTokens.push(apiToken);
+      }
+    });
+    
+    console.log(`Loaded ${allTokens.length} tokens (${defaultTokens.length} default + ${allTokens.length - defaultTokens.length} from API)`);
+    return allTokens;
+  } catch (error) {
+    console.error('Error fetching token list:', error);
+    // Fallback to default tokens
+    return defaultTokens;
+  }
 }
 
 /**

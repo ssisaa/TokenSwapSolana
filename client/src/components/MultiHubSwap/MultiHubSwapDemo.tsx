@@ -263,9 +263,49 @@ export default function MultiHubSwapDemo() {
         
         {/* Swap Details */}
         <div className="bg-muted/30 rounded-md p-3 space-y-2 text-sm">
-          <div className="flex justify-between">
+          <div className="flex justify-between items-center">
             <span className="text-muted-foreground">Route Provider</span>
-            <span className="font-medium">{routeProvider}</span>
+            <div className="flex space-x-1">
+              {[SwapProvider.Contract, SwapProvider.Raydium, SwapProvider.Jupiter].map((provider) => (
+                <button
+                  key={provider}
+                  onClick={async () => {
+                    try {
+                      setEstimateLoading(true);
+                      if (!fromToken || !toToken || !amount || parseFloat(amount) <= 0) return;
+                      
+                      const parsedAmount = parseFloat(amount);
+                      const estimate = await getMultiHubSwapEstimate(
+                        fromToken, 
+                        toToken, 
+                        parsedAmount,
+                        slippage / 100, 
+                        provider
+                      );
+                      
+                      if (estimate && estimate.estimatedAmount !== undefined) {
+                        setEstimatedAmount(estimate.estimatedAmount);
+                        setRouteProvider(estimate.provider ?? SwapProvider.Contract);
+                      }
+                    } catch (error) {
+                      console.error('Error getting estimate with provider:', error);
+                    } finally {
+                      setEstimateLoading(false);
+                    }
+                  }}
+                  className={`px-2 py-0.5 text-xs rounded-md ${
+                    routeProvider === provider
+                      ? 'bg-primary text-white'
+                      : 'bg-muted hover:bg-primary/20'
+                  }`}
+                >
+                  {provider === SwapProvider.Contract ? 'YOT' : 
+                   provider === SwapProvider.Raydium ? 'Raydium' : 
+                   provider === SwapProvider.Jupiter ? 'Jupiter' : 
+                   provider}
+                </button>
+              ))}
+            </div>
           </div>
           
           <div className="flex justify-between">
