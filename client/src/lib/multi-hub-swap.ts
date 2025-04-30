@@ -13,7 +13,7 @@ import {
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
 import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, YOT_DECIMALS, YOS_DECIMALS, ENDPOINT } from './constants';
 import { sendTransaction } from './transaction-helper';
-import { findProgramAddressSync } from '@project-serum/anchor/dist/cjs/utils/pubkey';
+// Using buffer-based seed approach for PDAs instead of anchor's findProgramAddressSync
 
 // Raydium Devnet Constants
 export const RAYDIUM_USDC_MINT = new PublicKey('9T7uw5dqaEmEC4McqyefzYsEg5hoC4e2oV8it1Uc4f1U');
@@ -38,14 +38,14 @@ export function rawToUiAmount(rawAmount: bigint | number, decimals: number): num
 
 // Find PDA addresses
 export function findProgramStateAddress(): [PublicKey, number] {
-  return findProgramAddressSync(
+  return PublicKey.findProgramAddressSync(
     [Buffer.from("program-state")],
     new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
   );
 }
 
 export function findLiquidityContributionAddress(userWallet: PublicKey): [PublicKey, number] {
-  return findProgramAddressSync(
+  return PublicKey.findProgramAddressSync(
     [Buffer.from("liq"), userWallet.toBuffer()],
     new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
   );

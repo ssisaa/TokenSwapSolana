@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Home, BarChart2, RefreshCw, Coins, MessageCircle, Settings, TestTube } from "lucide-react";
+import { Home, BarChart2, RefreshCw, Coins, MessageCircle, Settings, TestTube, Network } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type NavItem = {
@@ -21,6 +21,12 @@ const navItems: NavItem[] = [
     icon: <RefreshCw className="h-5 w-5" />,
     href: "/swap",
     subLabel: "buy/sell",
+  },
+  {
+    label: "Multi-Hub Swap",
+    icon: <Network className="h-5 w-5" />,
+    href: "/multi-hub-swap",
+    subLabel: "rewards",
   },
   {
     label: "Stake",
