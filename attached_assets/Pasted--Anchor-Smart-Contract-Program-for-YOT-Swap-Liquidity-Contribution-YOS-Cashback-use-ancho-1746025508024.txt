@@ -1,0 +1,194 @@
+// Anchor Smart Contract (Program) for YOT Swap + Liquidity Contribution + YOS Cashback
+
+use anchor_lang::prelude::*;
+use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer, MintTo};
+
+// Replace with your actual program ID after deploying
+declare_id!("Fg6PaFpoGXkYsidMpWxqSWib32jBzv4U5mpdKqHR3rXY");
+
+#[program]
+pub mod yot_swap_rewards {
+    use super::*;
+
+    pub fn buy_and_distribute(
+        ctx: Context<BuyAndDistribute>,
+        amount_in: u64,
+    ) -> Result<()> {
+        let total_yot = amount_in;
+        let liquidity_amount = total_yot * 20 / 100;
+        let cashback_amount = total_yot * 5 / 100;
+        let user_amount = total_yot - liquidity_amount - cashback_amount;
+
+        // Transfer 75% to user
+        token::transfer(
+            ctx.accounts.transfer_to_user_context(),
+            user_amount,
+        )?;
+
+        // Transfer 20% to liquidity vault
+        token::transfer(
+            ctx.accounts.transfer_to_liquidity_context(),
+            liquidity_amount,
+        )?;
+
+        // Record contribution for reward tracking
+        ctx.accounts.liquidity_contribution.amount += liquidity_amount;
+        ctx.accounts.liquidity_contribution.user = ctx.accounts.user.key();
+        ctx.accounts.liquidity_contribution.start_time = Clock::get()?.unix_timestamp;
+        ctx.accounts.liquidity_contribution.last_claim_time = Clock::get()?.unix_timestamp;
+
+        // Mint 5% YOS as cashback
+        token::mint_to(
+            ctx.accounts.mint_yos_cashback_context(),
+            cashback_amount,
+        )?;
+
+        Ok(())
+    }
+
+    pub fn claim_weekly_reward(ctx: Context<ClaimReward>) -> Result<()> {
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+        let elapsed = now - ctx.accounts.liquidity_contribution.last_claim_time;
+        require!(elapsed >= 604800, CustomError::TooEarly); // 7 days = 604800 seconds
+
+        let yearly_reward = ctx.accounts.liquidity_contribution.amount;
+        let weekly_reward = yearly_reward / 52;
+
+        token::mint_to(
+            ctx.accounts.mint_yot_reward_context(),
+            weekly_reward,
+        )?;
+
+        ctx.accounts.liquidity_contribution.last_claim_time = now;
+        Ok(())
+    }
+
+    pub fn withdraw_contribution(ctx: Context<WithdrawContribution>) -> Result<()> {
+        let contribution = &ctx.accounts.liquidity_contribution;
+        require!(contribution.user == ctx.accounts.user.key(), CustomError::Unauthorized);
+
+        // Transfer liquidity back
+        token::transfer(
+            ctx.accounts.transfer_back_to_user_context(),
+            contribution.amount,
+        )?;
+
+        // Close the record (auto reward stops)
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+#[instruction(amount_in: u64)]
+pub struct BuyAndDistribute<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+
+    #[account(mut)]
+    pub vault_yot: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub user_yot: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub liquidity_yot: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub yos_mint: Account<'info, Mint>,
+    #[account(mut)]
+    pub user_yos: Account<'info, TokenAccount>,
+
+    #[account(init_if_needed, payer = user, space = 8 + 64, seeds = [b"liq", user.key().as_ref()], bump)]
+    pub liquidity_contribution: Account<'info, LiquidityContribution>,
+
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
+}
+
+#[derive(Accounts)]
+pub struct ClaimReward<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+
+    #[account(mut)]
+    pub liquidity_contribution: Account<'info, LiquidityContribution>,
+
+    #[account(mut)]
+    pub yot_mint: Account<'info, Mint>,
+    #[account(mut)]
+    pub user_yot: Account<'info, TokenAccount>,
+
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct WithdrawContribution<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+
+    #[account(mut, seeds = [b"liq", user.key().as_ref()], bump)]
+    pub liquidity_contribution: Account<'info, LiquidityContribution>,
+
+    #[account(mut)]
+    pub liquidity_yot: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub user_yot: Account<'info, TokenAccount>,
+
+    pub token_program: Program<'info, Token>,
+}
+
+#[account]
+pub struct LiquidityContribution {
+    pub user: Pubkey,
+    pub amount: u64,
+    pub start_time: i64,
+    pub last_claim_time: i64,
+}
+
+impl<'info> BuyAndDistribute<'info> {
+    fn transfer_to_user_context(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
+        let cpi_accounts = Transfer {
+            from: self.vault_yot.to_account_info(),
+            to: self.user_yot.to_account_info(),
+            authority: self.user.to_account_info(),
+        };
+        CpiContext::new(self.token_program.to_account_info(), cpi_accounts)
+    }
+
+    fn transfer_to_liquidity_context(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
+        let cpi_accounts = Transfer {
+            from: self.vault_yot.to_account_info(),
+            to: self.liquidity_yot.to_account_info(),
+            authority: self.user.to_account_info(),
+        };
+        CpiContext::new(self.token_program.to_account_info(), cpi_accounts)
+    }
+
+    fn mint_yos_cashback_context(&self) -> CpiContext<'_, '_, '_, 'info, MintTo<'info>> {
+        let cpi_accounts = MintTo {
+            mint: self.yos_mint.to_account_info(),
+            to: self.user_yos.to_account_info(),
+            authority: self.user.to_account_info(),
+        };
+        CpiContext::new(self.token_program.to_account_info(), cpi_accounts)
+    }
+}
+
+impl<'info> ClaimReward<'info> {
+    fn mint_yot_reward_context(&self) -> CpiContext<'_, '_, '_, 'info, MintTo<'info>> {
+        let cpi_accounts = MintTo {
+            mint: self.yot_mint.to_account_info(),
+            to: self.user_yot.to_account_info(),
+            authority: self.user.to_account_info(),
+        };
+        CpiContext::new(self.token_program.to_account_info(), cpi_accounts)
+    }
+}
+
+#[error_code]
+pub enum CustomError {
+    #[msg("Unauthorized action.")]
+    Unauthorized,
+    #[msg("Too early to claim reward.")]
+    TooEarly,
+}
