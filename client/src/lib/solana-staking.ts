@@ -1315,9 +1315,9 @@ export async function harvestYOSRewards(wallet: any): Promise<string> {
       throw new Error(errorMsg);
     }
     
-    // CRITICAL: The Solana program uses a 10,000× multiplier internally
+    // CRITICAL: The Solana program uses a 9,260× multiplier internally
     // We must match this exact scaling factor for blockchain compatibility
-    const PROGRAM_SCALING_FACTOR = 10000;
+    // Using the global PROGRAM_SCALING_FACTOR imported from constants.ts
     
     // Calculate the raw rewards value that will be used by the program (10,000× multiplier)
     // This is what the blockchain will actually calculate and transfer
@@ -2199,7 +2199,7 @@ export async function getStakingInfo(walletAddressStr: string): Promise<{
     
     // CRITICAL FIX: The program uses a 10,000× multiplier NOT token decimals
     // So we must divide by 10000 to get the actual token amount users receive
-    const PROGRAM_SCALING_FACTOR = 10000;
+    // Using the global PROGRAM_SCALING_FACTOR constant (9260) from constants.ts
     const totalHarvested = Number(totalHarvestedRaw) / PROGRAM_SCALING_FACTOR;
     
     console.log(`Raw total harvested from blockchain: ${totalHarvestedRaw}, converted using 10,000× program scaling: ${totalHarvested} YOS`);

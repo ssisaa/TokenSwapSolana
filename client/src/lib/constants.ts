@@ -43,8 +43,8 @@ export const STAKING_PROGRAM_ID = '6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6'
 // We are removing all adjustment factors and using raw blockchain values directly
 
 // CRITICAL: Phantom wallet is displaying values in millions
-// We need to account for the fact that the Solana program internally uses a 10,000x multiplier
-export const PROGRAM_SCALING_FACTOR = 10000;
+// We need to account for the fact that the Solana program internally uses a 9,260x multiplier
+export const PROGRAM_SCALING_FACTOR = 9260;
 
 // CRITICAL: Production YOS token display adjustment
 // This MUST match the YOS_DISPLAY_NORMALIZATION_FACTOR in the Solana contract
