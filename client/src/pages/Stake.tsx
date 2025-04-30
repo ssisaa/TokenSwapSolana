@@ -83,12 +83,14 @@ export default function Stake() {
   };
   
   // Check if rewards can be harvested
-  const normalizedRewards = stakingInfo.rewardsEarned / 9260;
+  // CRITICAL FIX: Use raw rewards directly for comparison with threshold
+  const rawRewards = stakingInfo.rewardsEarned;
+  const normalizedRewards = rawRewards / 9260; // Only for display purposes
   const harvestThreshold = stakingRates?.harvestThreshold || 1;
-  const progress = (normalizedRewards / harvestThreshold) * 100;
+  const progress = (rawRewards / harvestThreshold) * 100; // Use RAW rewards for progress calculation
   
-  // Allow harvest when progress is 100% or more (equals or exceeds threshold)
-  const canHarvest = normalizedRewards > 0 && progress >= 100;
+  // Allow harvest when raw rewards exceed threshold (not normalized rewards)
+  const canHarvest = rawRewards > 0 && rawRewards >= harvestThreshold;
   
   console.log("STAKE.TSX HARVEST DEBUG:", {
     rewardsEarnedRaw: stakingInfo.rewardsEarned,
@@ -498,7 +500,7 @@ export default function Stake() {
                         
                         <div className="w-full bg-slate-700 rounded-full h-2.5 mb-1">
                           <div 
-                            className={`h-2.5 rounded-full ${progress >= 100 ? 'bg-green-500' : 'bg-blue-600'}`}
+                            className={`h-2.5 rounded-full ${rawRewards >= harvestThreshold ? 'bg-green-500' : 'bg-blue-600'}`}
                             style={{ 
                               width: `${Math.min(100, progress)}%` 
                             }}
@@ -507,7 +509,7 @@ export default function Stake() {
                         
                         {/* Debug information */}
                         <div className="text-xs text-gray-400 mt-1 mb-2">
-                          <div>Raw Rewards: {stakingInfo.rewardsEarned.toFixed(2)}</div>
+                          <div>Raw Rewards: {rawRewards.toFixed(2)}</div>
                           <div>Normalized (÷9260): {normalizedRewards.toFixed(2)}</div>
                           <div>Admin Threshold: {harvestThreshold} YOS</div>
                           <div>Current Progress: {progress.toFixed(2)}%</div>
@@ -534,7 +536,7 @@ export default function Stake() {
                         Harvest Rewards
                       </Button>
                       
-                      {progress < 100 && (
+                      {rawRewards < harvestThreshold && (
                         <div className="text-xs text-amber-400 flex items-center">
                           <span className="mr-1">⚠️</span>
                           Need at least {harvestThreshold.toLocaleString('en-US', {maximumFractionDigits: 0})} YOS to harvest (you have {formatNumber(normalizedRewards, 6)})
