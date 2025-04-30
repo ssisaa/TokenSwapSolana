@@ -25,8 +25,15 @@ export default function AdminStatistics() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   // Use the same staking hook that the main dashboard uses
-  const { globalStats, stakingRates, isLoadingStakingInfo, isLoadingRates, isLoadingGlobalStats, refetchGlobalStats, refetchRates } = useStaking();
-  const isLoadingStaking = isLoadingStakingInfo || isLoadingRates || isLoadingGlobalStats;
+  const { 
+    globalStats, 
+    stakingRates, 
+    isLoadingStakingInfo, 
+    isLoadingRates, 
+    refetchStakingInfo, 
+    refetchRates 
+  } = useStaking();
+  const isLoadingStaking = isLoadingStakingInfo || isLoadingRates;
   
   // Add state for YOS program balance
   const [programYosBalance, setProgramYosBalance] = useState<number | null>(null);
@@ -114,8 +121,9 @@ export default function AdminStatistics() {
   const handleRefresh = () => {
     setRefreshTrigger(prev => prev + 1);
     refetchState();
-    refetchGlobalStats();
+    refetchStakingInfo();
     refetchRates();
+    fetchProgramYosBalance();
   };
   
   const isLoading = isLoadingState || isLoadingTokenStats || isLoadingStakers;
@@ -130,9 +138,14 @@ export default function AdminStatistics() {
           </CardDescription>
         </CardHeader>
         <CardFooter>
-          <Button onClick={handleRefresh} variant="outline" size="sm">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Retry
+          <Button 
+            onClick={handleRefresh} 
+            variant="outline" 
+            size="sm"
+            className="gap-2 whitespace-nowrap"
+          >
+            <RefreshCw className="h-4 w-4" />
+            <span>Retry</span>
           </Button>
         </CardFooter>
       </Card>
@@ -147,13 +160,14 @@ export default function AdminStatistics() {
           onClick={handleRefresh} 
           variant="outline"
           disabled={isLoading}
+          className="gap-2 whitespace-nowrap"
         >
           {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            <RefreshCw className="h-4 w-4 mr-2" />
+            <RefreshCw className="h-4 w-4" />
           )}
-          Refresh Data
+          <span>Refresh Data</span>
         </Button>
       </div>
       
@@ -247,6 +261,60 @@ export default function AdminStatistics() {
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Program Settings */}
+        {/* Protocol Token Holdings card */}
+        <Card className="border-slate-800">
+          <CardHeader>
+            <CardTitle>Protocol Token Holdings</CardTitle>
+            <CardDescription>
+              Tokens controlled by the staking program
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-4">
+              {/* YOT Token Balance card */}
+              <Card className="bg-slate-50 dark:bg-slate-900">
+                <CardHeader className="pb-1">
+                  <CardTitle className="text-sm font-medium text-slate-700 dark:text-slate-300">YOT Token Balance</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    <span className="mr-2">{(tokenStats?.yotStaked || 0).toLocaleString()}</span>
+                    <span className="text-xs font-semibold px-2 py-1 rounded-md bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">YOT</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Staked by users and held by the program
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {/* YOS Token Balance card */}
+              <Card className="bg-slate-50 dark:bg-slate-900">
+                <CardHeader className="pb-1">
+                  <CardTitle className="text-sm font-medium text-slate-700 dark:text-slate-300">YOS Token Balance</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingYosBalance ? (
+                    <div className="flex items-center h-8">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mr-2" />
+                      <span className="text-muted-foreground text-sm">Loading...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold">
+                        <span className="mr-2">{(programYosBalance || 0).toLocaleString()}</span>
+                        <span className="text-xs font-semibold px-2 py-1 rounded-md bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300">YOS</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Available for distribution as rewards
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </CardContent>
+        </Card>
+        
         <Card className="border-slate-800">
           <CardHeader>
             <CardTitle>Program Settings</CardTitle>
@@ -397,50 +465,7 @@ export default function AdminStatistics() {
         </Card>
       </div>
       
-      {/* Token Holdings */}
-      <Card className="border-slate-800">
-        <CardHeader>
-          <CardTitle>Protocol Token Holdings</CardTitle>
-          <CardDescription>
-            Tokens controlled by the staking program
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoadingTokenStats ? (
-            <div className="h-24 flex items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-slate-900 p-4 rounded-md border border-slate-800">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-sm font-medium text-gray-300">YOT Token Balance</span>
-                  <span className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded">YOT</span>
-                </div>
-                <div className="text-2xl font-bold text-white">
-                  {(tokenStats?.yotStaked || 0).toLocaleString()}
-                </div>
-                <div className="text-xs text-gray-400 mt-1">
-                  Staked by users and held by the program
-                </div>
-              </div>
-              
-              <div className="bg-slate-900 p-4 rounded-md border border-slate-800">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-sm font-medium text-gray-300">YOS Token Balance</span>
-                  <span className="text-xs px-2 py-1 bg-green-500/20 text-green-400 rounded">YOS</span>
-                </div>
-                <div className="text-2xl font-bold text-white">
-                  {(tokenStats?.yosRewards || 0).toLocaleString()}
-                </div>
-                <div className="text-xs text-gray-400 mt-1">
-                  Available for distribution as rewards
-                </div>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* No more duplicate section - removed */}
     </div>
   );
 }
