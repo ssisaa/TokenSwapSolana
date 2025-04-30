@@ -670,13 +670,11 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     const rawBlockchainAmount = uiToRawTokenAmount(rewardsAmount, YOS_DECIMALS);
     console.log(`Direct conversion to blockchain amount: ${rewardsAmount} YOS → ${rawBlockchainAmount} (9 decimals)`);
     
-    // PHANTOM DISPLAY APPROACH:
-    // 2. Apply the display adjustment to counteract millions display
-    const adjustedDisplayRewards = rewardsAmount / YOS_WALLET_DISPLAY_ADJUSTMENT;
-    console.log(`Display adjustment: ${rewardsAmount} ÷ ${YOS_WALLET_DISPLAY_ADJUSTMENT} = ${adjustedDisplayRewards} YOS`);
-    
-    // 3. Apply program scaling (the rust code on-chain will divide by this)
-    const contractAmount = Math.round(adjustedDisplayRewards * PROGRAM_SCALING_FACTOR);
+    // BLOCKCHAIN REWARDS APPROACH:
+    // 2. Apply program scaling factor so rewards match what the Solana program calculates
+    // The Solana program will use this exact amount when transferring rewards
+    const contractAmount = Math.round(rewardsAmount * PROGRAM_SCALING_FACTOR);
+    console.log(`Program scaling: ${rewardsAmount} × ${PROGRAM_SCALING_FACTOR} = ${contractAmount} YOS`);
     
     console.log(`
     ===== TOKEN METADATA APPROACH FOR YOS FIX =====
@@ -684,8 +682,7 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     YOS token decimals (from blockchain metadata): ${YOS_DECIMALS}
     Raw blockchain amount: ${rawBlockchainAmount}
     
-    Phantom display adjustment: ${rewardsAmount} ÷ ${YOS_WALLET_DISPLAY_ADJUSTMENT} = ${adjustedDisplayRewards} YOS
-    Program scaling applied: ${adjustedDisplayRewards} × ${PROGRAM_SCALING_FACTOR} = ${contractAmount}
+    Program scaling applied: ${rewardsAmount} × ${PROGRAM_SCALING_FACTOR} = ${contractAmount}
     Final contract value: ${contractAmount}
     ==============================================
     `);
@@ -708,7 +705,7 @@ function encodeHarvestInstruction(rewardsAmount?: number): Buffer {
     console.log(`
     ===== FINAL TRANSACTION AMOUNT FOR PHANTOM WALLET =====
     Data buffer contains amount: ${contractAmount}
-    Target display in Phantom: ${adjustedDisplayRewards} YOS (if display adjustment works correctly)
+    Scaled for program: ${rewardsAmount} YOS × ${PROGRAM_SCALING_FACTOR} = ${contractAmount}
     ======================================================
     `);
     
