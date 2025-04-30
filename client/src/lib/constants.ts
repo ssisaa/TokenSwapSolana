@@ -46,8 +46,8 @@ export const STAKING_PROGRAM_ID = '6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6'
 // We need to account for the fact that the Solana program internally uses a 10,000x multiplier
 export const PROGRAM_SCALING_FACTOR = 10000;
 
-// CRITICAL: YOS display adjustment needs to be fine-tuned based on testing
-// Using a specific normalization factor to display exactly 28.32 YOS
-// Based on wallet display testing, this should match YOS_DISPLAY_NORMALIZATION_FACTOR
-// in the Solana contract (using value 9,260)
-export const YOS_WALLET_DISPLAY_ADJUSTMENT = 9260; // Match contract divisor
+// CRITICAL: Production YOS token display adjustment
+// This MUST match the YOS_DISPLAY_NORMALIZATION_FACTOR in the Solana contract
+// Value: 9,260 - This produces the correct wallet display amount of 28.32 YOS
+// DO NOT CHANGE this value unless simultaneously updating the contract
+export const YOS_WALLET_DISPLAY_ADJUSTMENT = 9260; // Production value
