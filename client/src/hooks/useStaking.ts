@@ -59,7 +59,7 @@ interface StakingInfo {
   lastHarvestTime: number;
   totalHarvested: number;
   rewardsEarned: number;
-  // Internal value used by blockchain transactions (10000x multiplier)
+  // Internal value used by blockchain transactions (9260x multiplier)
   _rewardsEarnedInternal?: number;
 }
 
@@ -561,22 +561,22 @@ export function useStaking() {
             const programYosBalance = await connection.getTokenAccountBalance(programYosAccount);
             const availableYos = programYosBalance.value.uiAmount || 0;
             
-            // CRITICAL FIX: Apply the 10,000× divisor to get the true UI amount
-            const pendingRewardsRaw = stakingInfo.rewardsEarned;
-            const pendingRewardsUI = pendingRewardsRaw / 10000;
+            // CRITICAL FIX: Apply the 9,260 normalization factor to get the blockchain amount
+            const pendingRewardsUI = stakingInfo.rewardsEarned;
+            const pendingRewardsBlockchain = pendingRewardsUI / 9260;
             
             console.log(`
             ========== HARVEST REWARDS DEBUG ==========
             Program YOS balance: ${availableYos} YOS
             User pending rewards (UI display): ${pendingRewardsUI} YOS
-            User pending rewards (blockchain): ${pendingRewardsRaw}
-            10,000× multiplier ratio: ${pendingRewardsRaw / pendingRewardsUI}
+            User pending rewards (blockchain): ${pendingRewardsBlockchain}
+            9,260 normalization factor: ${pendingRewardsUI / pendingRewardsBlockchain}
             =========================================`);
             
-            // Compare the UI amount with available YOS
-            if (availableYos < pendingRewardsUI && pendingRewardsUI > 0.01) {
+            // Compare the blockchain amount with available YOS
+            if (availableYos < pendingRewardsBlockchain && pendingRewardsBlockchain > 0.01) {
               // Just log a warning - don't prevent harvesting
-              console.warn(`Program has insufficient YOS tokens (${availableYos}) for full rewards (${pendingRewardsUI} YOS)`);
+              console.warn(`Program has insufficient YOS tokens (${availableYos}) for full rewards (${pendingRewardsBlockchain} YOS)`);
               // The actual harvest function (harvestYOSRewards) will also show a toast warning
             }
           } catch (e) {
@@ -603,6 +603,7 @@ export function useStaking() {
         Normalization factor: 9,260
         ==============================================`);
         
+        // Check if actual blockchain rewards are below the threshold
         if (actualBlockchainRewards < (stakingRates.harvestThreshold || 0)) {
           throw new Error(`Actual rewards (${actualBlockchainRewards.toFixed(6)} YOS) are below the minimum threshold (${(stakingRates.harvestThreshold || 0).toFixed(6)} YOS). The UI shows a higher amount (${stakingInfo.rewardsEarned.toFixed(2)} YOS) due to normalization, but the blockchain uses the lower value. Please stake more or wait longer.`);
         }
@@ -731,6 +732,7 @@ export function useStaking() {
           title: "Rewards Below Threshold",
           description: errorMessage,
           variant: 'destructive',
+          duration: 10000, // Show for 10 seconds so user can read it
         });
       } else {
         toast({
