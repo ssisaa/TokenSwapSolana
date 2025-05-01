@@ -18,6 +18,12 @@ export interface RaydiumPoolConfig {
   marketBids: string;
   marketAsks: string;
   marketEventQueue: string;
+  // Liquidity information for pools
+  baseReserve?: number;
+  quoteReserve?: number;
+  lpSupply?: number;
+  volumeUSD?: number;
+  liquidityUSD?: number;
 }
 
 // Custom test pools for the application with robust liquidity

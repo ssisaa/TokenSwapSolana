@@ -15,6 +15,11 @@ export interface JupiterRouteConfig {
   marketLabels: string[];
   fee: number;
   priceImpact: number;
+  // Liquidity information for pools
+  inputReserve?: number;
+  outputReserve?: number;
+  volumeUSD?: number;
+  liquidityUSD?: number;
 }
 
 /**
@@ -34,7 +39,12 @@ export const testJupiterRoutes: JupiterRouteConfig[] = [
     marketIds: ["RAMX-SOL-jup-market-id-1"],
     marketLabels: ["Jupiter"],
     fee: 0.0035,  // 0.35%
-    priceImpact: 0.005  // 0.5%
+    priceImpact: 0.005,  // 0.5%
+    // Liquidity information
+    inputReserve: 4500000,  // 4.5 million RAMX in pool
+    outputReserve: 450,     // 450 SOL in pool
+    volumeUSD: 195000,      // $195K daily volume
+    liquidityUSD: 1850000   // $1.85M liquidity
   },
   // SOL-RAMX Pool (reverse of above)
   {
@@ -47,7 +57,12 @@ export const testJupiterRoutes: JupiterRouteConfig[] = [
     marketIds: ["SOL-RAMX-jup-market-id-1"],
     marketLabels: ["Jupiter"],
     fee: 0.0035,  // 0.35%
-    priceImpact: 0.005  // 0.5%
+    priceImpact: 0.005,  // 0.5%
+    // Liquidity information (same as above, reversed)
+    inputReserve: 450,     // 450 SOL in pool
+    outputReserve: 4500000,  // 4.5 million RAMX in pool
+    volumeUSD: 195000,      // $195K daily volume
+    liquidityUSD: 1850000   // $1.85M liquidity
   },
   // TRAXX-SOL Pool
   {
@@ -60,7 +75,12 @@ export const testJupiterRoutes: JupiterRouteConfig[] = [
     marketIds: ["TRAXX-SOL-jup-market-id-1"],
     marketLabels: ["Jupiter"],
     fee: 0.003,  // 0.3%
-    priceImpact: 0.004  // 0.4%
+    priceImpact: 0.004,  // 0.4%
+    // Liquidity information
+    inputReserve: 3800000,  // 3.8 million TRAXX in pool
+    outputReserve: 380,     // 380 SOL in pool
+    volumeUSD: 175000,      // $175K daily volume
+    liquidityUSD: 1650000   // $1.65M liquidity
   },
   // SOL-TRAXX Pool (reverse of above)
   {
@@ -73,7 +93,12 @@ export const testJupiterRoutes: JupiterRouteConfig[] = [
     marketIds: ["SOL-TRAXX-jup-market-id-1"],
     marketLabels: ["Jupiter"],
     fee: 0.003,  // 0.3%
-    priceImpact: 0.004  // 0.4%
+    priceImpact: 0.004,  // 0.4%
+    // Liquidity information (same as above, reversed)
+    inputReserve: 380,      // 380 SOL in pool
+    outputReserve: 3800000, // 3.8 million TRAXX in pool
+    volumeUSD: 175000,      // $175K daily volume
+    liquidityUSD: 1650000   // $1.65M liquidity
   },
   // SAMX-USDC Pool (new)
   {
@@ -86,7 +111,12 @@ export const testJupiterRoutes: JupiterRouteConfig[] = [
     marketIds: ["SAMX-USDC-jup-market-id-1"],
     marketLabels: ["Jupiter"],
     fee: 0.003,  // 0.3%
-    priceImpact: 0.004  // 0.4%
+    priceImpact: 0.004,  // 0.4%
+    // Liquidity information
+    inputReserve: 3000000,  // 3 million SAMX in pool
+    outputReserve: 900000,  // 900K USDC in pool
+    volumeUSD: 320000,      // $320K daily volume
+    liquidityUSD: 1800000   // $1.8M liquidity
   },
   // USDC-SAMX Pool (reverse of above)
   {
@@ -99,7 +129,12 @@ export const testJupiterRoutes: JupiterRouteConfig[] = [
     marketIds: ["USDC-SAMX-jup-market-id-1"],
     marketLabels: ["Jupiter"],
     fee: 0.003,  // 0.3%
-    priceImpact: 0.004  // 0.4%
+    priceImpact: 0.004,  // 0.4%
+    // Liquidity information (same as above, reversed)
+    inputReserve: 900000,   // 900K USDC in pool
+    outputReserve: 3000000, // 3 million SAMX in pool
+    volumeUSD: 320000,      // $320K daily volume
+    liquidityUSD: 1800000   // $1.8M liquidity
   },
   // USDC-SOL Pool (new)
   {
@@ -112,7 +147,12 @@ export const testJupiterRoutes: JupiterRouteConfig[] = [
     marketIds: ["USDC-SOL-jup-market-id-1"],
     marketLabels: ["Jupiter"],
     fee: 0.002,  // 0.2%
-    priceImpact: 0.003  // 0.3%
+    priceImpact: 0.003,  // 0.3%
+    // Liquidity information
+    inputReserve: 2200000,  // 2.2 million USDC in pool
+    outputReserve: 15000,   // 15K SOL in pool (large pool)
+    volumeUSD: 1200000,     // $1.2M daily volume
+    liquidityUSD: 4300000   // $4.3M liquidity
   },
   // SOL-USDC Pool (reverse of above)
   {
@@ -125,7 +165,12 @@ export const testJupiterRoutes: JupiterRouteConfig[] = [
     marketIds: ["SOL-USDC-jup-market-id-1"],
     marketLabels: ["Jupiter"],
     fee: 0.002,  // 0.2%
-    priceImpact: 0.003  // 0.3%
+    priceImpact: 0.003,  // 0.3%
+    // Liquidity information (same as above, reversed)
+    inputReserve: 15000,    // 15K SOL in pool
+    outputReserve: 2200000, // 2.2 million USDC in pool
+    volumeUSD: 1200000,     // $1.2M daily volume
+    liquidityUSD: 4300000   // $4.3M liquidity
   },
   // YOT-SOL Pool
   {
@@ -138,7 +183,12 @@ export const testJupiterRoutes: JupiterRouteConfig[] = [
     marketIds: ["YOT-SOL-jup-market-id-1"],
     marketLabels: ["Jupiter"],
     fee: 0.0025,  // 0.25%
-    priceImpact: 0.003  // 0.3%
+    priceImpact: 0.003,  // 0.3%
+    // Liquidity information (matching our existing YOT-SOL pool)
+    inputReserve: 706054550, // Match existing YOT balance
+    outputReserve: 28.8,     // Match existing SOL balance
+    volumeUSD: 500000,       // $500K daily volume
+    liquidityUSD: 2500000    // $2.5M liquidity
   },
   // SOL-YOT Pool (reverse of above)
   {
@@ -151,7 +201,12 @@ export const testJupiterRoutes: JupiterRouteConfig[] = [
     marketIds: ["SOL-YOT-jup-market-id-1"],
     marketLabels: ["Jupiter"],
     fee: 0.0025,  // 0.25%
-    priceImpact: 0.003  // 0.3%
+    priceImpact: 0.003,  // 0.3%
+    // Liquidity information (matching our existing SOL-YOT pool)
+    inputReserve: 28.8,       // Match existing SOL balance
+    outputReserve: 706054550, // Match existing YOT balance
+    volumeUSD: 500000,        // $500K daily volume
+    liquidityUSD: 2500000     // $2.5M liquidity
   }
 ];
 
