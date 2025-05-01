@@ -145,8 +145,16 @@ const testPools: RaydiumPoolConfig[] = [
   }
 ];
 
-// Fetch Raydium pool configurations from the API
+// Fetch Raydium pool configurations 
 export async function fetchRaydiumPools(): Promise<RaydiumPoolConfig[]> {
+  // For development on Replit, we'll use our test pools to avoid CORS issues
+  // In a production environment, this would use the actual Raydium API
+  
+  console.log('Using test pool data with updated XAR and XMP token addresses');
+  return testPools;
+  
+  /* 
+  // This code would be used in production to fetch actual Raydium pools
   try {
     // First try to fetch from Raydium API
     const response = await fetch('https://api.raydium.io/v2/sdk/liquidity/mainnet.json');
@@ -177,6 +185,7 @@ export async function fetchRaydiumPools(): Promise<RaydiumPoolConfig[]> {
     // Fall back to our test pools if API fails
     return testPools;
   }
+  */
 }
 
 // Get pools that include SOL as base or quote token
@@ -384,8 +393,8 @@ export async function getSpecificPoolDetails(tokenAddress1: string, tokenAddress
     const tokenBAccount = isFirstTokenBase ? poolDetails.marketQuoteVault : poolDetails.marketBaseVault;
     
     // Get reserves
-    const tokenAReserve = isFirstTokenBase ? poolDetails.baseReserve : poolDetails.quoteReserve;
-    const tokenBReserve = isFirstTokenBase ? poolDetails.quoteReserve : poolDetails.baseReserve;
+    const tokenAReserve = isFirstTokenBase ? poolDetails.baseReserve || null : poolDetails.quoteReserve || null;
+    const tokenBReserve = isFirstTokenBase ? poolDetails.quoteReserve || null : poolDetails.baseReserve || null;
     
     return {
       poolDetails,
@@ -401,7 +410,7 @@ export async function getSpecificPoolDetails(tokenAddress1: string, tokenAddress
       },
       lpToken: {
         mintAddress: poolDetails.lpMint,
-        totalSupply: poolDetails.lpSupply,
+        totalSupply: poolDetails.lpSupply || null,
       },
     };
   } catch (error) {
