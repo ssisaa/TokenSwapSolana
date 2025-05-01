@@ -5,8 +5,19 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { WalletProvider } from "@/context/WalletContext";
 import { MultiWalletProvider } from "@/context/MultiWalletContext";
-import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { AdminAuthProvider } from "@/hooks/use-admin-auth";
+
+// Solana wallet adapter
+import { ConnectionProvider, WalletProvider as SolanaWalletProvider } from "@solana/wallet-adapter-react";
+import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
+import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
+import { SolflareWalletAdapter } from "@solana/wallet-adapter-solflare";
+import { clusterApiUrl } from "@solana/web3.js";
+import { useMemo } from "react";
+import { SOLANA_CLUSTER } from "@/lib/constants";
+
+// Import wallet adapter CSS
+import "@solana/wallet-adapter-react-ui/styles.css";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
@@ -178,20 +189,39 @@ function Router() {
 }
 
 function App() {
+  // Set up Solana connection
+  const network = SOLANA_CLUSTER; // "devnet" or "mainnet-beta"
+  const endpoint = useMemo(() => clusterApiUrl(network), [network]);
+  
+  // Set up supported wallets
+  const wallets = useMemo(
+    () => [
+      new PhantomWalletAdapter(),
+      new SolflareWalletAdapter(),
+    ],
+    []
+  );
+
   return (
     <QueryClientProvider client={queryClient}>
-      <MultiWalletProvider>
-        <WalletProvider>
+      {/* Standard Solana wallet adapter context */}
+      <ConnectionProvider endpoint={endpoint}>
+        <SolanaWalletProvider wallets={wallets} autoConnect>
           <WalletModalProvider>
-            <AdminAuthProvider>
-              <TooltipProvider>
-                <Toaster />
-                <Router />
-              </TooltipProvider>
-            </AdminAuthProvider>
+            {/* Custom wallet contexts */}
+            <MultiWalletProvider>
+              <WalletProvider>
+                <AdminAuthProvider>
+                  <TooltipProvider>
+                    <Toaster />
+                    <Router />
+                  </TooltipProvider>
+                </AdminAuthProvider>
+              </WalletProvider>
+            </MultiWalletProvider>
           </WalletModalProvider>
-        </WalletProvider>
-      </MultiWalletProvider>
+        </SolanaWalletProvider>
+      </ConnectionProvider>
     </QueryClientProvider>
   );
 }
