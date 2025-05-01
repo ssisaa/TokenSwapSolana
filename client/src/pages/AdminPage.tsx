@@ -11,6 +11,7 @@ import StakingSettings from "@/components/admin/StakingSettings";
 import AdminStatistics from "@/components/admin/AdminStatistics";
 import AdminTransactions from "@/components/admin/AdminTransactions";
 import FundProgramAccounts from "@/components/admin/FundProgramAccounts";
+import AdminYieldDistribution from "@/components/admin/AdminYieldDistribution";
 
 export default function AdminPage() {
   const { admin, isLoading, logoutMutation } = useAdminAuth();

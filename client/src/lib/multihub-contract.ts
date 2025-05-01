@@ -175,6 +175,25 @@ class RegisterReferrerLayout {
   }
 }
 
+// Layout for the TriggerYieldDistribution instruction data
+class TriggerYieldDistributionLayout {
+  instruction: number;
+
+  constructor() {
+    this.instruction = MultiHubSwapInstructionType.TriggerYieldDistribution;
+  }
+
+  serialize(): Buffer {
+    const dataLayout = borsh.struct([
+      borsh.u8('instruction'),
+    ]);
+
+    const data = Buffer.alloc(1);
+    const len = dataLayout.encode(this, data);
+    return data.slice(0, len);
+  }
+}
+
 // Helper function to derive the program state account address
 export async function findProgramStateAddress(): Promise<[PublicKey, number]> {
   return PublicKey.findProgramAddress(
@@ -609,6 +628,48 @@ export class MultiHubSwapClient {
     
     return transaction;
   }
+  
+  /**
+   * Create a transaction to manually trigger yield distribution (admin only)
+   * 
+   * @param wallet Admin's wallet
+   * @returns Transaction object ready to be signed and sent
+   */
+  async createTriggerYieldDistributionTransaction(wallet: any): Promise<Transaction> {
+    console.log(`Creating trigger yield distribution transaction for admin: ${wallet.publicKey.toString()}`);
+    
+    // Create a new transaction
+    const transaction = new Transaction();
+    
+    // Find the program state account
+    const [programStateAccount] = await findProgramStateAddress();
+    
+    // Find program YOS treasury account (in a real implementation, this would be derived or looked up)
+    const programYosTreasury = new PublicKey('5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz');
+    
+    // Create the trigger yield distribution instruction data
+    const triggerYieldDistributionLayout = new TriggerYieldDistributionLayout();
+    
+    // Create the accounts array for the trigger yield distribution instruction
+    const accounts = [
+      { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
+      { pubkey: programStateAccount, isSigner: false, isWritable: true },
+      { pubkey: programYosTreasury, isSigner: false, isWritable: true },
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    ];
+    
+    // Create the trigger yield distribution instruction
+    const triggerYieldDistributionInstruction = new TransactionInstruction({
+      programId: this.programId,
+      keys: accounts,
+      data: triggerYieldDistributionLayout.serialize(),
+    });
+    
+    // Add the instruction to the transaction
+    transaction.add(triggerYieldDistributionInstruction);
+    
+    return transaction;
+  }
 }
 
 // Export a single instance for use throughout the app
@@ -978,6 +1039,50 @@ export async function registerAsReferrer(wallet: any): Promise<string> {
     return signature;
   } catch (error) {
     console.error('Error registering as referrer:', error);
+    throw error;
+  }
+}
+
+/**
+ * Trigger a manual yield distribution (admin only)
+ * This will distribute yield rewards to all LP stakers based on their share
+ * 
+ * @param wallet Admin wallet adapter
+ * @returns Transaction signature
+ */
+export async function triggerYieldDistribution(wallet: any): Promise<string> {
+  try {
+    console.log(`Triggering yield distribution by admin: ${wallet.publicKey.toString()}`);
+    
+    // Create the trigger yield distribution transaction
+    const transaction = await multiHubSwapClient.createTriggerYieldDistributionTransaction(wallet);
+    
+    // Set a recent blockhash
+    const { blockhash } = await multiHubSwapClient.connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = wallet.publicKey;
+    
+    // Sign and send the transaction
+    const signedTransaction = await wallet.signTransaction(transaction);
+    const signature = await multiHubSwapClient.connection.sendRawTransaction(
+      signedTransaction.serialize()
+    );
+    
+    // Wait for confirmation
+    await multiHubSwapClient.connection.confirmTransaction(signature);
+    
+    console.log('Yield distribution triggered successfully:', signature);
+    return signature;
+  } catch (error) {
+    console.error('Error triggering yield distribution:', error);
+    
+    // Check for specific error codes
+    if (error.toString().includes('DistributionTooSoon')) {
+      throw new Error('Yield distribution was triggered too recently. Please wait before trying again.');
+    } else if (error.toString().includes('InvalidAuthority')) {
+      throw new Error('Only the admin can trigger a yield distribution.');
+    }
+    
     throw error;
   }
 }
