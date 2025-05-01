@@ -21,13 +21,13 @@ import {
 // Devnet endpoint
 const ENDPOINT = 'https://api.devnet.solana.com';
 
-// Token addresses
-const SOL_TOKEN_ADDRESS = 'So11111111111111111111111111111111111111112';
-const YOT_TOKEN_ADDRESS = '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF';
-const YOS_TOKEN_ADDRESS = 'GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n';
+// Token addresses as PublicKey objects
+const SOL_TOKEN_MINT = new PublicKey('So11111111111111111111111111111111111111112');
+const YOT_TOKEN_MINT = new PublicKey('2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF');
+const YOS_TOKEN_MINT = new PublicKey('GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n');
 
-// Program ID of multihub swap contract
-const MULTIHUB_SWAP_PROGRAM_ID = '3cXKNjtRv8b1HVYU6vRDvmoSMHfXrWATCLFY2Y5wTsps';
+// Program ID of multihub swap contract - initialize as a PublicKey object
+const MULTIHUB_SWAP_PROGRAM_ID = new PublicKey('3cXKNjtRv8b1HVYU6vRDvmoSMHfXrWATCLFY2Y5wTsps');
 
 // Define class to implement the required methods for swap
 class MultihubSwapClient implements SwapProvider {
@@ -82,11 +82,12 @@ class MultihubSwapClient implements SwapProvider {
         const toTokenMint = new PublicKey(toToken.address);
         
         // Get ATA for YOT, SOL is handled differently
-        const fromTokenAccount = fromToken.address === SOL_TOKEN_MINT.toString() 
+        const SOL_ADDRESS = 'So11111111111111111111111111111111111111112';
+        const fromTokenAccount = fromToken.address === SOL_ADDRESS
           ? wallet.publicKey 
           : await getAssociatedTokenAddress(fromTokenMint, wallet.publicKey);
           
-        const toTokenAccount = toToken.address === SOL_TOKEN_MINT.toString()
+        const toTokenAccount = toToken.address === SOL_ADDRESS
           ? wallet.publicKey
           : await getAssociatedTokenAddress(toTokenMint, wallet.publicKey);
           
