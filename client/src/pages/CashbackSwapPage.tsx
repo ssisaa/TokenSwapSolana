@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useWallet } from "@/hooks/useSolanaWallet";
 import { useSwap } from "@/hooks/useSwap";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, ArrowRightLeft, Percent, Route } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle, AlertTriangle, ArrowRightLeft, Percent, Route, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -131,7 +131,8 @@ export default function CashbackSwapPage() {
       let errorMsg = error?.message || "Unknown error";
       
       if (errorMsg.includes("Program not initialized") || errorMsg.includes("state account not found")) {
-        errorMsg = "The MultiHub Swap program is not initialized. Please go to the TX Debug page to initialize it.";
+        // We'll create an error message with an inline button for better UX
+        errorMsg = "The MultiHub Swap program needs to be initialized first.";
         
         toast({
           title: "Program Not Initialized",
@@ -163,6 +164,28 @@ export default function CashbackSwapPage() {
   
   return (
     <div className="container max-w-4xl mx-auto py-8">
+      {/* Program Not Initialized Warning - displayed at the top of the page */}
+      {swapError && swapError.message.includes("needs to be initialized") && (
+        <Alert variant="destructive" className="mb-6 bg-destructive/10 border-destructive">
+          <AlertTriangle className="h-5 w-5" />
+          <AlertTitle className="font-semibold">Program Initialization Required</AlertTitle>
+          <AlertDescription className="flex flex-col gap-2">
+            <p>The MultiHub Swap program needs to be initialized before you can perform swaps.</p>
+            <div>
+              <Button 
+                size="sm" 
+                variant="destructive"
+                onClick={() => navigate('/tx-debug')}
+                className="mt-2"
+              >
+                <Wrench className="h-4 w-4 mr-2" />
+                Go to TX Debug to Initialize
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+      
       <div className="mb-8 text-center">
         <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-600 bg-clip-text text-transparent">
           Cashback Swap
@@ -353,8 +376,18 @@ export default function CashbackSwapPage() {
               {swapError && (
                 <Alert variant="destructive" className="mt-4">
                   <AlertCircle className="h-4 w-4 mr-2" />
-                  <AlertDescription>
-                    {swapError.message}
+                  <AlertDescription className="flex items-center justify-between">
+                    <span>{swapError.message}</span>
+                    {swapError.message.includes("needs to be initialized") && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="ml-4 bg-destructive/20 hover:bg-destructive/30 text-white border-destructive/50"
+                        onClick={() => navigate('/tx-debug')}
+                      >
+                        Initialize
+                      </Button>
+                    )}
                   </AlertDescription>
                 </Alert>
               )}
