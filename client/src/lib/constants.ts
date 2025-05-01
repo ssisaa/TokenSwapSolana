@@ -9,8 +9,8 @@ export const YOS_TOKEN_ADDRESS = 'GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n';
 export const TEST_TOKENS = {
   MTA: 'MTAwpfGYQbnJkjB2iHUNpGV4yxkpJpgAQNHpg3ZJXKd',
   SAMX: 'SAMXjJJa4XShbsyK3ZK1qUKgHs45u8YUySGBbKctwKX',
-  XAR: 'XAR18RSUr4pRGnmmM5Zz9vAz3EXmvWPx7cMuFB8mvCh',
-  XMP: 'XMP9SXVv3Kj6JcnJEyLaQzYEuWEGsHjhJNpkha2Vk5M',
+  XAR: '9VnMEkvpCPkRVyxXZQWEDocyipoq2uGehdYwAw3yryEa', // Updated with actual token
+  XMP: 'HMfSHCLwS6tJmg4aoYnkAqCFte1LQMkjRpfFvP5M3HPs', // Updated with actual token
   RAMX: 'RAMXd3mgY5XFyWbfgNh9LT7BcuW5w7jqRFgNkwZEhhsu',
   TRAXX: 'TRXXpN1Y4tAYcfp3QxCKLeVDvUnjGWQvA2HTQ5VTytA',
 };
