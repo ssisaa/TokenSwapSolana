@@ -64,6 +64,14 @@ export const defaultTokens: TokenInfo[] = [
     decimals: 9,
     tags: ['raydium', 'test']
   },
+  {
+    address: 'MTAwpfGYQbnJkjB2iHUNpGV4yxkpJpgAQNHpg3ZJXKd',
+    symbol: 'MTA',
+    name: 'Meta Token',
+    logoURI: 'https://cryptologos.cc/logos/solana-sol-logo.png',
+    decimals: 9,
+    tags: ['raydium', 'test']
+  },
   // Our test tokens for Jupiter pools
   {
     address: 'RAMXd3mgY5XFyWbfgNh9LT7BcuW5w7jqRFgNkwZEhhsu',
@@ -77,6 +85,14 @@ export const defaultTokens: TokenInfo[] = [
     address: 'TRXXpN1Y4tAYcfp3QxCKLeVDvUnjGWQvA2HTQ5VTytA',
     symbol: 'TRAXX',
     name: 'Traxx Protocol',
+    logoURI: 'https://cryptologos.cc/logos/solana-sol-logo.png',
+    decimals: 9,
+    tags: ['jupiter', 'test']
+  },
+  {
+    address: 'SAMXjJJa4XShbsyK3ZK1qUKgHs45u8YUySGBbKctwKX',
+    symbol: 'SAMX',
+    name: 'Samurai Exchange',
     logoURI: 'https://cryptologos.cc/logos/solana-sol-logo.png',
     decimals: 9,
     tags: ['jupiter', 'test']

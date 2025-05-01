@@ -1149,3 +1149,219 @@ export async function claimYosSwapRewards(wallet: any): Promise<string> {
     throw error;
   }
 }
+
+/**
+ * Find a route for swapping between two tokens using any available provider
+ * Uses all available swap providers to find the best route
+ * @param fromTokenMint Source token mint address
+ * @param toTokenMint Destination token mint address
+ * @returns Best available provider and route info
+ */
+export async function findMultiHubSwapRoute(
+  fromTokenMint: string,
+  toTokenMint: string
+): Promise<{
+  provider: SwapProvider;
+  routeInfo: any; // Provider-specific route info
+  hops: number;
+  intermediateTokens?: string[];
+}> {
+  try {
+    // Step 1: Check if these are core tokens that can be swapped directly by our contract
+    const contractEligible = isContractEligible(fromTokenMint, toTokenMint);
+    if (contractEligible) {
+      return {
+        provider: SwapProvider.Contract,
+        routeInfo: { direct: true },
+        hops: 1
+      };
+    }
+    
+    // Step 2: Try to find routes through all providers
+    const routes = await findAllAvailableRoutes(fromTokenMint, toTokenMint);
+    
+    // If we found any routes, return the best one (lowest hops and fees)
+    if (routes.length > 0) {
+      // Sort by number of hops (fewer is better)
+      routes.sort((a, b) => a.hops - b.hops);
+      
+      // Return the best route
+      return routes[0];
+    }
+    
+    // No routes found
+    throw new Error('No swap route found between these tokens');
+  } catch (error) {
+    console.error('Error finding multi-hub swap route:', error);
+    throw error;
+  }
+}
+
+/**
+ * Find all available routes between two tokens across all providers
+ * @param fromTokenMint Source token mint address
+ * @param toTokenMint Destination token mint address
+ * @returns Array of available routes with provider, route info, and hop count
+ */
+export async function findAllAvailableRoutes(
+  fromTokenMint: string,
+  toTokenMint: string
+): Promise<Array<{
+  provider: SwapProvider;
+  routeInfo: any;
+  hops: number;
+  intermediateTokens?: string[];
+}>> {
+  const routes: Array<{
+    provider: SwapProvider;
+    routeInfo: any;
+    hops: number;
+    intermediateTokens?: string[];
+  }> = [];
+  
+  // Common intermediate tokens for testing multiple hops
+  const intermediateTokens = [
+    SOL_TOKEN_ADDRESS, // SOL (commonly used as an intermediate token)
+    '9T7uw5dqaEmEC4McqyefzYsEg5hoC4e2oV8it1Uc4f1U', // USDC
+    '5kjfp2qfRbqCXTQeUYgHNnTLf13eHoKjC9RcaX3YfSBK', // USDT
+  ];
+  
+  // Try Raydium direct routes
+  try {
+    const raydiumRoute = await findSwapRoute(fromTokenMint, toTokenMint);
+    if (raydiumRoute.hops > 0) {
+      routes.push({
+        provider: SwapProvider.Raydium,
+        routeInfo: raydiumRoute.route,
+        hops: raydiumRoute.hops,
+        intermediateTokens: raydiumRoute.hops > 1 ? [SOL_TOKEN_ADDRESS] : undefined
+      });
+    }
+  } catch (raydiumError) {
+    console.warn('Raydium direct route finding failed:', raydiumError);
+  }
+  
+  // Try Jupiter direct routes
+  try {
+    const jupiterRoute = await findBestJupiterRoute(fromTokenMint, toTokenMint);
+    if (jupiterRoute) {
+      routes.push({
+        provider: SwapProvider.Jupiter,
+        routeInfo: jupiterRoute,
+        hops: 1
+      });
+    }
+  } catch (jupiterError) {
+    console.warn('Jupiter direct route finding failed:', jupiterError);
+  }
+  
+  // Try multi-hop routes through intermediate tokens
+  for (const intermediateToken of intermediateTokens) {
+    // Skip if the intermediate token is the same as source or destination
+    if (intermediateToken === fromTokenMint || intermediateToken === toTokenMint) {
+      continue;
+    }
+    
+    // Try Raydium with an intermediate hop
+    try {
+      const firstHopRaydium = await findSwapRoute(fromTokenMint, intermediateToken);
+      const secondHopRaydium = await findSwapRoute(intermediateToken, toTokenMint);
+      
+      if (firstHopRaydium.hops > 0 && secondHopRaydium.hops > 0) {
+        routes.push({
+          provider: SwapProvider.Raydium,
+          routeInfo: [...firstHopRaydium.route, ...secondHopRaydium.route],
+          hops: firstHopRaydium.hops + secondHopRaydium.hops,
+          intermediateTokens: [intermediateToken]
+        });
+      }
+    } catch (raydiumError) {
+      console.warn(`Raydium multi-hop route through ${intermediateToken} failed:`, raydiumError);
+    }
+    
+    // Try Jupiter with an intermediate hop
+    try {
+      const firstHopJupiter = await findBestJupiterRoute(fromTokenMint, intermediateToken);
+      const secondHopJupiter = await findBestJupiterRoute(intermediateToken, toTokenMint);
+      
+      if (firstHopJupiter && secondHopJupiter) {
+        routes.push({
+          provider: SwapProvider.Jupiter,
+          routeInfo: {
+            firstHop: firstHopJupiter,
+            secondHop: secondHopJupiter
+          },
+          hops: 2,
+          intermediateTokens: [intermediateToken]
+        });
+      }
+    } catch (jupiterError) {
+      console.warn(`Jupiter multi-hop route through ${intermediateToken} failed:`, jupiterError);
+    }
+    
+    // Try cross-provider routes (Raydium -> Jupiter)
+    try {
+      const firstHopRaydium = await findSwapRoute(fromTokenMint, intermediateToken);
+      const secondHopJupiter = await findBestJupiterRoute(intermediateToken, toTokenMint);
+      
+      if (firstHopRaydium.hops > 0 && secondHopJupiter) {
+        routes.push({
+          provider: SwapProvider.Raydium, // We'll use the first provider as the main one
+          routeInfo: {
+            firstHop: { provider: SwapProvider.Raydium, route: firstHopRaydium.route },
+            secondHop: { provider: SwapProvider.Jupiter, route: secondHopJupiter }
+          },
+          hops: firstHopRaydium.hops + 1,
+          intermediateTokens: [intermediateToken]
+        });
+      }
+    } catch (crossError) {
+      console.warn(`Cross-provider Raydium->Jupiter route through ${intermediateToken} failed:`, crossError);
+    }
+    
+    // Try cross-provider routes (Jupiter -> Raydium)
+    try {
+      const firstHopJupiter = await findBestJupiterRoute(fromTokenMint, intermediateToken);
+      const secondHopRaydium = await findSwapRoute(intermediateToken, toTokenMint);
+      
+      if (firstHopJupiter && secondHopRaydium.hops > 0) {
+        routes.push({
+          provider: SwapProvider.Jupiter, // We'll use the first provider as the main one
+          routeInfo: {
+            firstHop: { provider: SwapProvider.Jupiter, route: firstHopJupiter },
+            secondHop: { provider: SwapProvider.Raydium, route: secondHopRaydium.route }
+          },
+          hops: 1 + secondHopRaydium.hops,
+          intermediateTokens: [intermediateToken]
+        });
+      }
+    } catch (crossError) {
+      console.warn(`Cross-provider Jupiter->Raydium route through ${intermediateToken} failed:`, crossError);
+    }
+  }
+  
+  return routes;
+}
+
+/**
+ * Check if a token pair is eligible for direct swaps through our contract
+ * This is important for critical token pairs like SOL-YOT
+ */
+function isContractEligible(fromTokenMint: string, toTokenMint: string): boolean {
+  // Check if either token is SOL, YOT or YOS
+  const isSOLPair = fromTokenMint === SOL_TOKEN_ADDRESS || toTokenMint === SOL_TOKEN_ADDRESS;
+  const isYOTPair = fromTokenMint === YOT_TOKEN_ADDRESS || toTokenMint === YOT_TOKEN_ADDRESS;
+  const isYOSPair = fromTokenMint === YOS_TOKEN_ADDRESS || toTokenMint === YOS_TOKEN_ADDRESS;
+  
+  // If it's SOL-YOT or SOL-YOS pair, we can use our contract
+  if ((isSOLPair && isYOTPair) || (isSOLPair && isYOSPair)) {
+    return true;
+  }
+  
+  // Also if it's YOT-YOS pair, we can use our contract
+  if (isYOTPair && isYOSPair) {
+    return true;
+  }
+  
+  return false;
+}

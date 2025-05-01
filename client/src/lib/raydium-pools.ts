@@ -20,7 +20,7 @@ export interface RaydiumPoolConfig {
   marketEventQueue: string;
 }
 
-// Custom test pools for the application
+// Custom test pools for the application with robust liquidity
 const testPools: RaydiumPoolConfig[] = [
   // XMP-SOL Pool
   {
@@ -39,6 +39,11 @@ const testPools: RaydiumPoolConfig[] = [
     marketBids: "XMPBids12345678900987654321XMPBidsAcc",
     marketAsks: "XMPAsks12345678900987654321XMPAsksAcc",
     marketEventQueue: "XMPEvtQ12345678900987654321XMPEventQ",
+    // Track pool token balances for testing
+    baseReserve: 5000000, // 5 million XMP tokens
+    quoteReserve: 500,    // 500 SOL
+    lpSupply: 1500000,    // 1.5 million LP tokens
+    volumeUSD: 125000     // $125K daily volume
   },
   // XAR-SOL Pool
   {
@@ -57,6 +62,57 @@ const testPools: RaydiumPoolConfig[] = [
     marketBids: "XARBids12345678900987654321XARBidsAcc",
     marketAsks: "XARAsks12345678900987654321XARAsksAcc",
     marketEventQueue: "XAREvtQ12345678900987654321XAREventQ",
+    // Track pool token balances for testing
+    baseReserve: 3500000, // 3.5 million XAR tokens
+    quoteReserve: 350,    // 350 SOL
+    lpSupply: 1000000,    // 1 million LP tokens
+    volumeUSD: 98000      // $98K daily volume
+  },
+  // MTA-USDT Pool (new)
+  {
+    id: "mta-usdt-pool",
+    name: "MTA-USDT",
+    baseMint: "MTAwpfGYQbnJkjB2iHUNpGV4yxkpJpgAQNHpg3ZJXKd",
+    baseSymbol: "MTA",
+    quoteMint: "5kjfp2qfRbqCXTQeUYgHNnTLf13eHoKjC9RcaX3YfSBK",
+    quoteSymbol: "USDT",
+    lpMint: "MTAUsLP12345678900987654321MTAUsLPmint",
+    marketId: "MTAUsMk987654321MTAUSMkt123456789",
+    marketProgramId: "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin",
+    marketAuthority: "HXBi8YBwbh4TXF6PjVw81m8Z3Cc4WBofvauj5SBFdgUs",
+    marketBaseVault: "MTABasV12345678900987654321MTABasVault",
+    marketQuoteVault: "MTAQuoV12345678900987654321MTAQuoVlt",
+    marketBids: "MTABids12345678900987654321MTABidsAcc",
+    marketAsks: "MTAAsks12345678900987654321MTAAsksAcc",
+    marketEventQueue: "MTAEvtQ12345678900987654321MTAEventQ",
+    // Track pool token balances for testing
+    baseReserve: 2500000, // 2.5 million MTA tokens
+    quoteReserve: 750000, // 750K USDT
+    lpSupply: 1200000,    // 1.2 million LP tokens
+    volumeUSD: 200000     // $200K daily volume
+  },
+  // USDT-SOL Pool (new)
+  {
+    id: "usdt-sol-pool",
+    name: "USDT-SOL",
+    baseMint: "5kjfp2qfRbqCXTQeUYgHNnTLf13eHoKjC9RcaX3YfSBK",
+    baseSymbol: "USDT",
+    quoteMint: SOL_TOKEN_ADDRESS,
+    quoteSymbol: "SOL",
+    lpMint: "USDSoLP12345678900987654321USDSoLPmint",
+    marketId: "USDsoLMk987654321USDSoLMkt123456789",
+    marketProgramId: "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin",
+    marketAuthority: "HXBi8YBwbh4TXF6PjVw81m8Z3Cc4WBofvauj5SBFdgUs",
+    marketBaseVault: "USDBasV12345678900987654321USDBasVault",
+    marketQuoteVault: "USDQuoV12345678900987654321USDQuoVlt",
+    marketBids: "USDBids12345678900987654321USDBidsAcc",
+    marketAsks: "USDAsks12345678900987654321USDAsksAcc",
+    marketEventQueue: "USDEvtQ12345678900987654321USDEventQ",
+    // Track pool token balances for testing
+    baseReserve: 1500000, // 1.5 million USDT 
+    quoteReserve: 10000,  // 10,000 SOL
+    lpSupply: 3000000,    // 3 million LP tokens
+    volumeUSD: 750000     // $750K daily volume
   },
   // YOT-SOL Pool (already exists but adding here for consistency)
   {
@@ -75,6 +131,11 @@ const testPools: RaydiumPoolConfig[] = [
     marketBids: "YOTBids12345678900987654321YOTBidsAcc",
     marketAsks: "YOTAsks12345678900987654321YOTAsksAcc",
     marketEventQueue: "YOTEvtQ12345678900987654321YOTEventQ",
+    // Track pool token balances for testing
+    baseReserve: 706054550, // Match existing YOT balance
+    quoteReserve: 28.8,      // Match existing SOL balance
+    lpSupply: 2000000,      // 2 million LP tokens
+    volumeUSD: 500000       // $500K daily volume
   }
 ];
 

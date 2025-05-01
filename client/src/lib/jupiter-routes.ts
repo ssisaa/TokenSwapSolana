@@ -75,6 +75,58 @@ export const testJupiterRoutes: JupiterRouteConfig[] = [
     fee: 0.003,  // 0.3%
     priceImpact: 0.004  // 0.4%
   },
+  // SAMX-USDC Pool (new)
+  {
+    id: "samx-usdc-route",
+    name: "SAMX-USDC",
+    inputMint: "SAMXjJJa4XShbsyK3ZK1qUKgHs45u8YUySGBbKctwKX",
+    inputSymbol: "SAMX",
+    outputMint: "9T7uw5dqaEmEC4McqyefzYsEg5hoC4e2oV8it1Uc4f1U",
+    outputSymbol: "USDC",
+    marketIds: ["SAMX-USDC-jup-market-id-1"],
+    marketLabels: ["Jupiter"],
+    fee: 0.003,  // 0.3%
+    priceImpact: 0.004  // 0.4%
+  },
+  // USDC-SAMX Pool (reverse of above)
+  {
+    id: "usdc-samx-route",
+    name: "USDC-SAMX",
+    inputMint: "9T7uw5dqaEmEC4McqyefzYsEg5hoC4e2oV8it1Uc4f1U",
+    inputSymbol: "USDC",
+    outputMint: "SAMXjJJa4XShbsyK3ZK1qUKgHs45u8YUySGBbKctwKX",
+    outputSymbol: "SAMX",
+    marketIds: ["USDC-SAMX-jup-market-id-1"],
+    marketLabels: ["Jupiter"],
+    fee: 0.003,  // 0.3%
+    priceImpact: 0.004  // 0.4%
+  },
+  // USDC-SOL Pool (new)
+  {
+    id: "usdc-sol-route",
+    name: "USDC-SOL",
+    inputMint: "9T7uw5dqaEmEC4McqyefzYsEg5hoC4e2oV8it1Uc4f1U",
+    inputSymbol: "USDC",
+    outputMint: SOL_TOKEN_ADDRESS,
+    outputSymbol: "SOL",
+    marketIds: ["USDC-SOL-jup-market-id-1"],
+    marketLabels: ["Jupiter"],
+    fee: 0.002,  // 0.2%
+    priceImpact: 0.003  // 0.3%
+  },
+  // SOL-USDC Pool (reverse of above)
+  {
+    id: "sol-usdc-route",
+    name: "SOL-USDC",
+    inputMint: SOL_TOKEN_ADDRESS,
+    inputSymbol: "SOL",
+    outputMint: "9T7uw5dqaEmEC4McqyefzYsEg5hoC4e2oV8it1Uc4f1U",
+    outputSymbol: "USDC",
+    marketIds: ["SOL-USDC-jup-market-id-1"],
+    marketLabels: ["Jupiter"],
+    fee: 0.002,  // 0.2%
+    priceImpact: 0.003  // 0.3%
+  },
   // YOT-SOL Pool
   {
     id: "yot-sol-route",
