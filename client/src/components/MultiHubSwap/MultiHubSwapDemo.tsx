@@ -138,6 +138,43 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
     }
   }, [walletConnected, wallet?.publicKey]);
   
+  // Generate a test swap estimate to showcase route info visualization for the demo
+  useEffect(() => {
+    const generateDemoRouteInfo = async () => {
+      if (!amount || parseFloat(amount) <= 0) {
+        // Only generate demo data for display purposes
+        // In a real app, we'd wait for a user-entered amount
+        
+        const testEstimate = {
+          estimatedAmount: 165325.48953,
+          minAmountOut: 163672.23463,
+          priceImpact: 0.0325,
+          fee: 0.025,
+          routes: ["SOL", "YOT"],
+          routeInfo: [
+            {
+              label: "SOL→YOT",
+              ammId: "jupiter-direct-soljup928",
+              marketId: "DZjbn4XC8qoHKikZqzmhemykVzmossoayV9ffbsUqxVj",
+              percent: 100,
+              inputMint: "So11111111111111111111111111111111111111112",
+              outputMint: "2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF",
+              marketName: "Jupiter"
+            }
+          ],
+          provider: SwapProvider.Jupiter
+        };
+        
+        // Set demo data for UI display
+        if (!swapEstimate) {
+          setSwapEstimate(testEstimate);
+        }
+      }
+    };
+    
+    generateDemoRouteInfo();
+  }, [amount, swapEstimate]);
+  
   const handleSwapClick = async () => {
     if (!walletConnected) {
       toast({
@@ -308,15 +345,57 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
         <div className="space-y-2">
           <div className="flex justify-between">
             <label className="text-sm font-medium">To (estimated)</label>
-            <label className="text-sm text-muted-foreground">
-              Balance: {
-                walletConnected 
-                  ? balanceLoading 
-                    ? <Loader2 className="h-3 w-3 inline animate-spin ml-1" /> 
-                    : formatTokenBalance(toTokenBalance)
-                  : 'Connect wallet'
-              }
-            </label>
+            <div className="flex items-center space-x-2">
+              {!swapEstimate?.routeInfo && (
+                <button
+                  className="text-xs px-1.5 py-0.5 rounded bg-primary/20 text-primary hover:bg-primary/30 transition-colors"
+                  onClick={() => {
+                    // Create a test multi-hop route example
+                    const testMultiHopEstimate = {
+                      estimatedAmount: 165325.48953,
+                      minAmountOut: 163672.23463,
+                      priceImpact: 0.0453,
+                      fee: 0.025,
+                      routes: ["SOL", "USDC", "YOT"],
+                      routeInfo: [
+                        {
+                          label: "SOL→USDC",
+                          ammId: "raydium-sol-usdc-pool-v4",
+                          marketId: "DZjbn4XC8qoHKikZqzmhemykVzmossoayV9ffbsUqxVj",
+                          percent: 100,
+                          inputMint: "So11111111111111111111111111111111111111112",
+                          outputMint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                          marketName: "Raydium"
+                        },
+                        {
+                          label: "USDC→YOT",
+                          ammId: "jupiter-usdc-yot-lp-v3",
+                          marketId: "8HSsSqcZG5gJaGLwX9nja4vr968qmVgWmqYsNoJNPPUZ",
+                          percent: 100,
+                          inputMint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                          outputMint: "2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF",
+                          marketName: "Jupiter"
+                        }
+                      ],
+                      provider: SwapProvider.Jupiter
+                    };
+                    
+                    setSwapEstimate(testMultiHopEstimate);
+                  }}
+                >
+                  Demo Routes
+                </button>
+              )}
+              <label className="text-sm text-muted-foreground">
+                Balance: {
+                  walletConnected 
+                    ? balanceLoading 
+                      ? <Loader2 className="h-3 w-3 inline animate-spin ml-1" /> 
+                      : formatTokenBalance(toTokenBalance)
+                    : 'Connect wallet'
+                }
+              </label>
+            </div>
           </div>
           
           <div className="flex space-x-2">
