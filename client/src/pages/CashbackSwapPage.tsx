@@ -20,7 +20,7 @@ import { SOL_SYMBOL, YOT_SYMBOL } from "@/lib/constants";
 import { PublicKey } from "@solana/web3.js";
 
 export default function CashbackSwapPage() {
-  const { connected, connect } = useWallet();
+  const { connected, connect, wallet } = useWallet();
   const swap = useSwap();
   
   // Local state for UI enhancements
@@ -38,13 +38,15 @@ export default function CashbackSwapPage() {
     }
   }, [swap.toAmount]);
   
+  const [swapError, setSwapError] = useState<Error | null>(null);
+
   const handleExecuteSwap = async () => {
     try {
       setSwapSuccess(false);
+      setSwapError(null);
       
-      // Import the MultihubSwapProvider directly to use the smart contract
-      const { MultihubSwapProvider } = await import('@/lib/multihub-contract');
-      const multihubProvider = new MultihubSwapProvider();
+      // Import the helper function to execute the swap
+      const { executeMultiHubSwap } = await import('@/lib/multihub-swap-helper');
       
       const amount = parseFloat(String(swap.fromAmount));
       
@@ -56,7 +58,9 @@ export default function CashbackSwapPage() {
           ? 'So11111111111111111111111111111111111111112' 
           : '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF',
         decimals: swap.fromToken === SOL_SYMBOL ? 9 : 9,
-        logoURI: ''
+        logoURI: '',
+        // Add chainId to fix type issue
+        chainId: 0
       };
       
       const toTokenInfo = {
@@ -66,7 +70,9 @@ export default function CashbackSwapPage() {
           ? 'So11111111111111111111111111111111111111112' 
           : '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF',
         decimals: swap.toToken === SOL_SYMBOL ? 9 : 9,
-        logoURI: ''
+        logoURI: '',
+        // Add chainId to fix type issue
+        chainId: 0
       };
       
       // Calculate minimum amount out with 1% slippage
@@ -76,8 +82,8 @@ export default function CashbackSwapPage() {
       console.log(`This includes 20% liquidity contribution and 5% YOS cashback rewards`);
       
       // Execute the swap using the multihub contract
-      const result = await multihubProvider.executeSwap(
-        wallet,
+      const result = await executeMultiHubSwap(
+        wallet, // Use the wallet from context
         fromTokenInfo,
         toTokenInfo,
         amount,
@@ -93,7 +99,7 @@ export default function CashbackSwapPage() {
       }, 5000);
     } catch (error) {
       console.error("Swap failed:", error);
-      setError(error as Error);
+      setSwapError(error as Error); // Use a local state variable for errors
     }
   };
   
@@ -286,11 +292,11 @@ export default function CashbackSwapPage() {
               </Button>
               
               {/* Error Display */}
-              {swap.error && (
+              {swapError && (
                 <Alert variant="destructive" className="mt-4">
                   <AlertCircle className="h-4 w-4 mr-2" />
                   <AlertDescription>
-                    {swap.error.message}
+                    {swapError.message}
                   </AlertDescription>
                 </Alert>
               )}
