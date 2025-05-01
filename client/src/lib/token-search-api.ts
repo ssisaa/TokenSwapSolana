@@ -107,7 +107,23 @@ const raydiumTokens: TokenInfo[] = [
     decimals: 6,
     tags: ['dex']
   },
-  // Add more Raydium-specific tokens as needed
+  // Add requested test tokens for Raydium pools
+  {
+    address: 'XMP9SXVv3Kj6JcnJEyLaQzYEuWEGsHjhJNpkha2Vk5M',
+    symbol: 'XMP',
+    name: 'Xample Token',
+    logoURI: 'https://cryptologos.cc/logos/solana-sol-logo.png',
+    decimals: 9,
+    tags: ['raydium', 'test']
+  },
+  {
+    address: 'XAR18RSUr4pRGnmmM5Zz9vAz3EXmvWPx7cMuFB8mvCh',
+    symbol: 'XAR',
+    name: 'Xar Finance',
+    logoURI: 'https://cryptologos.cc/logos/solana-sol-logo.png',
+    decimals: 9,
+    tags: ['raydium', 'test']
+  }
 ];
 
 // Jupiter-specific tokens
@@ -151,7 +167,23 @@ const jupiterTokens: TokenInfo[] = [
     decimals: 6,
     tags: ['utility']
   },
-  // Add more Jupiter-specific tokens as needed
+  // Add requested test tokens for Jupiter pools
+  {
+    address: 'RAMXd3mgY5XFyWbfgNh9LT7BcuW5w7jqRFgNkwZEhhsu',
+    symbol: 'RAMX',
+    name: 'Ramses Exchange',
+    logoURI: 'https://cryptologos.cc/logos/solana-sol-logo.png',
+    decimals: 9,
+    tags: ['jupiter', 'test']
+  },
+  {
+    address: 'TRXXpN1Y4tAYcfp3QxCKLeVDvUnjGWQvA2HTQ5VTytA',
+    symbol: 'TRAXX',
+    name: 'Traxx Protocol',
+    logoURI: 'https://cryptologos.cc/logos/solana-sol-logo.png',
+    decimals: 9,
+    tags: ['jupiter', 'test']
+  }
 ];
 
 // YOT Contract-specific tokens - keep it simple with just our core tokens

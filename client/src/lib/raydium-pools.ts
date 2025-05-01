@@ -20,10 +20,68 @@ export interface RaydiumPoolConfig {
   marketEventQueue: string;
 }
 
+// Custom test pools for the application
+const testPools: RaydiumPoolConfig[] = [
+  // XMP-SOL Pool
+  {
+    id: "xmp-sol-pool",
+    name: "XMP-SOL",
+    baseMint: "XMP9SXVv3Kj6JcnJEyLaQzYEuWEGsHjhJNpkha2Vk5M",
+    baseSymbol: "XMP",
+    quoteMint: SOL_TOKEN_ADDRESS,
+    quoteSymbol: "SOL",
+    lpMint: "XMPSoLP12345678900987654321XMPSoLPmint",
+    marketId: "XMPsoLMk987654321XMPSoLMkt123456789",
+    marketProgramId: "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin",
+    marketAuthority: "HXBi8YBwbh4TXF6PjVw81m8Z3Cc4WBofvauj5SBFdgUs",
+    marketBaseVault: "XMPBasV12345678900987654321XMPBasVault",
+    marketQuoteVault: "XMPQuoV12345678900987654321XMPQuoVlt",
+    marketBids: "XMPBids12345678900987654321XMPBidsAcc",
+    marketAsks: "XMPAsks12345678900987654321XMPAsksAcc",
+    marketEventQueue: "XMPEvtQ12345678900987654321XMPEventQ",
+  },
+  // XAR-SOL Pool
+  {
+    id: "xar-sol-pool",
+    name: "XAR-SOL",
+    baseMint: "XAR18RSUr4pRGnmmM5Zz9vAz3EXmvWPx7cMuFB8mvCh",
+    baseSymbol: "XAR",
+    quoteMint: SOL_TOKEN_ADDRESS,
+    quoteSymbol: "SOL",
+    lpMint: "XARSoLP12345678900987654321XARSoLPmint",
+    marketId: "XARsoLMk987654321XARSoLMkt123456789",
+    marketProgramId: "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin",
+    marketAuthority: "HXBi8YBwbh4TXF6PjVw81m8Z3Cc4WBofvauj5SBFdgUs",
+    marketBaseVault: "XARBasV12345678900987654321XARBasVault",
+    marketQuoteVault: "XARQuoV12345678900987654321XARQuoVlt",
+    marketBids: "XARBids12345678900987654321XARBidsAcc",
+    marketAsks: "XARAsks12345678900987654321XARAsksAcc",
+    marketEventQueue: "XAREvtQ12345678900987654321XAREventQ",
+  },
+  // YOT-SOL Pool (already exists but adding here for consistency)
+  {
+    id: "yot-sol-pool",
+    name: "YOT-SOL",
+    baseMint: "2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF",
+    baseSymbol: "YOT",
+    quoteMint: SOL_TOKEN_ADDRESS,
+    quoteSymbol: "SOL",
+    lpMint: "YOTSoLP12345678900987654321YOTSoLPmint",
+    marketId: "YOTsoLMk987654321YOTSoLMkt123456789",
+    marketProgramId: "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin",
+    marketAuthority: "HXBi8YBwbh4TXF6PjVw81m8Z3Cc4WBofvauj5SBFdgUs",
+    marketBaseVault: "YOTBasV12345678900987654321YOTBasVault",
+    marketQuoteVault: "YOTQuoV12345678900987654321YOTQuoVlt",
+    marketBids: "YOTBids12345678900987654321YOTBidsAcc",
+    marketAsks: "YOTAsks12345678900987654321YOTAsksAcc",
+    marketEventQueue: "YOTEvtQ12345678900987654321YOTEventQ",
+  }
+];
+
 // Fetch Raydium pool configurations from the API
 export async function fetchRaydiumPools(): Promise<RaydiumPoolConfig[]> {
   try {
-    // Raydium devnet pools API endpoint
+    // First try to fetch from Raydium API
     const response = await fetch('https://api.raydium.io/v2/sdk/liquidity/mainnet.json');
     
     if (!response.ok) {
@@ -31,10 +89,26 @@ export async function fetchRaydiumPools(): Promise<RaydiumPoolConfig[]> {
     }
     
     const data = await response.json();
-    return data.official;
+    
+    // Combine API pools with our test pools, overriding duplicates with our test pools
+    const apiPools: RaydiumPoolConfig[] = data.official;
+    const mergedPools: RaydiumPoolConfig[] = [...apiPools];
+    
+    // Add our test pools, replacing any with the same ID
+    for (const testPool of testPools) {
+      const existingIndex = mergedPools.findIndex(pool => pool.id === testPool.id);
+      if (existingIndex >= 0) {
+        mergedPools[existingIndex] = testPool;
+      } else {
+        mergedPools.push(testPool);
+      }
+    }
+    
+    return mergedPools;
   } catch (error) {
-    console.error('Error fetching Raydium pools:', error);
-    return [];
+    console.error('Error fetching Raydium pools, using test pools only:', error);
+    // Fall back to our test pools if API fails
+    return testPools;
   }
 }
 
