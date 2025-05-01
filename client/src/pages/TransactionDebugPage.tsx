@@ -12,6 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useMultiWallet } from "@/context/MultiWalletContext";
 import { shortenAddress } from "@/lib/utils";
+import { multiHubSwapClient } from "@/lib/multihub-contract";
 
 export default function TransactionDebugPage() {
   const wallet = useWallet();
@@ -26,6 +27,8 @@ export default function TransactionDebugPage() {
   const [result, setResult] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<string | null>(null);
   const [isTestLoading, setIsTestLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
+  const [initResult, setInitResult] = useState<string | null>(null);
 
   // Test basic wallet signature without sending any transaction
   const testWalletSignature = async () => {
@@ -104,6 +107,50 @@ export default function TransactionDebugPage() {
     }
   };
 
+  // Initialize the MultiHub Swap program
+  const initializeProgram = async () => {
+    // Try to use both wallet contexts to ensure we have a wallet connection
+    if ((!wallet.connected || !wallet.publicKey) && (!multiWallet.connected || !multiWallet.publicKey)) {
+      toast({
+        title: "Wallet not connected",
+        description: "Please connect your wallet first",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Prefer the wallet from @solana/wallet-adapter-react, but fall back to multiWallet if needed
+    const activeWallet = wallet.connected && wallet.publicKey ? wallet : multiWallet.wallet;
+
+    setIsInitializing(true);
+    setInitResult(null);
+    setError(null);
+    
+    try {
+      // Call the initialization function
+      console.log("Initializing MultiHub Swap program...");
+      const signature = await multiHubSwapClient.initializeProgram(activeWallet);
+      
+      setInitResult(`Program initialization successful! Signature: ${signature}`);
+      
+      toast({
+        title: "Initialization successful",
+        description: "The MultiHub Swap program has been initialized",
+      });
+    } catch (err: any) {
+      console.error("Program initialization error:", err);
+      setError(`Program initialization failed: ${err.message || 'Unknown error'}`);
+      
+      toast({
+        title: "Initialization failed",
+        description: err.message || "Unknown error occurred",
+        variant: "destructive"
+      });
+    } finally {
+      setIsInitializing(false);
+    }
+  };
+  
   // Send a simple SOL transfer
   const sendTransaction = async () => {
     // Try to use both wallet contexts to ensure we have a wallet connection
@@ -208,6 +255,47 @@ export default function TransactionDebugPage() {
           Test wallet transaction signing capability and diagnose issues
         </CardDescription>
       </CardHeader>
+      
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>MultiHub Program Initialization</CardTitle>
+          <CardDescription>
+            Initialize the MultiHub Swap program's state accounts on-chain
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              This will initialize the MultiHub Swap program with the following parameters:
+            </p>
+            <ul className="list-disc list-inside text-sm space-y-1 pl-4">
+              <li>Liquidity Contribution: 20%</li>
+              <li>Admin Fee: 1%</li>
+              <li>YOS Cashback: 5%</li>
+            </ul>
+            
+            <div className="mt-6">
+              <Button 
+                onClick={initializeProgram}
+                disabled={((!wallet.connected || !wallet.publicKey) && (!multiWallet.connected || !multiWallet.publicKey)) || isInitializing}
+                className="w-full"
+                size="lg"
+                variant="destructive"
+              >
+                {isInitializing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Initialize MultiHub Swap Program
+              </Button>
+            </div>
+            
+            {initResult && (
+              <Alert className="mt-4 bg-green-50 border-green-500">
+                <AlertTitle>Success</AlertTitle>
+                <AlertDescription>{initResult}</AlertDescription>
+              </Alert>
+            )}
+          </div>
+        </CardContent>
+      </Card>
       
       <Card className="mb-6">
         <CardHeader>

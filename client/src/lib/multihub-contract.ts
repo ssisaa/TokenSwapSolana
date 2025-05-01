@@ -25,6 +25,15 @@ const YOS_TOKEN_MINT = new PublicKey('GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW
 const SOL_TOKEN_MINT = new PublicKey('So11111111111111111111111111111111111111112');
 const ENDPOINT = 'https://api.devnet.solana.com';
 
+// Import required Solana system constants
+import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { SystemProgram, SYSVAR_RENT_PUBKEY, LAMPORTS_PER_SOL } from '@solana/web3.js';
+
+// Constants for program initialization
+const LIQUIDITY_CONTRIBUTION_PERCENT = 20; // 20% contribution to liquidity
+const ADMIN_FEE_PERCENT = 1; // 1% admin fee
+const YOS_CASHBACK_PERCENT = 5; // 5% YOS cashback
+
 // Maximum amount of accounts allowed for an instruction
 const MAX_ACCOUNTS_PER_INSTRUCTION = 10;
 
@@ -278,6 +287,52 @@ export function rawToUiTokenAmount(amount: bigint | number, decimals: number): n
 }
 
 // Class to interact with the MultiHub Swap program
+/**
+ * Class to initialize the MultiHub Swap program
+ * This needs to be called before any other operations
+ */
+class InitializeLayout {
+  instruction: number;
+  liquidity_contribution_percent: number;
+  admin_fee_percent: number;
+  yos_cashback_percent: number;
+
+  constructor(props: {
+    liquidity_contribution_percent: number,
+    admin_fee_percent: number,
+    yos_cashback_percent: number,
+  }) {
+    this.instruction = MultiHubSwapInstructionType.Initialize;
+    this.liquidity_contribution_percent = props.liquidity_contribution_percent;
+    this.admin_fee_percent = props.admin_fee_percent;
+    this.yos_cashback_percent = props.yos_cashback_percent;
+  }
+
+  serialize(): Buffer {
+    // Manual serialization to avoid borsh issues
+    const data = Buffer.alloc(16); // 1 byte for instruction + 3 * 4 bytes for parameters + 3 bytes pad
+    let offset = 0;
+
+    // Instruction (1 byte)
+    data.writeUInt8(this.instruction, offset);
+    offset += 1;
+
+    // Liquidity contribution percent (4 bytes)
+    data.writeUInt32LE(this.liquidity_contribution_percent, offset);
+    offset += 4;
+
+    // Admin fee percent (4 bytes)
+    data.writeUInt32LE(this.admin_fee_percent, offset);
+    offset += 4;
+
+    // YOS cashback percent (4 bytes)
+    data.writeUInt32LE(this.yos_cashback_percent, offset);
+    offset += 4;
+
+    return data.slice(0, offset);
+  }
+}
+
 export class MultiHubSwapClient {
   connection: Connection;
   programId: PublicKey;
@@ -285,6 +340,111 @@ export class MultiHubSwapClient {
   constructor(connection: Connection) {
     this.connection = connection;
     this.programId = MULTIHUB_SWAP_PROGRAM_ID;
+  }
+
+  /**
+   * Initialize the Multi-Hub Swap program
+   * This must be called before any other operations can be performed
+   * 
+   * @param wallet Admin wallet that will be used for initialization
+   * @returns Transaction signature
+   */
+  async initializeProgram(wallet: any): Promise<string> {
+    console.log("Initializing Multi-Hub Swap program...");
+    
+    // Find program state address
+    const [programStateAccount, stateBump] = await findProgramStateAddress();
+    console.log("Program state account:", programStateAccount.toString());
+    
+    // Find program authority address
+    const [authorityAddress, authorityBump] = await findProgramAuthorityAddress();
+    console.log("Program authority:", authorityAddress.toString());
+    
+    // Find SOL-YOT pool address
+    const [solYotPoolAccount] = await PublicKey.findProgramAddress(
+      [Buffer.from("pool"), YOT_TOKEN_MINT.toBuffer(), SOL_TOKEN_MINT.toBuffer()],
+      this.programId
+    );
+    console.log("SOL-YOT pool account:", solYotPoolAccount.toString());
+    
+    // Check if program is already initialized
+    try {
+      const programStateInfo = await this.connection.getAccountInfo(programStateAccount);
+      if (programStateInfo) {
+        console.log("Program is already initialized, state account exists");
+        return "Already initialized";
+      }
+    } catch (error) {
+      console.log("Error checking program state, will try to initialize:", error);
+    }
+    
+    // Create initialization instruction data
+    const initializeLayout = new InitializeLayout({
+      liquidity_contribution_percent: LIQUIDITY_CONTRIBUTION_PERCENT,
+      admin_fee_percent: ADMIN_FEE_PERCENT,
+      yos_cashback_percent: YOS_CASHBACK_PERCENT,
+    });
+    
+    // Space required for program state account
+    const PROGRAM_STATE_SPACE = 1024; // Allocate enough space for program state
+    
+    // Create transaction
+    const transaction = new Transaction();
+    
+    // Create program state account
+    transaction.add(
+      SystemProgram.createAccountWithSeed({
+        fromPubkey: wallet.publicKey,
+        newAccountPubkey: programStateAccount,
+        basePubkey: wallet.publicKey,
+        seed: "state",
+        lamports: await this.connection.getMinimumBalanceForRentExemption(PROGRAM_STATE_SPACE),
+        space: PROGRAM_STATE_SPACE,
+        programId: this.programId,
+      })
+    );
+    
+    // Create initialization instruction
+    const accounts = [
+      { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // Admin account
+      { pubkey: programStateAccount, isSigner: false, isWritable: true }, // Program state
+      { pubkey: YOT_TOKEN_MINT, isSigner: false, isWritable: false }, // YOT token mint
+      { pubkey: YOS_TOKEN_MINT, isSigner: false, isWritable: false }, // YOS token mint
+      { pubkey: solYotPoolAccount, isSigner: false, isWritable: true }, // SOL-YOT pool
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // System program
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // Token program
+      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, // Rent sysvar
+    ];
+    
+    const initializeInstruction = new TransactionInstruction({
+      keys: accounts,
+      programId: this.programId,
+      data: initializeLayout.serialize(),
+    });
+    
+    transaction.add(initializeInstruction);
+    
+    try {
+      // Set recent blockhash
+      transaction.feePayer = wallet.publicKey;
+      const { blockhash } = await this.connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      
+      // Sign and send transaction with skipPreflight=true to avoid simulation errors
+      const signature = await wallet.sendTransaction(transaction, this.connection, {
+        skipPreflight: true,
+      });
+      
+      console.log("Program initialization transaction sent:", signature);
+      
+      // Wait for confirmation
+      await this.connection.confirmTransaction(signature);
+      
+      return signature;
+    } catch (error) {
+      console.error("Error initializing program:", error);
+      throw new Error(`Failed to initialize program: ${error.message}`);
+    }
   }
 
   /**
