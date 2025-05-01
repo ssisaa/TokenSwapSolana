@@ -27,6 +27,44 @@ const POOL_SOL_ACCOUNT = '7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS';
 const connection = new Connection(ENDPOINT, 'confirmed');
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Add HTTP fallback route for pool data
+  app.get('/api/pool-data', async (req, res) => {
+    try {
+      // Get SOL balance
+      const solBalance = await connection.getBalance(new PublicKey(POOL_SOL_ACCOUNT)) / LAMPORTS_PER_SOL;
+      
+      // Get YOT token account
+      const yotTokenAccount = await getAssociatedTokenAddress(
+        new PublicKey(YOT_TOKEN_ADDRESS),
+        new PublicKey(POOL_AUTHORITY)
+      );
+      const yotAccount = await getAccount(connection, yotTokenAccount);
+      const yotBalance = Number(yotAccount.amount);
+      
+      // Get YOS token account
+      const yosTokenAccount = await getAssociatedTokenAddress(
+        new PublicKey(YOS_TOKEN_ADDRESS),
+        new PublicKey(POOL_AUTHORITY)
+      );
+      const yosAccount = await getAccount(connection, yosTokenAccount);
+      const yosBalance = Number(yosAccount.amount);
+      
+      // Calculate total value (simple estimation)
+      const totalValue = solBalance * 148.35; // Assuming $148.35 per SOL
+      
+      res.json({
+        sol: solBalance,
+        yot: yotBalance,
+        yos: yosBalance,
+        totalValue,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.error('Error fetching pool data:', error);
+      res.status(500).json({ error: 'Failed to fetch pool data' });
+    }
+  });
+  
   // Setup authentication routes
   const { isAuthenticated } = setupAuth(app);
   // API route to get token information

@@ -170,14 +170,47 @@ export function useWebSocket(
     return false;
   }, []);
   
+  // HTTP fallback to fetch pool data when WebSocket fails
+  const fetchPoolDataViaHttp = useCallback(async () => {
+    try {
+      const response = await fetch('/api/pool-data');
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.sol && data.yot && data.yos) {
+          setPoolData({
+            sol: data.sol,
+            yot: data.yot,
+            yos: data.yos,
+            totalValue: data.totalValue || 0,
+            timestamp: Date.now()
+          });
+          console.log('Pool data fetched via HTTP fallback');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch pool data via HTTP:', error);
+    }
+  }, []);
+
   // Connect WebSocket on mount and cleanup on unmount
   useEffect(() => {
     connect();
     
+    // Fetch initial pool data via HTTP as a fallback
+    fetchPoolDataViaHttp();
+    
+    // Set up periodic HTTP fallback when WebSocket is not connected
+    const fallbackInterval = setInterval(() => {
+      if (connectionState !== 'open') {
+        fetchPoolDataViaHttp();
+      }
+    }, 10000); // Check every 10 seconds
+    
     return () => {
       disconnect();
+      clearInterval(fallbackInterval);
     };
-  }, [connect, disconnect]);
+  }, [connect, disconnect, fetchPoolDataViaHttp, connectionState]);
   
   return {
     connectionState,

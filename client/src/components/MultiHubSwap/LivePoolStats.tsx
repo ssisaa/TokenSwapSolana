@@ -192,15 +192,17 @@ export function LivePoolStats() {
                     <span className="text-sm font-medium">YOS Rewards</span>
                     <Badge variant="outline" className="ml-2 text-xs">Rewards Token</Badge>
                   </div>
-                  <div className="flex items-center">
-                    <span className="text-sm font-medium">Not Available Yet</span>
-                    <Badge variant="outline" className="ml-2 text-xs">Coming Soon</Badge>
-                  </div>
+                  <span className="text-sm font-medium flex items-center">
+                    {formatNumber((poolData || fallbackData)!.yos, 6)} YOS
+                    {renderChangeIndicator(changes.yos)}
+                  </span>
                 </div>
                 <div className="flex flex-col space-y-1">
                   <div className="flex items-center space-x-2">
-                    <Progress value={0} className="flex-1" />
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">0.000000 YOS</span>
+                    <Progress 
+                      value={(poolData || fallbackData) ? Math.min(((poolData || fallbackData)!.yos / 1_000_000) * 100, 100) : 0} 
+                      className="flex-1" 
+                    />
                   </div>
                   <p className="text-xs text-muted-foreground">YOS is a rewards token given for liquidity contribution and can only be swapped with YOT.</p>
                 </div>
