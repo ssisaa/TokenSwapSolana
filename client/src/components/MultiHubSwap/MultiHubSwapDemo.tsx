@@ -82,33 +82,26 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
           let instantEstimate = 0;
           
           if (fromToken.symbol === 'SOL' && toToken.symbol === 'YOT') {
-            // CRITICAL FIX: For SOL → YOT, use the correct exchange rate calculation
-            // Convert SOL to lamports for accurate calculation
-            const solReserveInLamports = solReserve * 1e9; 
-            const yotReserveInSmallestUnit = yotReserve;
+            // CRITICAL FIX: For SOL → YOT, we need to use the proper AMM formula
+            // Use constant product formula: (x * y = k) => (x * y = (x + dx) * (y - dy))
+            // dx = amount of input token, dy = amount of output token
+            // dy = (y * dx) / (x + dx)
             
-            // Calculate exchange rate from pool data
-            const yotPerSol = yotReserveInSmallestUnit / solReserveInLamports;
+            // For liquidity pools like SOL-YOT
+            // x = SOL reserve, y = YOT reserve
+            // After calculation, apply fee multiplier
             
-            // Calculate output amount for the given input
-            // Apply 0.3% fee
-            instantEstimate = parsedAmount * 1e9 * yotPerSol * FEE_MULTIPLIER;
+            const dx = parsedAmount; // Amount of SOL to swap (e.g., 1 SOL)
+            instantEstimate = (yotReserve * dx * FEE_MULTIPLIER) / (solReserve + dx);
             
-            console.log(`INSTANT CALC (SOL→YOT): ${parsedAmount} SOL = ${instantEstimate} YOT (rate: ${yotPerSol * 1e9})`);
+            console.log(`INSTANT CALC (SOL→YOT): ${parsedAmount} SOL = ${instantEstimate} YOT using AMM formula`);
           } 
           else if (fromToken.symbol === 'YOT' && toToken.symbol === 'SOL') {
-            // CRITICAL FIX: For YOT → SOL, use the correct exchange rate calculation
-            const solReserveInLamports = solReserve * 1e9;
-            const yotReserveInSmallestUnit = yotReserve;
+            // CRITICAL FIX: For YOT → SOL, use the AMM formula in reverse
+            const dx = parsedAmount; // Amount of YOT to swap
+            instantEstimate = (solReserve * dx * FEE_MULTIPLIER) / (yotReserve + dx);
             
-            // Calculate exchange rate from pool data
-            const solPerYot = solReserveInLamports / yotReserveInSmallestUnit;
-            
-            // Calculate output amount for the given input
-            // Apply 0.3% fee
-            instantEstimate = parsedAmount * solPerYot * FEE_MULTIPLIER / 1e9; // Convert back to SOL
-            
-            console.log(`INSTANT CALC (YOT→SOL): ${parsedAmount} YOT = ${instantEstimate} SOL (rate: ${solPerYot / 1e9})`);
+            console.log(`INSTANT CALC (YOT→SOL): ${parsedAmount} YOT = ${instantEstimate} SOL using AMM formula`);
           }
           
           // Show the instant estimate immediately
