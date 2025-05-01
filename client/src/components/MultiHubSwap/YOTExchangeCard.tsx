@@ -115,7 +115,7 @@ export default function YOTExchangeCard() {
   }, []);
 
   return (
-    <Card className="w-full max-w-md mx-auto bg-dark-200 border-dark-300">
+    <Card className="w-full bg-dark-200 border-dark-300">
       <CardHeader className="space-y-1">
         <div className="flex justify-between items-center">
           <CardTitle className="text-xl font-bold">SOL/YOT Exchange Rate</CardTitle>
