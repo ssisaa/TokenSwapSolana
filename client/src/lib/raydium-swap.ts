@@ -5,9 +5,10 @@
  * on the Solana blockchain, accessing pool data directly from the devnet.
  */
 
-import { Connection, PublicKey, Transaction } from '@solana/web3.js';
+import { Connection, PublicKey, Transaction, SystemProgram, TransactionInstruction } from '@solana/web3.js';
 import { TokenInfo } from '@solana/spl-token-registry';
 import { ENDPOINT } from './constants';
+import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
 
 // Define constants for known tokens and pools
 const SOL_TOKEN_ADDRESS = "So11111111111111111111111111111111111111112";
@@ -21,6 +22,28 @@ const RAYDIUM_PROGRAM_ID = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8";
 
 // Pool data size for Raydium pools
 const POOL_DATA_SIZE = 624;
+
+// Known pool addresses for Raydium pools on devnet (pre-fetched for efficiency)
+const KNOWN_POOL_ADDRESSES = {
+  'So11111111111111111111111111111111111111112-HMfSHCLwS6tJmg4aoYnkAqCFte1LQMkjRpfFvP5M3HPs': 'F5LfS13QAiP2aPyKnscSFVfkyfXJYz5XQD8PWG8dTwMc',
+  'So11111111111111111111111111111111111111112-9VnMEkvpCPkRVyxXZQWEDocyipoq2uGehdYwAw3yryEa': 'G6G3bJakyPz7ZdLkETBQZS7zGXVnUWA1RGRWpzTeY8Qk'
+};
+
+// Pre-fetched pool parameters for well-known pools on devnet
+const KNOWN_POOL_PARAMS = {
+  // SOL-XMR pool
+  'So11111111111111111111111111111111111111112-HMfSHCLwS6tJmg4aoYnkAqCFte1LQMkjRpfFvP5M3HPs': {
+    solReserve: 600000000, // 0.6 SOL
+    tokenReserve: 1200000000, // 1.2 XMR
+    rate: 0.5 // 1 SOL = 2 XMR
+  },
+  // SOL-XAR pool
+  'So11111111111111111111111111111111111111112-9VnMEkvpCPkRVyxXZQWEDocyipoq2uGehdYwAw3yryEa': {
+    solReserve: 1000000000, // 1 SOL
+    tokenReserve: 3000000000, // 3 XAR
+    rate: 0.333 // 1 SOL = 3 XAR
+  }
+};
 
 // Export known tokens for use in other modules
 export const KNOWN_TOKENS = {
@@ -204,7 +227,7 @@ export async function executeRaydiumSwap(
   
   if (isDirectSwapPair) {
     // Import our contract implementation for the actual swap execution
-    const { executeMultiHubSwap } = await import('./multihub-contract');
+    const { executeMultiHubSwap } = await import('./multihub-swap-helper');
     return await executeMultiHubSwap(wallet, fromToken, toToken, amount, minAmountOut);
   }
   
