@@ -57,10 +57,12 @@ export default function CashbackSwapPage() {
         address: swap.fromToken === SOL_SYMBOL 
           ? 'So11111111111111111111111111111111111111112' 
           : '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF',
-        decimals: swap.fromToken === SOL_SYMBOL ? 9 : 9,
-        logoURI: '',
+        decimals: 9, // Both SOL and YOT have 9 decimals
+        logoURI: swap.fromToken === SOL_SYMBOL 
+          ? 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png'
+          : 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF/logo.png',
         // Add chainId to fix type issue
-        chainId: 0
+        chainId: 101 // Mainnet, 103 would be devnet
       };
       
       const toTokenInfo = {
@@ -69,10 +71,12 @@ export default function CashbackSwapPage() {
         address: swap.toToken === SOL_SYMBOL 
           ? 'So11111111111111111111111111111111111111112' 
           : '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF',
-        decimals: swap.toToken === SOL_SYMBOL ? 9 : 9,
-        logoURI: '',
+        decimals: 9, // Both SOL and YOT have 9 decimals
+        logoURI: swap.toToken === SOL_SYMBOL 
+          ? 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png'
+          : 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF/logo.png',
         // Add chainId to fix type issue
-        chainId: 0
+        chainId: 101 // Mainnet, 103 would be devnet
       };
       
       // Calculate minimum amount out with 1% slippage

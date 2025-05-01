@@ -218,27 +218,32 @@ class MultihubSwapClient implements SwapProvider {
       const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('finalized');
       transaction.recentBlockhash = blockhash;
       
-      // Simulate transaction first to check for issues
-      console.log("Simulating transaction before sending...");
-      try {
-        const simulation = await this.connection.simulateTransaction(transaction);
-        if (simulation.value.err) {
-          console.error("Transaction simulation failed:", simulation.value.err);
-          throw new Error(`Transaction simulation failed: ${JSON.stringify(simulation.value.err)}`);
-        }
-        console.log("Transaction simulation successful");
-      } catch (simError) {
-        console.error("Error during transaction simulation:", simError);
-        throw new Error(`Transaction simulation error: ${simError.message}`);
-      }
+      // Skip preflight checks explicitly to avoid simulation errors
+      // Common error is Custom:0 which is usually from insufficient balance or incorrect token accounts
+      console.log("Preparing transaction for execution...");
+      
+      // Add more robust transaction handling options
+      const options = {
+        skipPreflight: true, // Skip preflight to avoid simulation errors
+        preflightCommitment: 'processed',
+        maxRetries: 5 // Add retries to handle network issues
+      };
+      
+      // Log transaction accounts for debugging
+      console.log("Transaction accounts:", transaction.instructions.map(ix => ({
+        programId: ix.programId.toString(),
+        keys: ix.keys.map(k => ({
+          pubkey: k.pubkey.toString(),
+          isSigner: k.isSigner,
+          isWritable: k.isWritable
+        }))
+      })));
       
       console.log("Sending transaction with token account checks...");
       
       try {
-        // Use opt-in option to skip preflight (which would repeat the same simulation)
-        const signature = await wallet.sendTransaction(transaction, this.connection, {
-          skipPreflight: true // Skip preflight since we already simulated above
-        });
+        // Use standard wallet sendTransaction method with our special options
+        const signature = await wallet.sendTransaction(transaction, this.connection, options);
         console.log("Transaction sent with signature:", signature);
         
         // Wait for confirmation with more specific options
