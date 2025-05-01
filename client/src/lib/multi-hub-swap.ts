@@ -108,12 +108,14 @@ export async function getMultiHubSwapEstimate(
 }
 
 /**
- * Execute a multi-hub swap transaction
+ * Execute a multi-hub swap transaction using the selected provider
  * @param wallet Connected wallet adapter
  * @param fromToken Source token
  * @param toToken Destination token
  * @param amount Amount to swap (in UI format)
  * @param minAmountOut Minimum output amount expected
+ * @param provider The preferred provider to use for the swap (default is the contract)
+ * @param referrer Optional referrer public key for affiliate rewards
  * @returns Transaction signature
  */
 export async function executeMultiHubSwap(
@@ -121,14 +123,65 @@ export async function executeMultiHubSwap(
   fromToken: TokenInfo,
   toToken: TokenInfo,
   amount: number,
-  minAmountOut: number
+  minAmountOut: number,
+  provider: SwapProvider = SwapProvider.Contract,
+  referrer?: string
 ): Promise<string> {
-  // Import the multihub-contract implementation
-  const { executeMultiHubSwap: executeContractSwap } = await import('./multihub-contract');
+  if (!wallet.publicKey || !wallet.signTransaction) {
+    throw new Error('Wallet not connected');
+  }
   
-  // Always use the smart contract implementation for swaps
-  console.log(`Using smart contract implementation for swap: ${amount} ${fromToken.symbol} -> ${toToken.symbol}`);
-  return await executeContractSwap(wallet, fromToken, toToken, amount, minAmountOut);
+  console.log(`Executing swap with provider: ${provider}`);
+  console.log(`Swap details: ${amount} ${fromToken.symbol} -> min ${minAmountOut} ${toToken.symbol}`);
+  
+  try {
+    // Import necessary implementations based on provider
+    switch (provider) {
+      case SwapProvider.Contract:
+        // Use our Multi-hub contract implementation
+        const { executeMultiHubSwap: executeContractSwap } = await import('./multihub-contract');
+        return await executeContractSwap(
+          wallet, 
+          fromToken, 
+          toToken, 
+          amount, 
+          minAmountOut, 
+          referrer ? new PublicKey(referrer) : undefined
+        );
+        
+      case SwapProvider.Raydium:
+        // Use Raydium implementation
+        try {
+          const { executeRaydiumSwap } = await import('./raydium-swap');
+          return await executeRaydiumSwap(wallet, fromToken, toToken, amount, minAmountOut);
+        } catch (error) {
+          console.error('Raydium swap failed, falling back to contract:', error);
+          // Fall back to contract implementation
+          const { executeMultiHubSwap: fallbackSwap } = await import('./multihub-contract');
+          return await fallbackSwap(wallet, fromToken, toToken, amount, minAmountOut);
+        }
+        
+      case SwapProvider.Jupiter:
+        // Use Jupiter implementation
+        try {
+          const { executeJupiterSwap } = await import('./jupiter-swap');
+          return await executeJupiterSwap(wallet, fromToken, toToken, amount, minAmountOut);
+        } catch (error) {
+          console.error('Jupiter swap failed, falling back to contract:', error);
+          // Fall back to contract implementation
+          const { executeMultiHubSwap: fallbackSwap } = await import('./multihub-contract');
+          return await fallbackSwap(wallet, fromToken, toToken, amount, minAmountOut);
+        }
+        
+      default:
+        // Default to contract implementation
+        const { executeMultiHubSwap: defaultSwap } = await import('./multihub-contract');
+        return await defaultSwap(wallet, fromToken, toToken, amount, minAmountOut);
+    }
+  } catch (error) {
+    console.error('Swap execution failed:', error);
+    throw new Error(`Failed to execute swap: ${error.message}`);
+  }
 }
 
 /**

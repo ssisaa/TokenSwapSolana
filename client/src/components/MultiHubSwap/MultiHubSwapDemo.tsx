@@ -324,7 +324,7 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
         fromToken,
         toToken,
         parsedAmount,
-        slippage / 100,
+        swapEstimate?.minAmountOut || (estimatedAmount * (1 - slippage / 100)),
         providerForSwap // Pass the selected provider
       );
       
