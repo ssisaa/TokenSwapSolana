@@ -1,11 +1,13 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import MultiHubSwapDemo from '@/components/MultiHubSwap/MultiHubSwapDemo';
 import { TokenPriceChart } from '@/components/MultiHubSwap/TokenPriceChart';
 import TokenPoolDetails from '@/components/MultiHubSwap/TokenPoolDetails';
+import SwapTestPanel from '@/components/MultiHubSwap/SwapTestPanel';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import useMultiHubSwap from '@/hooks/useMultiHubSwap';
 import { formatNumber, shortenAddress } from '@/lib/utils';
 import { useMultiWallet } from '@/context/MultiWalletContext';
