@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useWallet } from "@/hooks/useSolanaWallet";
-import { useSwap } from "@/hooks/useSwap";
+import { useMultiHopSwap, XAR_SYMBOL, XMR_SYMBOL } from "@/hooks/useMultiHopSwap";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, ArrowRightLeft, Percent, Route } from "lucide-react";
+import { AlertCircle, ArrowRight, ArrowRightLeft, Percent, Route } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -17,11 +17,10 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from "@/lib/utils";
 import { SOL_SYMBOL, YOT_SYMBOL } from "@/lib/constants";
-import { PublicKey } from "@solana/web3.js";
 
-export default function CashbackSwapPage() {
+export default function MultiHopSwapPage() {
   const { connected, connect } = useWallet();
-  const swap = useSwap();
+  const swap = useMultiHopSwap();
   
   // Local state for UI enhancements
   const [isCashbackTooltipOpen, setIsCashbackTooltipOpen] = useState(false);
@@ -29,14 +28,14 @@ export default function CashbackSwapPage() {
   const [cashbackAmount, setCashbackAmount] = useState("0");
   
   // Calculate cashback amount (5% of transaction)
-  useEffect(() => {
+  useState(() => {
     if (swap.toAmount && typeof swap.toAmount === 'number') {
       const cashback = swap.toAmount * 0.05; // 5% cashback
       setCashbackAmount(cashback.toFixed(6));
     } else {
       setCashbackAmount("0");
     }
-  }, [swap.toAmount]);
+  });
   
   const handleExecuteSwap = async () => {
     try {
@@ -52,37 +51,55 @@ export default function CashbackSwapPage() {
     }
   };
   
+  // Function to render the swap route
+  const renderSwapRoute = () => {
+    if (!swap.swapRoute || swap.swapRoute.length === 0) return null;
+    
+    return (
+      <div className="flex items-center justify-center my-4 text-sm text-muted-foreground">
+        {swap.swapRoute.map((token, index) => (
+          <div key={token} className="flex items-center">
+            <span className="font-medium">{token}</span>
+            {index < swap.swapRoute.length - 1 && (
+              <ArrowRight className="h-4 w-4 mx-2" />
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
+  
   return (
     <div className="container max-w-4xl mx-auto py-8">
       <div className="mb-8 text-center">
         <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-600 bg-clip-text text-transparent">
-          Cashback Swap
+          Multi-Hop Swap
         </h1>
         <p className="text-muted-foreground mt-2">
-          Swap tokens with 5% cashback in YOS tokens
+          Swap tokens using Raydium with automatic routing
         </p>
       </div>
       
       <Card className="border-2 bg-card/50 backdrop-blur-sm">
         <CardHeader>
           <CardTitle className="flex items-center">
-            <ArrowRightLeft className="h-5 w-5 mr-2" />
-            <span>Swap with Cashback</span>
+            <Route className="h-5 w-5 mr-2" />
+            <span>Multi-Hop Swap</span>
             <Badge variant="secondary" className="ml-auto flex items-center gap-1">
               <Percent className="h-3 w-3" />
               5% YOS Cashback
             </Badge>
           </CardTitle>
           <CardDescription>
-            Get instant 5% cashback in YOS tokens on all your swaps
+            Swap between XAR, XMR, SOL, and YOT with automatic routing through SOL
           </CardDescription>
         </CardHeader>
         <CardContent>
           {!connected ? (
             <div className="flex flex-col items-center justify-center p-8">
               <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-center mb-4">Connect your wallet to start swapping with cashback</p>
-              <Button onClick={() => connect()} size="lg">
+              <p className="text-center mb-4">Connect your wallet to start swapping with multi-hop routing</p>
+              <Button onClick={connect} size="lg">
                 Connect Wallet
               </Button>
             </div>
@@ -93,8 +110,8 @@ export default function CashbackSwapPage() {
                 <div className="flex justify-between text-sm">
                   <span>From</span>
                   <span>
-                    Balance: {typeof swap.fromBalance === 'number' && swap.fromBalance > 0 
-                      ? formatCurrency(swap.fromBalance, swap.fromToken, 4) 
+                    Balance: {swap.fromBalance > 0 
+                      ? formatCurrency(swap.fromBalance, 4) 
                       : "0"} {swap.fromToken}
                   </span>
                 </div>
@@ -131,6 +148,8 @@ export default function CashbackSwapPage() {
                       <SelectValue placeholder="Select token" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value={XAR_SYMBOL}>XAR</SelectItem>
+                      <SelectItem value={XMR_SYMBOL}>XMR</SelectItem>
                       <SelectItem value={SOL_SYMBOL}>SOL</SelectItem>
                       <SelectItem value={YOT_SYMBOL}>YOT</SelectItem>
                     </SelectContent>
@@ -155,7 +174,7 @@ export default function CashbackSwapPage() {
                 <div className="flex justify-between text-sm">
                   <span>To</span>
                   <span>
-                    Balance: {typeof swap.toBalance === 'number' && swap.toBalance > 0 
+                    Balance: {swap.toBalance > 0 
                       ? formatCurrency(swap.toBalance, 4) 
                       : "0"} {swap.toToken}
                   </span>
@@ -193,12 +212,17 @@ export default function CashbackSwapPage() {
                       <SelectValue placeholder="Select token" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value={XAR_SYMBOL}>XAR</SelectItem>
+                      <SelectItem value={XMR_SYMBOL}>XMR</SelectItem>
                       <SelectItem value={SOL_SYMBOL}>SOL</SelectItem>
                       <SelectItem value={YOT_SYMBOL}>YOT</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
+              
+              {/* Swap Route Display */}
+              {renderSwapRoute()}
               
               {/* Exchange Rate Display */}
               <div className="text-sm text-muted-foreground mt-2 mb-4">

@@ -18,6 +18,7 @@ import AdminPage from "@/pages/AdminPage";
 import TestPage from "@/pages/TestPage";
 import TokenTestingPage from "@/pages/TokenTestingPage";
 import MultiHubSwapPage from "@/pages/MultiHubSwapPage";
+import CashbackSwapPage from "@/pages/CashbackSwapPage";
 import Analytics from "@/pages/Analytics";
 import WalletPage from "@/pages/WalletPage";
 import SettingsPage from "@/pages/SettingsPage";
@@ -31,6 +32,7 @@ const dashboardRoutes = [
   '/dashboard',
   '/swap',
   '/multi-hub-swap',
+  '/cashback-swap',
   '/stake',
   '/staking',
   '/liquidity',
@@ -61,6 +63,11 @@ function Router() {
         <Route path="/multi-hub-swap">
           <DashboardLayout>
             <MultiHubSwapPage />
+          </DashboardLayout>
+        </Route>
+        <Route path="/cashback-swap">
+          <DashboardLayout>
+            <CashbackSwapPage />
           </DashboardLayout>
         </Route>
         <Route path="/stake">
