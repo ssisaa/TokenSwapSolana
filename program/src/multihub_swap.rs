@@ -201,6 +201,10 @@ pub enum MultiHubSwapInstruction {
         referral_percent: Option<u8>,
         // New LP APR (optional)
         lp_apr: Option<u16>,
+        // Auto distribute cashback toggle (optional)
+        auto_distribute_cashback: Option<bool>,
+        // Auto distribute yield rewards toggle (optional)
+        auto_distribute_yield: Option<bool>,
         // New admin account (optional)
         new_admin: Option<Pubkey>,
     },
@@ -244,6 +248,10 @@ pub struct ProgramState {
     pub referral_percent: u8,
     // LP token APR (in basis points, 10000 = 100%)
     pub lp_apr: u16,
+    // Auto distribute cashback (true = automatic, false = manual claim)
+    pub auto_distribute_cashback: bool,
+    // Auto distribute yield rewards (true = automatic weekly, false = manual claim)
+    pub auto_distribute_yield: bool,
     // Total swap volume
     pub total_swap_volume: u64,
     // Total liquidity contributed
@@ -260,6 +268,8 @@ pub struct ProgramState {
     pub total_pools: u16,
     // Last update timestamp
     pub last_update_time: u64,
+    // Last yield distribution timestamp
+    pub last_yield_distribution: u64,
 }
 
 impl IsInitialized for ProgramState {
@@ -480,6 +490,7 @@ fn process_initialize(
     );
 
     // Create the program state
+    let current_time = Clock::get()?.unix_timestamp as u64;
     let program_state = ProgramState {
         is_initialized: true,
         is_paused: false,
@@ -494,6 +505,8 @@ fn process_initialize(
         yos_cashback_percent: YOS_CASHBACK_PERCENT,
         referral_percent: REFERRAL_PERCENT,
         lp_apr: LP_TOKEN_APR,
+        auto_distribute_cashback: true,     // Enable automatic cashback by default
+        auto_distribute_yield: true,        // Enable automatic yield rewards by default
         total_swap_volume: 0,
         total_liquidity_contributed: 0,
         total_yos_rewards: 0,
@@ -501,7 +514,8 @@ fn process_initialize(
         total_lp_rewards: 0,
         total_users: 0,
         total_pools: 0,
-        last_update_time: Clock::get()?.unix_timestamp as u64,
+        last_update_time: current_time,
+        last_yield_distribution: current_time,
     };
 
     // Serialize and store the program state
