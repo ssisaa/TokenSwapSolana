@@ -93,32 +93,82 @@ class MultihubSwapClient implements SwapProvider {
         // For YOS cashback, we also need YOS token account
         const yosTokenAccount = await getAssociatedTokenAddress(YOS_TOKEN_MINT, wallet.publicKey);
         
-        // Create instruction data with proper size for the instruction and two 64-bit integers
-        const instructionData = Buffer.alloc(17);
+        // Create instruction data - Borsh serialization for SwapToken instruction
+        // Needs to match the format in the Solana program (see multihub_swap.rs:80-91)
+        // SwapToken {
+        //   amount_in: u64,             // 8 bytes
+        //   minimum_amount_out: u64,    // 8 bytes 
+        //   input_token_mint: Pubkey,   // 32 bytes
+        //   output_token_mint: Pubkey,  // 32 bytes
+        //   referrer: Option<Pubkey>,   // 1 + 32 bytes (Option encoding)
+        // },
         
-        // Write the instruction (1 = swap)
+        // Instruction discriminator (1 = SwapToken instruction)
+        // Using Borsh serialization format
+        const instructionData = Buffer.alloc(1 + 8 + 8 + 32 + 32 + 1); // Total = 82 bytes
+        
+        // Write instruction discriminator (1 = SwapToken)
         instructionData.writeUInt8(1, 0);
         
-        // Write the amount as a 64-bit integer (needs 8 bytes)
+        // Write amount_in
         const amountRaw = Math.floor(amount * Math.pow(10, fromToken.decimals));
         instructionData.writeBigUInt64LE(BigInt(amountRaw), 1);
         
-        // Write the min output amount as a 64-bit integer (needs 8 bytes)
-        // Offset needs to be 9 (1 byte for instruction + 8 bytes for first amount)
+        // Write minimum_amount_out
         const minAmountOutRaw = Math.floor(minAmountOut * Math.pow(10, toToken.decimals));
         instructionData.writeBigUInt64LE(BigInt(minAmountOutRaw), 9);
         
-        // Setup account metas for the instruction
+        // Write input_token_mint (copy 32 bytes)
+        fromTokenMint.toBuffer().copy(instructionData, 17);
+        
+        // Write output_token_mint (copy 32 bytes)
+        toTokenMint.toBuffer().copy(instructionData, 49);
+        
+        // Write referrer: Option<Pubkey> - None value (0 for Option with no value)
+        instructionData.writeUInt8(0, 81);
+        
+        // Setup account metas based on the expected accounts in the program:
+        // See multihub_swap.rs:70-80 for the expected accounts
         const accountMetas = [
-          { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
-          { pubkey: fromTokenAccount, isSigner: false, isWritable: true },
-          { pubkey: toTokenAccount, isSigner: false, isWritable: true },
-          { pubkey: yosTokenAccount, isSigner: false, isWritable: true },
-          { pubkey: fromTokenMint, isSigner: false, isWritable: false },
-          { pubkey: toTokenMint, isSigner: false, isWritable: false },
-          { pubkey: YOS_TOKEN_MINT, isSigner: false, isWritable: false },
-          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+          { pubkey: wallet.publicKey, isSigner: true, isWritable: true },           // 0. User's wallet
+          { pubkey: fromTokenAccount, isSigner: false, isWritable: true },          // 1. User's token account for input token
+          { pubkey: toTokenAccount, isSigner: false, isWritable: true },            // 2. User's token account for output token
+          { pubkey: yosTokenAccount, isSigner: false, isWritable: true },           // 3. User's YOS token account for cashback
+          
+          // Derive the program state account (PDA)
+          // Based on the program, it's likely using a PDA with seed "state"
+          { 
+            pubkey: await PublicKey.findProgramAddress(
+              [Buffer.from("state")], 
+              MULTIHUB_SWAP_PROGRAM_ID
+            ).then(([address]) => address),
+            isSigner: false, 
+            isWritable: true 
+          },
+          
+          // SOL-YOT liquidity pool account
+          // This would ideally be derived dynamically or fetched from an API
+          { 
+            pubkey: await PublicKey.findProgramAddress(
+              [Buffer.from("pool"), YOT_TOKEN_MINT.toBuffer(), new PublicKey('So11111111111111111111111111111111111111112').toBuffer()], 
+              MULTIHUB_SWAP_PROGRAM_ID
+            ).then(([address]) => address),
+            isSigner: false, 
+            isWritable: true 
+          },
+          
+          // Admin fee account might be another PDA or the admin wallet
+          { 
+            pubkey: await PublicKey.findProgramAddress(
+              [Buffer.from("fees")], 
+              MULTIHUB_SWAP_PROGRAM_ID
+            ).then(([address]) => address),
+            isSigner: false, 
+            isWritable: true 
+          },
+          
+          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },         // 7. Token program
+          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },  // 8. System program (additional)
         ];
         
         // Create the swap instruction
