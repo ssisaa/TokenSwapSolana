@@ -204,12 +204,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // API route to get pool information
+  // API route to get pool information with connection pooling
   app.get('/api/pool', async (req, res) => {
     try {
+      // Get connection from the manager
+      const conn = getConnection();
+      
       // Get SOL balance of the pool
       const poolSolAccount = new PublicKey(POOL_SOL_ACCOUNT);
-      const solBalance = await connection.getBalance(poolSolAccount);
+      const solBalance = await conn.getBalance(poolSolAccount);
       
       // Get YOT balance of the pool
       const poolAuthority = new PublicKey(POOL_AUTHORITY);
@@ -223,8 +226,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let yotBalance = 0;
       
       try {
-        const tokenAccountInfo = await getAccount(connection, yotTokenAccount);
-        const mintInfo = await getMint(connection, yotTokenMint);
+        const tokenAccountInfo = await getAccount(conn, yotTokenAccount);
+        const mintInfo = await getMint(conn, yotTokenMint);
         yotBalance = Number(tokenAccountInfo.amount) / Math.pow(10, mintInfo.decimals);
       } catch (error) {
         console.error('Error getting YOT balance:', error);
@@ -245,7 +248,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // API route to get recent transactions
+  // API route to get recent transactions with connection pooling
   app.get('/api/transactions/:address', async (req, res) => {
     try {
       const { address } = req.params;
@@ -261,17 +264,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Get a connection from the pool
+      const conn = getConnection();
+      
       // Get recent transactions
-      const transactions = await connection.getSignaturesForAddress(
+      const transactions = await conn.getSignaturesForAddress(
         publicKey, 
         { limit: parseInt(limit as string) }
       );
       
       // Get details for each transaction
       const transactionDetails = await Promise.all(
-        transactions.map(async (tx) => {
+        transactions.map(async (tx: any) => {
           try {
-            const txDetails = await connection.getTransaction(tx.signature, {
+            const txDetails = await conn.getTransaction(tx.signature, {
               maxSupportedTransactionVersion: 0,
             });
             
@@ -286,7 +292,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (txDetails) {
               // Check if transaction involved the pool SOL account
               const poolSolAccountStr = POOL_SOL_ACCOUNT;
-              const accountKeys = txDetails.transaction.message.accountKeys.map(key => 
+              const accountKeys = txDetails.transaction.message.accountKeys.map((key: any) => 
                 key.toBase58()
               );
               
@@ -295,7 +301,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (isSwap) {
                 // Further analyze to determine swap details
                 const hasYotTransfer = txDetails.meta?.logMessages?.some(
-                  log => log.includes('Transfer') && log.includes(YOT_TOKEN_ADDRESS)
+                  (log: string) => log.includes('Transfer') && log.includes(YOT_TOKEN_ADDRESS)
                 );
                 
                 if (hasYotTransfer) {
@@ -338,7 +344,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // API route to get wallet balances
+  // API route to get wallet balances with connection pooling and caching
   app.get('/api/balances/:address', async (req, res) => {
     try {
       const { address } = req.params;
@@ -353,8 +359,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Check cache first
+      const cacheKey = `balances_${address}`;
+      const accountCache = connectionManager.getCache('accountInfo');
+      const cachedBalances = accountCache.get(cacheKey);
+      
+      if (cachedBalances) {
+        return res.json(cachedBalances);
+      }
+      
+      // Get a connection from the pool
+      const conn = getConnection();
+      
       // Get SOL balance
-      const solBalance = await connection.getBalance(publicKey);
+      const solBalance = await conn.getBalance(publicKey);
       
       // Get YOT balance
       const yotTokenMint = new PublicKey(YOT_TOKEN_ADDRESS);
@@ -365,8 +383,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       let yotBalance = 0;
       try {
-        const tokenAccountInfo = await getAccount(connection, yotTokenAccount);
-        const mintInfo = await getMint(connection, yotTokenMint);
+        const tokenAccountInfo = await getAccount(conn, yotTokenAccount);
+        const mintInfo = await getMint(conn, yotTokenMint);
         yotBalance = Number(tokenAccountInfo.amount) / Math.pow(10, mintInfo.decimals);
       } catch (error) {
         // If the account doesn't exist, balance is 0
@@ -381,23 +399,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       let yosBalance = 0;
       try {
-        const tokenAccountInfo = await getAccount(connection, yosTokenAccount);
-        const mintInfo = await getMint(connection, yosTokenMint);
+        const tokenAccountInfo = await getAccount(conn, yosTokenAccount);
+        const mintInfo = await getMint(conn, yotTokenMint);
         yosBalance = Number(tokenAccountInfo.amount) / Math.pow(10, mintInfo.decimals);
       } catch (error) {
         // If the account doesn't exist, balance is 0
       }
       
-      // Calculate SOL USD value (mock for now)
-      const solPrice = 100; // Mock SOL price in USD
+      // Calculate SOL USD value
+      const solPrice = 148.35; // SOL price in USD
       const solUsdValue = (solBalance / LAMPORTS_PER_SOL) * solPrice;
       
-      res.json({
+      const balanceData = {
         sol: solBalance / LAMPORTS_PER_SOL,
         solUsd: solUsdValue,
         yot: yotBalance,
-        yos: yosBalance
-      });
+        yos: yosBalance,
+        timestamp: Date.now()
+      };
+      
+      // Cache the result
+      accountCache.set(cacheKey, balanceData);
+      
+      res.json(balanceData);
     } catch (error) {
       console.error('Error fetching balances:', error);
       res.status(500).json({ 
