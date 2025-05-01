@@ -30,8 +30,18 @@ export default function TokenPoolDetails() {
     }
   };
 
+  // For testing environment - checks if address is a valid Solana address
+  // (Addresses starting with placeholder names aren't valid on-chain)
+  const isValidAddress = (address: string): boolean => {
+    return address.length === 44 && !address.includes('XMP') && !address.includes('XAR');
+  };
+  
   const getExplorerUrl = (address: string) => {
-    return `https://explorer.solana.com/address/${address}?cluster=devnet`;
+    // Only generate URLs for valid addresses
+    if (isValidAddress(address)) {
+      return `https://explorer.solana.com/address/${address}?cluster=devnet`;
+    }
+    return '#'; // Return placeholder for invalid test addresses
   };
   
   const renderPoolInfo = (
@@ -150,6 +160,10 @@ export default function TokenPoolDetails() {
         <CardTitle>XAR & XMP Pool Details</CardTitle>
         <CardDescription>
           View detailed information about XAR-SOL and XMP-SOL liquidity pools, including pool accounts and reserves.
+          <div className="mt-2 p-2 bg-blue-950 rounded-md text-xs border border-blue-900">
+            <p>Note: In this development environment, we're using placeholder test addresses that won't be found on the blockchain explorer. 
+            In a production environment, these would be replaced with actual on-chain pool addresses.</p>
+          </div>
         </CardDescription>
       </CardHeader>
       <CardContent>
