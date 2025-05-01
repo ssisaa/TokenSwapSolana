@@ -61,6 +61,15 @@ export async function getJupiterSwapEstimate(
   priceImpact: number;
   fee: number;
   routes: string[];
+  routeInfo: Array<{
+    label: string;
+    ammId: string;
+    marketId?: string;
+    percent?: number;
+    inputMint?: string;
+    outputMint?: string;
+    marketName?: string;
+  }>;
 }> {
   try {
     // Convert to raw amount with decimals
@@ -87,13 +96,41 @@ export async function getJupiterSwapEstimate(
     // Extract route information
     const routes: string[] = [fromToken.symbol];
     
-    // Process route plan to extract intermediate tokens
+    // Create detailed route info array
+    const routeInfo: Array<{
+      label: string;
+      ammId: string;
+      marketId?: string;
+      percent?: number;
+      inputMint?: string;
+      outputMint?: string;
+      marketName?: string;
+    }> = [];
+    
+    // Process route plan to extract intermediate tokens and build route info
     if (data.routePlan && data.routePlan.length > 0) {
       // Extract unique token mints from the route plan
       const tokenMints = new Set<string>();
       
-      data.routePlan.forEach(route => {
-        route.swapInfo.forEach(swap => {
+      // Map of common token addresses to symbols for better labeling
+      const knownTokenSymbols: Record<string, string> = {
+        'So11111111111111111111111111111111111111112': 'SOL',
+        'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v': 'USDC',
+        'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB': 'USDT',
+        'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN': 'JUP',
+        'D3eyBjfgJMPHWuaRatmNiQcVVmQP8tfLLLLkkjZhJY6J': 'BONK',
+        '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF': 'YOT',
+        'GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n': 'YOS',
+      };
+      
+      // Add source and destination tokens to the known symbols
+      knownTokenSymbols[fromToken.address] = fromToken.symbol;
+      knownTokenSymbols[toToken.address] = toToken.symbol;
+      
+      // For each route in the plan, create a detailed route info entry
+      data.routePlan.forEach((routePlan, i) => {
+        // Extract information about intermediate tokens
+        routePlan.swapInfo.forEach(swap => {
           if (swap.inputMint !== fromToken.address && swap.inputMint !== toToken.address) {
             tokenMints.add(swap.inputMint);
           }
@@ -101,14 +138,50 @@ export async function getJupiterSwapEstimate(
             tokenMints.add(swap.outputMint);
           }
         });
+        
+        // Get the AMM info (if available)
+        const ammInfo = routePlan.swapInfo[0]?.ammKey;
+        const inputMint = routePlan.swapInfo[0]?.inputMint;
+        const outputMint = routePlan.swapInfo[routePlan.swapInfo.length - 1]?.outputMint;
+        
+        // Get symbols for better labeling
+        const inputSymbol = knownTokenSymbols[inputMint] || 
+                          inputMint?.substring(0, 4) + '...';
+        const outputSymbol = knownTokenSymbols[outputMint] ||
+                           outputMint?.substring(0, 4) + '...';
+        
+        // Get market info
+        const marketInfo = routePlan.swapInfo[0]?.label || 'Jupiter';
+        
+        // Add the route info
+        routeInfo.push({
+          label: `${inputSymbol}→${outputSymbol}`,
+          ammId: ammInfo || 'Jupiter',
+          marketId: routePlan.marketId || undefined,
+          percent: routePlan.percent || 100,
+          inputMint: inputMint,
+          outputMint: outputMint,
+          marketName: marketInfo
+        });
       });
       
       // Add SOL as the default intermediate token if we have intermediate tokens
       if (tokenMints.size > 0) {
         routes.push('SOL');
       }
+    } else {
+      // If no route plan, create a single direct route
+      routeInfo.push({
+        label: `${fromToken.symbol}→${toToken.symbol}`,
+        ammId: 'Jupiter',
+        percent: 100,
+        inputMint: fromToken.address,
+        outputMint: toToken.address,
+        marketName: 'Jupiter'
+      });
     }
     
+    // Complete the route path
     routes.push(toToken.symbol);
     
     // Convert output amount from raw to UI format
@@ -119,7 +192,7 @@ export async function getJupiterSwapEstimate(
     const minAmountOut = estimatedAmount * (1 - slippage);
     
     // Extract price impact
-    const priceImpact = data.priceImpactPct;
+    const priceImpact = data.priceImpactPct / 100; // Convert to decimal
     
     // Calculate fee (Jupiter doesn't directly provide this)
     const fee = amount * 0.003; // 0.3% approximation
@@ -129,11 +202,29 @@ export async function getJupiterSwapEstimate(
       minAmountOut,
       priceImpact,
       fee,
-      routes
+      routes,
+      routeInfo
     };
   } catch (error) {
     console.error('Error getting Jupiter swap estimate:', error);
-    throw new Error('Failed to get Jupiter swap estimate');
+    
+    // Create a default routeInfo with error information
+    const routeInfo = [{
+      label: `${fromToken.symbol}→${toToken.symbol}`,
+      ammId: 'Error',
+      percent: 100,
+      marketName: 'Error fetching route'
+    }];
+    
+    throw {
+      message: 'Failed to get Jupiter swap estimate',
+      routeInfo,
+      estimatedAmount: 0,
+      minAmountOut: 0,
+      priceImpact: 0,
+      fee: 0,
+      routes: [fromToken.symbol, toToken.symbol]
+    };
   }
 }
 

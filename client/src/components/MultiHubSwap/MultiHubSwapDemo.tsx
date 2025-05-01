@@ -400,44 +400,92 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
           {/* Route Visualization */}
           {swapEstimate?.routeInfo && swapEstimate.routeInfo.length > 0 && (
             <div className="py-1">
-              <div className="flex items-center space-x-1">
-                <span className="text-muted-foreground">Order Routing</span>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger className="cursor-help">
-                      <Info className="h-3 w-3 text-muted-foreground" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="text-xs w-60">The path your tokens will take through different liquidity pools</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-1">
+                  <span className="text-muted-foreground">Order Routing</span>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger className="cursor-help">
+                        <Info className="h-3 w-3 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs w-72">
+                          The exact path your tokens will take through different liquidity pools. 
+                          Multi-hop routes may use multiple pools to achieve better prices or enable 
+                          trading pairs that don't have direct liquidity.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <span className="text-[10px] text-muted-foreground bg-muted/30 px-1.5 py-0.5 rounded-sm">
+                  {swapEstimate.routeInfo.length} {swapEstimate.routeInfo.length === 1 ? 'hop' : 'hops'}
+                </span>
               </div>
               
-              <div className="flex items-center mt-1.5 relative py-2">
-                {swapEstimate.routeInfo.map((route: { percent?: number; label?: string; ammId?: string }, index: number) => (
-                  <div key={index} className="flex items-center relative">
-                    {/* Route percentage badge */}
-                    {route.percent && route.percent < 100 && (
-                      <div className="absolute -top-3 left-0 rounded-full bg-primary/10 text-primary text-[9px] px-1">
-                        {route.percent}%
-                      </div>
-                    )}
-                    
-                    {/* AMM pool node */}
-                    <div className="px-1.5 py-0.5 rounded bg-muted text-[10px] relative">
-                      {route.label || `${fromToken.symbol}-${toToken.symbol}`}
+              <div className="flex flex-col space-y-3 mt-2 mb-1">
+                {swapEstimate.routeInfo.map((route: { 
+                  percent?: number; 
+                  label?: string; 
+                  ammId?: string; 
+                  marketId?: string;
+                  inputMint?: string;
+                  outputMint?: string;
+                }, index: number) => (
+                  <div key={index} className="relative">
+                    {/* Enhanced route node with more details */}
+                    <div className="bg-background border border-border rounded-md p-1.5 relative">
+                      {/* Route percentage badge - positioned better */}
+                      {route.percent && route.percent < 100 && (
+                        <div className="absolute -top-2 -right-2 rounded-full bg-primary/10 text-primary text-xs font-semibold px-1.5 py-0.5 shadow-sm border border-primary/20">
+                          {route.percent}%
+                        </div>
+                      )}
                       
-                      {/* AMMID below */}
-                      <div className="absolute -bottom-4 left-0 text-[9px] text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis w-20">
-                        {route.ammId?.substring(0, 8)}...
+                      {/* Route number badge */}
+                      <div className="absolute -left-2 -top-2 w-5 h-5 rounded-full bg-muted-foreground text-white text-xs flex items-center justify-center font-medium">
+                        {index + 1}
+                      </div>
+                    
+                      {/* Pool information with better layout */}
+                      <div className="ml-3 flex flex-col">
+                        <div className="text-xs font-medium">
+                          {route.label || `${fromToken.symbol}-${toToken.symbol}`}
+                        </div>
+                        
+                        {/* AMMID with copy button */}
+                        <div className="flex items-center text-[9px] text-muted-foreground mt-0.5">
+                          <span className="mr-1">ID:</span>
+                          <code className="bg-muted/30 px-1 py-0.5 rounded">
+                            {route.ammId?.substring(0, 10)}...
+                          </code>
+                          
+                          {/* Price impact estimate */}
+                          {index === 0 && swapEstimate.priceImpact && (
+                            <span className="ml-auto text-[9px] text-muted-foreground">
+                              Impact: <span className="text-orange-500">{(swapEstimate.priceImpact * 100).toFixed(2)}%</span>
+                            </span>
+                          )}
+                        </div>
+                        
+                        {/* Market ID if available */}
+                        {route.marketId && (
+                          <div className="text-[9px] text-muted-foreground mt-0.5">
+                            <span className="mr-1">Market:</span>
+                            <code className="bg-muted/30 px-1 py-0.5 rounded">
+                              {route.marketId.substring(0, 10)}...
+                            </code>
+                          </div>
+                        )}
                       </div>
                     </div>
                     
-                    {/* Arrow connector if not last */}
+                    {/* Arrow connector if not last - more visible with animation */}
                     {index < swapEstimate.routeInfo.length - 1 && (
-                      <div className="mx-1">
-                        <div className="w-3 h-[1px] bg-muted-foreground"></div>
+                      <div className="flex justify-center my-1">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-muted-foreground">
+                          <path d="M12 5v14M19 12l-7 7-7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
                       </div>
                     )}
                   </div>
