@@ -34,7 +34,7 @@ import { fetchSolanaTokens, TokenInfo } from '@/lib/token-search-api';
 import { SOL_TOKEN_ADDRESS, YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS } from '@/lib/constants';
 import useMultiHubSwap from '@/hooks/useMultiHubSwap';
 import { formatNumber } from '@/lib/utils';
-import TokenPriceChart from './TokenPriceChart';
+import { TokenPriceChart } from './TokenPriceChart';
 import { SwapProvider } from '@/lib/multi-hub-swap';
 
 export default function MultiHubSwapCard() {
@@ -787,7 +787,7 @@ export default function MultiHubSwapCard() {
                       <Button
                         size="sm"
                         variant={!preferredProvider ? "default" : "outline"}
-                        onClick={() => setPreferredProvider(undefined)}
+                        onClick={() => setPreferredProvider(null as any)}
                         className="h-8 text-xs justify-start"
                       >
                         Auto (Best Route)

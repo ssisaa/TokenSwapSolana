@@ -74,6 +74,8 @@ export interface SwapEstimate {
   route: string[];
   routeInfo?: RouteInfo[];
   provider: SwapProvider;
+  intermediateTokens?: string[]; // Added for multi-hop routes
+  hops?: number; // Number of hops in the route
 }
 
 /**
