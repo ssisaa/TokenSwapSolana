@@ -178,9 +178,10 @@ export async function executeMultiHubSwap(
         const { executeMultiHubSwap: defaultSwap } = await import('./multihub-contract');
         return await defaultSwap(wallet, fromToken, toToken, amount, minAmountOut);
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Swap execution failed:', error);
-    throw new Error(`Failed to execute swap: ${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to execute swap: ${errorMessage}`);
   }
 }
 
@@ -200,9 +201,10 @@ export async function claimYosSwapRewards(wallet: any): Promise<string> {
     // Import the contract implementation for claiming rewards
     const { claimYosRewards } = await import('./multihub-contract');
     return await claimYosRewards(wallet);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error claiming rewards:', error);
-    throw new Error(`Failed to claim YOS rewards: ${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to claim YOS rewards: ${errorMessage}`);
   }
 }
 
@@ -254,8 +256,17 @@ export async function findMultiHubSwapRoute(
     };
   }
   
+  // Enhanced route selection with scoring mechanism
+  interface ScoredRoute {
+    provider: SwapProvider;
+    routeInfo: any;
+    hops: number;
+    intermediateTokens?: string[];
+    score: number;
+  }
+  
   // Score all routes based on hops and provider preference
-  routes.forEach(route => {
+  const scoredRoutes: ScoredRoute[] = routes.map(route => {
     // Base score starts at 100
     let score = 100;
     
@@ -273,17 +284,20 @@ export async function findMultiHubSwapRoute(
     // Penalties for longer paths
     if (route.hops > 2) score -= 20;
     
-    // Store score on route
-    route.score = score;
+    // Return enhanced route with score
+    return {
+      ...route,
+      score
+    };
   });
   
   // Sort by score (highest first)
-  routes.sort((a, b) => b.score - a.score);
+  scoredRoutes.sort((a, b) => b.score - a.score);
   
-  console.log(`Found ${routes.length} routes, best route score: ${routes[0].score}`);
+  console.log(`Found ${scoredRoutes.length} routes, best route score: ${scoredRoutes[0]?.score || 'N/A'}`);
   
   // Return the highest scoring route
-  return routes[0];
+  return scoredRoutes[0] || routes[0];
 }
 
 /**

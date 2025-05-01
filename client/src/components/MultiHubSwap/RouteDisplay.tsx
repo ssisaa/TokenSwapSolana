@@ -25,13 +25,12 @@ export function RouteDisplay({ fromToken, toToken, swapEstimate }: RouteDisplayP
   const hasRouteArray = swapEstimate?.route && Array.isArray(swapEstimate.route) && swapEstimate.route.length > 0;
   
   // Format provider name
-  const getProviderName = (providerId?: number) => {
-    switch (providerId) {
-      case SwapProvider.Contract: return 'Multi-hub Contract';
-      case SwapProvider.Raydium: return 'Raydium DEX';
-      case SwapProvider.Jupiter: return 'Jupiter Aggregator';
-      default: return 'Auto';
-    }
+  const getProviderName = (providerId?: string) => {
+    if (providerId === SwapProvider.Contract) return 'Multi-hub Contract';
+    if (providerId === SwapProvider.Raydium) return 'Raydium DEX';
+    if (providerId === SwapProvider.Jupiter) return 'Jupiter Aggregator';
+    if (providerId === SwapProvider.Direct) return 'Direct Swap';
+    return 'Auto';
   };
   
   return (

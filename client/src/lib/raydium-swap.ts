@@ -1,218 +1,58 @@
-import { 
-  Connection, 
-  PublicKey, 
-  Transaction, 
-  SystemProgram, 
-  LAMPORTS_PER_SOL 
-} from '@solana/web3.js';
-import { TokenInfo } from './token-search-api';
+/**
+ * Raydium Swap Integration
+ * 
+ * This module provides integration with Raydium DEX for executing token swaps
+ * on the Solana blockchain.
+ */
+
+import { Connection, PublicKey } from '@solana/web3.js';
+import { TokenInfo } from '@solana/spl-token-registry';
 import { ENDPOINT } from './constants';
-import { RAYDIUM_DEVNET_POOLS, RaydiumPool, RAYDIUM_LIQUIDITY_PROGRAM_ID_V4 } from './raydium-pool-config';
 
 /**
- * Find a Raydium pool for the given token pair
+ * Execute a token swap using Raydium DEX
+ * @param wallet Connected wallet 
  * @param fromToken Source token
  * @param toToken Destination token
- * @returns Matching pool or null if not found
+ * @param amount Amount to swap (in UI format)
+ * @param minAmountOut Minimum output amount expected
+ * @returns Transaction signature
  */
-export function findRaydiumPool(fromToken: TokenInfo, toToken: TokenInfo): RaydiumPool | null {
-  // Search for direct pool
-  const directPool = RAYDIUM_DEVNET_POOLS.find(pool => 
-    (pool.baseMint === fromToken.address && pool.quoteMint === toToken.address) ||
-    (pool.baseMint === toToken.address && pool.quoteMint === fromToken.address)
-  );
-  
-  if (directPool) {
-    return directPool;
-  }
-  
-  // In a real implementation, we would also search for indirect routes
-  // (e.g., Token A -> SOL -> Token B)
-  return null;
-}
-
-/**
- * Get a swap estimate for Raydium DEX
- * @param fromToken Source token
- * @param toToken Destination token
- * @param amount Amount to swap
- * @param slippage Slippage tolerance as a decimal
- * @returns Swap estimate
- */
-export async function getRaydiumSwapEstimate(
-  fromToken: TokenInfo,
-  toToken: TokenInfo,
-  amount: number,
-  slippage: number
-): Promise<{
-  estimatedAmount: number;
-  minAmountOut: number;
-  priceImpact: number;
-  fee: number;
-  routeInfo: Array<{
-    label: string;
-    ammId: string;
-    marketId?: string;
-    percent?: number;
-    inputMint?: string;
-    outputMint?: string;
-    marketName?: string;
-  }>;
-}> {
-  try {
-    // Try to find a pool for these tokens
-    const pool = findRaydiumPool(fromToken, toToken);
-    
-    if (!pool) {
-      throw new Error('No Raydium pool found for this token pair');
-    }
-  
-    // In a real implementation, we would:
-    // 1. Fetch the current pool state (reserves)
-    // 2. Calculate the expected output amount based on the AMM formula
-    // 3. Calculate price impact, fees, etc.
-    
-    // For this demo, we'll just use a simple model
-    const fee = amount * 0.0025; // 0.25% fee
-    const priceImpact = Math.min(amount * 0.01, 0.05); // Simulated price impact
-    
-    // Mock exchange rate based on whether it's a SOL pair or not
-    let exchangeRate = 1.0;
-    if (fromToken.address === 'So11111111111111111111111111111111111111112') {
-      // SOL to other token (assuming SOL is more valuable)
-      exchangeRate = 20.0;
-    } else if (toToken.address === 'So11111111111111111111111111111111111111112') {
-      // Other token to SOL
-      exchangeRate = 0.05;
-    }
-    
-    // Adjusted for fees and price impact
-    const estimatedAmount = amount * exchangeRate * (1 - fee / amount) * (1 - priceImpact);
-    
-    // Calculate minimum amount out based on slippage
-    const minAmountOut = estimatedAmount * (1 - slippage);
-    
-    // Create route information
-    const routeInfo = [
-      {
-        label: `${fromToken.symbol}→${toToken.symbol}`,
-        ammId: pool.id,
-        marketId: pool.marketId,
-        percent: 100,
-        inputMint: fromToken.address,
-        outputMint: toToken.address,
-        marketName: 'Raydium'
-      }
-    ];
-    
-    return {
-      estimatedAmount,
-      minAmountOut,
-      priceImpact,
-      fee,
-      routeInfo
-    };
-  } catch (error) {
-    console.error('Error getting Raydium swap estimate:', error);
-    
-    // Create a default routeInfo with error information
-    const routeInfo = [{
-      label: `${fromToken.symbol}→${toToken.symbol}`,
-      ammId: 'Error',
-      percent: 100,
-      marketName: 'Error fetching route'
-    }];
-    
-    throw {
-      message: 'Failed to get Raydium swap estimate',
-      routeInfo,
-      estimatedAmount: 0,
-      minAmountOut: 0,
-      priceImpact: 0,
-      fee: 0
-    };
-  }
-}
-
-/**
- * Build a Raydium swap transaction
- * @param wallet Connected wallet
- * @param fromToken Source token
- * @param toToken Destination token
- * @param amount Amount to swap
- * @param minAmountOut Minimum amount to receive
- * @returns Prepared transaction (needs to be signed and sent)
- */
-export async function prepareRaydiumSwapTransaction(
+export async function executeRaydiumSwap(
   wallet: any,
   fromToken: TokenInfo,
   toToken: TokenInfo,
   amount: number,
   minAmountOut: number
-): Promise<Transaction> {
-  if (!wallet.publicKey) {
+): Promise<string> {
+  console.log(`Using Raydium to swap ${amount} ${fromToken.symbol} -> ${toToken.symbol}`);
+  console.log(`Min amount out: ${minAmountOut} ${toToken.symbol}`);
+  
+  if (!wallet?.publicKey || !wallet.signTransaction) {
     throw new Error('Wallet not connected');
   }
   
-  const connection = new Connection(ENDPOINT);
+  const connection = new Connection(ENDPOINT, 'confirmed');
   
-  // Create a new transaction
-  const transaction = new Transaction();
-  
-  // Get recent blockhash
-  const { blockhash } = await connection.getLatestBlockhash();
-  transaction.recentBlockhash = blockhash;
-  transaction.feePayer = wallet.publicKey;
-  
-  // In a real implementation, we would:
-  // 1. Find the pool for these tokens
-  // 2. Add instructions to:
-  //    - Approve token transfer (if not SOL)
-  //    - Execute the swap through Raydium's swap instruction
-  //    - Receive the output tokens
-  
-  // For this demo, we'll just use a placeholder transfer
-  // This would be replaced with actual Raydium swap instructions
-  transaction.add(
-    SystemProgram.transfer({
-      fromPubkey: wallet.publicKey,
-      toPubkey: wallet.publicKey, // Send to self as a placeholder
-      lamports: 100, // Minimal amount for demonstration
-    })
-  );
-  
-  return transaction;
+  // Currently this is a placeholder - when we implement the actual Raydium integration,
+  // we'll use their SDK to execute the swap
+  throw new Error('Raydium integration not fully implemented yet');
 }
 
-// Raydium supported token addresses
-const RAYDIUM_SUPPORTED_TOKENS = [
-  // Core tokens (always include SOL, YOT, YOS)
-  'So11111111111111111111111111111111111111112', // SOL
-  '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF', // YOT
-  'GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n', // YOS
-  
-  // RAY and related tokens
-  'DK5hLNKKF9kFXZ6ZjnaaQWiwLZ5j6hVNgfxTD19GxhzL', // RAY
-  '8UJgxaiQx5nTrdUaen4qYH5L2Li55KzRn9LbNPSfvr1Z', // mSOL
-  'AqhA8GFjKXGsNzNGP6E3jDmXJE8SZas2ZVtuKVxrMEf4', // SAMO
-  'CK2gdXem6UxTg6XijLF2FrzcfAHt6Age7Y9NR2zTtvRX', // ORCA
-  '9T7uw5dqaEmEC4McqyefzYsEg5hoC4e2oV8it1Uc4f1U', // USDC
-  '5kjfp2qfRbqCXTQeUYgHNnTLf13eHoKjC9RcaX3YfSBK', // USDT
-];
-
 /**
- * Check if a token is supported by Raydium on devnet
- * @param tokenAddress Token address to check
- * @returns True if the token is supported
+ * Get a swap estimate based on Raydium pools
+ * @param fromToken Source token
+ * @param toToken Destination token
+ * @param amount Amount to swap
+ * @param slippage Slippage tolerance
+ * @returns Swap estimate information
  */
-export function isTokenSupportedByRaydium(tokenAddress: string): boolean {
-  // Check against specific token list first (more reliable)
-  if (RAYDIUM_SUPPORTED_TOKENS.includes(tokenAddress)) {
-    return true;
-  }
-  
-  // Then check against pools as a fallback
-  return RAYDIUM_DEVNET_POOLS.some(pool => 
-    pool.baseMint === tokenAddress || pool.quoteMint === tokenAddress
-  );
+export async function getRaydiumSwapEstimate(
+  fromToken: TokenInfo,
+  toToken: TokenInfo,
+  amount: number,
+  slippage: number = 0.01
+): Promise<any> {
+  // Placeholder for Raydium quote API
+  throw new Error('Raydium quote API not implemented yet');
 }
