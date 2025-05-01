@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -147,22 +148,30 @@ export default function TransactionDebugPage() {
         throw new Error("Invalid amount");
       }
       
+      // Get the public key from the active wallet
+      if (!activeWallet || !activeWallet.publicKey) {
+        throw new Error("No public key available in the connected wallet");
+      }
+      const publicKey = activeWallet.publicKey;
+
       // Create the transaction
       const transaction = new Transaction().add(
         SystemProgram.transfer({
-          fromPubkey: wallet.publicKey,
+          fromPubkey: publicKey,
           toPubkey: toPublicKey,
           lamports
         })
       );
       
-      // Get recent blockhash
-      const { blockhash } = await connection.getLatestBlockhash();
+      // Get recent blockhash with more parameters for better reliability
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
       transaction.recentBlockhash = blockhash;
-      transaction.feePayer = wallet.publicKey;
+      transaction.feePayer = publicKey;
+      
+      console.log("Sending transaction...");
 
-      // Sign and send transaction
-      const signature = await wallet.sendTransaction(transaction, connection);
+      // Sign and send transaction using the active wallet
+      const signature = await activeWallet.sendTransaction(transaction, connection);
       
       // Wait for confirmation
       const confirmation = await connection.confirmTransaction(signature, "confirmed");
@@ -208,22 +217,57 @@ export default function TransactionDebugPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-4 mb-4">
-            <WalletMultiButton />
+          <div className="space-y-3">
+            <div className="flex items-center gap-4">
+              <WalletMultiButton />
+              
+              {wallet.connected && (
+                <span>Connected: {shortenAddress(wallet.publicKey?.toString() || "")}</span>
+              )}
+            </div>
             
-            {wallet.connected && (
-              <span>Connected: {shortenAddress(wallet.publicKey?.toString() || "")}</span>
-            )}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Badge variant={multiWallet.connected ? "success" : "secondary"}>
+                  {multiWallet.connected ? "Connected to MultiWallet" : "Not connected to MultiWallet"}
+                </Badge>
+                
+                {multiWallet.connected && multiWallet.publicKey && (
+                  <span className="text-sm">
+                    {shortenAddress(multiWallet.publicKey.toString())}
+                  </span>
+                )}
+              </div>
+              
+              <Button 
+                size="sm" 
+                variant="outline"
+                disabled={multiWallet.connecting} 
+                onClick={() => multiWallet.connected ? multiWallet.disconnect() : multiWallet.connect()}
+              >
+                {multiWallet.connecting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : multiWallet.connected ? (
+                  "Disconnect Multi"
+                ) : (
+                  "Connect Multi"
+                )}
+              </Button>
+            </div>
           </div>
           
-          <Button 
-            onClick={testWalletSignature}
-            disabled={((!wallet.connected || !wallet.publicKey) && (!multiWallet.connected || !multiWallet.publicKey)) || isTestLoading}
-            className="mb-4"
-          >
-            {isTestLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Run Simple Transaction Test
-          </Button>
+          <div className="mt-6">
+            <Button 
+              onClick={testWalletSignature}
+              disabled={((!wallet.connected || !wallet.publicKey) && (!multiWallet.connected || !multiWallet.publicKey)) || isTestLoading}
+              className="w-full"
+              size="lg"
+              variant="default"
+            >
+              {isTestLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Run Simple Transaction Test
+            </Button>
+          </div>
           
           {testResult && (
             <Alert className="mt-4 bg-green-50 border-green-500">
@@ -274,7 +318,10 @@ export default function TransactionDebugPage() {
           
           <Button 
             onClick={sendTransaction}
-            disabled={!wallet.connected || isLoading || !destinationAddress}
+            disabled={((!wallet.connected || !wallet.publicKey) && (!multiWallet.connected || !multiWallet.publicKey)) || isLoading || !destinationAddress}
+            className="w-full"
+            size="lg"
+            variant="default"
           >
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Send SOL
