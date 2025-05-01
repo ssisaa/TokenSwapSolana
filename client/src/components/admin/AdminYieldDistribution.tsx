@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useWallet } from "@/hooks/use-wallet";
+import { useWallet } from "@/hooks/useSolanaWallet";
 import { triggerYieldDistribution } from "@/lib/multihub-contract";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,7 +65,7 @@ export default function AdminYieldDistribution() {
           )}
 
           {success && (
-            <Alert variant="success" className="bg-green-50 text-green-800 border-green-200">
+            <Alert className="bg-green-50 text-green-800 border border-green-200">
               <CheckCircle className="h-4 w-4 text-green-600" />
               <AlertTitle className="text-green-800">Success</AlertTitle>
               <AlertDescription className="text-green-700">{success}</AlertDescription>

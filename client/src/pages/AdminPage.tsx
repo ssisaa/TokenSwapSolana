@@ -93,6 +93,9 @@ export default function AdminPage() {
 
               {/* Added Program Funding Component */}
               <FundProgramAccounts />
+              
+              {/* Manual Yield Distribution Component */}
+              <AdminYieldDistribution />
             </div>
             
             {/* Statistics panel next to Blockchain settings */}
