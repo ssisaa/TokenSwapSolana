@@ -41,38 +41,41 @@ export default function YOTExchangeCard() {
     const FEE_MULTIPLIER = 0.997; // 0.3% fee
     
     try {
+      console.log(`Calculating exchange rates with pool data: SOL=${SOL_RESERVE}, YOT=${YOT_RESERVE}`);
       // Calculate exchange rates using proper AMM constant product formula (x * y = k)
       const CP_CONSTANT = SOL_RESERVE * YOT_RESERVE; // Calculate constant product k
       
-      // Calculate SOL → YOT rate properly
+      // Calculate SOL → YOT rate properly (direct calculation)
+      // For 1 SOL input, we'll calculate exact YOT output using AMM formula
       const inputSOL = 1; // Calculate for 1 SOL
-      const newSolReserve = SOL_RESERVE + inputSOL;
-      const newYotReserve = CP_CONSTANT / newSolReserve;
-      const outputYOT = (YOT_RESERVE - newYotReserve) * FEE_MULTIPLIER; // Apply fee
+      
+      // The correct formula for AMM is: (dx * y) / (x + dx)
+      // For SOL to YOT: (1 SOL * YOT_RESERVE) / (SOL_RESERVE + 1)
+      // Then apply fee: result * FEE_MULTIPLIER
+      const outputYOT = (inputSOL * YOT_RESERVE * FEE_MULTIPLIER) / (SOL_RESERVE + inputSOL);
       setSolToYot(outputYOT);
+      console.log(`Exchange Rate: 1 SOL = ${outputYOT} YOT using direct AMM formula`);
       
       // Calculate YOT → SOL rate (for 1M YOT)
       const inputYOT = 1000000; // Calculate for 1M YOT for better display
-      const newYotReserveForSol = YOT_RESERVE + inputYOT;
-      const newSolReserveForYot = CP_CONSTANT / newYotReserveForSol;
-      const outputSOL = (SOL_RESERVE - newSolReserveForYot) * FEE_MULTIPLIER; // Apply fee
+      // Using same formula but reversed: (1M YOT * SOL_RESERVE) / (YOT_RESERVE + 1M)
+      const outputSOL = (inputYOT * SOL_RESERVE * FEE_MULTIPLIER) / (YOT_RESERVE + inputYOT);
       setYotToSol(outputSOL);
       
       // Only calculate YOS rates if we have YOS in the pool
       if (YOS_RESERVE > 0) {
-        // Calculate SOL → YOS rate
-        const CP_CONSTANT_YOS = SOL_RESERVE * YOS_RESERVE;
-        const newSolReserveForYos = SOL_RESERVE + inputSOL;
-        const newYosReserve = CP_CONSTANT_YOS / newSolReserveForYos;
-        const outputYOS = (YOS_RESERVE - newYosReserve) * FEE_MULTIPLIER;
+        // Calculate SOL → YOS rate using the correct AMM formula
+        // Using same formula: (input_amount * output_reserve * fee) / (input_reserve + input_amount)
+        const outputYOS = (inputSOL * YOS_RESERVE * FEE_MULTIPLIER) / (SOL_RESERVE + inputSOL);
         setSolToYos(outputYOS);
+        console.log(`Exchange Rate: 1 SOL = ${outputYOS} YOS using direct AMM formula`);
         
         // Calculate YOS → SOL rate (for 1M YOS)
         const inputYOS = 1000000; // Calculate for 1M YOS
-        const newYosReserveForSol = YOS_RESERVE + inputYOS;
-        const newSolReserveForYos2 = CP_CONSTANT_YOS / newYosReserveForSol;
-        const outputSOLFromYOS = (SOL_RESERVE - newSolReserveForYos2) * FEE_MULTIPLIER;
+        // Using same formula: (input_amount * output_reserve * fee) / (input_reserve + input_amount)
+        const outputSOLFromYOS = (inputYOS * SOL_RESERVE * FEE_MULTIPLIER) / (YOS_RESERVE + inputYOS);
         setYosToSol(outputSOLFromYOS);
+        console.log(`Exchange Rate: 1M YOS = ${outputSOLFromYOS} SOL using direct AMM formula`);
       }
     } catch (error) {
       console.error('Error in local rate calculation:', error);
