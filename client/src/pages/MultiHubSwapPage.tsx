@@ -58,6 +58,20 @@ export default function MultiHubSwapPage() {
         )}
       </div>
       
+      {/* Smart Contract Integration Notice */}
+      <Alert className="bg-blue-950 border-blue-800 mb-6">
+        <AlertTriangle className="h-5 w-5 text-blue-400" />
+        <AlertTitle className="text-blue-200">Smart Contract Integration Status</AlertTitle>
+        <AlertDescription className="text-blue-300">
+          The XAR → SOL → YOT swap functionality is implemented with a Solana smart contract that handles the 20% liquidity pool contribution and 3% YOS cashback rewards. Use the test panel below to verify the swap flow.
+        </AlertDescription>
+      </Alert>
+      
+      {/* Test Swap Panel */}
+      <div className="mb-6">
+        <SwapTestPanel />
+      </div>
+      
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Swap Panel */}
         <div>
