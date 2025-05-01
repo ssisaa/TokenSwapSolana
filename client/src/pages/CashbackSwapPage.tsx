@@ -156,7 +156,7 @@ export default function CashbackSwapPage() {
                   <span>To</span>
                   <span>
                     Balance: {typeof swap.toBalance === 'number' && swap.toBalance > 0 
-                      ? formatCurrency(swap.toBalance, 4) 
+                      ? formatCurrency(swap.toBalance, swap.toToken, 4) 
                       : "0"} {swap.toToken}
                   </span>
                 </div>
