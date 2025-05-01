@@ -362,16 +362,43 @@ export async function getMultiHubSwapEstimate(
     // Fallback to hardcoded values if pool fetching fails
     console.log(`Using fallback hardcoded rate for ${fromSymbol}-${toSymbol}`);
     
-    // Special case handling for known problematic pairs with updated rates - using AMM formula
-    // These values match the actual AMM calculation from the devnet liquidity pool
+    // Dynamically calculate exchange rate using AMM formula based on liquidity pool reserves
     if (fromSymbol === 'SOL' && toSymbol === 'YOT') {
-      // Based on the devnet Liquidity Pool showing 1 SOL = 24,533,509.20 YOT
-      // This matches the exact devnet AMM calculation for the SOL-YOT pair
-      return 24533509.20;
+      // Using the constant product AMM formula x * y = k
+      // SOL-YOT Liquidity Pool reserves from devnet
+      const solReserve = 1.65; // SOL amount in pool
+      const yotReserve = 40480290.18; // YOT amount in pool
+      
+      // Calculate the rate including 0.3% swap fee using AMM formula
+      // For a small amount of SOL (e.g. 1 SOL), the output YOT is:
+      // outputYOT = (yotReserve * inputSOL * 0.997) / (solReserve + inputSOL * 0.997)
+      const FEE_MULTIPLIER = 0.997; // 0.3% fee
+      const inputSOL = 1; // Calculate for 1 SOL input
+      
+      // Calculate YOT output for 1 SOL using AMM formula
+      const outputYOT = (yotReserve * inputSOL * FEE_MULTIPLIER) / (solReserve + (inputSOL * FEE_MULTIPLIER));
+      console.log(`AMM Calculation: 1 SOL = ${outputYOT.toFixed(2)} YOT based on devnet pool reserves`);
+      
+      // Return the calculated AMM rate
+      return outputYOT;
     } else if (fromSymbol === 'YOT' && toSymbol === 'SOL') {
-      // Inverse of the exact rate from devnet Liquidity Pool
-      // 1 / 24,533,509.20 = ~0.00000004075
-      return 0.00000004075;
+      // SOL-YOT Liquidity Pool reserves from devnet
+      const solReserve = 1.65; // SOL amount in pool
+      const yotReserve = 40480290.18; // YOT amount in pool
+      
+      // Calculate the inverse rate including 0.3% swap fee using AMM formula
+      // For a small amount of YOT, the output SOL is:
+      // outputSOL = (solReserve * inputYOT * 0.997) / (yotReserve + inputYOT * 0.997)
+      const FEE_MULTIPLIER = 0.997; // 0.3% fee
+      const inputYOT = 24533509.20; // Use the equivalent of 1 SOL worth of YOT as input
+      
+      // Calculate SOL output using AMM formula
+      const outputSOL = (solReserve * inputYOT * FEE_MULTIPLIER) / (yotReserve + (inputYOT * FEE_MULTIPLIER));
+      const rateYOTtoSOL = outputSOL / inputYOT;
+      console.log(`AMM Calculation: 1 YOT = ${rateYOTtoSOL.toFixed(10)} SOL based on devnet pool reserves`);
+      
+      // Return the calculated AMM rate
+      return rateYOTtoSOL;
     } else if (fromSymbol === 'SOL' && toSymbol === 'USDC') {
       return 148.35; // SOL price in USD
     } else if (fromSymbol === 'USDC' && toSymbol === 'SOL') {
