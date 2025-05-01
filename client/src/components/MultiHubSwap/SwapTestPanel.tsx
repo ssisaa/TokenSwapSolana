@@ -222,9 +222,11 @@ export default function SwapTestPanel() {
           • ${swappedAmount.toFixed(4)} ${fromToken.symbol} (80%) used for swap path
           • Received ${cashbackAmount.toFixed(4)} YOS as cashback reward (3%)
           
-          Liquidity contribution split:
-          • 50% (${(contributionAmount * 0.5 * xarToSolRate).toFixed(6)} SOL value) added to SOL reserve
-          • 50% (${(contributionAmount * 0.5 * xarToSolRate * solToYotRate).toFixed(4)} YOT value) added to YOT reserve`
+          Liquidity contribution:
+          • ${(contributionAmount * xarToSolRate * solToYotRate).toFixed(4)} YOT value added to YOT-SOL liquidity pool
+          
+          Yield farming rewards:
+          • 100% APR paid weekly in YOS tokens (${(contributionAmount * xarToSolRate * solToYotRate * 0.02).toFixed(4)} YOS estimated weekly reward on YOT contribution)`
         });
       } else {
         // For other token pairs, use simplified simulation
