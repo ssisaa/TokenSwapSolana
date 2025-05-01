@@ -152,8 +152,13 @@ export function LivePoolStats() {
             <>
               {/* Devnet Notice */}
               <div className="mb-4 p-3 bg-secondary/50 rounded-md text-xs text-muted-foreground">
-                <p>These stats display token accounts on Solana <strong>devnet</strong> that will be used for the liquidity pool. 
-                YOT and YOS tokens are in development, and this component will show real token balances after launch.</p>
+                <p>These stats display token accounts on Solana <strong>devnet</strong> that will be used for the liquidity pool.</p>
+                <ul className="mt-2 list-disc list-inside space-y-1">
+                  <li><strong>SOL-YOT</strong>: Main liquidity pool for trading YOT tokens</li>
+                  <li><strong>YOT</strong>: Primary utility token used in the ecosystem</li>
+                  <li><strong>YOS</strong>: Rewards token used only for staking rewards and YOT swaps</li>
+                </ul>
+                <p className="mt-2">Token values will reflect mainnet balances after official launch.</p>
               </div>
               
               {/* SOL Balance */}
@@ -180,18 +185,24 @@ export function LivePoolStats() {
                 <Progress value={(poolData || fallbackData) ? Math.min(((poolData || fallbackData)!.yot / 1_000_000) * 100, 100) : 0} />
               </div>
 
-              {/* YOS Balance */}
+              {/* YOS Balance - Rewards Only */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">YOS Balance</span>
+                  <div className="flex items-center">
+                    <span className="text-sm font-medium">YOS Rewards</span>
+                    <Badge variant="outline" className="ml-2 text-xs">Rewards Token</Badge>
+                  </div>
                   <div className="flex items-center">
                     <span className="text-sm font-medium">Not Available Yet</span>
                     <Badge variant="outline" className="ml-2 text-xs">Coming Soon</Badge>
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Progress value={0} className="flex-1" />
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">0.000000 YOS</span>
+                <div className="flex flex-col space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <Progress value={0} className="flex-1" />
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">0.000000 YOS</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">YOS is a rewards token given for liquidity contribution and can only be swapped with YOT.</p>
                 </div>
               </div>
 
