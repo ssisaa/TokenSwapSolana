@@ -71,14 +71,12 @@ export default function Sidebar() {
         <ul className="space-y-1 px-2">
           {menuItems.map((item) => (
             <li key={item.href}>
-              <Link href={item.href}>
-                <a className={cn(
-                  "flex items-center space-x-3 px-3 py-2 rounded-md text-[#a3accd] hover:bg-[#1e2a45] hover:text-white transition-colors",
-                  location === item.href && "bg-[#1e2a45] text-white font-medium"
-                )}>
-                  <item.icon className="h-5 w-5 shrink-0" />
-                  {!collapsed && <span>{item.label}</span>}
-                </a>
+              <Link href={item.href} className={cn(
+                "flex items-center space-x-3 px-3 py-2 rounded-md text-[#a3accd] hover:bg-[#1e2a45] hover:text-white transition-colors",
+                location === item.href && "bg-[#1e2a45] text-white font-medium"
+              )}>
+                <item.icon className="h-5 w-5 shrink-0" />
+                {!collapsed && <span>{item.label}</span>}
               </Link>
             </li>
           ))}
