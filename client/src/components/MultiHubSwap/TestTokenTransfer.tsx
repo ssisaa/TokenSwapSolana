@@ -51,6 +51,17 @@ export default function TestTokenTransfer() {
     }
   };
   
+  // Function to validate Solana address
+  const isValidSolanaAddress = (address: string): boolean => {
+    // Basic check: Solana addresses are base58 encoded and typically 32-44 characters
+    const base58Regex = /^[1-9A-HJ-NP-Za-km-z]+$/;
+    
+    // Verify it's the right length and only contains base58 characters
+    return address.length >= 32 && 
+           address.length <= 44 && 
+           base58Regex.test(address);
+  };
+  
   // Handle transfer
   const handleTransfer = async () => {
     if (!connected || !wallet) {
@@ -70,6 +81,18 @@ export default function TestTokenTransfer() {
         isSuccess: false,
         isError: true,
         error: 'Recipient address is required',
+        signatures: []
+      });
+      return;
+    }
+    
+    // Validate Solana address format
+    if (!isValidSolanaAddress(recipient)) {
+      setTransferStatus({
+        isLoading: false,
+        isSuccess: false,
+        isError: true,
+        error: 'Invalid Solana address format. Please provide a valid base58 Solana wallet address.',
         signatures: []
       });
       return;

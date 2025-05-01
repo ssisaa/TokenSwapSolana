@@ -1,137 +1,55 @@
-import { useState } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useState } from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import TestTokenTransfer from '@/components/MultiHubSwap/TestTokenTransfer';
-import TokenBalanceMonitor from '@/components/MultiHubSwap/TokenBalanceMonitor';
-import LiquidityPoolsChecker from '@/components/MultiHubSwap/LiquidityPoolsChecker';
 import PoolLiquidityTable from '@/components/MultiHubSwap/PoolLiquidityTable';
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Info } from "lucide-react";
-import { WalletContext } from "@/components/MultiWalletContext";
-
-// Mock wallet for testing purposes
-const mockWallet = {
-  publicKey: { toString: () => "AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ" },
-  connected: true,
-  connecting: false,
-  connect: async () => console.log("Connected"),
-  disconnect: async () => console.log("Disconnected"),
-  signTransaction: async (tx: any) => {
-    console.log("Mock sign transaction", tx);
-    return tx;
-  }
-};
+import LiquidityPoolsChecker from '@/components/MultiHubSwap/LiquidityPoolsChecker';
 
 export default function TokenTestingPage() {
-  const [activeTab, setActiveTab] = useState("token-transfer");
-  
   return (
-    <WalletContext.Provider value={{
-      wallet: mockWallet,
-      connected: true,
-      connecting: false,
-      connect: async () => console.log("Connected"),
-      disconnect: async () => console.log("Disconnected")
-    }}>
-      <div className="container py-8">
-        <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-purple-600 to-blue-500 bg-clip-text text-transparent">
-          Token Testing Utilities
-        </h1>
-        <p className="text-muted-foreground mb-6">
-          Tools for testing token transfers, monitoring balances, and checking liquidity pools
-        </p>
+    <div className="container py-6">
+      <h1 className="text-2xl font-bold mb-6">Token Testing Tools</h1>
+      
+      <Tabs defaultValue="transfer">
+        <TabsList className="mb-4">
+          <TabsTrigger value="transfer">Token Transfer</TabsTrigger>
+          <TabsTrigger value="pools">Liquidity Pools</TabsTrigger>
+          <TabsTrigger value="routes">Pool Status</TabsTrigger>
+        </TabsList>
         
-        <Alert className="mb-6 border-amber-200 bg-amber-50">
-          <Info className="h-4 w-4 text-amber-800" />
-          <AlertTitle className="text-amber-800">Testing Mode</AlertTitle>
-          <AlertDescription className="text-amber-700">
-            These tools are provided for testing purposes only. They operate on Solana devnet with test tokens.
-            Admin wallet: AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ | Test wallet: AZqjcFDjZRTHwsSmEtGtP4dKrCyusLb9BYXzq34BaPrn
-          </AlertDescription>
-        </Alert>
-        
-        <Tabs 
-          defaultValue="token-transfer" 
-          value={activeTab}
-          onValueChange={setActiveTab}
-          className="w-full"
-        >
-          <TabsList className="grid w-full grid-cols-4 mb-8">
-            <TabsTrigger value="token-transfer">Token Transfer</TabsTrigger>
-            <TabsTrigger value="balance-monitor">Balance Monitor</TabsTrigger>
-            <TabsTrigger value="liquidity-pools">Liquidity Pools</TabsTrigger>
-            <TabsTrigger value="routes">Multi-Hub Routes</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="token-transfer">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="lg:col-span-1">
-                <TestTokenTransfer />
+        <TabsContent value="transfer" className="space-y-6">
+          <div className="grid grid-cols-1 gap-6">
+            <div className="mx-auto w-full max-w-2xl">
+              <TestTokenTransfer />
+            </div>
+            
+            <div className="bg-slate-50 dark:bg-slate-900 p-6 rounded-lg border">
+              <h3 className="text-lg font-medium mb-4">Test Token Information</h3>
+              <div className="space-y-2 text-sm">
+                <p><strong>MTA:</strong> MTAwhynnxuZPWeRaKdZNgCiLgv8qTzhMV7SE6cuvjLf</p>
+                <p><strong>SAMX:</strong> SAMXtxdXUeRHkeFp3JbCJcDtVPM18tqcEFmhsJtUYU7</p>
+                <p><strong>XAR:</strong> XARMztsUvnKamdA2TgSEEib7H7zCUwF3jgChMGHXXSp</p>
+                <p><strong>XMP:</strong> XMPuiiydZfyYNSXY894NucMmFZyEwuK7i1uHLmDyDN1</p>
+                <p><strong>RAMX:</strong> RAMXriMbBGpXU8FMj2Y7WEcTXNfWGhkmkYdgZZ26i5F</p>
+                <p><strong>TRAXX:</strong> TRAXXapnMX3NYpuYpXuRJjpH7Vop8YZtxRrPEAVTJhY</p>
               </div>
-              <div className="lg:col-span-1">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Token Transfer Guide</CardTitle>
-                    <CardDescription>
-                      How to use the token transfer utility
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <h3 className="font-semibold mb-2">1. Enter Recipient Address</h3>
-                      <p className="text-muted-foreground">
-                        Enter the Solana wallet address that will receive the tokens.
-                        You can use the admin wallet or test wallet provided above.
-                      </p>
-                    </div>
-                    
-                    <div>
-                      <h3 className="font-semibold mb-2">2. Select Tokens</h3>
-                      <p className="text-muted-foreground">
-                        Choose which test tokens to send. These tokens are set up for
-                        testing swap routes with our multi-hub infrastructure.
-                      </p>
-                    </div>
-                    
-                    <div>
-                      <h3 className="font-semibold mb-2">3. Set Amount</h3>
-                      <p className="text-muted-foreground">
-                        Specify how many tokens to send. The default of 1000 tokens
-                        should be sufficient for testing. Larger amounts may be used
-                        for stress testing.
-                      </p>
-                    </div>
-                    
-                    <div>
-                      <h3 className="font-semibold mb-2">Test Token Addresses</h3>
-                      <ul className="space-y-1 text-muted-foreground">
-                        <li>MTA: MTAwpfGYQbnJkjB2iHUNpGV4yxkpJpgAQNHpg3ZJXKd</li>
-                        <li>SAMX: SAMXjJJa4XShbsyK3ZK1qUKgHs45u8YUySGBbKctwKX</li>
-                        <li>XAR: XAR18RSUr4pRGnmmM5Zz9vAz3EXmvWPx7cMuFB8mvCh</li>
-                        <li>XMP: XMP9SXVv3Kj6JcnJEyLaQzYEuWEGsHjhJNpkha2Vk5M</li>
-                        <li>RAMX: RAMXd3mgY5XFyWbfgNh9LT7BcuW5w7jqRFgNkwZEhhsu</li>
-                        <li>TRAXX: TRXXpN1Y4tAYcfp3QxCKLeVDvUnjGWQvA2HTQ5VTytA</li>
-                      </ul>
-                    </div>
-                  </CardContent>
-                </Card>
+              <div className="mt-4">
+                <p className="text-sm text-muted-foreground">
+                  These are test tokens created on Solana devnet for testing multi-hop swaps. 
+                  Use this page to transfer test tokens to your wallet for testing.
+                </p>
               </div>
             </div>
-          </TabsContent>
-          
-          <TabsContent value="balance-monitor">
-            <TokenBalanceMonitor />
-          </TabsContent>
-          
-          <TabsContent value="liquidity-pools">
-            <PoolLiquidityTable />
-          </TabsContent>
-          
-          <TabsContent value="routes">
-            <LiquidityPoolsChecker />
-          </TabsContent>
-        </Tabs>
-      </div>
-    </WalletContext.Provider>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="pools">
+          <PoolLiquidityTable />
+        </TabsContent>
+        
+        <TabsContent value="routes">
+          <LiquidityPoolsChecker />
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }
