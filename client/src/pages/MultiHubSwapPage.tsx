@@ -7,6 +7,7 @@ import MultiHubSwapDemo from '@/components/MultiHubSwap/MultiHubSwapDemo';
 import { TokenPriceChart } from '@/components/MultiHubSwap/TokenPriceChart';
 import TokenPoolDetails from '@/components/MultiHubSwap/TokenPoolDetails';
 import SwapTestPanel from '@/components/MultiHubSwap/SwapTestPanel';
+import { LivePoolStats } from '@/components/MultiHubSwap/LivePoolStats';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import useMultiHubSwap from '@/hooks/useMultiHubSwap';
 import { formatNumber, shortenAddress } from '@/lib/utils';
@@ -70,6 +71,11 @@ export default function MultiHubSwapPage() {
       {/* Test Swap Panel */}
       <div className="mb-6">
         <SwapTestPanel />
+      </div>
+      
+      {/* Live Pool Stats */}
+      <div className="mb-6">
+        <LivePoolStats />
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
