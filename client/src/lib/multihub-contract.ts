@@ -701,29 +701,114 @@ export async function getMultiHubSwapEstimate(
   amount: number,
   slippage: number = 0.01
 ): Promise<SwapEstimate> {
-  console.log(`Estimating swap via smart contract: ${amount} ${fromToken.symbol} -> ${toToken.symbol}`);
+  console.log(`Estimating swap: ${amount} ${fromToken.symbol} -> ${toToken.symbol}`);
   
-  // Create connection to Solana
-  const connection = new Connection(ENDPOINT);
-  
-  // Convert token addresses to PublicKey objects
-  const inputTokenMint = new PublicKey(fromToken.address);
-  const outputTokenMint = new PublicKey(toToken.address);
-  
-  // Call the contract estimation function
+  // First, try to get pool data from our API - this is the most reliable source
+  // and doesn't depend on direct blockchain access which can be rate-limited
   try {
-    // Get the program state account (where pool info is stored)
-    const [programStateAccount] = await findProgramStateAddress();
-    const programStateInfo = await connection.getAccountInfo(programStateAccount);
-    
-    // Use WebSocket API to get latest pool data
-    // This provides real-time updates from the running server
+    // Use the pool API to get the latest pool data (this is our own API)
     const apiUrl = `${window.location.protocol}//${window.location.host}/api/pool-data`;
     const poolResponse = await fetch(apiUrl);
     const poolData = await poolResponse.json();
     
-    if (!programStateInfo) {
-      console.warn('Program state account not found, using fallback estimate');
+    if (poolData && poolData.sol && poolData.yot) {
+      console.log(`Using verified pool data from API: SOL=${poolData.sol}, YOT=${poolData.yot}`);
+      
+      // Check if we're dealing with SOL/YOT pair
+      const isSOL = fromToken.address === 'So11111111111111111111111111111111111111112' ||
+                  toToken.address === 'So11111111111111111111111111111111111111112';
+      const isYOT = fromToken.address === '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF' ||
+                  toToken.address === '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF';
+      
+      // For our key SOL/YOT pair, we can provide accurate estimates based on pool data
+      if (isSOL && isYOT) {
+        const fee = 0.003; // 0.3% swap fee
+        const FEE_MULTIPLIER = 1 - fee; // 0.997
+        const liquidityContribution = 0.20; // 20% contribution to liquidity
+        const yosCashback = 0.05; // 5% YOS cashback
+        
+        // The actual amount used for the swap after contributions
+        const swapAmount = amount * (1 - (liquidityContribution + yosCashback));
+        
+        // Get the pool reserves
+        const solReserve = poolData.sol;
+        const yotReserve = poolData.yot;
+        
+        let estimatedAmount; 
+        let priceImpact;
+        
+        if (fromToken.address === 'So11111111111111111111111111111111111111112' && 
+            toToken.address === '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF') {
+          // SOL to YOT - using proper AMM formula
+          estimatedAmount = (swapAmount * yotReserve * FEE_MULTIPLIER) / (solReserve + swapAmount);
+          console.log(`API CALC (SOL→YOT): ${swapAmount} SOL should yield ${estimatedAmount} YOT`);
+          
+          // Calculate price impact
+          const initialPrice = solReserve / yotReserve;  
+          const newSolReserve = solReserve + swapAmount;
+          const newYotReserve = yotReserve - estimatedAmount;
+          const newPrice = newSolReserve / newYotReserve;
+          priceImpact = Math.abs((newPrice - initialPrice) / initialPrice);
+        } 
+        else if (fromToken.address === '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF' && 
+                toToken.address === 'So11111111111111111111111111111111111111112') {
+          // YOT to SOL - using proper AMM formula
+          estimatedAmount = (swapAmount * solReserve * FEE_MULTIPLIER) / (yotReserve + swapAmount);
+          console.log(`API CALC (YOT→SOL): ${swapAmount} YOT should yield ${estimatedAmount} SOL`);
+          
+          // Calculate price impact
+          const initialPrice = yotReserve / solReserve;
+          const newYotReserve = yotReserve + swapAmount;
+          const newSolReserve = solReserve - estimatedAmount;
+          const newPrice = newYotReserve / newSolReserve;
+          priceImpact = Math.abs((newPrice - initialPrice) / initialPrice);
+        }
+        
+        if (estimatedAmount !== undefined) {
+          // Calculate minimum amount out based on slippage
+          const minAmountOut = estimatedAmount * (1 - slippage);
+          
+          // Return the estimate
+          return {
+            estimatedAmount,
+            minAmountOut,
+            priceImpact: priceImpact || 0.01, // Use calculated price impact or default
+            liquidityFee: fee * amount,
+            route: [fromToken.address, toToken.address],
+            provider: SwapProvider.Contract,
+            hops: 1
+          };
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error accessing API pool data:", error);
+    // Continue to blockchain method if API fails
+  }
+  
+  // If we reach here, either the tokens aren't SOL/YOT or API failed
+  // Next, try direct blockchain access as a backup
+  try {
+    // Create connection to Solana
+    const connection = new Connection(ENDPOINT);
+    
+    // Get the program state account (where pool info is stored)
+    const [programStateAccount] = await findProgramStateAddress();
+    
+    try {
+      const programStateInfo = await connection.getAccountInfo(programStateAccount);
+      
+      if (programStateInfo) {
+        console.log('Program state account found, using for calculation');
+        // We have a valid program state, continue with calculation
+      } else {
+        console.warn('Program state account not found on chain');
+        // We'll fallback to our basic estimation
+        throw new Error('Program state not initialized');
+      }
+    } catch (error) {
+      console.warn('Error accessing program state:', error);
+      // Fall back to basic estimation without direct blockchain data
       return createFallbackEstimate(fromToken, toToken, amount, slippage);
     }
     
