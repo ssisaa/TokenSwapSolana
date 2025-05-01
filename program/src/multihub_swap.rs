@@ -555,7 +555,7 @@ fn process_swap(
     // For real implementation we would do additional verification
     
     // Find or create user rewards account
-    let (user_rewards_pda, user_rewards_bump) = Pubkey::find_program_address(
+    let (_user_rewards_pda, _user_rewards_bump) = Pubkey::find_program_address(
         &[b"rewards", user_wallet.key.as_ref()],
         program_id,
     );
