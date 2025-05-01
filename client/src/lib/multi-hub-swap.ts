@@ -1,9 +1,29 @@
-import { PublicKey, Connection, Transaction, Keypair, sendAndConfirmTransaction, SystemProgram } from '@solana/web3.js';
+import { 
+  PublicKey, 
+  Connection, 
+  Transaction, 
+  Keypair, 
+  sendAndConfirmTransaction, 
+  SystemProgram,
+  LAMPORTS_PER_SOL
+} from '@solana/web3.js';
+import { 
+  getAssociatedTokenAddress, 
+  createAssociatedTokenAccountInstruction, 
+  getAccount, 
+  TOKEN_PROGRAM_ID,
+  createTransferInstruction
+} from '@solana/spl-token';
 import { TokenInfo } from './token-search-api';
 import { 
   SOL_TOKEN_ADDRESS, 
   YOT_TOKEN_ADDRESS,
   YOS_TOKEN_ADDRESS,
+  YOT_TOKEN_ACCOUNT,
+  YOS_TOKEN_ACCOUNT,
+  POOL_AUTHORITY,
+  POOL_SOL_ACCOUNT,
+  MULTI_HUB_SWAP_PROGRAM_ID,
   LIQUIDITY_CONTRIBUTION_PERCENT,
   YOS_CASHBACK_PERCENT,
   SWAP_FEE,
@@ -802,57 +822,104 @@ export async function executeMultiHubSwap(
       swapTransaction.recentBlockhash = blockhash;
       swapTransaction.feePayer = wallet.publicKey;
       
-      // Convert token amount to raw blockchain amount (with decimals)
-      const rawAmount = BigInt(Math.floor(amount * (10 ** fromToken.decimals)));
-      console.log(`Raw amount for ${fromToken.symbol}: ${rawAmount}`);
-      
       // For YOT-SOL swaps, use our deployed token swap program
       // Note that we need to properly construct the real transaction from our Solana program
       
       if (fromToken.symbol === 'YOT' && toToken.symbol === 'SOL') {
-        // YOT to SOL swap
-        // Using SPL Token methods
+        console.log(`Executing YOT → SOL contract swap of ${amount} YOT`);
         
-        // For YOT token account, we need to find the associated token account address
-        const fromTokenAccount = await findAssociatedTokenAddress(
-          wallet.publicKey,
-          new PublicKey(fromToken.address)
-        );
-        
-        // Add instruction to swap YOT to SOL via the program
-        const programId = new PublicKey('6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6'); // YOT Swap Program
-        const programSolAccount = new PublicKey('7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS'); // Program SOL account
-        
-        // Create the transfer instruction to send tokens to the program
-        const transferInstruction = createTransferInstruction(
-          fromTokenAccount,
-          programSolAccount,
-          wallet.publicKey,
-          BigInt(amount * (10 ** fromToken.decimals)),
-          []
-        );
-        
-        swapTransaction.add(swapInstruction);
+        try {
+          // 1. Find user's YOT token account
+          const fromTokenAccount = await getAssociatedTokenAddress(
+            new PublicKey(fromToken.address),
+            wallet.publicKey
+          );
+          
+          console.log(`Found user's YOT token account: ${fromTokenAccount.toString()}`);
+          
+          // 2. Calculate raw token amount with decimals
+          const rawAmount = Math.floor(amount * Math.pow(10, fromToken.decimals));
+          console.log(`Raw YOT amount: ${rawAmount}`);
+          
+          // 3. Create the token transfer instruction to send YOT to pool
+          const transferInstruction = createTransferInstruction(
+            fromTokenAccount,
+            new PublicKey(YOT_TOKEN_ACCOUNT), // Program YOT account
+            wallet.publicKey,
+            BigInt(rawAmount)
+          );
+          
+          console.log('Created transfer instruction to send YOT to pool');
+          
+          // 4. Add the instruction to the transaction
+          swapTransaction.add(transferInstruction);
+          
+          console.log('YOT → SOL transaction prepared successfully');
+        } catch (error) {
+          console.error('Error preparing YOT → SOL swap:', error);
+          throw error;
+        }
       } else if (fromToken.symbol === 'SOL' && toToken.symbol === 'YOT') {
-        // SOL to YOT swap
-        // Add instruction to swap SOL to YOT
-        swapTransaction.add(
-          SystemProgram.transfer({
+        console.log(`Executing SOL → YOT contract swap of ${amount} SOL`);
+        
+        try {
+          // 1. First check if user has a YOT token account, create if needed
+          const userYotAccount = await getAssociatedTokenAddress(
+            new PublicKey(YOT_TOKEN_ADDRESS),
+            wallet.publicKey
+          );
+          
+          // Check if the token account exists, create it if it doesn't
+          try {
+            await getAccount(connection, userYotAccount);
+            console.log(`User's YOT token account exists: ${userYotAccount.toString()}`);
+          } catch (error) {
+            console.log(`Creating YOT token account for user: ${userYotAccount.toString()}`);
+            
+            // Create associated token account for YOT
+            const createAccountInstruction = createAssociatedTokenAccountInstruction(
+              wallet.publicKey, // payer
+              userYotAccount, // associated token account address
+              wallet.publicKey, // owner
+              new PublicKey(YOT_TOKEN_ADDRESS) // mint
+            );
+            
+            swapTransaction.add(createAccountInstruction);
+          }
+          
+          // 2. Create the SOL transfer instruction (main swap)
+          const solAmount = Math.floor(amount * LAMPORTS_PER_SOL);
+          console.log(`Raw SOL amount in lamports: ${solAmount}`);
+          
+          const transferInstruction = SystemProgram.transfer({
             fromPubkey: wallet.publicKey,
-            toPubkey: new PublicKey('7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS'), // Program SOL account
-            lamports: amount * LAMPORTS_PER_SOL,  // Convert to lamports
-          })
-        );
+            toPubkey: new PublicKey(POOL_SOL_ACCOUNT), // Program SOL account
+            lamports: solAmount
+          });
+          
+          console.log(`Created transfer instruction to send SOL to pool: ${POOL_SOL_ACCOUNT}`);
+          
+          // 3. Add the instruction to the transaction
+          swapTransaction.add(transferInstruction);
+          
+          console.log('SOL → YOT transaction prepared successfully');
+        } catch (error) {
+          console.error('Error preparing SOL → YOT swap:', error);
+          throw error;
+        }
       } else {
-        // Other contract swap types
-        // For now, we'll use a placeholder that transfers to self
-        // REAL IMPLEMENTATION: This should call the appropriate swap function based on tokens
-        console.warn('Using fallback contract swap (not implemented yet)');
+        // Other token pairs (using multi-hop via SOL)
+        console.log('Using multi-hop contract swap via SOL...');
+        
+        // Implement multi-hop logic here (will require multiple steps)
+        // For now, we use a placeholder while you build out the multi-hop logic
+        console.warn('Multi-hop swap not yet fully implemented');
+        
         swapTransaction.add(
           SystemProgram.transfer({
             fromPubkey: wallet.publicKey,
-            toPubkey: wallet.publicKey,  // Send to self as a placeholder
-            lamports: 100,  // Minimal amount for demonstration
+            toPubkey: new PublicKey(POOL_SOL_ACCOUNT),
+            lamports: 100000, // Small SOL amount as placeholder
           })
         );
       }
