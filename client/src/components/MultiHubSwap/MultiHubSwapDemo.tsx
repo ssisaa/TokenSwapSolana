@@ -41,9 +41,11 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
   const [estimateLoading, setEstimateLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [routeProvider, setRouteProvider] = useState(SwapProvider.Contract);
+  const [selectedProvider, setSelectedProvider] = useState<SwapProvider | undefined>(undefined);
   const [availableRewards, setAvailableRewards] = useState(0);
   const [claimLoading, setClaimLoading] = useState(false);
   const [swapEstimate, setSwapEstimate] = useState<any>(null);
+  const [showRouteInfo, setShowRouteInfo] = useState(false);
   
   // Token balance state
   const [fromTokenBalance, setFromTokenBalance] = useState<number | null>(null);
@@ -114,20 +116,62 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
       try {
         setEstimateLoading(true);
         const parsedAmount = parseFloat(amount);
-        const estimate = await getMultiHubSwapEstimate(fromToken, toToken, parsedAmount);
+        
+        // Use the selected provider for the estimation if available
+        const estimate = await getMultiHubSwapEstimate(
+          fromToken, 
+          toToken, 
+          parsedAmount, 
+          slippage/100, 
+          selectedProvider
+        );
         
         if (estimate && estimate.estimatedAmount !== undefined) {
           setEstimatedAmount(estimate.estimatedAmount);
-          setRouteProvider(estimate.provider ?? SwapProvider.Contract);
           
-          // Store route information for display
-          if (estimate.routeInfo && estimate.routeInfo.length > 0) {
-            console.log('Route info:', estimate.routeInfo);
-            const routeInfoData = estimate.routeInfo;
+          // Only set the route provider if not manually selected
+          if (!selectedProvider) {
+            setRouteProvider(estimate.provider ?? SwapProvider.Contract);
+          }
+          
+          // Store route information for display including token path
+          if (estimate.route && estimate.route.length > 0) {
+            console.log('Route path:', estimate.route);
+            
+            // Create routeInfo if not provided directly
+            let routeInfoData = estimate.routeInfo || [];
+            
+            // If no route info was provided but route exists, create simple route info
+            if (routeInfoData.length === 0 && estimate.route.length > 0) {
+              // Generate route info based on route
+              routeInfoData = estimate.route.map((address, index) => {
+                // Skip the last one as it's the destination
+                if (index === estimate.route.length - 1) return null;
+                
+                // Find token info - this could be improved with a token info cache
+                const tokenInfo = {
+                  symbol: address === fromToken.address ? fromToken.symbol : 
+                          address === toToken.address ? toToken.symbol : 
+                          address === 'So11111111111111111111111111111111111111112' ? 'SOL' : 
+                          'Unknown',
+                  address: address
+                };
+                
+                return {
+                  tokenAddress: address,
+                  tokenSymbol: tokenInfo.symbol,
+                  tokenName: tokenInfo.symbol,
+                  percent: 100
+                };
+              }).filter(Boolean);
+            }
+            
             setSwapEstimate({
               ...estimate,
               routeInfo: routeInfoData
             });
+            
+            console.log('Route info set:', routeInfoData);
           } else {
             setSwapEstimate(estimate);
           }
@@ -146,7 +190,7 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
     };
     
     getEstimate();
-  }, [fromToken, toToken, amount]);
+  }, [fromToken, toToken, amount, slippage, selectedProvider]);
   
   // Fetch token balances from the blockchain when the wallet or tokens change
   useEffect(() => {
