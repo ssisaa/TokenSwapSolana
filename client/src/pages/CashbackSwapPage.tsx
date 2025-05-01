@@ -18,10 +18,15 @@ import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from "@/lib/utils";
 import { SOL_SYMBOL, YOT_SYMBOL } from "@/lib/constants";
 import { PublicKey } from "@solana/web3.js";
+import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
+import { useLocation } from "wouter";
 
 export default function CashbackSwapPage() {
   const { connected, connect, wallet } = useWallet();
   const swap = useSwap();
+  const { toast } = useToast();
+  const [_, navigate] = useLocation();
   
   // Local state for UI enhancements
   const [isCashbackTooltipOpen, setIsCashbackTooltipOpen] = useState(false);
@@ -45,8 +50,26 @@ export default function CashbackSwapPage() {
       setSwapSuccess(false);
       setSwapError(null);
       
-      // Import the helper function to execute the swap
+      // Import the helper functions to execute the swap and validate program initialization
       const { executeMultiHubSwap } = await import('@/lib/multihub-swap-helper');
+      const { validateProgramInitialization } = await import('@/lib/multihub-contract');
+      const { Connection } = await import('@solana/web3.js');
+      const { ENDPOINT } = await import('@/lib/constants');
+      
+      // First, validate that the program is properly initialized
+      console.log("Validating program initialization before swap...");
+      const connection = new Connection(ENDPOINT);
+      const validation = await validateProgramInitialization(connection);
+      
+      if (!validation.initialized) {
+        console.error("Program validation failed:", validation.error);
+        throw new Error(validation.error || "The MultiHub Swap program is not properly initialized. Please initialize it from the Transaction Debug page.");
+      }
+      
+      console.log("Program validation successful. Proceeding with swap...");
+      console.log("Using program state:", validation.programState?.toString());
+      console.log("Using pool account:", validation.poolAccount?.toString());
+      console.log("Using fee account:", validation.feeAccount?.toString());
       
       const amount = parseFloat(String(swap.fromAmount));
       
@@ -103,7 +126,38 @@ export default function CashbackSwapPage() {
       }, 5000);
     } catch (error) {
       console.error("Swap failed:", error);
-      setSwapError(error as Error); // Use a local state variable for errors
+      
+      // Provide more descriptive error messages based on common failure scenarios
+      let errorMsg = error?.message || "Unknown error";
+      
+      if (errorMsg.includes("Program not initialized") || errorMsg.includes("state account not found")) {
+        errorMsg = "The MultiHub Swap program is not initialized. Please go to the Transaction Debug page to initialize it.";
+        
+        toast({
+          title: "Program Not Initialized",
+          description: "The MultiHub Swap program must be initialized before swaps can be executed.",
+          variant: "destructive",
+          action: (
+            <ToastAction altText="Initialize Program" onClick={() => navigate('/transaction-debug')}>
+              Initialize
+            </ToastAction>
+          ),
+        });
+      } else if (errorMsg.includes("insufficient funds")) {
+        errorMsg = "Insufficient funds for this swap. Please check your wallet balance.";
+      } else if (errorMsg.includes("User rejected")) {
+        errorMsg = "Transaction was rejected by the wallet. Please try again.";
+      } else if (errorMsg.includes("Simulation failed")) {
+        errorMsg = "Transaction simulation failed. This could be due to incorrect accounts or insufficient funds.";
+        
+        toast({
+          title: "Transaction Failed",
+          description: "The swap transaction simulation failed. This is often due to account mismatch between initialization and swap execution.",
+          variant: "destructive",
+        });
+      }
+      
+      setSwapError(new Error(errorMsg));
     }
   };
   

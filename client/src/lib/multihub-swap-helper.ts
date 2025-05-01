@@ -17,6 +17,7 @@ import {
   getAssociatedTokenAddress, 
   createAssociatedTokenAccountInstruction 
 } from '@solana/spl-token';
+import { validateProgramInitialization } from './multihub-contract';
 
 // Devnet endpoint
 const ENDPOINT = 'https://api.devnet.solana.com';
@@ -471,6 +472,20 @@ export async function executeMultiHubSwap(
   minAmountOut: number
 ): Promise<any> {
   try {
+    // First, validate program initialization
+    const connection = new Connection(ENDPOINT);
+    const validationResult = await validateProgramInitialization(connection);
+    
+    if (!validationResult.initialized) {
+      console.error("Program validation failed:", validationResult.error);
+      throw new Error(validationResult.error || "The MultiHub Swap program is not properly initialized. Please initialize it from the Transaction Debug page.");
+    }
+    
+    console.log("Program validated successfully");
+    console.log("Using program state:", validationResult.programState?.toString());
+    console.log("Using pool account:", validationResult.poolAccount?.toString());
+    console.log("Using fee account:", validationResult.feeAccount?.toString());
+    
     const multihubClient = new MultihubSwapClient();
     
     // Execute the swap
