@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Loader2, CheckCircle, AlertCircle, Sparkles } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Connection, PublicKey, Transaction, SystemProgram, Keypair, LAMPORTS_PER_SOL } from '@solana/web3.js';
@@ -14,9 +14,14 @@ import {
   createTransferInstruction,
   TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
-  getMint
+  getMint,
+  createInitializeMintInstruction,
+  MINT_SIZE,
+  getMinimumBalanceForRentExemptMint,
+  createMintToInstruction
 } from '@solana/spl-token';
 import { ENDPOINT, TEST_TOKENS } from '@/lib/constants';
+import { createTestTokens, checkTestTokensExist } from '@/lib/token-creation';
 
 // Admin wallet that holds the test tokens
 // In a real app, this would be securely managed server-side
@@ -62,43 +67,66 @@ export default function TestTokenTransfer() {
     setSelectedTokens(newSelectedTokens);
   };
 
+  // Function to create test tokens for development
+  const handleCreateTokens = async () => {
+    if (!publicKey) {
+      setResult({
+        success: false,
+        message: 'Please connect your wallet to create test tokens.'
+      });
+      return;
+    }
+    
+    setLoading(true);
+    setResult(null);
+    
+    try {
+      console.log('Creating test tokens...');
+      // Use the wallet to create the test tokens
+      const createdTokens = await createTestTokens({
+        publicKey,
+        signTransaction: async (transaction: Transaction) => {
+          try {
+            const signedTx = await sendTransaction(transaction, connection);
+            console.log('Transaction sent:', signedTx);
+            return transaction;
+          } catch (error) {
+            console.error('Error signing transaction:', error);
+            throw error;
+          }
+        }
+      });
+      
+      setResult({
+        success: true,
+        message: `Successfully created test tokens: ${createdTokens.join(', ')}`
+      });
+    } catch (error: any) {
+      console.error('Error creating test tokens:', error);
+      setResult({
+        success: false,
+        message: `Error creating test tokens: ${error.message}`
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Function to check if token mints exist
   const checkTokenMints = async () => {
     setLoading(true);
     setResult(null);
     
     try {
-      const results: Array<{token: string, exists: boolean, message: string}> = [];
+      const tokenStatus = await checkTestTokensExist();
       
-      for (const [tokenSymbol, tokenMintAddress] of Object.entries(TEST_TOKENS)) {
-        try {
-          const tokenMint = new PublicKey(tokenMintAddress);
-          const accountInfo = await connection.getAccountInfo(tokenMint);
-          
-          if (accountInfo) {
-            results.push({
-              token: tokenSymbol,
-              exists: true,
-              message: `${tokenSymbol} token exists on the blockchain.`
-            });
-          } else {
-            results.push({
-              token: tokenSymbol,
-              exists: false,
-              message: `${tokenSymbol} token does not exist on the blockchain.`
-            });
-          }
-        } catch (error: any) {
-          results.push({
-            token: tokenSymbol,
-            exists: false,
-            message: `Error checking ${tokenSymbol}: ${error.message}`
-          });
-        }
-      }
+      const existingTokens = Object.entries(tokenStatus)
+        .filter(([_, exists]) => exists)
+        .map(([token]) => token);
       
-      const existingTokens = results.filter(r => r.exists).map(r => r.token);
-      const missingTokens = results.filter(r => !r.exists).map(r => r.token);
+      const missingTokens = Object.entries(tokenStatus)
+        .filter(([_, exists]) => !exists)
+        .map(([token]) => token);
       
       const message = `Found ${existingTokens.length}/${Object.keys(TEST_TOKENS).length} tokens on the blockchain.\n` +
         (existingTokens.length > 0 ? `Existing tokens: ${existingTokens.join(', ')}\n` : '') +
@@ -320,7 +348,7 @@ export default function TestTokenTransfer() {
             </div>
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-2">
             <Button 
               onClick={checkTokenMints}
               disabled={loading}
@@ -332,6 +360,25 @@ export default function TestTokenTransfer() {
                   Checking...
                 </>
               ) : 'Check Token Mints'}
+            </Button>
+            
+            <Button 
+              onClick={handleCreateTokens}
+              disabled={loading}
+              variant="secondary"
+              className="bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Create Tokens
+                </>
+              )}
             </Button>
             
             <Button 
