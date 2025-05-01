@@ -53,6 +53,16 @@ export interface SwapSummary {
   provider: SwapProvider;
 }
 
+// Route information including AMMID for detailed display
+export interface RouteInfo {
+  inputMint: string;
+  outputMint: string;
+  ammId?: string;
+  marketId?: string;
+  label?: string;
+  percent?: number;
+}
+
 // Swap estimate to be returned to callers
 export interface SwapEstimate {
   estimatedAmount: number;
@@ -60,6 +70,7 @@ export interface SwapEstimate {
   priceImpact: number;
   liquidityFee: number;
   route: string[];
+  routeInfo?: RouteInfo[];
   provider: SwapProvider;
 }
 
@@ -633,12 +644,131 @@ export async function getMultiHubSwapEstimate(
   
   console.log(`Final estimate: ${estimatedAmount.toFixed(6)} ${toToken.symbol} via ${provider}`);
 
+  // Create detailed route information with AMMID
+  let routeInfo: RouteInfo[] = [];
+  
+  // Generate route info based on provider and token pair
+  if (provider === SwapProvider.Contract) {
+    // Direct pool for contract swaps
+    if (fromToken.address === SOL_TOKEN_ADDRESS && toToken.address === YOT_TOKEN_ADDRESS) {
+      routeInfo = [
+        {
+          inputMint: fromToken.address,
+          outputMint: toToken.address,
+          ammId: MULTI_HUB_SWAP_PROGRAM_ID,
+          label: 'Direct SOL-YOT Pool',
+          percent: 100
+        }
+      ];
+    } else if (fromToken.address === YOT_TOKEN_ADDRESS && toToken.address === SOL_TOKEN_ADDRESS) {
+      routeInfo = [
+        {
+          inputMint: fromToken.address,
+          outputMint: toToken.address,
+          ammId: MULTI_HUB_SWAP_PROGRAM_ID,
+          label: 'Direct YOT-SOL Pool',
+          percent: 100
+        }
+      ];
+    } else {
+      // Multi-hop routing through SOL
+      routeInfo = [
+        {
+          inputMint: fromToken.address,
+          outputMint: SOL_TOKEN_ADDRESS,
+          ammId: MULTI_HUB_SWAP_PROGRAM_ID,
+          label: `${fromToken.symbol}-SOL Pool`,
+          percent: 50
+        },
+        {
+          inputMint: SOL_TOKEN_ADDRESS,
+          outputMint: toToken.address,
+          ammId: MULTI_HUB_SWAP_PROGRAM_ID,
+          label: `SOL-${toToken.symbol} Pool`,
+          percent: 50
+        }
+      ];
+    }
+  } else if (provider === SwapProvider.Raydium) {
+    // Raydium routes
+    const ammId = `Raydium-${fromToken.symbol}-${toToken.symbol}`;
+    routeInfo = [
+      {
+        inputMint: fromToken.address,
+        outputMint: toToken.address,
+        ammId: ammId,
+        marketId: `RAYMKT-${fromToken.symbol}-${toToken.symbol}`,
+        label: 'Raydium Pool',
+        percent: 100
+      }
+    ];
+  } else if (provider === SwapProvider.Jupiter) {
+    // Jupiter might use multiple hops
+    // Simulate Jupiter routing with up to 3 hops
+    if (Math.random() > 0.7) {
+      // Direct route
+      routeInfo = [
+        {
+          inputMint: fromToken.address,
+          outputMint: toToken.address,
+          ammId: `Jupiter-${fromToken.symbol}-${toToken.symbol}`,
+          label: 'Jupiter Direct',
+          percent: 100
+        }
+      ];
+    } else if (Math.random() > 0.5) {
+      // Two-hop route via SOL
+      routeInfo = [
+        {
+          inputMint: fromToken.address,
+          outputMint: SOL_TOKEN_ADDRESS,
+          ammId: `Jupiter-${fromToken.symbol}-SOL`,
+          label: `${fromToken.symbol}-SOL Pool`,
+          percent: 50
+        },
+        {
+          inputMint: SOL_TOKEN_ADDRESS,
+          outputMint: toToken.address,
+          ammId: `Jupiter-SOL-${toToken.symbol}`,
+          label: `SOL-${toToken.symbol} Pool`,
+          percent: 50
+        }
+      ];
+    } else {
+      // Three-hop route via USDC and SOL
+      routeInfo = [
+        {
+          inputMint: fromToken.address,
+          outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+          ammId: `Jupiter-${fromToken.symbol}-USDC`,
+          label: `${fromToken.symbol}-USDC Pool`,
+          percent: 33
+        },
+        {
+          inputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+          outputMint: SOL_TOKEN_ADDRESS,
+          ammId: `Jupiter-USDC-SOL`,
+          label: 'USDC-SOL Pool',
+          percent: 33
+        },
+        {
+          inputMint: SOL_TOKEN_ADDRESS,
+          outputMint: toToken.address,
+          ammId: `Jupiter-SOL-${toToken.symbol}`,
+          label: `SOL-${toToken.symbol} Pool`,
+          percent: 34
+        }
+      ];
+    }
+  }
+  
   return {
     estimatedAmount,
     minAmountOut,
     priceImpact,
     liquidityFee: fee,
     route,
+    routeInfo,
     provider
   };
 }

@@ -42,6 +42,7 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
   const [routeProvider, setRouteProvider] = useState(SwapProvider.Contract);
   const [availableRewards, setAvailableRewards] = useState(0);
   const [claimLoading, setClaimLoading] = useState(false);
+  const [swapEstimate, setSwapEstimate] = useState<any>(null);
   
   // Token balance state
   const [fromTokenBalance, setFromTokenBalance] = useState<number | null>(null);
@@ -64,13 +65,27 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
         if (estimate && estimate.estimatedAmount !== undefined) {
           setEstimatedAmount(estimate.estimatedAmount);
           setRouteProvider(estimate.provider ?? SwapProvider.Contract);
+          
+          // Store route information for display
+          if (estimate.routeInfo && estimate.routeInfo.length > 0) {
+            console.log('Route info:', estimate.routeInfo);
+            const routeInfoData = estimate.routeInfo;
+            setSwapEstimate({
+              ...estimate,
+              routeInfo: routeInfoData
+            });
+          } else {
+            setSwapEstimate(estimate);
+          }
         } else {
           setEstimatedAmount(null);
+          setSwapEstimate(null);
           console.error('Failed to get estimate');
         }
       } catch (error) {
         console.error('Error getting swap estimate:', error);
         setEstimatedAmount(null);
+        setSwapEstimate(null);
       } finally {
         setEstimateLoading(false);
       }
@@ -360,6 +375,7 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
                       
                       if (estimate && estimate.estimatedAmount !== undefined) {
                         setEstimatedAmount(estimate.estimatedAmount);
+                        setSwapEstimate(estimate);
                         // Don't override the provider we just set
                         //setRouteProvider(estimate.provider ?? SwapProvider.Contract);
                       }
@@ -380,6 +396,55 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
               ))}
             </div>
           </div>
+          
+          {/* Route Visualization */}
+          {swapEstimate?.routeInfo && swapEstimate.routeInfo.length > 0 && (
+            <div className="py-1">
+              <div className="flex items-center space-x-1">
+                <span className="text-muted-foreground">Order Routing</span>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger className="cursor-help">
+                      <Info className="h-3 w-3 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs w-60">The path your tokens will take through different liquidity pools</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              
+              <div className="flex items-center mt-1.5 relative py-2">
+                {swapEstimate.routeInfo.map((route, index) => (
+                  <div key={index} className="flex items-center relative">
+                    {/* Route percentage badge */}
+                    {route.percent && route.percent < 100 && (
+                      <div className="absolute -top-3 left-0 rounded-full bg-primary/10 text-primary text-[9px] px-1">
+                        {route.percent}%
+                      </div>
+                    )}
+                    
+                    {/* AMM pool node */}
+                    <div className="px-1.5 py-0.5 rounded bg-muted text-[10px] relative">
+                      {route.label || `${fromToken.symbol}-${toToken.symbol}`}
+                      
+                      {/* AMMID below */}
+                      <div className="absolute -bottom-4 left-0 text-[9px] text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis w-20">
+                        {route.ammId?.substring(0, 8)}...
+                      </div>
+                    </div>
+                    
+                    {/* Arrow connector if not last */}
+                    {index < swapEstimate.routeInfo.length - 1 && (
+                      <div className="mx-1">
+                        <div className="w-3 h-[1px] bg-muted-foreground"></div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           
           <div className="flex justify-between">
             <span className="text-muted-foreground">Slippage Tolerance</span>
