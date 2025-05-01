@@ -137,13 +137,82 @@ export default function MultiHubSwapPage() {
                 <CardHeader>
                   <CardTitle className="text-white">Liquidity Pool</CardTitle>
                   <CardDescription className="text-[#a3accd]">
-                    View and manage your liquidity contributions
+                    View liquidity pool details for test tokens
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-center py-8 text-[#7d8ab1]">
-                    Liquidity pool management coming soon
-                  </p>
+                  <Tabs defaultValue="pools">
+                    <TabsList className="mb-4 bg-[#1a2338]">
+                      <TabsTrigger 
+                        value="pools" 
+                        className="data-[state=active]:bg-[#252f4a] data-[state=active]:text-white"
+                      >
+                        Pools
+                      </TabsTrigger>
+                      <TabsTrigger 
+                        value="routes" 
+                        className="data-[state=active]:bg-[#252f4a] data-[state=active]:text-white"
+                      >
+                        Routes
+                      </TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="pools">
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-[#141c2f] rounded-md p-3 border border-[#1e2a45]">
+                            <p className="text-sm text-[#7d8ab1]">MTA/SOL Pool</p>
+                            <p className="text-lg font-medium text-white mt-1">1M MTA + 20 SOL</p>
+                          </div>
+                          <div className="bg-[#141c2f] rounded-md p-3 border border-[#1e2a45]">
+                            <p className="text-sm text-[#7d8ab1]">SAMX/USDC Pool</p>
+                            <p className="text-lg font-medium text-white mt-1">500K SAMX + 50K USDC</p>
+                          </div>
+                          <div className="bg-[#141c2f] rounded-md p-3 border border-[#1e2a45]">
+                            <p className="text-sm text-[#7d8ab1]">XAR/SOL Pool</p>
+                            <p className="text-lg font-medium text-white mt-1">800K XAR + 15 SOL</p>
+                          </div>
+                          <div className="bg-[#141c2f] rounded-md p-3 border border-[#1e2a45]">
+                            <p className="text-sm text-[#7d8ab1]">RAMX/USDC Pool</p>
+                            <p className="text-lg font-medium text-white mt-1">750K RAMX + 40K USDC</p>
+                          </div>
+                        </div>
+                        <p className="text-sm text-[#7d8ab1] mt-4">
+                          These pools provide the liquidity for the multi-hop routes used in the token swaps.
+                          Each pool maintains sufficient reserves to handle test swaps.
+                        </p>
+                        <Button variant="outline" className="mt-2 w-full text-primary border-primary hover:bg-primary/10">
+                          View All Pool Details
+                        </Button>
+                      </div>
+                    </TabsContent>
+                    
+                    <TabsContent value="routes">
+                      <div className="space-y-4">
+                        <div className="bg-[#141c2f] rounded-md p-4 border border-[#1e2a45]">
+                          <h3 className="font-medium text-white">Direct Routes</h3>
+                          <ul className="mt-2 space-y-1">
+                            <li className="text-[#a3accd]">• SOL ↔ YOT via Raydium</li>
+                            <li className="text-[#a3accd]">• MTA ↔ SOL via Raydium</li>
+                            <li className="text-[#a3accd]">• SAMX ↔ USDC via Jupiter</li>
+                            <li className="text-[#a3accd]">• USDC ↔ SOL via Jupiter</li>
+                          </ul>
+                        </div>
+                        <div className="bg-[#141c2f] rounded-md p-4 border border-[#1e2a45]">
+                          <h3 className="font-medium text-white">Multi-Hop Routes</h3>
+                          <ul className="mt-2 space-y-1">
+                            <li className="text-[#a3accd]">• MTA → SOL → YOT via Raydium</li>
+                            <li className="text-[#a3accd]">• SAMX → USDC → SOL → YOT via Jupiter + Raydium</li>
+                            <li className="text-[#a3accd]">• XAR → SOL → YOT via Custom Route</li>
+                            <li className="text-[#a3accd]">• YOT → SOL → USDC → RAMX via Multiple DEXs</li>
+                          </ul>
+                        </div>
+                        <Button variant="outline" className="mt-2 w-full text-primary border-primary hover:bg-primary/10">
+                          Check Route Status
+                        </Button>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
                 </CardContent>
               </Card>
             </TabsContent>
