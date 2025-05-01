@@ -74,26 +74,42 @@ export default function YOTExchangeCard() {
         timestamp: Date.now()
       });
       
-      // Calculate exchange rates using AMM constant product formula (x * y = k)
-      // Calculate SOL → YOT rate
+      // Calculate exchange rates using proper AMM constant product formula (x * y = k)
+      const CP_CONSTANT = SOL_RESERVE * YOT_RESERVE; // Calculate constant product k
+      
+      // Calculate SOL → YOT rate properly
       const inputSOL = 1; // Calculate for 1 SOL
-      const outputYOT = (YOT_RESERVE * inputSOL * FEE_MULTIPLIER) / (SOL_RESERVE + (inputSOL * FEE_MULTIPLIER));
+      // x * y = k => (x + Δx) * (y - Δy) = k
+      // Therefore: Δy = y - k/(x + Δx)
+      const newSolReserve = SOL_RESERVE + inputSOL;
+      const newYotReserve = CP_CONSTANT / newSolReserve;
+      const outputYOT = (YOT_RESERVE - newYotReserve) * FEE_MULTIPLIER; // Apply fee
       setSolToYot(outputYOT);
+      
+      console.log(`AMM Calculation (SOL→YOT): ${inputSOL} SOL should yield ${outputYOT} YOT`);
+      console.log(`Pool data: SOL reserve=${SOL_RESERVE}, YOT reserve=${YOT_RESERVE}, k=${CP_CONSTANT}`);
       
       // Calculate YOT → SOL rate (for 1M YOT)
       const inputYOT = 1000000; // Calculate for 1M YOT for better display
-      const outputSOL = (SOL_RESERVE * inputYOT * FEE_MULTIPLIER) / (YOT_RESERVE + (inputYOT * FEE_MULTIPLIER));
+      const newYotReserveForSol = YOT_RESERVE + inputYOT;
+      const newSolReserveForYot = CP_CONSTANT / newYotReserveForSol;
+      const outputSOL = (SOL_RESERVE - newSolReserveForYot) * FEE_MULTIPLIER; // Apply fee
       setYotToSol(outputSOL);
       
       // Only calculate YOS rates if we have YOS in the pool
       if (YOS_RESERVE > 0) {
         // Calculate SOL → YOS rate
-        const outputYOS = (YOS_RESERVE * inputSOL * FEE_MULTIPLIER) / (SOL_RESERVE + (inputSOL * FEE_MULTIPLIER));
+        const CP_CONSTANT_YOS = SOL_RESERVE * YOS_RESERVE;
+        const newSolReserveForYos = SOL_RESERVE + inputSOL;
+        const newYosReserve = CP_CONSTANT_YOS / newSolReserveForYos;
+        const outputYOS = (YOS_RESERVE - newYosReserve) * FEE_MULTIPLIER;
         setSolToYos(outputYOS);
         
         // Calculate YOS → SOL rate (for 1M YOS)
         const inputYOS = 1000000; // Calculate for 1M YOS
-        const outputSOLFromYOS = (SOL_RESERVE * inputYOS * FEE_MULTIPLIER) / (YOS_RESERVE + (inputYOS * FEE_MULTIPLIER));
+        const newYosReserveForSol = YOS_RESERVE + inputYOS;
+        const newSolReserveForYos2 = CP_CONSTANT_YOS / newYosReserveForSol;
+        const outputSOLFromYOS = (SOL_RESERVE - newSolReserveForYos2) * FEE_MULTIPLIER;
         setYosToSol(outputSOLFromYOS);
       }
       
