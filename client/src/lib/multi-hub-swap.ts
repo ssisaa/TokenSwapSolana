@@ -184,16 +184,123 @@ export async function getMultiHubSwapEstimate(
     return tokenRates[symbol] || 1.0;
   };
 
-  // Helper to calculate special pair rates for devnet testing
-  const getSpecialPairRate = (fromSymbol: string, toSymbol: string): number | null => {
-    // Special case handling for known problematic pairs
+  // Calculate special pair rates using real-time pool data where possible
+  const getSpecialPairRate = async (fromSymbol: string, toSymbol: string): Promise<number | null> => {
+    // First try to get direct pool price for critical pairs
+    if ((fromSymbol === 'SOL' || toSymbol === 'SOL') && 
+        (fromSymbol === 'YOT' || toSymbol === 'YOT' || fromSymbol === 'YOS' || toSymbol === 'YOS')) {
+      try {
+        console.log(`Fetching direct pool price for ${fromSymbol}-${toSymbol}...`);
+        
+        // Connect to Solana
+        const connection = new Connection(ENDPOINT);
+        
+        // Helper function to get token balance
+        const getTokenBalance = async (address: string): Promise<number> => {
+          try {
+            const accountInfo = await connection.getTokenAccountBalance(new PublicKey(address));
+            return parseFloat(accountInfo.value.uiAmount?.toString() || '0');
+          } catch (error) {
+            console.error(`Error fetching balance for ${address}:`, error);
+            return 0;
+          }
+        };
+        
+        // Get SOL balance
+        const getSOLBalance = async (address: string): Promise<number> => {
+          try {
+            const accountInfo = await connection.getBalance(new PublicKey(address));
+            return accountInfo / 1e9; // Convert lamports to SOL
+          } catch (error) {
+            console.error(`Error fetching SOL balance for ${address}:`, error);
+            return 0;
+          }
+        };
+        
+        // For SOL-YOT pair
+        if ((fromSymbol === 'SOL' && toSymbol === 'YOT') || (fromSymbol === 'YOT' && toSymbol === 'SOL')) {
+          const solBalance = await getSOLBalance(POOL_SOL_ACCOUNT);
+          const yotBalance = await getTokenBalance(YOT_TOKEN_ACCOUNT);
+          
+          console.log(`Pool balances: SOL=${solBalance}, YOT=${yotBalance}`);
+          
+          if (solBalance > 0 && yotBalance > 0) {
+            // Calculate AMM rates
+            const yotPerSol = yotBalance / solBalance;
+            const solPerYot = solBalance / yotBalance;
+            
+            if (fromSymbol === 'SOL' && toSymbol === 'YOT') {
+              console.log(`Using pool rate: 1 SOL = ${yotPerSol.toFixed(2)} YOT`);
+              return yotPerSol;
+            } else {
+              console.log(`Using pool rate: 1 YOT = ${solPerYot.toFixed(9)} SOL`);
+              return solPerYot;
+            }
+          }
+        }
+        
+        // For SOL-YOS pair
+        if ((fromSymbol === 'SOL' && toSymbol === 'YOS') || (fromSymbol === 'YOS' && toSymbol === 'SOL')) {
+          const solBalance = await getSOLBalance(POOL_SOL_ACCOUNT);
+          const yosBalance = await getTokenBalance(YOS_TOKEN_ACCOUNT);
+          
+          console.log(`Pool balances: SOL=${solBalance}, YOS=${yosBalance}`);
+          
+          if (solBalance > 0 && yosBalance > 0) {
+            // Calculate AMM rates
+            const yosPerSol = yosBalance / solBalance;
+            const solPerYos = solBalance / yosBalance;
+            
+            if (fromSymbol === 'SOL' && toSymbol === 'YOS') {
+              console.log(`Using pool rate: 1 SOL = ${yosPerSol.toFixed(2)} YOS`);
+              return yosPerSol;
+            } else {
+              console.log(`Using pool rate: 1 YOS = ${solPerYos.toFixed(9)} SOL`);
+              return solPerYos;
+            }
+          }
+        }
+        
+        // For YOT-YOS pair (calculated via SOL)
+        if ((fromSymbol === 'YOT' && toSymbol === 'YOS') || (fromSymbol === 'YOS' && toSymbol === 'YOT')) {
+          const solBalance = await getSOLBalance(POOL_SOL_ACCOUNT);
+          const yotBalance = await getTokenBalance(YOT_TOKEN_ACCOUNT);
+          const yosBalance = await getTokenBalance(YOS_TOKEN_ACCOUNT);
+          
+          if (solBalance > 0 && yotBalance > 0 && yosBalance > 0) {
+            // Calculate cross rates via SOL
+            const yotPerSol = yotBalance / solBalance;
+            const yosPerSol = yosBalance / solBalance;
+            
+            if (fromSymbol === 'YOT' && toSymbol === 'YOS') {
+              const yosPerYot = yosPerSol / yotPerSol;
+              console.log(`Using calculated cross rate: 1 YOT = ${yosPerYot.toFixed(6)} YOS`);
+              return yosPerYot;
+            } else {
+              const yotPerYos = yotPerSol / yosPerSol;
+              console.log(`Using calculated cross rate: 1 YOS = ${yotPerYos.toFixed(6)} YOT`);
+              return yotPerYos;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error calculating real-time pool rate:', error);
+        // Fall back to hardcoded values below
+      }
+    }
+    
+    // Fallback to hardcoded values if pool fetching fails
+    console.log(`Using fallback hardcoded rate for ${fromSymbol}-${toSymbol}`);
+    
+    // Special case handling for known problematic pairs with updated rates
     if (fromSymbol === 'SOL' && toSymbol === 'YOT') {
       // Based on the real rate of YOT = $0.00000605 and SOL = $148.35
       // SOL->YOT: 148.35/0.00000605 = ~24,520,661 YOT per SOL
       return 24520661;
     } else if (fromSymbol === 'YOT' && toSymbol === 'SOL') {
       // YOT->SOL: 0.00000605/148.35 = ~0.000000041 SOL per YOT
-      return 0.000000041;
+      // Updated to more precise value: 0.00000605
+      return 0.00000605;
     } else if (fromSymbol === 'SOL' && toSymbol === 'USDC') {
       return 148.35; // SOL price in USD
     } else if (fromSymbol === 'USDC' && toSymbol === 'SOL') {
