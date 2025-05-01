@@ -9,6 +9,7 @@ import TokenPoolDetails from '@/components/MultiHubSwap/TokenPoolDetails';
 import SwapTestPanel from '@/components/MultiHubSwap/SwapTestPanel';
 import { LivePoolStats } from '@/components/MultiHubSwap/LivePoolStats';
 import { UserStatsPanel } from '@/components/MultiHubSwap/UserStatsPanel';
+import YOTExchangeCard from '@/components/MultiHubSwap/YOTExchangeCard';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import useMultiHubSwap from '@/hooks/useMultiHubSwap';
 import { formatNumber, shortenAddress } from '@/lib/utils';
@@ -110,6 +111,11 @@ export default function MultiHubSwapPage() {
         <div className="lg:col-span-1">
           <LivePoolStats />
         </div>
+      </div>
+      
+      {/* Real-time Exchange Rates */}
+      <div className="mb-6">
+        <YOTExchangeCard />
       </div>
       
       {/* User Stats Panel at bottom */}
