@@ -111,67 +111,73 @@ class MultihubSwapClient implements SwapProvider {
         // they should be passed as account parameters instead
         
         // Create the instruction data buffer with just what's needed
-        // Instruction index (1 = SwapToken) and two u64 values
+        // Different Rust programs serialize instructions in different ways
+        // The program may be using anchor which has a specific format
+        
+        // Let's try a simpler approach: a single byte tag (0 for Initialize, 1 for SwapToken)
+        // followed by arguments in a format the program expects
+        
+        // Create a buffer for SwapToken instruction (tag 1)
+        // Add 1 byte for tag, plus 8 bytes each for the two u64 values
         const instructionData = Buffer.alloc(1 + 8 + 8); // Total = 17 bytes
         
-        // Write instruction discriminator (1 = SwapToken)
-        instructionData.writeUInt8(1, 0);
+        // Write instruction tag (1 = SwapToken) - this is how Anchor serializes the tag
+        instructionData.writeUInt8(1, 0); 
         
-        // Write amount_in
+        // Write amount_in as a u64 (8 bytes in little-endian format)
         const amountRaw = Math.floor(amount * Math.pow(10, fromToken.decimals));
-        instructionData.writeBigUInt64LE(BigInt(amountRaw), 1);
+        const amountBigInt = BigInt(amountRaw);
+        for (let i = 0; i < 8; i++) {
+          instructionData[i + 1] = Number((amountBigInt >> BigInt(i * 8)) & BigInt(0xFF));
+        }
         
-        // Write minimum_amount_out
+        // Write minimum_amount_out as a u64 (8 bytes in little-endian format)
         const minAmountOutRaw = Math.floor(minAmountOut * Math.pow(10, toToken.decimals));
-        instructionData.writeBigUInt64LE(BigInt(minAmountOutRaw), 9);
+        const minAmountOutBigInt = BigInt(minAmountOutRaw);
+        for (let i = 0; i < 8; i++) {
+          instructionData[i + 9] = Number((minAmountOutBigInt >> BigInt(i * 8)) & BigInt(0xFF));
+        }
         
         console.log(`Instruction data created: Swap ${amountRaw} units of ${fromToken.symbol} for min ${minAmountOutRaw} units of ${toToken.symbol}`);
         
         // Debug the instruction data as hex
         console.log('Instruction data (hex):', Buffer.from(instructionData).toString('hex'));
         
-        // Setup account metas based on the expected accounts in the program:
-        // See multihub_swap.rs:70-80 for the expected accounts
+        // Setup account metas based on the expected accounts in the program
+        // We need to find the exact account order that the program expects
+        
+        // The program state account (PDA) is derived with seed "state"
+        const [programState, programStateBump] = await PublicKey.findProgramAddress(
+          [Buffer.from("state")], 
+          MULTIHUB_SWAP_PROGRAM_ID
+        );
+        
+        // The SOL-YOT pool account 
+        const [poolAccount, poolBump] = await PublicKey.findProgramAddress(
+          [Buffer.from("pool"), YOT_TOKEN_MINT.toBuffer(), SOL_TOKEN_MINT.toBuffer()], 
+          MULTIHUB_SWAP_PROGRAM_ID
+        );
+        
+        // The admin fee recipient account
+        const [feeAccount, feeBump] = await PublicKey.findProgramAddress(
+          [Buffer.from("fees")], 
+          MULTIHUB_SWAP_PROGRAM_ID
+        );
+        
+        // Based on the error code, we need to adjust the account order to match the program's expectations
         const accountMetas = [
-          { pubkey: wallet.publicKey, isSigner: true, isWritable: true },           // 0. User's wallet
+          { pubkey: wallet.publicKey, isSigner: true, isWritable: true },           // 0. User's wallet (payer + authority)
           { pubkey: fromTokenAccount, isSigner: false, isWritable: true },          // 1. User's token account for input token
           { pubkey: toTokenAccount, isSigner: false, isWritable: true },            // 2. User's token account for output token
           { pubkey: yosTokenAccount, isSigner: false, isWritable: true },           // 3. User's YOS token account for cashback
-          
-          // Derive the program state account (PDA)
-          // Based on the program, it's likely using a PDA with seed "state"
-          { 
-            pubkey: await PublicKey.findProgramAddress(
-              [Buffer.from("state")], 
-              MULTIHUB_SWAP_PROGRAM_ID
-            ).then(([address]) => address),
-            isSigner: false, 
-            isWritable: true 
-          },
-          
-          // SOL-YOT liquidity pool account
-          // This would ideally be derived dynamically or fetched from an API
-          { 
-            pubkey: await PublicKey.findProgramAddress(
-              [Buffer.from("pool"), YOT_TOKEN_MINT.toBuffer(), new PublicKey('So11111111111111111111111111111111111111112').toBuffer()], 
-              MULTIHUB_SWAP_PROGRAM_ID
-            ).then(([address]) => address),
-            isSigner: false, 
-            isWritable: true 
-          },
-          
-          // Admin fee account might be another PDA or the admin wallet
-          { 
-            pubkey: await PublicKey.findProgramAddress(
-              [Buffer.from("fees")], 
-              MULTIHUB_SWAP_PROGRAM_ID
-            ).then(([address]) => address),
-            isSigner: false, 
-            isWritable: true 
-          },
-          
-          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },         // 7. Token program
-          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },  // 8. System program (additional)
+          { pubkey: fromTokenMint, isSigner: false, isWritable: false },            // 4. Input token mint (was missing)
+          { pubkey: toTokenMint, isSigner: false, isWritable: false },              // 5. Output token mint (was missing)
+          { pubkey: YOS_TOKEN_MINT, isSigner: false, isWritable: false },           // 6. YOS token mint (was missing)
+          { pubkey: programState, isSigner: false, isWritable: true },              // 7. Program state account
+          { pubkey: poolAccount, isSigner: false, isWritable: true },               // 8. SOL-YOT liquidity pool
+          { pubkey: feeAccount, isSigner: false, isWritable: true },                // 9. Admin fee account
+          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },         // 10. Token program
+          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },  // 11. System program
         ];
         
         // Create the swap instruction
