@@ -82,9 +82,20 @@ export default function RaydiumPoolTester() {
     
     if (!reserveA || !reserveB) return 'Invalid pool data structure';
     
-    // Calculate exchange rate
-    const rateAtoB = reserveB / reserveA;
-    const rateBtoA = reserveA / reserveB;
+    // Calculate exchange rate using AMM constant product formula
+    // for a 1.0 unit swap (considering 0.3% fee)
+    const inputAmount = 1.0;
+    const amountAfterFee = inputAmount * 0.997; // 0.3% fee
+    
+    // Calculate out amount using constant product formula x * y = k
+    const numerator = reserveA * reserveB;
+    const denominator = reserveA + amountAfterFee;
+    const outputAmount = reserveB - (numerator / denominator);
+    
+    // Calculate reverse rate
+    const reverseNumerator = reserveA * reserveB;
+    const reverseDenominator = reserveB + amountAfterFee;
+    const reverseOutputAmount = reserveA - (reverseNumerator / reverseDenominator);
     
     const tokenASymbol = Object.entries(KNOWN_TOKENS)
       .find(([_, address]) => address === tokenA)?.[0] || 'Token A';
@@ -102,12 +113,15 @@ export default function RaydiumPoolTester() {
           <span className="font-medium">{reserveB.toLocaleString()}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-muted-foreground">Exchange Rate:</span>
-          <span className="font-medium">1 {tokenASymbol} = {rateAtoB.toFixed(8)} {tokenBSymbol}</span>
+          <span className="text-muted-foreground">Effective Exchange Rate:</span>
+          <span className="font-medium">1 {tokenASymbol} ≈ {outputAmount.toLocaleString(undefined, {maximumFractionDigits: 8})} {tokenBSymbol}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-muted-foreground">Exchange Rate:</span>
-          <span className="font-medium">1 {tokenBSymbol} = {rateBtoA.toFixed(8)} {tokenASymbol}</span>
+          <span className="text-muted-foreground">Reverse Rate:</span>
+          <span className="font-medium">1 {tokenBSymbol} ≈ {reverseOutputAmount.toLocaleString(undefined, {maximumFractionDigits: 8})} {tokenASymbol}</span>
+        </div>
+        <div className="text-xs text-muted-foreground mt-1">
+          *Rates include 0.3% AMM fee and use the constant product formula (x*y=k)
         </div>
       </div>
     );
