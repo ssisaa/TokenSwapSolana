@@ -196,10 +196,11 @@ export default function SwapTestPanel() {
       
       // Special handling for XAR → SOL → YOT (prioritized route)
       if (fromToken.symbol === 'XAR' && toToken.symbol === 'YOT') {
-        // Calculate transaction details with 20% contribution to SOL-YOT liquidity pool
+        // Calculate transaction details with 20% contribution to SOL-YOT liquidity pool and 0.1% admin commission
         const inputAmount = parseFloat(amount);
+        const adminCommission = inputAmount * 0.001; // 0.1% SOL commission to admin wallet
         const contributionAmount = inputAmount * 0.20; // 20% goes to liquidity pool
-        const swappedAmount = inputAmount * 0.80; // 80% used for actual swap
+        const swappedAmount = inputAmount * 0.80 - adminCommission; // 79.9% used for actual swap
         
         // Calculate approximate SOL amount received in first hop
         const xarToSolRate = 0.00015; // Approximate exchange rate
@@ -219,7 +220,8 @@ export default function SwapTestPanel() {
           
           Transaction breakdown:
           • ${contributionAmount.toFixed(4)} ${fromToken.symbol} (20%) contributed to SOL-YOT liquidity pool
-          • ${swappedAmount.toFixed(4)} ${fromToken.symbol} (80%) used for swap path
+          • ${adminCommission.toFixed(4)} ${fromToken.symbol} (0.1%) SOL commission to admin wallet
+          • ${swappedAmount.toFixed(4)} ${fromToken.symbol} (79.9%) used for swap path
           • Received ${cashbackAmount.toFixed(4)} YOS as cashback reward (3%)
           
           Liquidity contribution:
@@ -230,9 +232,11 @@ export default function SwapTestPanel() {
         });
       } else {
         // For other token pairs, use simplified simulation
-        const contributionAmount = parseFloat(amount) * 0.20; // 20% contribution
-        const swapAmount = parseFloat(amount) * 0.80; // 80% for swap
-        const cashbackAmount = parseFloat(amount) * 0.03; // 3% cashback
+        const inputAmount = parseFloat(amount);
+        const adminCommission = inputAmount * 0.001; // 0.1% SOL commission to admin wallet
+        const contributionAmount = inputAmount * 0.20; // 20% contribution
+        const swapAmount = inputAmount * 0.80 - adminCommission; // 79.9% for swap
+        const cashbackAmount = inputAmount * 0.03; // 3% cashback
         
         setSwapResult({
           success: true,
@@ -240,7 +244,8 @@ export default function SwapTestPanel() {
           
           Transaction breakdown:
           • ${contributionAmount.toFixed(4)} ${fromToken.symbol} (20%) contributed to liquidity pool
-          • ${swapAmount.toFixed(4)} ${fromToken.symbol} (80%) used for token swap
+          • ${adminCommission.toFixed(4)} ${fromToken.symbol} (0.1%) SOL commission to admin wallet
+          • ${swapAmount.toFixed(4)} ${fromToken.symbol} (79.9%) used for token swap
           • Received ${cashbackAmount.toFixed(4)} YOS as cashback reward (3%)`
         });
       }
