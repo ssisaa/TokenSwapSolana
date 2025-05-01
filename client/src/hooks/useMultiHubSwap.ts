@@ -144,12 +144,20 @@ export default function useMultiHubSwap() {
         throw new Error('Wallet not connected or swap parameters invalid');
       }
       
-      // For now, just simulate a successful swap
-      // In the actual implementation, this would call the contract to perform the swap
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Import the executeMultiHubSwap function
+      const { executeMultiHubSwap } = await import('@/lib/multihub-contract');
+      
+      // Execute the swap using the smart contract
+      const signature = await executeMultiHubSwap(
+        wallet,
+        fromToken,
+        toToken,
+        parseFloat(amount),
+        swapEstimate.minAmountOut
+      );
       
       return {
-        signature: 'simulated-signature',
+        signature,
         success: true
       };
     },
@@ -197,7 +205,7 @@ export default function useMultiHubSwap() {
   });
   const [globalSwapStatsLoading, setGlobalSwapStatsLoading] = useState(false);
   
-  // Mock claim rewards function
+  // Claim rewards function using the smart contract
   const [isClaimingRewards, setIsClaimingRewards] = useState(false);
   const claimRewards = useCallback(async () => {
     if (!walletConnected || !wallet) {
@@ -206,8 +214,12 @@ export default function useMultiHubSwap() {
     
     setIsClaimingRewards(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Import the claimYosRewards function
+      const { claimYosRewards } = await import('@/lib/multihub-contract');
+      
+      // Call the smart contract function to claim rewards
+      const signature = await claimYosRewards(wallet);
+      console.log('Claim rewards transaction signature:', signature);
       
       // Update user info after successful claim
       setUserSwapInfo(prev => ({

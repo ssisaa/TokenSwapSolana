@@ -681,9 +681,56 @@ export async function getMultiHubSwapEstimate(
       // The actual amount used for the swap after contributions
       const swapAmount = amount * (1 - (liquidityContribution + yosCashback));
       
-      // Calculate the estimated output using a simplified AMM formula
-      // For a real implementation, this would use actual pool balances and the constant product formula
-      const estimatedAmount = swapAmount * 0.997 * (fromToken.symbol === 'SOL' ? 24500 : 0.000041);
+      // Use the pool data from the API
+      if (!poolData || !poolData.sol || !poolData.yot) {
+        console.warn('Invalid pool data, using fallback calculation');
+        return createFallbackEstimate(fromToken, toToken, amount, slippage);
+      }
+
+      console.log(`Using pool data: SOL=${poolData.sol}, YOT=${poolData.yot}`);
+      
+      // Get the pool reserves
+      const solReserve = poolData.sol;
+      const yotReserve = poolData.yot;
+      
+      // Calculate the output using the constant product formula (x * y = k)
+      let estimatedAmount;
+      let priceImpact;
+      
+      if (fromToken.address === 'So11111111111111111111111111111111111111112' && 
+          toToken.address === '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF') {
+        // SOL to YOT swap
+        // Formula: yot_out = yotReserve - (solReserve * yotReserve) / (solReserve + sol_in * (1 - fee))
+        const solIn = swapAmount;
+        const numerator = solReserve * yotReserve;
+        const denominator = solReserve + (solIn * (1 - fee));
+        estimatedAmount = yotReserve - (numerator / denominator);
+        
+        // Calculate price impact
+        const initialPrice = solReserve / yotReserve;
+        const newSolReserve = solReserve + solIn;
+        const newYotReserve = yotReserve - estimatedAmount;
+        const newPrice = newSolReserve / newYotReserve;
+        priceImpact = Math.abs((newPrice - initialPrice) / initialPrice);
+      } else if (fromToken.address === '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF' && 
+                toToken.address === 'So11111111111111111111111111111111111111112') {
+        // YOT to SOL swap
+        // Formula: sol_out = solReserve - (yotReserve * solReserve) / (yotReserve + yot_in * (1 - fee))
+        const yotIn = swapAmount;
+        const numerator = yotReserve * solReserve;
+        const denominator = yotReserve + (yotIn * (1 - fee));
+        estimatedAmount = solReserve - (numerator / denominator);
+        
+        // Calculate price impact
+        const initialPrice = yotReserve / solReserve;
+        const newYotReserve = yotReserve + yotIn;
+        const newSolReserve = solReserve - estimatedAmount;
+        const newPrice = newYotReserve / newSolReserve;
+        priceImpact = Math.abs((newPrice - initialPrice) / initialPrice);
+      } else {
+        // Fallback for other pairs
+        return createFallbackEstimate(fromToken, toToken, amount, slippage);
+      }
       
       // Calculate minimum amount out based on slippage
       const minAmountOut = estimatedAmount * (1 - slippage);
@@ -692,7 +739,7 @@ export async function getMultiHubSwapEstimate(
       return {
         estimatedAmount,
         minAmountOut,
-        priceImpact: 0.005, // 0.5% price impact (simplified)
+        priceImpact: priceImpact, // Use calculated price impact
         liquidityFee: fee * amount,
         route: [fromToken.address, toToken.address],
         provider: SwapProvider.Contract,
