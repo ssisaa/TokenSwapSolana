@@ -180,17 +180,24 @@ class MultihubSwapClient implements SwapProvider {
           MULTIHUB_SWAP_PROGRAM_ID
         );
         
-        // The SOL-YOT pool account 
-        const [poolAccount, poolBump] = await PublicKey.findProgramAddress(
-          [Buffer.from("pool"), YOT_TOKEN_MINT.toBuffer(), SOL_TOKEN_MINT.toBuffer()], 
-          MULTIHUB_SWAP_PROGRAM_ID
-        );
+        // Check if the program state exists first
+        try {
+          const programStateInfo = await connection.getAccountInfo(programState);
+          if (!programStateInfo) {
+            throw new Error("Program state account not found. Program may not be initialized.");
+          }
+          console.log("Program state account exists, size:", programStateInfo.data.length);
+        } catch (err) {
+          console.error("Error checking program state:", err);
+          throw new Error("Program not initialized. Please initialize the program first.");
+        }
+        
+        // The SOL-YOT pool account - We'll use the actual token account addresses for now
+        // Normally these would be derived PDAs, but we're using the actual token accounts for simplicity
+        const poolAccount = new PublicKey('BtHDQ6QwAffeeGftkNQK8X22n7HfnX6dud5vVsPZaqWE'); // YOT token account
         
         // The admin fee recipient account
-        const [feeAccount, feeBump] = await PublicKey.findProgramAddress(
-          [Buffer.from("fees")], 
-          MULTIHUB_SWAP_PROGRAM_ID
-        );
+        const feeAccount = new PublicKey('AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ');
         
         // CRITICAL: We need to arrange the accounts in EXACTLY the order expected by process_swap function
         // Based on the Rust code:

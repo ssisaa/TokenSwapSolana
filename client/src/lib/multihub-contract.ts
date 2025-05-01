@@ -157,14 +157,19 @@ class StakeLpTokensLayout {
   }
 
   serialize(): Buffer {
-    const dataLayout = borsh.struct([
-      borsh.u8('instruction'),
-      borsh.u64('amount'),
-    ]);
-
+    // Manual serialization to replace borsh
     const data = Buffer.alloc(9); // 1 byte for instruction + 8 bytes for amount
-    const len = dataLayout.encode(this, data);
-    return data.slice(0, len);
+    
+    // Write instruction
+    data.writeUInt8(this.instruction, 0);
+    
+    // Write amount (8 bytes)
+    const view = new DataView(new ArrayBuffer(8));
+    view.setBigUint64(0, this.amount, true);
+    const tempBuffer = Buffer.from(view.buffer);
+    tempBuffer.copy(data, 1);
+    
+    return data;
   }
 }
 
@@ -391,29 +396,83 @@ export class MultiHubSwapClient {
     // Create transaction
     const transaction = new Transaction();
     
-    // Create program state account
-    transaction.add(
-      SystemProgram.createAccountWithSeed({
-        fromPubkey: wallet.publicKey,
-        newAccountPubkey: programStateAccount,
-        basePubkey: wallet.publicKey,
-        seed: "state",
-        lamports: await this.connection.getMinimumBalanceForRentExemption(PROGRAM_STATE_SPACE),
-        space: PROGRAM_STATE_SPACE,
-        programId: this.programId,
-      })
+    // Don't create the program state account directly - it must be a PDA created by the program
+    // Instead, we'll let the program handle state account creation
+    
+    // Get YOT and YOS token accounts for the admin
+    const adminYotTokenAccount = await getAssociatedTokenAddress(
+      YOT_TOKEN_MINT,
+      wallet.publicKey
     );
+    
+    const adminYosTokenAccount = await getAssociatedTokenAddress(
+      YOS_TOKEN_MINT,
+      wallet.publicKey
+    );
+    
+    // Create token accounts if they don't exist
+    try {
+      const yotAccountInfo = await this.connection.getAccountInfo(adminYotTokenAccount);
+      if (!yotAccountInfo) {
+        console.log("Creating YOT token account for admin...");
+        transaction.add(
+          createAssociatedTokenAccountInstruction(
+            wallet.publicKey,
+            adminYotTokenAccount,
+            wallet.publicKey,
+            YOT_TOKEN_MINT
+          )
+        );
+      }
+    } catch (err) {
+      console.log("Creating YOT token account for admin...");
+      transaction.add(
+        createAssociatedTokenAccountInstruction(
+          wallet.publicKey,
+          adminYotTokenAccount,
+          wallet.publicKey,
+          YOT_TOKEN_MINT
+        )
+      );
+    }
+    
+    try {
+      const yosAccountInfo = await this.connection.getAccountInfo(adminYosTokenAccount);
+      if (!yosAccountInfo) {
+        console.log("Creating YOS token account for admin...");
+        transaction.add(
+          createAssociatedTokenAccountInstruction(
+            wallet.publicKey,
+            adminYosTokenAccount,
+            wallet.publicKey,
+            YOS_TOKEN_MINT
+          )
+        );
+      }
+    } catch (err) {
+      console.log("Creating YOS token account for admin...");
+      transaction.add(
+        createAssociatedTokenAccountInstruction(
+          wallet.publicKey,
+          adminYosTokenAccount,
+          wallet.publicKey,
+          YOS_TOKEN_MINT
+        )
+      );
+    }
     
     // Create initialization instruction
     const accounts = [
-      { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // Admin account
-      { pubkey: programStateAccount, isSigner: false, isWritable: true }, // Program state
-      { pubkey: YOT_TOKEN_MINT, isSigner: false, isWritable: false }, // YOT token mint
-      { pubkey: YOS_TOKEN_MINT, isSigner: false, isWritable: false }, // YOS token mint
-      { pubkey: solYotPoolAccount, isSigner: false, isWritable: true }, // SOL-YOT pool
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // System program
-      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // Token program
-      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, // Rent sysvar
+      { pubkey: wallet.publicKey, isSigner: true, isWritable: true },           // Admin account
+      { pubkey: programStateAccount, isSigner: false, isWritable: true },       // Program state
+      { pubkey: YOT_TOKEN_MINT, isSigner: false, isWritable: false },           // YOT token mint
+      { pubkey: YOS_TOKEN_MINT, isSigner: false, isWritable: false },           // YOS token mint
+      { pubkey: adminYotTokenAccount, isSigner: false, isWritable: true },      // Admin YOT token account
+      { pubkey: adminYosTokenAccount, isSigner: false, isWritable: true },      // Admin YOS token account
+      { pubkey: solYotPoolAccount, isSigner: false, isWritable: true },         // SOL-YOT pool
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },  // System program
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },         // Token program
+      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },       // Rent sysvar
     ];
     
     const initializeInstruction = new TransactionInstruction({
