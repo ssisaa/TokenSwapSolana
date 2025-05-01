@@ -135,7 +135,7 @@ export default function TestTokenTransfer() {
 
   // Function to create liquidity pools for test tokens
   const handleCreateLiquidityPools = async () => {
-    if (!publicKey) {
+    if (!publicKey || !wallet) {
       setResult({
         success: false,
         message: 'Please connect your wallet to create liquidity pools.'
@@ -159,14 +159,26 @@ export default function TestTokenTransfer() {
         throw new Error('No test tokens found. Please create tokens first.');
       }
       
-      // Create wallet adapter for liquidity pool creation
+      // FIXED: Create wallet adapter for liquidity pool creation with proper transaction signing
       const walletAdapter = {
         publicKey,
         signTransaction: async (transaction: Transaction) => {
           try {
-            const signedTx = await sendTransaction(transaction, connection);
-            console.log('Transaction sent:', signedTx);
-            return transaction;
+            if (!wallet.signTransaction) {
+              throw new Error("Wallet doesn't support transaction signing");
+            }
+            
+            transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+            transaction.feePayer = publicKey;
+            
+            const signedTx = await wallet.signTransaction(transaction);
+            console.log('Transaction signed successfully');
+            
+            // Send the raw transaction
+            const signature = await connection.sendRawTransaction(signedTx.serialize());
+            console.log('Transaction sent:', signature);
+            
+            return signedTx;
           } catch (error) {
             console.error('Error signing transaction:', error);
             throw error;
@@ -406,6 +418,24 @@ export default function TestTokenTransfer() {
         <CardTitle>Test Token Transfer</CardTitle>
       </CardHeader>
       <CardContent>
+        {/* Added wallet connection status indicator */}
+        <div className="mb-4">
+          <Alert className={connected ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"}>
+            <div className="flex items-center">
+              {connected ? (
+                <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+              ) : (
+                <AlertCircle className="h-4 w-4 text-amber-500 mr-2" />
+              )}
+              <AlertDescription className={connected ? "text-green-700" : "text-amber-700"}>
+                {connected 
+                  ? `Connected to wallet: ${publicKey?.toString().substring(0, 6)}...${publicKey?.toString().substring(publicKey.toString().length - 4)}`
+                  : "Wallet not connected. Please connect your wallet to create tokens."}
+              </AlertDescription>
+            </div>
+          </Alert>
+        </div>
+        
         <div className="space-y-4">
           <div className="flex flex-col space-y-2">
             <div className="flex items-center space-x-2">
@@ -485,7 +515,7 @@ export default function TestTokenTransfer() {
               
               <Button 
                 onClick={handleCreateTokens}
-                disabled={loading}
+                disabled={loading || !connected}
                 variant="secondary"
                 className="bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white"
               >
@@ -519,7 +549,7 @@ export default function TestTokenTransfer() {
               
               <Button 
                 onClick={handleCreateLiquidityPools}
-                disabled={loading}
+                disabled={loading || !connected}
                 variant="secondary"
                 className="bg-gradient-to-r from-teal-500 to-blue-600 hover:from-teal-600 hover:to-blue-700 text-white"
               >
@@ -539,7 +569,7 @@ export default function TestTokenTransfer() {
             
             <Button 
               onClick={handleTransfer}
-              disabled={loading}
+              disabled={loading || !connected}
               className="w-full"
             >
               {loading ? (
