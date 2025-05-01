@@ -19,7 +19,7 @@ import { SwapEstimate, SwapProvider } from './multi-hub-swap';
 import { TokenInfo } from './token-search-api';
 
 // Constants
-const MULTIHUB_SWAP_PROGRAM_ID = new PublicKey('MultiHubSwapProgramIDXXXXXXXXXXXXXXXXXXXXXX');
+const MULTIHUB_SWAP_PROGRAM_ID = new PublicKey('6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6'); // Use the actual deployed program ID
 const YOT_TOKEN_MINT = new PublicKey('2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF');
 const YOS_TOKEN_MINT = new PublicKey('GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n');
 const SOL_TOKEN_MINT = new PublicKey('So11111111111111111111111111111111111111112');
@@ -320,11 +320,12 @@ export class MultiHubSwapClient {
       );
     }
     
-    // Find the SOL-YOT liquidity pool account (in a real implementation, this would be derived or looked up)
-    const solYotPoolAccount = new PublicKey('SolYotPoolAccountXXXXXXXXXXXXXXXXXXXXXXXXXX');
+    // Use actual accounts for SOL-YOT liquidity pool and admin fee account
+    // These would typically be derived from the program but we'll use known addresses for now
+    const solYotPoolAccount = new PublicKey('BtHDQ6QwAffeeGftkNQK8X22n7HfnX6dud5vVsPZaqWE'); // YOT token account
     
-    // Admin fee account (in a real implementation, this would be derived or looked up)
-    const adminFeeAccount = new PublicKey('AdminFeeAccountXXXXXXXXXXXXXXXXXXXXXXXXXXXXX');
+    // Admin fee account
+    const adminFeeAccount = new PublicKey('AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ');
     
     // Create the swap instruction data
     const swapLayout = new SwapTokenLayout({
