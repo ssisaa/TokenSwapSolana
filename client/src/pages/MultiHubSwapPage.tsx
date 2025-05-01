@@ -9,6 +9,7 @@ import TokenPoolDetails from '@/components/MultiHubSwap/TokenPoolDetails';
 import SwapTestPanel from '@/components/MultiHubSwap/SwapTestPanel';
 import { LivePoolStats } from '@/components/MultiHubSwap/LivePoolStats';
 import LivePoolStatsOptimized from '@/components/MultiHubSwap/LivePoolStatsOptimized';
+import RaydiumPoolTester from '@/components/MultiHubSwap/RaydiumPoolTester';
 import { UserStatsPanel } from '@/components/MultiHubSwap/UserStatsPanel';
 import YOTExchangeCard from '@/components/MultiHubSwap/YOTExchangeCard';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -112,6 +113,26 @@ export default function MultiHubSwapPage() {
         <div className="lg:col-span-1">
           <LivePoolStatsOptimized />
         </div>
+      </div>
+      
+      {/* Raydium Pool Tester - Direct blockchain data retrieval */}
+      <div className="mb-6">
+        <Card className="bg-[#0f1421] shadow-xl border-[#1e2a45]">
+          <CardHeader className="bg-gradient-to-br from-[#1e2a45] to-[#0f1421] border-b border-[#1e2a45] pb-4">
+            <CardTitle className="text-2xl font-bold text-white">
+              <div className="flex items-center">
+                <span>Raydium Pool Data</span>
+                <span className="ml-2 text-xs py-1 px-2 bg-blue-900 rounded-full text-blue-300">Live Blockchain Data</span>
+              </div>
+            </CardTitle>
+            <CardDescription className="text-[#a3accd]">
+              Real-time Raydium pool data fetched directly from Solana devnet
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="py-4">
+            <RaydiumPoolTester />
+          </CardContent>
+        </Card>
       </div>
       
       {/* Real-time Exchange Rates */}
