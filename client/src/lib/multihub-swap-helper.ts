@@ -294,28 +294,36 @@ class MultihubSwapClient implements SwapProvider {
       console.log("Sending transaction with token account checks...");
       
       try {
-        // Use standard wallet sendTransaction method with our special options
+        // Calculate the raw amounts for logging and debugging
+        // These calculations match the ones inside createSwapTransaction
+        const amountInRaw = Math.floor(amount * Math.pow(10, fromToken.decimals));
+        const minAmountOutRaw = Math.floor(minAmountOut * Math.pow(10, toToken.decimals));
+        
         // Log important debug information for transaction diagnostics
-        console.log(`Amount in (raw): ${amountRaw} ${fromToken.symbol}`);
+        console.log(`Amount in (raw): ${amountInRaw} ${fromToken.symbol}`);
         console.log(`Min amount out (raw): ${minAmountOutRaw} ${toToken.symbol}`);
         console.log(`Input token mint: ${fromToken.address}`);
         console.log(`Output token mint: ${toToken.address}`);
         
         // Log the PDA derivations
-        console.log("Program state PDA:", (await PublicKey.findProgramAddress(
+        const programStatePDA = (await PublicKey.findProgramAddress(
           [Buffer.from("state")], 
           MULTIHUB_SWAP_PROGRAM_ID
-        ))[0].toString());
+        ))[0];
+        console.log("Program state PDA:", programStatePDA.toString());
         
-        console.log("Pool PDA:", (await PublicKey.findProgramAddress(
-          [Buffer.from("pool"), YOT_TOKEN_MINT.toBuffer(), new PublicKey('So11111111111111111111111111111111111111112').toBuffer()], 
+        const SOL_MINT = new PublicKey('So11111111111111111111111111111111111111112');
+        const poolPDA = (await PublicKey.findProgramAddress(
+          [Buffer.from("pool"), YOT_TOKEN_MINT.toBuffer(), SOL_MINT.toBuffer()], 
           MULTIHUB_SWAP_PROGRAM_ID
-        ))[0].toString());
+        ))[0];
+        console.log("Pool PDA:", poolPDA.toString());
         
-        console.log("Fee PDA:", (await PublicKey.findProgramAddress(
+        const feePDA = (await PublicKey.findProgramAddress(
           [Buffer.from("fees")], 
           MULTIHUB_SWAP_PROGRAM_ID
-        ))[0].toString());
+        ))[0];
+        console.log("Fee PDA:", feePDA.toString());
         
         const signature = await wallet.sendTransaction(transaction, this.connection, options);
         console.log("Transaction sent with signature:", signature);
