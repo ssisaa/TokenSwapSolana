@@ -409,14 +409,19 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
                           setEstimatedAmount(realTimeEstimate.estimatedAmount);
                           setSwapEstimate({
                             ...realTimeEstimate,
-                            routeInfo: [{
-                              label: "SOL→YOT Direct",
-                              ammId: "raydium-sol-yot-pool-v4",
+                            routeInfo: realTimeEstimate.routeInfo || [{
+                              label: "SOL→YOT AMM Direct Pool",
+                              ammId: "blockchain-liquidity-pool",
                               marketId: "7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCS9uZSPaGW4",
                               percent: 100,
                               inputMint: "So11111111111111111111111111111111111111112",
                               outputMint: "2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF",
-                              marketName: "Raydium AMM"
+                              marketName: "Blockchain AMM Pool",
+                              poolData: {
+                                solReserve: 28.777196998,
+                                yotReserve: 706005627.1696466,
+                                yosReserve: 562951041.1034079
+                              }
                             }]
                           });
                           

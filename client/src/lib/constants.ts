@@ -19,10 +19,14 @@ export const TEST_TOKENS = {
 export const SOL_SYMBOL = 'SOL';
 export const YOT_SYMBOL = 'YOT';
 export const YOS_SYMBOL = 'YOS';
+export const XAR_SYMBOL = 'XAR';
+export const XMP_SYMBOL = 'XMP';
 
 // Token accounts
 export const YOT_TOKEN_ACCOUNT = 'BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE';
 export const YOS_TOKEN_ACCOUNT = '5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz';
+export const XAR_TOKEN_ACCOUNT = '9PEtYHDKW4kjah3Jo53gc8STuGshhmoK8LKwfeoiNkrS';
+export const XMP_TOKEN_ACCOUNT = 'HL5byzFzKjehJESbuCH6fw8FyKYeCthwq713gCx6j74';
 
 // Pool accounts
 export const POOL_AUTHORITY = '7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK';

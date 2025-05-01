@@ -47,9 +47,9 @@ export const defaultTokens: TokenInfo[] = [
     decimals: YOS_DECIMALS,
     tags: ['token', 'rewards']
   },
-  // Our test tokens for Raydium pools
+  // Our test tokens for Raydium pools with real token addresses
   {
-    address: 'XMP9SXVv3Kj6JcnJEyLaQzYEuWEGsHjhJNpkha2Vk5M',
+    address: 'HMfSHCLwS6tJmg4aoYnkAqCFte1LQMkjRpfFvP5M3HPs',
     symbol: 'XMP',
     name: 'Xample Token',
     logoURI: 'https://cryptologos.cc/logos/solana-sol-logo.png',
@@ -57,7 +57,7 @@ export const defaultTokens: TokenInfo[] = [
     tags: ['raydium', 'test']
   },
   {
-    address: 'XAR18RSUr4pRGnmmM5Zz9vAz3EXmvWPx7cMuFB8mvCh',
+    address: '9VnMEkvpCPkRVyxXZQWEDocyipoq2uGehdYwAw3yryEa',
     symbol: 'XAR',
     name: 'Xar Finance',
     logoURI: 'https://cryptologos.cc/logos/solana-sol-logo.png',
