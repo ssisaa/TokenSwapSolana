@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { ArrowRightLeft, AlertTriangle, Info, Loader2, ArrowRight } from 'lucide-react';
+import { ArrowRightLeft, AlertTriangle, Info, Loader2, ArrowRight, ArrowDown } from 'lucide-react';
 import { TokenSearchInput } from './TokenSearchInput';
 import { formatNumber } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -14,6 +14,8 @@ import { defaultTokens } from '@/lib/token-search-api';
 import { SOL_SYMBOL, YOT_SYMBOL, SOL_TOKEN_ADDRESS, YOT_TOKEN_ADDRESS } from '@/lib/constants';
 import { useMultiWallet } from '@/context/MultiWalletContext';
 import { getTokenBalance, formatTokenBalance } from '@/lib/wallet-utils';
+import { ProviderSelector } from './ProviderSelector';
+import { RouteDisplay } from './RouteDisplay';
 
 interface MultiHubSwapDemoProps {
   onTokenChange?: (fromToken: any, toToken: any) => void;
@@ -307,12 +309,23 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
     try {
       setLoading(true);
       const parsedAmount = parseFloat(amount);
+      
+      // Use the selected provider if set, otherwise use the one from the current estimate
+      const providerForSwap = selectedProvider || routeProvider;
+      
+      console.log(`Executing swap with provider: ${
+        providerForSwap === SwapProvider.Contract ? 'Multi-hub Contract' : 
+        providerForSwap === SwapProvider.Raydium ? 'Raydium DEX' : 
+        providerForSwap === SwapProvider.Jupiter ? 'Jupiter Aggregator' : 'Auto'
+      }`);
+      
       const signature = await executeMultiHubSwap(
         wallet,
         fromToken,
         toToken,
         parsedAmount,
-        slippage / 100
+        slippage / 100,
+        providerForSwap // Pass the selected provider
       );
       
       // Transaction signature means success
@@ -322,6 +335,26 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
           description: `Swapped ${parsedAmount} ${fromToken.symbol} to approximately ${estimatedAmount?.toFixed(4)} ${toToken.symbol}`,
           variant: 'default'
         });
+        
+        // After successful swap, refresh balances
+        if (wallet?.publicKey) {
+          try {
+            setBalanceLoading(true);
+            if (fromToken) {
+              const balance = await getTokenBalance(wallet.publicKey.toString(), fromToken.address);
+              setFromTokenBalance(balance);
+            }
+            
+            if (toToken) {
+              const balance = await getTokenBalance(wallet.publicKey.toString(), toToken.address);
+              setToTokenBalance(balance);
+            }
+          } catch (error) {
+            console.error('Error refreshing balances:', error);
+          } finally {
+            setBalanceLoading(false);
+          }
+        }
       } else {
         toast({
           title: 'Swap failed',
@@ -333,7 +366,7 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
       console.error('Error executing swap:', error);
       toast({
         title: 'Swap failed',
-        description: 'An error occurred while processing the swap',
+        description: error instanceof Error ? error.message : 'An error occurred while processing the swap',
         variant: 'destructive'
       });
     } finally {
