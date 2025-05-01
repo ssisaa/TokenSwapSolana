@@ -334,7 +334,9 @@ export async function findAllAvailableRoutes(
     SOL_TOKEN_ADDRESS, // SOL is always a good intermediate
     YOT_TOKEN_ADDRESS, // YOT has good liquidity in our pools
     "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", // USDC
-    "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"  // USDT
+    "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB", // USDT
+    "HMfSHCLwS6tJmg4aoYnkAqCFte1LQMkjRpfFvP5M3HPs", // XMR - Raydium pool with SOL
+    "9VnMEkvpCPkRVyxXZQWEDocyipoq2uGehdYwAw3yryEa" // XAR - Raydium pool with SOL
   ];
   
   // Add 1-hop routes via intermediate tokens
@@ -361,6 +363,10 @@ export async function findAllAvailableRoutes(
  * This is important for critical token pairs like SOL-YOT
  */
 function isContractEligible(fromTokenMint: string, toTokenMint: string): boolean {
+  // Define token address constants for external pools
+  const XMR_TOKEN_ADDRESS = "HMfSHCLwS6tJmg4aoYnkAqCFte1LQMkjRpfFvP5M3HPs";
+  const XAR_TOKEN_ADDRESS = "9VnMEkvpCPkRVyxXZQWEDocyipoq2uGehdYwAw3yryEa";
+
   // SOL-YOT pair (in either direction)
   if (
     (fromTokenMint === SOL_TOKEN_ADDRESS && toTokenMint === YOT_TOKEN_ADDRESS) ||
@@ -381,6 +387,22 @@ function isContractEligible(fromTokenMint: string, toTokenMint: string): boolean
   if (
     (fromTokenMint === SOL_TOKEN_ADDRESS && toTokenMint === YOS_TOKEN_ADDRESS) ||
     (fromTokenMint === YOS_TOKEN_ADDRESS && toTokenMint === SOL_TOKEN_ADDRESS)
+  ) {
+    return true;
+  }
+  
+  // SOL-XMR pair (in either direction) - Raydium pool
+  if (
+    (fromTokenMint === SOL_TOKEN_ADDRESS && toTokenMint === XMR_TOKEN_ADDRESS) ||
+    (fromTokenMint === XMR_TOKEN_ADDRESS && toTokenMint === SOL_TOKEN_ADDRESS)
+  ) {
+    return true;
+  }
+  
+  // SOL-XAR pair (in either direction) - Raydium pool
+  if (
+    (fromTokenMint === SOL_TOKEN_ADDRESS && toTokenMint === XAR_TOKEN_ADDRESS) ||
+    (fromTokenMint === XAR_TOKEN_ADDRESS && toTokenMint === SOL_TOKEN_ADDRESS)
   ) {
     return true;
   }
