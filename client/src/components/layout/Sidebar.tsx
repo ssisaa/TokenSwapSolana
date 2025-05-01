@@ -10,7 +10,8 @@ import {
   Landmark,
   ShieldCheck,
   TestTube,
-  Coins
+  Coins,
+  Percent
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -31,6 +32,7 @@ export default function Sidebar() {
   const menuItems = [
     { href: '/', icon: Home, label: 'Dashboard' },
     { href: '/multi-hub-swap', icon: ArrowRightLeft, label: 'Multi-Hub Swap' },
+    { href: '/cashback-swap', icon: Percent, label: 'Cashback Swap' },
     { href: '/staking', icon: Landmark, label: 'Staking' },
     { href: '/analytics', icon: BarChart3, label: 'Analytics' },
     { href: '/wallet', icon: Wallet, label: 'Wallet' },
