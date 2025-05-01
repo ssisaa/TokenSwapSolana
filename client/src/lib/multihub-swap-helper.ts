@@ -174,30 +174,22 @@ class MultihubSwapClient implements SwapProvider {
         // Setup account metas based on the expected accounts in the program
         // We need to find the exact account order that the program expects
         
-        // The program state account (PDA) is derived with seed "state"
-        const [programState, programStateBump] = await PublicKey.findProgramAddress(
-          [Buffer.from("state")], 
-          MULTIHUB_SWAP_PROGRAM_ID
-        );
-        
-        // Check if the program state exists first
-        try {
-          const programStateInfo = await connection.getAccountInfo(programState);
-          if (!programStateInfo) {
-            throw new Error("Program state account not found. Program may not be initialized.");
-          }
-          console.log("Program state account exists, size:", programStateInfo.data.length);
-        } catch (err) {
-          console.error("Error checking program state:", err);
-          throw new Error("Program not initialized. Please initialize the program first.");
+        // Validate program initialization and find all required accounts
+        const validation = await validateProgramInitialization(connection);
+        if (!validation.initialized) {
+          console.error("Program validation failed:", validation.error);
+          throw new Error(validation.error || "Program not properly initialized. Please initialize the program first.");
         }
         
-        // The SOL-YOT pool account - We'll use the actual token account addresses for now
-        // Normally these would be derived PDAs, but we're using the actual token accounts for simplicity
-        const poolAccount = new PublicKey('BtHDQ6QwAffeeGftkNQK8X22n7HfnX6dud5vVsPZaqWE'); // YOT token account
+        console.log("Program validated successfully");
+        console.log("Using program state:", validation.programState?.toString());
+        console.log("Using pool account:", validation.poolAccount?.toString());
+        console.log("Using fee account:", validation.feeAccount?.toString());
         
-        // The admin fee recipient account
-        const feeAccount = new PublicKey('AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ');
+        // Use the validated accounts
+        const programState = validation.programState!;
+        const poolAccount = validation.poolAccount!;
+        const feeAccount = validation.feeAccount!;
         
         // CRITICAL: We need to arrange the accounts in EXACTLY the order expected by process_swap function
         // Based on the Rust code:

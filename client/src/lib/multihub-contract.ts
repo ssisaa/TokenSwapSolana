@@ -941,6 +941,108 @@ export const multiHubSwapClient = new MultiHubSwapClient(new Connection(ENDPOINT
  * @param slippage Slippage tolerance (0-1)
  * @returns Swap estimate with expected output and fees
  */
+/**
+ * Validates whether the program has been initialized
+ * Used to prevent errors when performing operations that require initialization
+ * 
+ * @param connection Active Solana connection
+ * @returns Object containing state information and validation status
+ */
+export async function validateProgramInitialization(connection: Connection): Promise<{
+  initialized: boolean;
+  programState?: PublicKey;
+  poolAccount?: PublicKey;
+  feeAccount?: PublicKey;
+  error?: string;
+}> {
+  try {
+    // Find program state address
+    const [programStateAccount] = await findProgramStateAddress();
+    console.log("Checking program state account:", programStateAccount.toString());
+    
+    // Check if program state exists
+    const programStateInfo = await connection.getAccountInfo(programStateAccount);
+    if (!programStateInfo) {
+      return {
+        initialized: false,
+        programState: programStateAccount,
+        error: "Program state account not found. Program may not be initialized."
+      };
+    }
+    
+    // Get SOL-YOT pool account
+    const SOL_TOKEN_MINT = new PublicKey('So11111111111111111111111111111111111111112');
+    const YOT_TOKEN_MINT = new PublicKey('2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF');
+    
+    // The pool account is either a PDA or an external token account 
+    // We'll check both possibilities
+    const [poolPda] = await PublicKey.findProgramAddress(
+      [Buffer.from("pool"), YOT_TOKEN_MINT.toBuffer(), SOL_TOKEN_MINT.toBuffer()],
+      MULTIHUB_SWAP_PROGRAM_ID
+    );
+    
+    // Check if the PDA pool exists
+    const poolPdaInfo = await connection.getAccountInfo(poolPda);
+    if (poolPdaInfo) {
+      console.log("Found pool account as PDA:", poolPda.toString());
+    }
+    
+    // Check for our hardcoded account (in case initialization was done that way)
+    const hardcodedPool = new PublicKey('BtHDQ6QwAffeeGftkNQK8X22n7HfnX6dud5vVsPZaqWE');
+    const hardcodedPoolInfo = await connection.getAccountInfo(hardcodedPool);
+    
+    // Use the pool that exists
+    const poolAccount = poolPdaInfo ? poolPda : (hardcodedPoolInfo ? hardcodedPool : undefined);
+    if (!poolAccount) {
+      return {
+        initialized: false,
+        programState: programStateAccount,
+        error: "SOL-YOT pool account not found. Program may not be fully initialized."
+      };
+    }
+    
+    // Check fee account the same way
+    const [feePda] = await PublicKey.findProgramAddress(
+      [Buffer.from("fees")],
+      MULTIHUB_SWAP_PROGRAM_ID
+    );
+    
+    const feePdaInfo = await connection.getAccountInfo(feePda);
+    if (feePdaInfo) {
+      console.log("Found fee account as PDA:", feePda.toString());
+    }
+    
+    // Check hardcoded fee account
+    const hardcodedFee = new PublicKey('AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ');
+    const hardcodedFeeInfo = await connection.getAccountInfo(hardcodedFee);
+    
+    // Use the fee account that exists
+    const feeAccount = feePdaInfo ? feePda : (hardcodedFeeInfo ? hardcodedFee : undefined);
+    if (!feeAccount) {
+      return {
+        initialized: false,
+        programState: programStateAccount,
+        poolAccount,
+        error: "Admin fee account not found. Program may not be fully initialized."
+      };
+    }
+    
+    return {
+      initialized: true,
+      programState: programStateAccount,
+      poolAccount,
+      feeAccount
+    };
+    
+  } catch (err) {
+    console.error("Error validating program initialization:", err);
+    return {
+      initialized: false,
+      error: `Validation error: ${err.message || "Unknown error"}`
+    };
+  }
+}
+
 export async function getMultiHubSwapEstimate(
   fromToken: TokenInfo,
   toToken: TokenInfo,
