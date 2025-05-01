@@ -78,17 +78,18 @@ class MultihubSwapClient implements SwapProvider {
         // For YOS cashback, we also need YOS token account
         const yosTokenAccount = await getAssociatedTokenAddress(YOS_TOKEN_MINT, wallet.publicKey);
         
-        // Create instruction data (simplified)
-        const instructionData = Buffer.alloc(16);
+        // Create instruction data with proper size for the instruction and two 64-bit integers
+        const instructionData = Buffer.alloc(17);
         
         // Write the instruction (1 = swap)
         instructionData.writeUInt8(1, 0);
         
-        // Write the amount as a 64-bit integer
+        // Write the amount as a 64-bit integer (needs 8 bytes)
         const amountRaw = Math.floor(amount * Math.pow(10, fromToken.decimals));
         instructionData.writeBigUInt64LE(BigInt(amountRaw), 1);
         
-        // Write the min output amount as a 64-bit integer
+        // Write the min output amount as a 64-bit integer (needs 8 bytes)
+        // Offset needs to be 9 (1 byte for instruction + 8 bytes for first amount)
         const minAmountOutRaw = Math.floor(minAmountOut * Math.pow(10, toToken.decimals));
         instructionData.writeBigUInt64LE(BigInt(minAmountOutRaw), 9);
         
