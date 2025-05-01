@@ -19,6 +19,8 @@ import TestPage from "@/pages/TestPage";
 import TokenTestingPage from "@/pages/TokenTestingPage";
 import MultiHubSwapPage from "@/pages/MultiHubSwapPage";
 import CashbackSwapPage from "@/pages/CashbackSwapPage";
+import AdvancedSwapPage from "@/pages/AdvancedSwapPage";
+import TransactionDebugPage from "@/pages/TransactionDebugPage";
 import Analytics from "@/pages/Analytics";
 import WalletPage from "@/pages/WalletPage";
 import SettingsPage from "@/pages/SettingsPage";
@@ -33,6 +35,8 @@ const dashboardRoutes = [
   '/swap',
   '/multi-hub-swap',
   '/cashback-swap',
+  '/advanced-swap',
+  '/tx-debug',
   '/stake',
   '/staking',
   '/liquidity',
@@ -133,6 +137,18 @@ function Router() {
         <Route path="/affiliate">
           <DashboardLayout>
             <AffiliatePage />
+          </DashboardLayout>
+        </Route>
+
+        <Route path="/advanced-swap">
+          <DashboardLayout>
+            <AdvancedSwapPage />
+          </DashboardLayout>
+        </Route>
+
+        <Route path="/tx-debug">
+          <DashboardLayout>
+            <TransactionDebugPage />
           </DashboardLayout>
         </Route>
         

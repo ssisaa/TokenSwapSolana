@@ -15,8 +15,8 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-import TokenSearchInput from '@/components/MultiHubSwap/TokenSearchInput';
-import RouteDisplay from '@/components/MultiHubSwap/RouteDisplay';
+import { TokenSearchInput } from '@/components/MultiHubSwap/TokenSearchInput';
+import { RouteDisplay } from '@/components/MultiHubSwap/RouteDisplay';
 import { TOKEN_ADDRESSES } from '@/lib/jupiter-swap';
 import { getJupiterQuote, executeJupiterSwap } from '@/lib/jupiter-swap';
 import { formatNumber } from '@/lib/utils';
