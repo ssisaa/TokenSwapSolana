@@ -204,12 +204,34 @@ export async function prepareRaydiumSwapTransaction(
   return transaction;
 }
 
+// Raydium supported token addresses
+const RAYDIUM_SUPPORTED_TOKENS = [
+  // Core tokens (always include SOL, YOT, YOS)
+  'So11111111111111111111111111111111111111112', // SOL
+  '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF', // YOT
+  'GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n', // YOS
+  
+  // RAY and related tokens
+  'DK5hLNKKF9kFXZ6ZjnaaQWiwLZ5j6hVNgfxTD19GxhzL', // RAY
+  '8UJgxaiQx5nTrdUaen4qYH5L2Li55KzRn9LbNPSfvr1Z', // mSOL
+  'AqhA8GFjKXGsNzNGP6E3jDmXJE8SZas2ZVtuKVxrMEf4', // SAMO
+  'CK2gdXem6UxTg6XijLF2FrzcfAHt6Age7Y9NR2zTtvRX', // ORCA
+  '9T7uw5dqaEmEC4McqyefzYsEg5hoC4e2oV8it1Uc4f1U', // USDC
+  '5kjfp2qfRbqCXTQeUYgHNnTLf13eHoKjC9RcaX3YfSBK', // USDT
+];
+
 /**
  * Check if a token is supported by Raydium on devnet
  * @param tokenAddress Token address to check
  * @returns True if the token is supported
  */
 export function isTokenSupportedByRaydium(tokenAddress: string): boolean {
+  // Check against specific token list first (more reliable)
+  if (RAYDIUM_SUPPORTED_TOKENS.includes(tokenAddress)) {
+    return true;
+  }
+  
+  // Then check against pools as a fallback
   return RAYDIUM_DEVNET_POOLS.some(pool => 
     pool.baseMint === tokenAddress || pool.quoteMint === tokenAddress
   );

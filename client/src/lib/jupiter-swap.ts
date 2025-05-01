@@ -296,22 +296,51 @@ export async function fetchJupiterSupportedTokens(): Promise<string[]> {
   }
 }
 
+// Jupiter supported token addresses for devnet
+const JUPITER_SUPPORTED_TOKENS = [
+  // Core tokens (always include SOL, YOT, YOS)
+  'So11111111111111111111111111111111111111112', // SOL
+  '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF', // YOT
+  'GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n', // YOS
+  
+  // Jupiter popular tokens
+  'D3eyBjfgJMPHWuaRatmNiQcVVmQP8tfLLLLkkjZhJY6J', // BONK
+  'HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3', // DUST
+  'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN', // JUP
+  '8UJgxaiQx5nTrdUaen4qYH5L2Li55KzRn9LbNPSfvr1Z', // mSOL
+  'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+  'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', // USDT
+  '7i5KKsX2weiTkry7jA4ZwSuXGhs5eJBEjY8vVxR4pfRx', // GMT
+  'AqhA8GFjKXGsNzNGP6E3jDmXJE8SZas2ZVtuKVxrMEf4', // SAMO
+  'HxRELUQfvvjToVbacjr9YECbQGwBQQ91KjgDTPr1KaXA', // CATO
+  'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', // BONK
+];
+
 /**
  * Check if a token is supported by Jupiter
  * @param tokenAddress Token address to check
  * @returns True if the token is supported by Jupiter
  */
 export function isTokenSupportedByJupiter(tokenAddress: string): boolean {
-  // Jupiter supports SOL by default
-  if (tokenAddress === SOL_TOKEN_ADDRESS) {
+  // First check our hardcoded list (faster and more reliable for common tokens)
+  if (JUPITER_SUPPORTED_TOKENS.includes(tokenAddress)) {
     return true;
   }
   
-  // For other tokens, we'll approximate based on common tokens
-  // and let the API handle validation during the actual quote
-  // This is more efficient than checking the full list for every token
+  // Also check the cache if available
+  if (jupiterSupportedTokensCache && (Date.now() - jupiterCacheTimestamp < JUPITER_CACHE_TTL)) {
+    return jupiterSupportedTokensCache.includes(tokenAddress);
+  }
   
-  // For demonstration, we'll say most tokens are supported except those starting with '9'
-  // In a real app, we would have a proper list or API check
-  return !tokenAddress.startsWith('9');
+  // If we have no cache, trigger an update in the background for next time
+  if (!jupiterSupportedTokensCache) {
+    // Fetch tokens asynchronously for future use
+    fetchJupiterSupportedTokens().catch(err => 
+      console.error('Background Jupiter token fetch failed:', err)
+    );
+  }
+  
+  // For estimation purposes, assume popular tokens are supported
+  // This ensures we show reasonable token options before the API fetch completes
+  return true;
 }

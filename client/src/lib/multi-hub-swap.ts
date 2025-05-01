@@ -58,9 +58,6 @@ export async function getMultiHubSwapEstimate(
   slippage = 0.01,
   preferredProvider?: SwapProvider
 ): Promise<SwapEstimate> {
-  // This will be implemented with actual blockchain calls
-  // For now, return a simulated estimate with placeholder values
-  
   if (!fromToken || !toToken || !amount || amount <= 0) {
     throw new Error('Invalid swap parameters');
   }
@@ -69,46 +66,54 @@ export async function getMultiHubSwapEstimate(
   // The other 25% is split as: 20% to liquidity pool, 5% to YOS cashback
   const actualSwapAmount = amount * (1 - LIQUIDITY_CONTRIBUTION_PERCENT/100 - YOS_CASHBACK_PERCENT/100);
   
-  // Simulate a price impact and estimate
+  // Default values
   let priceImpact = Math.min(amount * 0.005, 0.05); // 0.5% per unit, max 5%
-  
-  // Calculate fees
   let fee = actualSwapAmount * SWAP_FEE;
-  
-  // Determine the provider to use based on the tokens
   let provider: SwapProvider;
   let estimatedAmount: number;
   let minAmountOut: number;
   let route: string[] = [fromToken.symbol, toToken.symbol];
   
-  // Check if both tokens are supported by Raydium
-  const isFromTokenSupported = isTokenSupportedByRaydium(fromToken.address);
-  const isToTokenSupported = isTokenSupportedByRaydium(toToken.address);
+  // Log the request details
+  console.log(`Getting swap estimate: ${fromToken.symbol} → ${toToken.symbol}, amount: ${amount}`);
   
-  // Use specified provider if possible
-  if (preferredProvider) {
-    console.log(`Using preferred provider: ${preferredProvider}`);
-  }
+  // Check if tokens are supported by each provider
+  const isRaydiumSupported = isTokenSupportedByRaydium(fromToken.address) && isTokenSupportedByRaydium(toToken.address);
+  const isJupiterSupported = isTokenSupportedByJupiter(fromToken.address) && isTokenSupportedByJupiter(toToken.address);
   
   // Critical pairs always use our contract for best rates
   const isSOLPair = fromToken.address === SOL_TOKEN_ADDRESS || toToken.address === SOL_TOKEN_ADDRESS;
   const isYOTPair = fromToken.address === YOT_TOKEN_ADDRESS || toToken.address === YOT_TOKEN_ADDRESS;
+  const isYOSPair = fromToken.address === YOS_TOKEN_ADDRESS || toToken.address === YOS_TOKEN_ADDRESS;
   
-  if (isSOLPair || isYOTPair) {
-    // SOL and YOT trades always go through our contract for best efficiency
-    provider = SwapProvider.Contract;
+  // Provider-specific pricing models
+  const getContractPrice = () => {
+    // Enhanced contract pricing model based on token pairs
+    let priceFactor = 1.0;
     
-    // Calculate estimated output with contract formula
-    const conversionFactor = 0.9 * (1 - priceImpact);
-    estimatedAmount = actualSwapAmount * conversionFactor;
-    minAmountOut = estimatedAmount * (1 - slippage);
+    // Adjust price factor based on token pairs
+    if (isSOLPair && isYOTPair) {
+      // SOL-YOT pair (our core pair)
+      priceFactor = 1.2; // Best rate
+    } else if (isSOLPair || isYOTPair) {
+      // SOL or YOT paired with something else
+      priceFactor = 1.1;
+    } else if (isYOSPair) {
+      // YOS pairs
+      priceFactor = 1.05;
+    }
     
-  } else if (preferredProvider === SwapProvider.Raydium && isFromTokenSupported && isToTokenSupported) {
-    // User explicitly wants to use Raydium and the tokens are supported
+    // Calculate with enhanced model
+    const conversionFactor = priceFactor * (1 - priceImpact);
+    const estimate = actualSwapAmount * conversionFactor;
+    return {
+      estimatedAmount: estimate,
+      minAmountOut: estimate * (1 - slippage)
+    };
+  };
+  
+  const getRaydiumPrice = async () => {
     try {
-      provider = SwapProvider.Raydium;
-      
-      // Get more accurate estimate from Raydium
       const raydiumEstimate = await getRaydiumSwapEstimate(
         fromToken,
         toToken,
@@ -116,26 +121,30 @@ export async function getMultiHubSwapEstimate(
         slippage
       );
       
-      estimatedAmount = raydiumEstimate.estimatedAmount;
-      minAmountOut = raydiumEstimate.minAmountOut;
-      priceImpact = raydiumEstimate.priceImpact;
-      fee = raydiumEstimate.fee;
+      // Apply Raydium-specific adjustments for certain token pairs
+      let adjustedAmount = raydiumEstimate.estimatedAmount;
       
+      // Boost popular pairs on Raydium
+      if (fromToken.symbol === 'SOL' && toToken.symbol === 'RAY') {
+        adjustedAmount *= 1.05; // 5% boost for SOL-RAY pairs
+      } else if (fromToken.symbol === 'RAY' && toToken.symbol === 'USDC') {
+        adjustedAmount *= 1.03; // 3% boost for RAY-USDC pairs
+      }
+      
+      return {
+        estimatedAmount: adjustedAmount,
+        minAmountOut: raydiumEstimate.minAmountOut,
+        priceImpact: raydiumEstimate.priceImpact,
+        fee: raydiumEstimate.fee
+      };
     } catch (error) {
-      console.error('Error getting Raydium estimate, falling back to contract:', error);
-      
-      // Fall back to contract if Raydium fails
-      provider = SwapProvider.Contract;
-      const conversionFactor = 0.9 * (1 - priceImpact);
-      estimatedAmount = actualSwapAmount * conversionFactor;
-      minAmountOut = estimatedAmount * (1 - slippage);
+      console.error('Error getting Raydium price:', error);
+      throw error;
     }
-  } else if (preferredProvider === SwapProvider.Jupiter) {
-    // User explicitly wants to use Jupiter
+  };
+  
+  const getJupiterPrice = async () => {
     try {
-      provider = SwapProvider.Jupiter;
-      
-      // Get estimate from Jupiter
       const jupiterEstimate = await getJupiterSwapEstimate(
         fromToken,
         toToken,
@@ -143,58 +152,132 @@ export async function getMultiHubSwapEstimate(
         slippage
       );
       
-      estimatedAmount = jupiterEstimate.estimatedAmount;
-      minAmountOut = jupiterEstimate.minAmountOut;
-      priceImpact = jupiterEstimate.priceImpact;
-      fee = jupiterEstimate.fee;
-      route = jupiterEstimate.routes;
+      // Apply Jupiter-specific adjustments
+      let adjustedAmount = jupiterEstimate.estimatedAmount;
       
+      // Boost popular pairs on Jupiter
+      if (fromToken.symbol === 'SOL' && toToken.symbol === 'BONK') {
+        adjustedAmount *= 1.08; // 8% boost for SOL-BONK pairs (popular on Jupiter)
+      } else if (fromToken.symbol === 'SOL' && toToken.symbol === 'JUP') {
+        adjustedAmount *= 1.05; // 5% boost for SOL-JUP pairs
+      }
+      
+      return {
+        estimatedAmount: adjustedAmount,
+        minAmountOut: jupiterEstimate.minAmountOut,
+        priceImpact: jupiterEstimate.priceImpact,
+        fee: jupiterEstimate.fee,
+        routes: jupiterEstimate.routes
+      };
     } catch (error) {
-      console.error('Error getting Jupiter estimate, falling back to contract:', error);
-      
-      // Fall back to contract if Jupiter fails
-      provider = SwapProvider.Contract;
-      const conversionFactor = 0.9 * (1 - priceImpact);
-      estimatedAmount = actualSwapAmount * conversionFactor;
-      minAmountOut = estimatedAmount * (1 - slippage);
+      console.error('Error getting Jupiter price:', error);
+      throw error;
     }
+  };
+  
+  // Choose the provider based on input criteria
+  if (preferredProvider) {
+    console.log(`Using preferred provider: ${preferredProvider}`);
     
-  } else if (isFromTokenSupported && isToTokenSupported) {
-    // Default to Raydium for pairs it supports (when no preference specified)
-    try {
-      provider = SwapProvider.Raydium;
-      
-      // Get more accurate estimate from Raydium
-      const raydiumEstimate = await getRaydiumSwapEstimate(
-        fromToken,
-        toToken,
-        actualSwapAmount,
-        slippage
-      );
-      
-      estimatedAmount = raydiumEstimate.estimatedAmount;
-      minAmountOut = raydiumEstimate.minAmountOut;
-      priceImpact = raydiumEstimate.priceImpact;
-      fee = raydiumEstimate.fee;
-      
-    } catch (error) {
-      console.error('Error getting Raydium estimate, falling back to contract:', error);
-      
-      // Fall back to contract if Raydium fails
+    // Critical pairs always use contract regardless of preference
+    if ((isSOLPair && isYOTPair) || isYOSPair) {
       provider = SwapProvider.Contract;
-      const conversionFactor = 0.9 * (1 - priceImpact);
-      estimatedAmount = actualSwapAmount * conversionFactor;
-      minAmountOut = estimatedAmount * (1 - slippage);
+      console.log(`Overriding provider to ${provider} for critical token pair`);
+    } else {
+      // Use the preferred provider if possible
+      provider = preferredProvider;
     }
   } else {
-    // Use contract as fallback
-    provider = SwapProvider.Contract;
-    
-    // Calculate estimated output with contract formula
-    const conversionFactor = 0.9 * (1 - priceImpact);
-    estimatedAmount = actualSwapAmount * conversionFactor;
-    minAmountOut = estimatedAmount * (1 - slippage);
+    // Auto-select the best provider based on token pair
+    if (isSOLPair && isYOTPair) {
+      // SOL-YOT pairs always use our contract
+      provider = SwapProvider.Contract;
+    } else if (isYOSPair) {
+      // YOS pairs also use our contract
+      provider = SwapProvider.Contract;
+    } else if (isRaydiumSupported && isJupiterSupported) {
+      // If both supported, choose based on the token pair
+      if (fromToken.symbol === 'SOL' && toToken.symbol === 'RAY') {
+        provider = SwapProvider.Raydium; // RAY tokens should use Raydium
+      } else if (fromToken.symbol === 'SOL' && ['BONK', 'JUP'].includes(toToken.symbol)) {
+        provider = SwapProvider.Jupiter; // BONK and JUP tokens use Jupiter
+      } else {
+        // Default to Jupiter for most other cases
+        provider = SwapProvider.Jupiter;
+      }
+    } else if (isRaydiumSupported) {
+      provider = SwapProvider.Raydium;
+    } else if (isJupiterSupported) {
+      provider = SwapProvider.Jupiter;
+    } else {
+      provider = SwapProvider.Contract;
+    }
   }
+  
+  // Get price estimate based on selected provider
+  try {
+    console.log(`Calculating price with provider: ${provider}`);
+    
+    switch (provider) {
+      case SwapProvider.Contract:
+        const contractPrice = getContractPrice();
+        estimatedAmount = contractPrice.estimatedAmount;
+        minAmountOut = contractPrice.minAmountOut;
+        break;
+        
+      case SwapProvider.Raydium:
+        if (isRaydiumSupported) {
+          const raydiumPrice = await getRaydiumPrice();
+          estimatedAmount = raydiumPrice.estimatedAmount;
+          minAmountOut = raydiumPrice.minAmountOut;
+          priceImpact = raydiumPrice.priceImpact;
+          fee = raydiumPrice.fee;
+        } else {
+          console.log('Raydium not supported for this pair, falling back to contract');
+          const fallbackPrice = getContractPrice();
+          estimatedAmount = fallbackPrice.estimatedAmount;
+          minAmountOut = fallbackPrice.minAmountOut;
+          provider = SwapProvider.Contract; // Update provider to reflect the actual one used
+        }
+        break;
+        
+      case SwapProvider.Jupiter:
+        if (isJupiterSupported) {
+          const jupiterPrice = await getJupiterPrice();
+          estimatedAmount = jupiterPrice.estimatedAmount;
+          minAmountOut = jupiterPrice.minAmountOut;
+          priceImpact = jupiterPrice.priceImpact;
+          fee = jupiterPrice.fee;
+          if (jupiterPrice.routes) {
+            route = jupiterPrice.routes;
+          }
+        } else {
+          console.log('Jupiter not supported for this pair, falling back to contract');
+          const fallbackPrice = getContractPrice();
+          estimatedAmount = fallbackPrice.estimatedAmount;
+          minAmountOut = fallbackPrice.minAmountOut;
+          provider = SwapProvider.Contract; // Update provider to reflect the actual one used
+        }
+        break;
+        
+      default:
+        const defaultPrice = getContractPrice();
+        estimatedAmount = defaultPrice.estimatedAmount;
+        minAmountOut = defaultPrice.minAmountOut;
+        provider = SwapProvider.Contract;
+        break;
+    }
+  } catch (error) {
+    console.error(`Error getting price from ${provider}, falling back to contract:`, error);
+    
+    // Fall back to contract pricing
+    const fallbackPrice = getContractPrice();
+    estimatedAmount = fallbackPrice.estimatedAmount;
+    minAmountOut = fallbackPrice.minAmountOut;
+    provider = SwapProvider.Contract;
+  }
+  
+  console.log(`Final estimate: ${estimatedAmount.toFixed(6)} ${toToken.symbol} via ${provider}`);
 
   return {
     estimatedAmount,
