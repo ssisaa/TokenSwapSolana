@@ -95,7 +95,8 @@ export async function getMultiHubSwapEstimate(
 
   // Calculate 75% of the amount (the part that actually gets swapped after contributions)
   // The other 25% is split as: 20% to liquidity pool, 5% to YOS cashback
-  const actualSwapAmount = amount * (1 - LIQUIDITY_CONTRIBUTION_PERCENT/100 - YOS_CASHBACK_PERCENT/100);
+  const contributionRatio = (LIQUIDITY_CONTRIBUTION_PERCENT + YOS_CASHBACK_PERCENT) / 100;
+  const actualSwapAmount = amount * (1 - contributionRatio);
   
   // Default values
   let priceImpact = Math.min(amount * 0.005, 0.05); // 0.5% per unit, max 5%
@@ -799,7 +800,8 @@ export async function executeMultiHubSwap(
   // - 75% of amount goes to actual swap
   // - 20% goes to SOL-YOT liquidity pool
   // - 5% goes to YOS rewards
-  const actualSwapAmount = amount * (1 - LIQUIDITY_CONTRIBUTION_PERCENT/100 - YOS_CASHBACK_PERCENT/100);
+  const contributionRatio = (LIQUIDITY_CONTRIBUTION_PERCENT + YOS_CASHBACK_PERCENT) / 100;
+  const actualSwapAmount = amount * (1 - contributionRatio);
   const liquidityContribution = amount * (LIQUIDITY_CONTRIBUTION_PERCENT / 100);
   const yosCashback = amount * (YOS_CASHBACK_PERCENT / 100);
   

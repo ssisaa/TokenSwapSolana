@@ -415,7 +415,7 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
               </div>
               
               <div className="flex items-center mt-1.5 relative py-2">
-                {swapEstimate.routeInfo.map((route, index) => (
+                {swapEstimate.routeInfo.map((route: { percent?: number; label?: string; ammId?: string }, index: number) => (
                   <div key={index} className="flex items-center relative">
                     {/* Route percentage badge */}
                     {route.percent && route.percent < 100 && (
