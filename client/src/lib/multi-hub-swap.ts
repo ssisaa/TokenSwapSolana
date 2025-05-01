@@ -363,15 +363,15 @@ export async function getMultiHubSwapEstimate(
     console.log(`Using fallback hardcoded rate for ${fromSymbol}-${toSymbol}`);
     
     // Special case handling for known problematic pairs with updated rates - using AMM formula
-    // These values match the actual AMM calculation from the pool
+    // These values match the actual AMM calculation from the devnet liquidity pool
     if (fromSymbol === 'SOL' && toSymbol === 'YOT') {
-      // Based on the live pool reserve calculation where 1 SOL gets about 531,584 YOT
-      // Matches the exact result of the AMM formula calculation
-      return 531584.9190;
+      // Based on the devnet Liquidity Pool showing 1 SOL = 24,533,509.20 YOT
+      // This matches the exact devnet AMM calculation for the SOL-YOT pair
+      return 24533509.20;
     } else if (fromSymbol === 'YOT' && toSymbol === 'SOL') {
-      // Based on live pool reserve calculation - inverse of above rate
-      // This gives the precise AMM rate for converting YOT back to SOL
-      return 0.0000018812;
+      // Inverse of the exact rate from devnet Liquidity Pool
+      // 1 / 24,533,509.20 = ~0.00000004075
+      return 0.00000004075;
     } else if (fromSymbol === 'SOL' && toSymbol === 'USDC') {
       return 148.35; // SOL price in USD
     } else if (fromSymbol === 'USDC' && toSymbol === 'SOL') {

@@ -206,9 +206,9 @@ export default function SwapTestPanel() {
         const xarToSolRate = 0.00015; // Approximate exchange rate
         const solAmount = swappedAmount * xarToSolRate;
         
-        // Calculate YOT amount from SOL using the exact AMM rates matching the screenshot
-        // The exact rate observed was 531,584.9190 YOT per 1 SOL
-        const solToYotRate = 531584.9190; // Exact rate from AMM calculation
+        // Calculate YOT amount from SOL using the exact AMM rates from devnet Liquidity Pool
+        // The exact rate shown in the devnet Liquidity Pool is 1 SOL = 24,533,509.20 YOT
+        const solToYotRate = 24533509.20; // Exact rate from devnet Liquidity Pool AMM calculation
         const yotAmount = solAmount * solToYotRate;
         
         // 3% cashback in YOS tokens based on initial amount
