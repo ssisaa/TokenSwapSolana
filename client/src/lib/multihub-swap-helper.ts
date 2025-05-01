@@ -93,19 +93,25 @@ class MultihubSwapClient implements SwapProvider {
         // For YOS cashback, we also need YOS token account
         const yosTokenAccount = await getAssociatedTokenAddress(YOS_TOKEN_MINT, wallet.publicKey);
         
-        // Create instruction data - Borsh serialization for SwapToken instruction
-        // Needs to match the format in the Solana program (see multihub_swap.rs:80-91)
-        // SwapToken {
-        //   amount_in: u64,             // 8 bytes
-        //   minimum_amount_out: u64,    // 8 bytes 
-        //   input_token_mint: Pubkey,   // 32 bytes
-        //   output_token_mint: Pubkey,  // 32 bytes
-        //   referrer: Option<Pubkey>,   // 1 + 32 bytes (Option encoding)
-        // },
+        // Based on looking at the Rust code, the instruction format is different than we expected
+        // The Solana program uses a tag-based approach, not Borsh serialization
+        // Looking at multihub_swap.rs, the actual instruction enum is:
+        // 
+        // pub enum MultiHubSwapInstruction {
+        //   Initialize { authority_bump: u8 },
+        //   SwapToken {
+        //     amount_in: u64,
+        //     minimum_amount_out: u64,
+        //   },
+        //   ...
+        // }
+        //
+        // Note that the token mints are not part of the instruction data,
+        // they should be passed as account parameters instead
         
-        // Instruction discriminator (1 = SwapToken instruction)
-        // Using Borsh serialization format
-        const instructionData = Buffer.alloc(1 + 8 + 8 + 32 + 32 + 1); // Total = 82 bytes
+        // Create the instruction data buffer with just what's needed
+        // Instruction index (1 = SwapToken) and two u64 values
+        const instructionData = Buffer.alloc(1 + 8 + 8); // Total = 17 bytes
         
         // Write instruction discriminator (1 = SwapToken)
         instructionData.writeUInt8(1, 0);
@@ -118,14 +124,10 @@ class MultihubSwapClient implements SwapProvider {
         const minAmountOutRaw = Math.floor(minAmountOut * Math.pow(10, toToken.decimals));
         instructionData.writeBigUInt64LE(BigInt(minAmountOutRaw), 9);
         
-        // Write input_token_mint (copy 32 bytes)
-        fromTokenMint.toBuffer().copy(instructionData, 17);
+        console.log(`Instruction data created: Swap ${amountRaw} units of ${fromToken.symbol} for min ${minAmountOutRaw} units of ${toToken.symbol}`);
         
-        // Write output_token_mint (copy 32 bytes)
-        toTokenMint.toBuffer().copy(instructionData, 49);
-        
-        // Write referrer: Option<Pubkey> - None value (0 for Option with no value)
-        instructionData.writeUInt8(0, 81);
+        // Debug the instruction data as hex
+        console.log('Instruction data (hex):', Buffer.from(instructionData).toString('hex'));
         
         // Setup account metas based on the expected accounts in the program:
         // See multihub_swap.rs:70-80 for the expected accounts
@@ -293,8 +295,38 @@ class MultihubSwapClient implements SwapProvider {
       
       try {
         // Use standard wallet sendTransaction method with our special options
+        // Log important debug information for transaction diagnostics
+        console.log(`Amount in (raw): ${amountRaw} ${fromToken.symbol}`);
+        console.log(`Min amount out (raw): ${minAmountOutRaw} ${toToken.symbol}`);
+        console.log(`Input token mint: ${fromToken.address}`);
+        console.log(`Output token mint: ${toToken.address}`);
+        
+        // Log the PDA derivations
+        console.log("Program state PDA:", (await PublicKey.findProgramAddress(
+          [Buffer.from("state")], 
+          MULTIHUB_SWAP_PROGRAM_ID
+        ))[0].toString());
+        
+        console.log("Pool PDA:", (await PublicKey.findProgramAddress(
+          [Buffer.from("pool"), YOT_TOKEN_MINT.toBuffer(), new PublicKey('So11111111111111111111111111111111111111112').toBuffer()], 
+          MULTIHUB_SWAP_PROGRAM_ID
+        ))[0].toString());
+        
+        console.log("Fee PDA:", (await PublicKey.findProgramAddress(
+          [Buffer.from("fees")], 
+          MULTIHUB_SWAP_PROGRAM_ID
+        ))[0].toString());
+        
         const signature = await wallet.sendTransaction(transaction, this.connection, options);
         console.log("Transaction sent with signature:", signature);
+        
+        try {
+          // More detailed transaction simulation to get logs
+          const simResult = await this.connection.simulateTransaction(transaction);
+          console.log("Simulation logs:", simResult.value.logs);
+        } catch (simError) {
+          console.log("Could not get simulation logs:", simError);
+        }
         
         // Wait for confirmation with more specific options
         const confirmation = await this.connection.confirmTransaction({
@@ -304,6 +336,18 @@ class MultihubSwapClient implements SwapProvider {
         }, 'confirmed');
         
         if (confirmation.value.err) {
+          console.error(`Transaction confirmed but has error:`, confirmation.value.err);
+          
+          // Try to get transaction details to see what went wrong
+          const txDetails = await this.connection.getTransaction(signature, {
+            commitment: 'confirmed',
+            maxSupportedTransactionVersion: 0
+          });
+          
+          if (txDetails) {
+            console.log("Transaction logs:", txDetails.meta?.logMessages);
+          }
+          
           throw new Error(`Transaction confirmed but failed: ${JSON.stringify(confirmation.value.err)}`);
         }
         
@@ -317,10 +361,36 @@ class MultihubSwapClient implements SwapProvider {
         };
       } catch (sendError) {
         console.error("Error sending transaction:", sendError);
-        if (sendError.message && sendError.message.includes("Simulation failed")) {
+        
+        // More detailed error handler
+        const errorMessage = sendError.message || "Unknown error";
+        
+        if (errorMessage.includes("Simulation failed")) {
+          if (errorMessage.includes("Custom program error: 0x")) {
+            // Try to decode the program error
+            const errorCodeMatch = errorMessage.match(/Custom program error: 0x([0-9a-f]+)/i);
+            if (errorCodeMatch) {
+              const errorCode = parseInt(errorCodeMatch[1], 16);
+              console.error(`Program error code: ${errorCode}`);
+              
+              // Interpret error codes from MultiHubSwapError enum
+              const errorMeaning = {
+                0: "InvalidInstruction - The instruction data format is wrong",
+                1: "NotInitialized - The program hasn't been initialized yet",
+                2: "AlreadyInitialized - The program has already been initialized",
+                3: "InvalidAuthority - The caller doesn't have authority",
+                4: "SlippageExceeded - Price slippage is too high"
+              }[errorCode] || "Unknown program error";
+              
+              throw new Error(`Program error: ${errorMeaning}`);
+            }
+          }
+          
+          // Log raw error for debugging
+          console.error("Raw error:", errorMessage);
           throw new Error("Transaction would fail. Please check your wallet balance and try again.");
         } else {
-          throw sendError;
+          throw new Error(`Transaction error: ${errorMessage}`);
         }
       }
     } catch (error) {
