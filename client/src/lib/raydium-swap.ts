@@ -113,45 +113,89 @@ export async function getRaydiumSwapEstimate(
   minAmountOut: number;
   priceImpact: number;
   fee: number;
+  routeInfo: Array<{
+    label: string;
+    ammId: string;
+    marketId?: string;
+    percent?: number;
+    inputMint?: string;
+    outputMint?: string;
+    marketName?: string;
+  }>;
 }> {
-  // Try to find a pool for these tokens
-  const pool = findRaydiumPool(fromToken, toToken);
+  try {
+    // Try to find a pool for these tokens
+    const pool = findRaydiumPool(fromToken, toToken);
+    
+    if (!pool) {
+      throw new Error('No Raydium pool found for this token pair');
+    }
   
-  if (!pool) {
-    throw new Error('No Raydium pool found for this token pair');
+    // In a real implementation, we would:
+    // 1. Fetch the current pool state (reserves)
+    // 2. Calculate the expected output amount based on the AMM formula
+    // 3. Calculate price impact, fees, etc.
+    
+    // For this demo, we'll just use a simple model
+    const fee = amount * 0.0025; // 0.25% fee
+    const priceImpact = Math.min(amount * 0.01, 0.05); // Simulated price impact
+    
+    // Mock exchange rate based on whether it's a SOL pair or not
+    let exchangeRate = 1.0;
+    if (fromToken.address === 'So11111111111111111111111111111111111111112') {
+      // SOL to other token (assuming SOL is more valuable)
+      exchangeRate = 20.0;
+    } else if (toToken.address === 'So11111111111111111111111111111111111111112') {
+      // Other token to SOL
+      exchangeRate = 0.05;
+    }
+    
+    // Adjusted for fees and price impact
+    const estimatedAmount = amount * exchangeRate * (1 - fee / amount) * (1 - priceImpact);
+    
+    // Calculate minimum amount out based on slippage
+    const minAmountOut = estimatedAmount * (1 - slippage);
+    
+    // Create route information
+    const routeInfo = [
+      {
+        label: `${fromToken.symbol}→${toToken.symbol}`,
+        ammId: pool.id,
+        marketId: pool.marketId,
+        percent: 100,
+        inputMint: fromToken.address,
+        outputMint: toToken.address,
+        marketName: 'Raydium'
+      }
+    ];
+    
+    return {
+      estimatedAmount,
+      minAmountOut,
+      priceImpact,
+      fee,
+      routeInfo
+    };
+  } catch (error) {
+    console.error('Error getting Raydium swap estimate:', error);
+    
+    // Create a default routeInfo with error information
+    const routeInfo = [{
+      label: `${fromToken.symbol}→${toToken.symbol}`,
+      ammId: 'Error',
+      percent: 100,
+      marketName: 'Error fetching route'
+    }];
+    
+    throw {
+      message: 'Failed to get Raydium swap estimate',
+      routeInfo,
+      estimatedAmount: 0,
+      minAmountOut: 0,
+      priceImpact: 0,
+      fee: 0
+    };
   }
-  
-  // In a real implementation, we would:
-  // 1. Fetch the current pool state (reserves)
-  // 2. Calculate the expected output amount based on the AMM formula
-  // 3. Calculate price impact, fees, etc.
-  
-  // For this demo, we'll just use a simple model
-  const fee = amount * 0.0025; // 0.25% fee
-  const priceImpact = Math.min(amount * 0.01, 0.05); // Simulated price impact
-  
-  // Mock exchange rate based on whether it's a SOL pair or not
-  let exchangeRate = 1.0;
-  if (fromToken.address === 'So11111111111111111111111111111111111111112') {
-    // SOL to other token (assuming SOL is more valuable)
-    exchangeRate = 20.0;
-  } else if (toToken.address === 'So11111111111111111111111111111111111111112') {
-    // Other token to SOL
-    exchangeRate = 0.05;
-  }
-  
-  // Adjusted for fees and price impact
-  const estimatedAmount = amount * exchangeRate * (1 - fee / amount) * (1 - priceImpact);
-  
-  // Calculate minimum amount out based on slippage
-  const minAmountOut = estimatedAmount * (1 - slippage);
-  
-  return {
-    estimatedAmount,
-    minAmountOut,
-    priceImpact,
-    fee
-  };
 }
 
 /**

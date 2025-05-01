@@ -35,8 +35,14 @@ interface JupiterQuoteResponse {
       outAmount: string;
       feeAmount: string;
       feeMint: string;
+      amm?: {
+        label: string;
+        id?: string;
+      };
     }[];
     percent: number;
+    marketId?: string;
+    computeUnitPriceMicroLamports?: number;
   }[];
   contextSlot: number;
   timeTaken: number;
@@ -157,7 +163,7 @@ export async function getJupiterSwapEstimate(
         routeInfo.push({
           label: `${inputSymbol}→${outputSymbol}`,
           ammId: ammInfo || 'Jupiter',
-          marketId: routePlan.marketId || undefined,
+          marketId: routePlan.marketId || undefined, // Using optional chaining for potentially undefined property
           percent: routePlan.percent || 100,
           inputMint: inputMint,
           outputMint: outputMint,
