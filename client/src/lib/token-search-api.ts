@@ -10,6 +10,7 @@ import {
   YOT_DECIMALS,
   YOS_DECIMALS
 } from './constants';
+import { SwapProvider } from './multi-hub-swap';
 
 export interface TokenInfo {
   address: string;
@@ -65,11 +66,145 @@ export const defaultTokens: TokenInfo[] = [
   }
 ];
 
+// Raydium-specific tokens
+const raydiumTokens: TokenInfo[] = [
+  // Include default SOL token
+  defaultTokens[0],
+  // Include YOT token
+  defaultTokens[1],
+  // Include YOS token
+  defaultTokens[2],
+  // Add Raydium-specific tokens
+  {
+    address: 'DK5hLNKKF9kFXZ6ZjnaaQWiwLZ5j6hVNgfxTD19GxhzL',
+    symbol: 'RAY',
+    name: 'Raydium',
+    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R/logo.png',
+    decimals: 6,
+    tags: ['raydium', 'dex']
+  },
+  {
+    address: '8UJgxaiQx5nTrdUaen4qYH5L2Li55KzRn9LbNPSfvr1Z',
+    symbol: 'mSOL',
+    name: 'Marinade staked SOL',
+    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So/logo.png',
+    decimals: 9,
+    tags: ['staking']
+  },
+  {
+    address: 'AqhA8GFjKXGsNzNGP6E3jDmXJE8SZas2ZVtuKVxrMEf4',
+    symbol: 'SAMO',
+    name: 'Samoyedcoin',
+    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU/logo.png',
+    decimals: 9,
+    tags: ['meme']
+  },
+  {
+    address: 'CK2gdXem6UxTg6XijLF2FrzcfAHt6Age7Y9NR2zTtvRX',
+    symbol: 'ORCA',
+    name: 'Orca',
+    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE/logo.png',
+    decimals: 6,
+    tags: ['dex']
+  },
+  // Add more Raydium-specific tokens as needed
+];
+
+// Jupiter-specific tokens
+const jupiterTokens: TokenInfo[] = [
+  // Include default SOL token
+  defaultTokens[0],
+  // Include YOT token
+  defaultTokens[1],
+  // Include YOS token
+  defaultTokens[2],
+  // Add Jupiter-specific tokens
+  {
+    address: 'BZ2yxTpJnmrRxpj7JFtMLWs7vQGGpZniKYCDLWQMapUq',
+    symbol: 'JUP',
+    name: 'Jupiter',
+    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN/logo.png',
+    decimals: 6,
+    tags: ['dex', 'aggregator']
+  },
+  {
+    address: 'AZsHEMXd32h5gAyrZLxLHMjYWrYh8DjpVH1HYFWtNxS3',
+    symbol: 'BONK',
+    name: 'Bonk',
+    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263/logo.png',
+    decimals: 5,
+    tags: ['meme']
+  },
+  {
+    address: 'D3Fv6nnQXe2VK7hzrMFBuYs6mQNkCZ9RSRBnJMSPMK2x',
+    symbol: 'PYTH',
+    name: 'Pyth Network',
+    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3/logo.png',
+    decimals: 6,
+    tags: ['oracle']
+  },
+  {
+    address: '7wgZS8KSZAemVztjNpUC2W4R7cZ9MuKmQd7Drp1crDVp',
+    symbol: 'RENDER',
+    name: 'Render Token',
+    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/render8AKPfDw6zrqQBjgwgMvBwAqvdXDcKgqqdYa/logo.png',
+    decimals: 6,
+    tags: ['utility']
+  },
+  // Add more Jupiter-specific tokens as needed
+];
+
+// YOT Contract-specific tokens - keep it simple with just our core tokens
+const contractTokens: TokenInfo[] = [
+  // Include default SOL token
+  defaultTokens[0],
+  // Include YOT token
+  defaultTokens[1],
+  // Include YOS token
+  defaultTokens[2],
+  // Add a few other test tokens
+  {
+    address: '9T7uw5dqaEmEC4McqyefzYsEg5hoC4e2oV8it1Uc4f1U',
+    symbol: 'USDC',
+    name: 'USD Coin',
+    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png',
+    decimals: 6,
+    tags: ['stablecoin']
+  },
+  {
+    address: '5kjfp2qfRbqCXTQeUYgHNnTLf13eHoKjC9RcaX3YfSBK',
+    symbol: 'USDT',
+    name: 'USDT',
+    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB/logo.svg',
+    decimals: 6,
+    tags: ['stablecoin']
+  }
+];
+
 /**
  * Fetches Solana tokens including default and important tokens
  * Uses both default tokens and data from the Solana token registry API
+ * @param provider Optional provider to filter tokens by
  */
-export async function fetchSolanaTokens(): Promise<TokenInfo[]> {
+export async function fetchSolanaTokens(provider?: SwapProvider): Promise<TokenInfo[]> {
+  // If a provider is specified, return provider-specific tokens
+  if (provider !== undefined) {
+    switch (provider) {
+      case SwapProvider.Raydium:
+        console.log('Fetching Raydium-specific tokens');
+        return raydiumTokens;
+      case SwapProvider.Jupiter:
+        console.log('Fetching Jupiter-specific tokens');
+        return jupiterTokens;
+      case SwapProvider.Contract:
+        console.log('Fetching YOT Contract-specific tokens');
+        return contractTokens;
+      default:
+        // Fall through to the default token fetching logic
+        break;
+    }
+  }
+  
   try {
     // First, try to fetch tokens from the Solana token registry API
     const response = await fetch('https://cdn.jsdelivr.net/gh/solana-labs/token-list@main/src/tokens/solana.tokenlist.json');

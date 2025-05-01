@@ -27,6 +27,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchSolanaTokens } from '@/lib/token-search-api';
 import { TokenInfo } from '@/lib/token-search-api';
 import { SOL_TOKEN_ADDRESS, YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS } from '@/lib/constants';
+import { SwapProvider } from '@/lib/multi-hub-swap';
 
 interface TokenSearchInputProps {
   selectedToken: TokenInfo | null;
@@ -34,6 +35,7 @@ interface TokenSearchInputProps {
   exclude?: string[];
   excludeTokens?: string[];  // For backward compatibility
   disabled?: boolean;
+  provider?: SwapProvider; // The swap provider to filter tokens by
 }
 
 export function TokenSearchInput({ 
@@ -41,14 +43,17 @@ export function TokenSearchInput({
   onSelect, 
   exclude = [],
   excludeTokens = [],
-  disabled = false
+  disabled = false,
+  provider = SwapProvider.Contract
 }: TokenSearchInputProps) {
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   
+  // Use provider in the query key to refetch when provider changes
   const { data: tokens, isLoading: tokensLoading } = useQuery({
-    queryKey: ['solana-tokens'],
-    queryFn: fetchSolanaTokens
+    queryKey: ['solana-tokens', provider.toString()],
+    queryFn: async () => fetchSolanaTokens(provider),
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
   // Filter tokens based on search and exclude list

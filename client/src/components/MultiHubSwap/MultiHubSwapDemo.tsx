@@ -276,6 +276,7 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
                 selectedToken={fromToken}
                 onSelect={setFromToken}
                 excludeTokens={toToken ? [toToken.address] : []}
+                provider={routeProvider}
               />
             </div>
           </div>
@@ -319,6 +320,7 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
                 selectedToken={toToken}
                 onSelect={setToToken}
                 excludeTokens={fromToken ? [fromToken.address] : []}
+                provider={routeProvider}
               />
             </div>
           </div>
