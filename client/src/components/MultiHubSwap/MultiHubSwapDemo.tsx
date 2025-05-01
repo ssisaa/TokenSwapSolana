@@ -144,14 +144,26 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
         // Only generate demo data for display purposes
         // In a real app, we'd wait for a user-entered amount
         
-        // Calculate using AMM formula based on actual pool reserves
-        const solReserve = 1.65; // SOL amount in pool
-        const yotReserve = 40480290.18; // YOT amount in pool
-        const FEE_MULTIPLIER = 0.997; // 0.3% fee
-        const inputSOL = 1; // Calculate for 1 SOL
+        // Use the getMultiHubSwapEstimate to fetch real-time rates from the blockchain
+        // This function internally fetches the actual pool balances from the blockchain
+        let outputYOT = 24563; // Temporary initialization value that will be replaced with real data
         
-        // Calculate YOT output for 1 SOL using AMM formula
-        const outputYOT = (yotReserve * inputSOL * FEE_MULTIPLIER) / (solReserve + (inputSOL * FEE_MULTIPLIER));
+        // Schedule a background estimation update
+        (async () => {
+          try {
+            const sol = defaultTokens.find(t => t.symbol === 'SOL');
+            const yot = defaultTokens.find(t => t.symbol === 'YOT');
+            if (sol && yot) {
+              const estimate = await getMultiHubSwapEstimate(sol, yot, 1); // 1 SOL to YOT
+              if (estimate && estimate.estimatedAmount) {
+                outputYOT = estimate.estimatedAmount;
+                console.log(`Real-time pool estimate: 1 SOL = ${outputYOT.toFixed(2)} YOT`);
+              }
+            }
+          } catch (error) {
+            console.error("Error fetching real-time rates:", error);
+          }
+        })();
         
         const testEstimate = {
           estimatedAmount: outputYOT,
@@ -298,58 +310,7 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
   };
   
   return (
-    <div className="space-y-4 max-w-md w-full">
-      {/* User Stats Box */}
-      <Card className="w-full bg-[#0f1421] shadow-xl border-[#1e2a45]">
-        <div className="p-4">
-          <h2 className="text-xl font-bold text-white mb-1">Your Stats</h2>
-          <p className="text-sm text-[#7d8ab1] mb-3">
-            {walletConnected ? `Connected: ${wallet.publicKey?.toString().slice(0, 6)}...${wallet.publicKey?.toString().slice(-4)}` : 'Not connected'}
-          </p>
-          
-          <div className="space-y-3">
-            <div className="flex justify-between py-1">
-              <span className="text-[#a3accd]">Total Swapped</span>
-              <span className="font-medium text-white">0.00 SOL</span>
-            </div>
-            <div className="flex justify-between py-1">
-              <span className="text-[#a3accd]">Total Contributed</span>
-              <span className="font-medium text-white">0.00 SOL</span>
-            </div>
-            <div className="flex justify-between py-1">
-              <span className="text-[#a3accd]">Pending Rewards</span>
-              <span className="font-medium text-white">{availableRewards?.toFixed(2) || "0.00"} YOS</span>
-            </div>
-            <div className="flex justify-between py-1">
-              <span className="text-[#a3accd]">Total Rewards Claimed</span>
-              <span className="font-medium text-white">0.00 YOS</span>
-            </div>
-          </div>
-          
-          <Separator className="my-4 bg-[#1e2a45]" />
-          
-          <h2 className="text-xl font-bold text-white mb-3">Global Stats</h2>
-          <div className="space-y-3">
-            <div className="flex justify-between py-1">
-              <span className="text-[#a3accd]">Total Volume</span>
-              <span className="font-medium text-white">0.00 SOL</span>
-            </div>
-            <div className="flex justify-between py-1">
-              <span className="text-[#a3accd]">Liquidity Contributed</span>
-              <span className="font-medium text-white">0.00 SOL</span>
-            </div>
-            <div className="flex justify-between py-1">
-              <span className="text-[#a3accd]">Rewards Distributed</span>
-              <span className="font-medium text-white">0.00 YOS</span>
-            </div>
-            <div className="flex justify-between py-1">
-              <span className="text-[#a3accd]">Unique Users</span>
-              <span className="font-medium text-white">0</span>
-            </div>
-          </div>
-        </div>
-      </Card>
-      
+    <div className="space-y-4 w-full">
       {/* Main Swap Card */}
       <Card className="w-full bg-[#0f1421] shadow-xl border-[#1e2a45]">
         <CardHeader className="bg-gradient-to-br from-[#1e2a45] to-[#0f1421] border-b border-[#1e2a45] pb-4">

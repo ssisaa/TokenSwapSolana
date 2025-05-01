@@ -69,10 +69,16 @@ export default function MultiHubSwapPage() {
         </AlertDescription>
       </Alert>
       
-      {/* User Stats Panel at top */}
+      {/* Main Swap and Chart Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* Swap Panel - Larger */}
         <div className="lg:col-span-1">
-          <UserStatsPanel />
+          <MultiHubSwapDemo 
+            onTokenChange={(fromToken, toToken) => {
+              setSelectedFromToken(fromToken);
+              setSelectedToToken(toToken);
+            }}
+          />
         </div>
         
         {/* Chart Panel */}
@@ -96,23 +102,19 @@ export default function MultiHubSwapPage() {
         </div>
       </div>
       
-      {/* Main Swap Panel followed by the others */}
+      {/* Test Swap and Pool Stats panels */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Swap Panel */}
         <div className="lg:col-span-1">
-          <MultiHubSwapDemo 
-            onTokenChange={(fromToken, toToken) => {
-              setSelectedFromToken(fromToken);
-              setSelectedToToken(toToken);
-            }}
-          />
-        </div>
-        
-        {/* Test Swap and Pool Stats in a column */}
-        <div className="lg:col-span-1 space-y-6">
           <SwapTestPanel />
+        </div>
+        <div className="lg:col-span-1">
           <LivePoolStats />
         </div>
+      </div>
+      
+      {/* User Stats Panel at bottom */}
+      <div className="mb-6">
+        <UserStatsPanel />
       </div>
       
       {/* Market Stats and Liquidity Pool Information */}
