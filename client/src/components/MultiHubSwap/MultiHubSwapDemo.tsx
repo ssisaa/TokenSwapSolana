@@ -431,65 +431,170 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
                   marketId?: string;
                   inputMint?: string;
                   outputMint?: string;
+                  marketName?: string;
                 }, index: number) => (
                   <div key={index} className="relative">
                     {/* Enhanced route node with more details */}
-                    <div className="bg-background border border-border rounded-md p-1.5 relative">
+                    <div className="bg-background border border-border rounded-md p-2 relative hover:border-primary/50 transition-colors">
                       {/* Route percentage badge - positioned better */}
                       {route.percent && route.percent < 100 && (
-                        <div className="absolute -top-2 -right-2 rounded-full bg-primary/10 text-primary text-xs font-semibold px-1.5 py-0.5 shadow-sm border border-primary/20">
+                        <div className="absolute -top-2 -right-2 rounded-full bg-primary/20 text-primary text-xs font-semibold px-1.5 py-0.5 shadow-sm border border-primary/30">
                           {route.percent}%
                         </div>
                       )}
                       
                       {/* Route number badge */}
-                      <div className="absolute -left-2 -top-2 w-5 h-5 rounded-full bg-muted-foreground text-white text-xs flex items-center justify-center font-medium">
+                      <div className="absolute -left-2 -top-2 w-5 h-5 rounded-full bg-primary text-white text-xs flex items-center justify-center font-medium shadow-sm">
                         {index + 1}
                       </div>
                     
-                      {/* Pool information with better layout */}
+                      {/* Route information with improved layout */}
                       <div className="ml-3 flex flex-col">
-                        <div className="text-xs font-medium">
-                          {route.label || `${fromToken.symbol}-${toToken.symbol}`}
-                        </div>
-                        
-                        {/* AMMID with copy button */}
-                        <div className="flex items-center text-[9px] text-muted-foreground mt-0.5">
-                          <span className="mr-1">ID:</span>
-                          <code className="bg-muted/30 px-1 py-0.5 rounded">
-                            {route.ammId?.substring(0, 10)}...
-                          </code>
+                        {/* Route label with market name in badge */}
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm font-medium">
+                            {route.label || `${fromToken.symbol} → ${toToken.symbol}`}
+                          </div>
                           
-                          {/* Price impact estimate */}
-                          {index === 0 && swapEstimate.priceImpact && (
-                            <span className="ml-auto text-[9px] text-muted-foreground">
-                              Impact: <span className="text-orange-500">{(swapEstimate.priceImpact * 100).toFixed(2)}%</span>
-                            </span>
+                          {route.marketName && (
+                            <div className="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded-sm font-medium">
+                              {route.marketName}
+                            </div>
                           )}
                         </div>
                         
-                        {/* Market ID if available */}
-                        {route.marketId && (
-                          <div className="text-[9px] text-muted-foreground mt-0.5">
-                            <span className="mr-1">Market:</span>
-                            <code className="bg-muted/30 px-1 py-0.5 rounded">
-                              {route.marketId.substring(0, 10)}...
-                            </code>
+                        {/* Enhanced details with tooltips */}
+                        <div className="flex items-center justify-between mt-1.5 gap-2">
+                          {/* AMM ID with tooltip */}
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger className="cursor-help group">
+                                <div className="flex items-center text-[10px] text-muted-foreground">
+                                  <span className="mr-1">AMM:</span>
+                                  <code className="bg-muted/30 px-1.5 py-0.5 rounded-sm group-hover:bg-muted/50">
+                                    {route.ammId ? (route.ammId.length > 12 ? 
+                                      `${route.ammId.substring(0, 6)}...${route.ammId.substring(route.ammId.length - 4)}` : 
+                                      route.ammId) : 'Unknown'}
+                                  </code>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs">
+                                <p className="text-xs">Automated Market Maker ID: {route.ammId || 'Unknown'}</p>
+                                <p className="text-xs mt-1 text-muted-foreground">This identifies the specific liquidity pool that your swap will route through.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          
+                          {/* Price impact estimate */}
+                          {index === 0 && swapEstimate.priceImpact && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger className="cursor-help">
+                                  <div className="text-[10px] px-1.5 py-0.5 rounded-sm font-medium bg-orange-500/10 text-orange-600">
+                                    Impact: {(swapEstimate.priceImpact * 100).toFixed(2)}%
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  <p className="text-xs">Price impact measures how much your trade affects the market price.</p>
+                                  <p className="text-xs mt-1 text-muted-foreground">Lower is better. High impact means you're getting a worse price due to the size of your trade.</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
+                        
+                        {/* Additional details when available */}
+                        {(route.marketId || route.inputMint || route.outputMint) && (
+                          <div className="flex flex-wrap gap-x-2 gap-y-1 mt-1.5">
+                            {/* Market ID */}
+                            {route.marketId && (
+                              <div className="text-[10px] text-muted-foreground">
+                                <span className="mr-1">Market:</span>
+                                <code className="bg-muted/30 px-1 py-0.5 rounded-sm">
+                                  {route.marketId.length > 8 ? 
+                                    `${route.marketId.substring(0, 4)}...${route.marketId.substring(route.marketId.length - 4)}` : 
+                                    route.marketId}
+                                </code>
+                              </div>
+                            )}
+                            
+                            {/* Input/Output currency mini-badges */}
+                            {route.inputMint && route.outputMint && (
+                              <div className="text-[10px] text-muted-foreground flex items-center ml-auto">
+                                <span className="bg-blue-500/10 text-blue-600 px-1 py-0.5 rounded-sm">
+                                  In: {route.inputMint.substring(0, 4)}...
+                                </span>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" className="mx-0.5">
+                                  <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                                <span className="bg-green-500/10 text-green-600 px-1 py-0.5 rounded-sm">
+                                  Out: {route.outputMint.substring(0, 4)}...
+                                </span>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
                     </div>
                     
-                    {/* Arrow connector if not last - more visible with animation */}
+                    {/* Animated arrow connector */}
                     {index < swapEstimate.routeInfo.length - 1 && (
-                      <div className="flex justify-center my-1">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-muted-foreground">
-                          <path d="M12 5v14M19 12l-7 7-7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
+                      <div className="flex justify-center py-1">
+                        <div className="w-6 h-6 flex items-center justify-center rounded-full bg-muted">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-primary animate-pulse">
+                            <path d="M12 5v14M19 12l-7 7-7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </div>
                       </div>
                     )}
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Additional summary info when we have a swap estimate */}
+          {swapEstimate && (
+            <div className="border border-border rounded-md p-2 mt-1 mb-1 bg-background/50">
+              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                {/* Fee summary */}
+                <div className="flex items-center space-x-1">
+                  <svg className="h-3 w-3 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M8 12l2 2 4-4" />
+                  </svg>
+                  <span className="text-muted-foreground">
+                    Network fee: <span className="font-medium">{swapEstimate.fee ? `${(swapEstimate.fee * 100).toFixed(2)}%` : '~0.3%'}</span>
+                  </span>
+                </div>
+                
+                {/* Route efficiency */}
+                <div className="flex items-center space-x-1 justify-end">
+                  <span className="text-muted-foreground flex items-center">
+                    Route: 
+                    <span className={`ml-1 font-medium ${
+                      swapEstimate.routeInfo && swapEstimate.routeInfo.length === 1 
+                        ? 'text-green-500' 
+                        : 'text-amber-500'
+                    }`}>
+                      {swapEstimate.routeInfo && swapEstimate.routeInfo.length === 1 ? 'Direct' : 'Multi-hop'}
+                    </span>
+                  </span>
+                </div>
+                
+                {/* Price impact warning if it's high */}
+                {swapEstimate.priceImpact && swapEstimate.priceImpact > 0.05 && (
+                  <div className="col-span-2 flex items-center space-x-1 mt-1">
+                    <svg className="h-3 w-3 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                      <line x1="12" y1="9" x2="12" y2="13" />
+                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                    <span className="text-amber-500">
+                      High price impact: {(swapEstimate.priceImpact * 100).toFixed(2)}% - your trade significantly affects market price
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}
