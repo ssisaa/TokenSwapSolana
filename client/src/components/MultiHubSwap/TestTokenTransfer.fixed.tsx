@@ -1,3 +1,5 @@
+// FIXED VERSION - Replace TestTokenTransfer.tsx with this file to fix wallet connection issues
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,13 +38,6 @@ export default function TestTokenTransfer() {
     success: boolean;
     message: string;
   } | null>(null);
-  
-  // FIXED: Add diagnostic log for wallet state
-  console.log('Wallet state:', {
-    connected,
-    publicKey: publicKey?.toString(),
-    wallet: wallet ? 'Available' : 'Not available'
-  });
   const [selectedTokens, setSelectedTokens] = useState<Record<string, boolean>>({
     MTA: true,
     SAMX: true,
@@ -56,6 +51,13 @@ export default function TestTokenTransfer() {
   const [useConnectedWallet, setUseConnectedWallet] = useState(true);
 
   const connection = new Connection(ENDPOINT);
+  
+  // FIXED: Add diagnostic log for wallet state
+  console.log('Wallet state:', {
+    connected,
+    publicKey: publicKey?.toString(),
+    wallet: wallet ? 'Available' : 'Not available'
+  });
 
   const toggleToken = (token: string) => {
     setSelectedTokens(prev => ({
@@ -96,6 +98,7 @@ export default function TestTokenTransfer() {
         publicKey,
         signTransaction: async (transaction: Transaction) => {
           try {
+            // FIXED: Use the correct wallet adapter method
             if (!wallet.signTransaction) {
               throw new Error("Wallet doesn't support transaction signing");
             }
@@ -105,11 +108,6 @@ export default function TestTokenTransfer() {
             
             const signedTx = await wallet.signTransaction(transaction);
             console.log('Transaction signed successfully');
-            
-            // Send the raw transaction
-            const signature = await connection.sendRawTransaction(signedTx.serialize());
-            console.log('Transaction sent:', signature);
-            
             return signedTx;
           } catch (error) {
             console.error('Error signing transaction:', error);
@@ -135,7 +133,7 @@ export default function TestTokenTransfer() {
 
   // Function to create liquidity pools for test tokens
   const handleCreateLiquidityPools = async () => {
-    if (!publicKey) {
+    if (!publicKey || !wallet) {
       setResult({
         success: false,
         message: 'Please connect your wallet to create liquidity pools.'
@@ -159,14 +157,21 @@ export default function TestTokenTransfer() {
         throw new Error('No test tokens found. Please create tokens first.');
       }
       
-      // Create wallet adapter for liquidity pool creation
+      // FIXED: Create wallet adapter for liquidity pool creation
       const walletAdapter = {
         publicKey,
         signTransaction: async (transaction: Transaction) => {
           try {
-            const signedTx = await sendTransaction(transaction, connection);
-            console.log('Transaction sent:', signedTx);
-            return transaction;
+            if (!wallet.signTransaction) {
+              throw new Error("Wallet doesn't support transaction signing");
+            }
+            
+            transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+            transaction.feePayer = publicKey;
+            
+            const signedTx = await wallet.signTransaction(transaction);
+            console.log('Transaction signed successfully');
+            return signedTx;
           } catch (error) {
             console.error('Error signing transaction:', error);
             throw error;
@@ -406,6 +411,24 @@ export default function TestTokenTransfer() {
         <CardTitle>Test Token Transfer</CardTitle>
       </CardHeader>
       <CardContent>
+        {/* FIXED: Add connection status indicator */}
+        <div className="mb-4">
+          <Alert className={connected ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"}>
+            <div className="flex items-center">
+              {connected ? (
+                <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+              ) : (
+                <AlertCircle className="h-4 w-4 text-amber-500 mr-2" />
+              )}
+              <AlertDescription className={connected ? "text-green-700" : "text-amber-700"}>
+                {connected 
+                  ? `Connected to wallet: ${publicKey?.toString().substring(0, 6)}...${publicKey?.toString().substring(publicKey.toString().length - 4)}`
+                  : "Wallet not connected. Please connect your wallet to create tokens."}
+              </AlertDescription>
+            </div>
+          </Alert>
+        </div>
+
         <div className="space-y-4">
           <div className="flex flex-col space-y-2">
             <div className="flex items-center space-x-2">
@@ -485,7 +508,7 @@ export default function TestTokenTransfer() {
               
               <Button 
                 onClick={handleCreateTokens}
-                disabled={loading}
+                disabled={loading || !connected}
                 variant="secondary"
                 className="bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white"
               >
@@ -519,7 +542,7 @@ export default function TestTokenTransfer() {
               
               <Button 
                 onClick={handleCreateLiquidityPools}
-                disabled={loading}
+                disabled={loading || !connected}
                 variant="secondary"
                 className="bg-gradient-to-r from-teal-500 to-blue-600 hover:from-teal-600 hover:to-blue-700 text-white"
               >
@@ -528,12 +551,7 @@ export default function TestTokenTransfer() {
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Creating Pools...
                   </>
-                ) : (
-                  <>
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    Create Pools
-                  </>
-                )}
+                ) : 'Create Pools'}
               </Button>
             </div>
             
@@ -545,35 +563,28 @@ export default function TestTokenTransfer() {
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Transferring...
+                  Processing...
                 </>
               ) : 'Transfer Tokens'}
             </Button>
           </div>
           
           {result && (
-            <Alert variant={result.success ? "default" : "destructive"}>
-              {result.success ? (
-                <CheckCircle className="h-4 w-4" />
-              ) : (
-                <AlertCircle className="h-4 w-4" />
-              )}
-              <AlertDescription>
-                {result.message}
-              </AlertDescription>
+            <Alert
+              className={result.success ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}
+            >
+              <div className="flex">
+                {result.success ? (
+                  <CheckCircle className="h-4 w-4 text-green-500 mr-2 mt-0.5" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 text-red-500 mr-2 mt-0.5" />
+                )}
+                <AlertDescription className="text-xs whitespace-pre-wrap">
+                  {result.message}
+                </AlertDescription>
+              </div>
             </Alert>
           )}
-          
-          <div className="text-sm text-muted-foreground mt-4">
-            <p>Instructions:</p>
-            <ol className="list-decimal list-inside space-y-1 mt-2">
-              <li>Connect your wallet</li>
-              <li>Select the tokens you want to receive</li>
-              <li>Click "Transfer Tokens"</li>
-              <li>Tokens will be sent directly to your connected wallet</li>
-              <li>You may need to add these tokens to your wallet manually</li>
-            </ol>
-          </div>
         </div>
       </CardContent>
     </Card>
