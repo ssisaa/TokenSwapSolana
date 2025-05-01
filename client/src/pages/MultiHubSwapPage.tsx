@@ -101,12 +101,17 @@ export default function MultiHubSwapPage() {
         </div>
       </div>
       
-      {/* Test Swap Panel */}
-      <div className="mb-6">
-        <SwapTestPanel />
+      {/* Stats (Your Stats and Global Stats) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <LivePoolStats />
+        
+        {/* Test Swap Panel */}
+        <div>
+          <SwapTestPanel />
+        </div>
       </div>
       
-      {/* Market Stats and User Stats */}
+      {/* Market Stats and Liquidity Pool Information */}
       <div className="mb-6">
         <Tabs defaultValue="stats" className="w-full">
           <TabsList className="grid grid-cols-2 mb-4 bg-[#1a2338]">
@@ -153,11 +158,6 @@ export default function MultiHubSwapPage() {
                 </div>
               </CardContent>
             </Card>
-            
-            {/* User and Pool Stats */}
-            <div className="mt-6">
-              <LivePoolStats />
-            </div>
           </TabsContent>
           
           <TabsContent value="pool">
