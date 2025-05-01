@@ -77,7 +77,10 @@ export default function TokenTestingPage() {
           
           <TabsContent value="token-transfer" className="space-y-6 mt-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <TestTokenTransfer />
+              <div className="space-y-6">
+                <TestTokenTransfer />
+                <TokenBalanceMonitor />
+              </div>
               
               <Card>
                 <CardHeader>
