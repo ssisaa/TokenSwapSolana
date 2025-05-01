@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { useWallet } from "@solana/wallet-adapter-react";
-import { Connection, PublicKey, Transaction, SystemProgram, clusterApiUrl, LAMPORTS_PER_SOL, sendAndConfirmTransaction } from "@solana/web3.js";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { Connection, PublicKey, Transaction, SystemProgram, clusterApiUrl, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,11 +9,15 @@ import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import { useMultiWallet } from "@/context/MultiWalletContext";
 import { shortenAddress } from "@/lib/utils";
 
 export default function TransactionDebugPage() {
   const wallet = useWallet();
+  const multiWallet = useMultiWallet();
+  const { connection } = useConnection();
   const { toast } = useToast();
+  
   const [destinationAddress, setDestinationAddress] = useState("");
   const [amount, setAmount] = useState("0.001");
   const [isLoading, setIsLoading] = useState(false);
@@ -21,13 +25,11 @@ export default function TransactionDebugPage() {
   const [result, setResult] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<string | null>(null);
   const [isTestLoading, setIsTestLoading] = useState(false);
-  
-  // Connection to devnet
-  const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
 
   // Test basic wallet signature without sending any transaction
   const testWalletSignature = async () => {
-    if (!wallet.connected || !wallet.publicKey) {
+    // Try to use both wallet contexts to ensure we have a wallet connection
+    if ((!wallet.connected || !wallet.publicKey) && (!multiWallet.connected || !multiWallet.publicKey)) {
       toast({
         title: "Wallet not connected",
         description: "Please connect your wallet first",
@@ -35,32 +37,53 @@ export default function TransactionDebugPage() {
       });
       return;
     }
+    
+    // Prefer the wallet from @solana/wallet-adapter-react, but fall back to multiWallet if needed
+    const activeWallet = wallet.connected && wallet.publicKey ? wallet : multiWallet.wallet;
 
     setIsTestLoading(true);
     setTestResult(null);
     setError(null);
     
     try {
+      // Get the public key from the active wallet
+      if (!activeWallet || !activeWallet.publicKey) {
+        throw new Error("No public key available in the connected wallet");
+      }
+      const publicKey = activeWallet.publicKey;
+
       // Create a minimal transaction that just requires a signature
       // Here we'll create a transaction that transfers 0 SOL to ourselves, which doesn't cost anything
       const transaction = new Transaction().add(
         SystemProgram.transfer({
-          fromPubkey: wallet.publicKey,
-          toPubkey: wallet.publicKey,
+          fromPubkey: publicKey,
+          toPubkey: publicKey,
           lamports: 0
         })
       );
       
       // Get a recent blockhash to include in the transaction
-      const { blockhash } = await connection.getLatestBlockhash();
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
       transaction.recentBlockhash = blockhash;
-      transaction.feePayer = wallet.publicKey;
+      transaction.feePayer = publicKey;
+      
+      // First simulate the transaction to make sure it would succeed
+      console.log("Simulating signature test transaction...");
+      const simulation = await connection.simulateTransaction(transaction);
+      if (simulation.value.err) {
+        throw new Error(`Transaction simulation failed: ${JSON.stringify(simulation.value.err)}`);
+      }
       
       // Request the wallet to sign the transaction
-      const signedTransaction = await wallet.signTransaction!(transaction);
+      console.log("Requesting wallet signature...");
+      
+      // Handle both API patterns (signTransaction may return Transaction or Promise<Transaction>)
+      const signedTransaction = await activeWallet.signTransaction!(transaction);
+      
+      console.log("Transaction signed successfully");
       
       // We don't need to send this transaction, just verify it was signed
-      setTestResult("Wallet signature test passed! Your wallet can sign transactions.");
+      setTestResult("Wallet signature test passed! Your wallet can successfully sign transactions.");
       
       toast({
         title: "Success",
@@ -82,7 +105,8 @@ export default function TransactionDebugPage() {
 
   // Send a simple SOL transfer
   const sendTransaction = async () => {
-    if (!wallet.connected || !wallet.publicKey) {
+    // Try to use both wallet contexts to ensure we have a wallet connection
+    if ((!wallet.connected || !wallet.publicKey) && (!multiWallet.connected || !multiWallet.publicKey)) {
       toast({
         title: "Wallet not connected",
         description: "Please connect your wallet first",
@@ -90,6 +114,9 @@ export default function TransactionDebugPage() {
       });
       return;
     }
+    
+    // Prefer the wallet from @solana/wallet-adapter-react, but fall back to multiWallet if needed
+    const activeWallet = wallet.connected && wallet.publicKey ? wallet : multiWallet.wallet;
 
     if (!destinationAddress) {
       toast({
@@ -191,7 +218,7 @@ export default function TransactionDebugPage() {
           
           <Button 
             onClick={testWalletSignature}
-            disabled={!wallet.connected || isTestLoading}
+            disabled={((!wallet.connected || !wallet.publicKey) && (!multiWallet.connected || !multiWallet.publicKey)) || isTestLoading}
             className="mb-4"
           >
             {isTestLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
