@@ -218,6 +218,7 @@ export async function getTokenPairsViaSol(tokenMintAddress: string): Promise<Ray
 export async function findSwapRoute(fromTokenMint: string, toTokenMint: string): Promise<{
   route: RaydiumPoolConfig[];
   hops: number;
+  intermediateTokens?: string[];
 }> {
   // Direct swap if same token
   if (fromTokenMint === toTokenMint) {
@@ -249,7 +250,11 @@ export async function findSwapRoute(fromTokenMint: string, toTokenMint: string):
   );
   
   if (fromSolPool && toSolPool) {
-    return { route: [fromSolPool, toSolPool], hops: 2 };
+    return { 
+      route: [fromSolPool, toSolPool], 
+      hops: 2,
+      intermediateTokens: [SOL_TOKEN_ADDRESS]
+    };
   }
   
   // No viable route found

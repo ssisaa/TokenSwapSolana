@@ -20,6 +20,9 @@ export interface JupiterRouteConfig {
   outputReserve?: number;
   volumeUSD?: number;
   liquidityUSD?: number;
+  // Routing information
+  intermediateTokens?: string[];
+  routeType?: 'direct' | 'multi-hop';
 }
 
 /**
@@ -253,10 +256,63 @@ export async function findBestJupiterRoute(
   );
   
   if (directRoute) {
+    // Mark as direct route for display purposes
+    directRoute.routeType = 'direct';
     return directRoute;
   }
   
-  // No direct route found
+  // If no direct route exists, try to find a route through SOL
+  // Many tokens don't have direct pairs but can be swapped through SOL
+  const SOL_TOKEN = SOL_TOKEN_ADDRESS;
+  const USDC_TOKEN = "9T7uw5dqaEmEC4McqyefzYsEg5hoC4e2oV8it1Uc4f1U";
+  
+  // Common intermediate tokens to try for routes
+  const intermediateTokens = [SOL_TOKEN, USDC_TOKEN];
+  
+  // Try each intermediate token
+  for (const intermediateToken of intermediateTokens) {
+    // Skip if the intermediate token is the same as source or destination
+    if (intermediateToken === fromMint || intermediateToken === toMint) {
+      continue;
+    }
+    
+    // Look for the first hop (fromMint → intermediateToken)
+    const firstHopRoute = routes.find(route => 
+      route.inputMint === fromMint && route.outputMint === intermediateToken
+    );
+    
+    // Look for the second hop (intermediateToken → toMint)
+    const secondHopRoute = routes.find(route => 
+      route.inputMint === intermediateToken && route.outputMint === toMint
+    );
+    
+    // If both hops exist, we have a valid multi-hop route
+    if (firstHopRoute && secondHopRoute) {
+      // Create a new multi-hop route by combining route info
+      const multiHopRoute: JupiterRouteConfig = {
+        id: `${firstHopRoute.id}-to-${secondHopRoute.id}`,
+        name: `${firstHopRoute.inputSymbol}-${firstHopRoute.outputSymbol}-${secondHopRoute.outputSymbol}`,
+        inputMint: fromMint,
+        inputSymbol: firstHopRoute.inputSymbol,
+        outputMint: toMint,
+        outputSymbol: secondHopRoute.outputSymbol,
+        // Combine market IDs and labels from both routes
+        marketIds: [...firstHopRoute.marketIds, ...secondHopRoute.marketIds],
+        marketLabels: [...firstHopRoute.marketLabels, ...secondHopRoute.marketLabels],
+        // Sum the fees from both hops
+        fee: firstHopRoute.fee + secondHopRoute.fee,
+        // Price impact compounds across hops
+        priceImpact: firstHopRoute.priceImpact + secondHopRoute.priceImpact,
+        // Track the intermediate tokens for the UI
+        intermediateTokens: [intermediateToken],
+        routeType: 'multi-hop'
+      };
+      
+      return multiHopRoute;
+    }
+  }
+  
+  // No route found
   return null;
 }
 
@@ -269,11 +325,39 @@ export function getJupiterRouteDisplayInfo(route: JupiterRouteConfig): {
   markets: string[];
   fee: string;
   impact: string;
+  path?: string;
+  hops?: number;
 } {
-  return {
+  // Basic route info
+  const info = {
     name: route.name,
     markets: route.marketLabels,
     fee: `${(route.fee * 100).toFixed(2)}%`,
     impact: `${(route.priceImpact * 100).toFixed(2)}%`
   };
+  
+  // Add multi-hop info if available
+  if (route.routeType === 'multi-hop' && route.intermediateTokens?.length) {
+    // Get hop count
+    const hops = route.intermediateTokens.length + 1;
+    
+    // Construct path display
+    let path = `${route.inputSymbol}`;
+    for (const intermediate of route.intermediateTokens) {
+      // Try to get a friendly symbol for the intermediate token
+      const intermediateSymbol = intermediate === SOL_TOKEN_ADDRESS ? 'SOL' : 
+                                intermediate === '9T7uw5dqaEmEC4McqyefzYsEg5hoC4e2oV8it1Uc4f1U' ? 'USDC' : 
+                                'TOKEN';
+      path += ` → ${intermediateSymbol}`;
+    }
+    path += ` → ${route.outputSymbol}`;
+    
+    return {
+      ...info,
+      path,
+      hops
+    };
+  }
+  
+  return info;
 }
