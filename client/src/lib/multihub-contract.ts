@@ -41,6 +41,7 @@ enum MultiHubSwapInstructionType {
   RegisterReferrer = 8,
   UpdateParameters = 9,
   EmergencyPause = 10,
+  TriggerYieldDistribution = 11,
 }
 
 // Layout for the SwapToken instruction data
