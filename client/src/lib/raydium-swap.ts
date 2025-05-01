@@ -7,71 +7,7 @@ import {
 } from '@solana/web3.js';
 import { TokenInfo } from './token-search-api';
 import { ENDPOINT } from './constants';
-
-// Raydium DEX Liquidity Pool Program IDs for Devnet
-const RAYDIUM_LIQUIDITY_PROGRAM_ID_V4 = new PublicKey('675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8');
-
-// Interface for Raydium pool information
-interface RaydiumPool {
-  id: string;
-  baseMint: string;
-  quoteMint: string;
-  lpMint: string;
-  baseDecimals: number;
-  quoteDecimals: number;
-  lpDecimals: number;
-  version: number;
-  programId: string;
-  authority: string;
-  openOrders: string;
-  targetOrders: string;
-  baseVault: string;
-  quoteVault: string;
-  withdrawQueue: string;
-  lpVault: string;
-  marketVersion: number;
-  marketProgramId: string;
-  marketId: string;
-  marketAuthority: string;
-  marketBaseVault: string;
-  marketQuoteVault: string;
-  marketBids: string;
-  marketAsks: string;
-  marketEventQueue: string;
-}
-
-// Mock Raydium Devnet Pools (in real implementation, these would be fetched from the API)
-const RAYDIUM_DEVNET_POOLS: RaydiumPool[] = [
-  // SOL-USDC pool example
-  {
-    id: 'devnet-sol-usdc',
-    baseMint: 'So11111111111111111111111111111111111111112', // SOL
-    quoteMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
-    lpMint: 'LP9YdV3xB1pLpWq6ePpNBEjjcsxaGAyQ1MeiBcvYzxs5',
-    baseDecimals: 9,
-    quoteDecimals: 6,
-    lpDecimals: 9,
-    version: 4,
-    programId: '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8',
-    authority: 'DhVpojXMTbZMuTaCgiiaFU7U8GvEEhnYo4G9BUdiEYGh',
-    openOrders: 'AT8h6y9TB7EwBQjX5qymQo27dTiNrxJQdP5oDTdmzuNP',
-    targetOrders: 'G9nt2GazsDj3Ey3KdA49Sfaq9KEwV1RhJd9HYwARvpnP',
-    baseVault: '5XpUJpNFSP2e3CuQU9reKYMyBtMyWjK6BfRmB9wTuFPR',
-    quoteVault: 'ACf1vUJiMXWEJQHiVeYQGWYdAJZnGi4Yie7Pug61mjfJ',
-    withdrawQueue: 'CbwyVuLXjVsYJ3W4yn13zQDQGzVwjeMTcN8KzCGwn4uY',
-    lpVault: 'LP9YdV3xB1pLpWq6ePpNBEjjcsxaGAyQ1MeiBcvYzxs5',
-    marketVersion: 3,
-    marketProgramId: '9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin',
-    marketId: 'DZjbn4XC8qoHKikZqzmhemykVzmossoayV9ffbsUqxVj',
-    marketAuthority: 'DhVpojXMTbZMuTaCgiiaFU7U8GvEEhnYo4G9BUdiEYGh',
-    marketBaseVault: '5XpUJpNFSP2e3CuQU9reKYMyBtMyWjK6BfRmB9wTuFPR',
-    marketQuoteVault: 'ACf1vUJiMXWEJQHiVeYQGWYdAJZnGi4Yie7Pug61mjfJ',
-    marketBids: 'B52da5SZ3ixbU7fPwuRYQJjiswxaYKiczvRS3i8XrGzY',
-    marketAsks: '9YBgvRoBVGsNRvpdVKJPnTsZe4X2Z7dCUujXJA1sBGu9',
-    marketEventQueue: 'H7fJgmVRMwzA3ZRzWwJXyPyHdpHsgvf7HVnd9HYqcK5H'
-  },
-  // Add more pools as needed
-];
+import { RAYDIUM_DEVNET_POOLS, RaydiumPool, RAYDIUM_LIQUIDITY_PROGRAM_ID_V4 } from './raydium-pool-config';
 
 /**
  * Find a Raydium pool for the given token pair

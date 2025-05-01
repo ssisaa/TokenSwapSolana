@@ -22,6 +22,7 @@ import {
 } from '@solana/spl-token';
 import { ENDPOINT, TEST_TOKENS } from '@/lib/constants';
 import { createTestTokens, checkTestTokensExist } from '@/lib/token-creation';
+import { createTestTokenLiquidityPools, checkTestTokenPools } from '@/lib/liquidity-pool-creation';
 
 // Admin wallet that holds the test tokens
 // In a real app, this would be securely managed server-side
@@ -106,6 +107,105 @@ export default function TestTokenTransfer() {
       setResult({
         success: false,
         message: `Error creating test tokens: ${error.message}`
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Function to create liquidity pools for test tokens
+  const handleCreateLiquidityPools = async () => {
+    if (!publicKey) {
+      setResult({
+        success: false,
+        message: 'Please connect your wallet to create liquidity pools.'
+      });
+      return;
+    }
+    
+    setLoading(true);
+    setResult(null);
+    
+    try {
+      console.log('Creating liquidity pools for test tokens...');
+      
+      // First check if tokens exist
+      const tokenStatus = await checkTestTokensExist();
+      const existingTokens = Object.entries(tokenStatus)
+        .filter(([_, exists]) => exists)
+        .map(([token]) => token);
+      
+      if (existingTokens.length === 0) {
+        throw new Error('No test tokens found. Please create tokens first.');
+      }
+      
+      // Create wallet adapter for liquidity pool creation
+      const walletAdapter = {
+        publicKey,
+        signTransaction: async (transaction: Transaction) => {
+          try {
+            const signedTx = await sendTransaction(transaction, connection);
+            console.log('Transaction sent:', signedTx);
+            return transaction;
+          } catch (error) {
+            console.error('Error signing transaction:', error);
+            throw error;
+          }
+        }
+      };
+      
+      // Create liquidity pools
+      const createdPools = await createTestTokenLiquidityPools(walletAdapter);
+      
+      setResult({
+        success: true,
+        message: `Successfully created ${createdPools.length} liquidity pools for test tokens.`
+      });
+    } catch (error: any) {
+      console.error('Error creating liquidity pools:', error);
+      setResult({
+        success: false,
+        message: `Error creating liquidity pools: ${error.message}`
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Function to check liquidity pools
+  const checkLiquidityPools = async () => {
+    setLoading(true);
+    setResult(null);
+    
+    try {
+      console.log('Checking liquidity pools for test tokens...');
+      
+      const poolStats = await checkTestTokenPools();
+      
+      if (poolStats.totalPoolsFound === 0) {
+        setResult({
+          success: false,
+          message: 'No liquidity pools found for test tokens. Please create pools first.'
+        });
+        return;
+      }
+      
+      const tokenPoolCounts = Object.entries(poolStats.poolsByToken)
+        .filter(([_, count]) => count > 0)
+        .map(([token, count]) => `${token}: ${count} pools`)
+        .join(', ');
+      
+      setResult({
+        success: true,
+        message: `Found ${poolStats.totalPoolsFound} liquidity pools for test tokens.\n` +
+                 `Available tokens: ${poolStats.availableTokens.join(', ')}\n` +
+                 `Pool counts: ${tokenPoolCounts}`
+      });
+    } catch (error: any) {
+      console.error('Error checking liquidity pools:', error);
+      setResult({
+        success: false,
+        message: `Error checking liquidity pools: ${error.message}`
       });
     } finally {
       setLoading(false);
@@ -348,42 +448,79 @@ export default function TestTokenTransfer() {
             </div>
           </div>
           
-          <div className="grid grid-cols-3 gap-2">
-            <Button 
-              onClick={checkTokenMints}
-              disabled={loading}
-              variant="outline"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Checking...
-                </>
-              ) : 'Check Token Mints'}
-            </Button>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <Button 
+                onClick={checkTokenMints}
+                disabled={loading}
+                variant="outline"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Checking Tokens...
+                  </>
+                ) : 'Check Token Mints'}
+              </Button>
+              
+              <Button 
+                onClick={handleCreateTokens}
+                disabled={loading}
+                variant="secondary"
+                className="bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating Tokens...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Create Tokens
+                  </>
+                )}
+              </Button>
+            </div>
             
-            <Button 
-              onClick={handleCreateTokens}
-              disabled={loading}
-              variant="secondary"
-              className="bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Create Tokens
-                </>
-              )}
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button 
+                onClick={checkLiquidityPools}
+                disabled={loading}
+                variant="outline"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Checking Pools...
+                  </>
+                ) : 'Check Liquidity Pools'}
+              </Button>
+              
+              <Button 
+                onClick={handleCreateLiquidityPools}
+                disabled={loading}
+                variant="secondary"
+                className="bg-gradient-to-r from-teal-500 to-blue-600 hover:from-teal-600 hover:to-blue-700 text-white"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating Pools...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Create Pools
+                  </>
+                )}
+              </Button>
+            </div>
             
             <Button 
               onClick={handleTransfer}
               disabled={loading}
+              className="w-full"
             >
               {loading ? (
                 <>
