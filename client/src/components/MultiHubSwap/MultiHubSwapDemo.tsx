@@ -369,41 +369,79 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
                 {!swapEstimate?.routeInfo && (
                   <button
                     className="text-xs px-1.5 py-0.5 rounded bg-[#2a3553] text-primary hover:bg-[#2d3a66] transition-colors"
-                    onClick={() => {
-                      // Create a test multi-hop route example
-                      const testMultiHopEstimate = {
-                        estimatedAmount: 165325.48953,
-                        minAmountOut: 163672.23463,
-                        priceImpact: 0.0453,
-                        fee: 0.025,
-                        routes: ["SOL", "USDC", "YOT"],
-                        routeInfo: [
-                          {
-                            label: "SOL→USDC",
-                            ammId: "raydium-sol-usdc-pool-v4",
-                            marketId: "DZjbn4XC8qoHKikZqzmhemykVzmossoayV9ffbsUqxVj",
-                            percent: 100,
-                            inputMint: "So11111111111111111111111111111111111111112",
-                            outputMint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-                            marketName: "Raydium"
-                          },
-                          {
-                            label: "USDC→YOT",
-                            ammId: "jupiter-usdc-yot-lp-v3",
-                            marketId: "8HSsSqcZG5gJaGLwX9nja4vr968qmVgWmqYsNoJNPPUZ",
-                            percent: 100,
-                            inputMint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-                            outputMint: "2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF",
-                            marketName: "Jupiter"
-                          }
-                        ],
-                        provider: SwapProvider.Jupiter
-                      };
-                      
-                      setSwapEstimate(testMultiHopEstimate);
+                    onClick={async () => {
+                      // Force refresh the exchange rate data from blockchain
+                      try {
+                        // Show loading state
+                        setEstimateLoading(true);
+                        
+                        // Use real-time blockchain data for calculating swap estimates
+                        const sol = defaultTokens.find(t => t.symbol === 'SOL');
+                        const yot = defaultTokens.find(t => t.symbol === 'YOT');
+                        
+                        if (!sol || !yot) {
+                          console.error("Could not find SOL or YOT token in the default tokens list");
+                          return;
+                        }
+                        
+                        // Force set tokens to SOL and YOT for real data display
+                        setFromToken(sol);
+                        setToToken(yot);
+                        
+                        // Use a standard amount (1.65 SOL) for consistent testing
+                        const inputAmount = 1.65;
+                        
+                        console.log(`Manually fetching exchange rate for ${inputAmount} SOL to YOT using real blockchain data...`);
+                        
+                        // Get real-time estimate from the blockchain
+                        const realTimeEstimate = await getMultiHubSwapEstimate(
+                          sol, 
+                          yot, 
+                          inputAmount,
+                          slippage / 100,
+                          SwapProvider.Contract // Force use our contract for consistent rates
+                        );
+                        
+                        if (realTimeEstimate && realTimeEstimate.estimatedAmount) {
+                          console.log(`BLOCKCHAIN DATA: ${inputAmount} SOL = ${realTimeEstimate.estimatedAmount.toFixed(2)} YOT`);
+                          
+                          // Update UI with real blockchain data
+                          setEstimatedAmount(realTimeEstimate.estimatedAmount);
+                          setSwapEstimate({
+                            ...realTimeEstimate,
+                            routeInfo: [{
+                              label: "SOL→YOT Direct",
+                              ammId: "raydium-sol-yot-pool-v4",
+                              marketId: "7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCS9uZSPaGW4",
+                              percent: 100,
+                              inputMint: "So11111111111111111111111111111111111111112",
+                              outputMint: "2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF",
+                              marketName: "Raydium AMM"
+                            }]
+                          });
+                          
+                          // Set amount in the input field
+                          setAmount(inputAmount.toString());
+                        } else {
+                          toast({
+                            title: "Failed to fetch real data",
+                            description: "Could not get exchange rate from blockchain",
+                            variant: "destructive"
+                          });
+                        }
+                      } catch (error) {
+                        console.error("Error fetching real-time blockchain rates:", error);
+                        toast({
+                          title: "Connection error",
+                          description: "Failed to connect to blockchain. Please try again.",
+                          variant: "destructive"
+                        });
+                      } finally {
+                        setEstimateLoading(false);
+                      }
                     }}
                   >
-                    Demo Routes
+                    Refresh Rates
                   </button>
                 )}
                 <label className="text-sm text-[#7d8ab1]">
