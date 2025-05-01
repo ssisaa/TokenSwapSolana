@@ -261,16 +261,25 @@ export async function getMultiHubSwapEstimate(
           console.log(`Pool balances: SOL=${solBalance}, YOT=${yotBalance}`);
           
           if (solBalance > 0 && yotBalance > 0) {
-            // Calculate AMM rates
-            const yotPerSol = yotBalance / solBalance;
-            const solPerYot = solBalance / yotBalance;
+            // Calculate Constant Product AMM rates: x * y = k
+            // The price is determined by the ratio of the reserves with slippage
+            const FEE_DENOMINATOR = 10000;
+            const FEE_NUMERATOR = 30; // 0.3% fee
+            const feeMultiplier = (FEE_DENOMINATOR - FEE_NUMERATOR) / FEE_DENOMINATOR;
+            
+            // Price calculation based on AMM formula with slippage for 1 unit
+            const inputAmount = 1.0;
             
             if (fromSymbol === 'SOL' && toSymbol === 'YOT') {
-              console.log(`Using pool rate: 1 SOL = ${yotPerSol.toFixed(2)} YOT`);
-              return yotPerSol;
+              // x * y = k => (x + dx) * (y - dy) = k
+              // dy = y - k/(x + dx) = y - (x*y)/(x + dx) = y*dx/(x + dx)
+              const amountOut = (yotBalance * inputAmount * feeMultiplier) / (solBalance + (inputAmount * feeMultiplier));
+              console.log(`Using AMM rate: 1 SOL = ${amountOut.toFixed(2)} YOT (with 0.3% fee)`);
+              return amountOut;
             } else {
-              console.log(`Using pool rate: 1 YOT = ${solPerYot.toFixed(9)} SOL`);
-              return solPerYot;
+              const amountOut = (solBalance * inputAmount * feeMultiplier) / (yotBalance + (inputAmount * feeMultiplier));
+              console.log(`Using AMM rate: 1 YOT = ${amountOut.toFixed(9)} SOL (with 0.3% fee)`);
+              return amountOut;
             }
           }
         }
@@ -283,39 +292,64 @@ export async function getMultiHubSwapEstimate(
           console.log(`Pool balances: SOL=${solBalance}, YOS=${yosBalance}`);
           
           if (solBalance > 0 && yosBalance > 0) {
-            // Calculate AMM rates
-            const yosPerSol = yosBalance / solBalance;
-            const solPerYos = solBalance / yosBalance;
+            // Calculate Constant Product AMM rates: x * y = k
+            // The price is determined by the ratio of the reserves with slippage
+            const FEE_DENOMINATOR = 10000;
+            const FEE_NUMERATOR = 30; // 0.3% fee
+            const feeMultiplier = (FEE_DENOMINATOR - FEE_NUMERATOR) / FEE_DENOMINATOR;
+            
+            // Price calculation based on AMM formula with slippage for 1 unit
+            const inputAmount = 1.0;
             
             if (fromSymbol === 'SOL' && toSymbol === 'YOS') {
-              console.log(`Using pool rate: 1 SOL = ${yosPerSol.toFixed(2)} YOS`);
-              return yosPerSol;
+              // x * y = k => (x + dx) * (y - dy) = k
+              // dy = y - k/(x + dx) = y - (x*y)/(x + dx) = y*dx/(x + dx)
+              const amountOut = (yosBalance * inputAmount * feeMultiplier) / (solBalance + (inputAmount * feeMultiplier));
+              console.log(`Using AMM rate: 1 SOL = ${amountOut.toFixed(2)} YOS (with 0.3% fee)`);
+              return amountOut;
             } else {
-              console.log(`Using pool rate: 1 YOS = ${solPerYos.toFixed(9)} SOL`);
-              return solPerYos;
+              const amountOut = (solBalance * inputAmount * feeMultiplier) / (yosBalance + (inputAmount * feeMultiplier));
+              console.log(`Using AMM rate: 1 YOS = ${amountOut.toFixed(9)} SOL (with 0.3% fee)`);
+              return amountOut;
             }
           }
         }
         
-        // For YOT-YOS pair (calculated via SOL)
+        // For YOT-YOS pair (calculated via SOL with AMM formulas)
         if ((fromSymbol === 'YOT' && toSymbol === 'YOS') || (fromSymbol === 'YOS' && toSymbol === 'YOT')) {
           const solBalance = await getSOLBalance(POOL_SOL_ACCOUNT);
           const yotBalance = await getTokenBalance(YOT_TOKEN_ACCOUNT);
           const yosBalance = await getTokenBalance(YOS_TOKEN_ACCOUNT);
           
+          console.log(`Pool balances: SOL=${solBalance}, YOT=${yotBalance}, YOS=${yosBalance}`);
+          
           if (solBalance > 0 && yotBalance > 0 && yosBalance > 0) {
-            // Calculate cross rates via SOL
-            const yotPerSol = yotBalance / solBalance;
-            const yosPerSol = yosBalance / solBalance;
+            // Calculate using AMM formulas with a synthetic SOL-based cross pool
+            const FEE_DENOMINATOR = 10000;
+            const FEE_NUMERATOR = 30; // 0.3% fee
+            const feeMultiplier = (FEE_DENOMINATOR - FEE_NUMERATOR) / FEE_DENOMINATOR;
+            
+            // Price calculation based on AMM formula with slippage for 1 unit
+            const inputAmount = 1.0;
             
             if (fromSymbol === 'YOT' && toSymbol === 'YOS') {
-              const yosPerYot = yosPerSol / yotPerSol;
-              console.log(`Using calculated cross rate: 1 YOT = ${yosPerYot.toFixed(6)} YOS`);
-              return yosPerYot;
+              // First convert YOT to SOL using AMM formula
+              const solAmountIntermediate = (solBalance * inputAmount * feeMultiplier) / (yotBalance + (inputAmount * feeMultiplier));
+              
+              // Then convert SOL to YOS using AMM formula
+              const yosAmount = (yosBalance * solAmountIntermediate * feeMultiplier) / (solBalance + (solAmountIntermediate * feeMultiplier));
+              
+              console.log(`Using AMM cross-rate: 1 YOT = ${yosAmount.toFixed(6)} YOS (via SOL, with 0.6% total fee)`);
+              return yosAmount;
             } else {
-              const yotPerYos = yotPerSol / yosPerSol;
-              console.log(`Using calculated cross rate: 1 YOS = ${yotPerYos.toFixed(6)} YOT`);
-              return yotPerYos;
+              // First convert YOS to SOL using AMM formula
+              const solAmountIntermediate = (solBalance * inputAmount * feeMultiplier) / (yosBalance + (inputAmount * feeMultiplier));
+              
+              // Then convert SOL to YOT using AMM formula
+              const yotAmount = (yotBalance * solAmountIntermediate * feeMultiplier) / (solBalance + (solAmountIntermediate * feeMultiplier));
+              
+              console.log(`Using AMM cross-rate: 1 YOS = ${yotAmount.toFixed(6)} YOT (via SOL, with 0.6% total fee)`);
+              return yotAmount;
             }
           }
         }
