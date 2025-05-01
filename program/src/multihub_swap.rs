@@ -813,8 +813,8 @@ fn process_claim_rewards(
     let user_yos_token_account = next_account_info(account_info_iter)?;
     let user_rewards_account = next_account_info(account_info_iter)?;
     let program_yos_treasury = next_account_info(account_info_iter)?;
-    let program_authority = next_account_info(account_info_iter)?;
-    let token_program = next_account_info(account_info_iter)?;
+    let _program_authority = next_account_info(account_info_iter)?;
+    let _token_program = next_account_info(account_info_iter)?;
 
     // Check signer
     if !user_wallet.is_signer {
@@ -892,9 +892,9 @@ fn process_claim_yield_rewards(
     let user_yos_token_account = next_account_info(account_info_iter)?;
     let lp_staking_account = next_account_info(account_info_iter)?;
     let program_yos_treasury = next_account_info(account_info_iter)?;
-    let program_authority = next_account_info(account_info_iter)?;
-    let token_program = next_account_info(account_info_iter)?;
-    let clock_sysvar = next_account_info(account_info_iter)?;
+    let _program_authority = next_account_info(account_info_iter)?;
+    let _token_program = next_account_info(account_info_iter)?;
+    let _clock_sysvar = next_account_info(account_info_iter)?;
 
     // Check signer
     if !user_wallet.is_signer {
@@ -992,7 +992,7 @@ fn process_stake_lp_tokens(
     let program_lp_vault = next_account_info(account_info_iter)?;
     let lp_staking_account = next_account_info(account_info_iter)?;
     let token_program = next_account_info(account_info_iter)?;
-    let clock_sysvar = next_account_info(account_info_iter)?;
+    let _clock_sysvar = next_account_info(account_info_iter)?;
 
     // Check signer
     if !user_wallet.is_signer {
@@ -1065,9 +1065,9 @@ fn process_unstake_lp_tokens(
     let user_lp_token_account = next_account_info(account_info_iter)?;
     let program_lp_vault = next_account_info(account_info_iter)?;
     let lp_staking_account = next_account_info(account_info_iter)?;
-    let program_authority = next_account_info(account_info_iter)?;
-    let token_program = next_account_info(account_info_iter)?;
-    let clock_sysvar = next_account_info(account_info_iter)?;
+    let _program_authority = next_account_info(account_info_iter)?;
+    let _token_program = next_account_info(account_info_iter)?;
+    let _clock_sysvar = next_account_info(account_info_iter)?;
 
     // Check signer
     if !user_wallet.is_signer {
@@ -1133,7 +1133,7 @@ fn process_register_referrer(
     // Get accounts
     let user_wallet = next_account_info(account_info_iter)?;
     let referrer_account = next_account_info(account_info_iter)?;
-    let rent_sysvar = next_account_info(account_info_iter)?;
+    let _rent_sysvar = next_account_info(account_info_iter)?;
 
     // Check signer
     if !user_wallet.is_signer {
