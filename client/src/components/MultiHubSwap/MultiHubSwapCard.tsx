@@ -61,9 +61,11 @@ export default function MultiHubSwapCard() {
 
   const [slippageInput, setSlippageInput] = useState(slippage * 100 + '');
   const [showSlippageSettings, setShowSlippageSettings] = useState(false);
+  const [showProviderSettings, setShowProviderSettings] = useState(false);
   const [fromDialogOpen, setFromDialogOpen] = useState(false);
   const [toDialogOpen, setToDialogOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
+  const [routeDetails, setRouteDetails] = useState(false);
 
   // Get tokens data
   const { data: tokens, isLoading: tokensLoading } = useQuery({
@@ -752,6 +754,127 @@ export default function MultiHubSwapCard() {
       </CardContent>
       
       <CardFooter className="flex flex-col gap-3">
+        {/* Swap Route Details */}
+        {fromToken && toToken && swapEstimate && (
+          <div className="w-full mb-2">
+            <div className="flex justify-between items-center mb-2">
+              <div className="flex items-center">
+                <span className="text-sm font-medium">Route</span>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="p-0 h-6 ml-1"
+                  onClick={() => setRouteDetails(!routeDetails)}
+                >
+                  <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                </Button>
+              </div>
+              <Popover open={showProviderSettings} onOpenChange={setShowProviderSettings}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-8 border-dark-400 bg-dark-300"
+                  >
+                    Provider: {preferredProvider || 'Auto'}
+                    <ChevronDown className="ml-1 h-3 w-3" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-3 bg-dark-200 border-dark-300">
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm">Preferred Provider</h4>
+                    <div className="flex flex-col gap-2">
+                      <Button
+                        size="sm"
+                        variant={!preferredProvider ? "default" : "outline"}
+                        onClick={() => setPreferredProvider(undefined)}
+                        className="h-8 text-xs justify-start"
+                      >
+                        Auto (Best Route)
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={preferredProvider === SwapProvider.Contract ? "default" : "outline"}
+                        onClick={() => setPreferredProvider(SwapProvider.Contract)}
+                        className="h-8 text-xs justify-start"
+                      >
+                        Smart Contract (Direct)
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={preferredProvider === SwapProvider.Raydium ? "default" : "outline"}
+                        onClick={() => setPreferredProvider(SwapProvider.Raydium)}
+                        className="h-8 text-xs justify-start"
+                      >
+                        Raydium
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={preferredProvider === SwapProvider.Jupiter ? "default" : "outline"}
+                        onClick={() => setPreferredProvider(SwapProvider.Jupiter)}
+                        className="h-8 text-xs justify-start"
+                      >
+                        Jupiter
+                      </Button>
+                    </div>
+                    <div className="pt-2 border-t border-dark-400 mt-2">
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Selecting a provider may impact price and fees. Auto uses our multi-hub router to find the best path.
+                      </p>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+            
+            {/* Route visualization */}
+            <div className="rounded-md bg-dark-300 p-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Avatar className="h-6 w-6">
+                    <AvatarImage src={fromToken.logoURI} alt={fromToken.symbol} />
+                    <AvatarFallback>{fromToken.symbol.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <span className="ml-2 text-sm font-medium">{fromToken.symbol}</span>
+                </div>
+                
+                <ArrowRightLeft className="h-4 w-4 mx-2 text-muted-foreground" />
+                
+                <div className="flex items-center">
+                  <Avatar className="h-6 w-6">
+                    <AvatarImage src={toToken.logoURI} alt={toToken.symbol} />
+                    <AvatarFallback>{toToken.symbol.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <span className="ml-2 text-sm font-medium">{toToken.symbol}</span>
+                </div>
+                
+                <div className="ml-2 px-2 py-1 rounded bg-dark-400 text-xs">
+                  via {swapEstimate.provider || 'Contract'}
+                </div>
+              </div>
+              
+              {/* Expanded route details */}
+              {routeDetails && swapEstimate.route && (
+                <div className="mt-2 pt-2 border-t border-dark-400 text-xs text-muted-foreground">
+                  <div className="flex items-center mb-1">
+                    <span>Hops: {swapEstimate.route.length || 1}</span>
+                    <span className="mx-2">•</span>
+                    <span>Price Impact: {(swapEstimate.priceImpact * 100).toFixed(2)}%</span>
+                  </div>
+                  {swapEstimate.intermediateTokens && swapEstimate.intermediateTokens.length > 0 && (
+                    <div>
+                      <span>Via: {swapEstimate.intermediateTokens.map((token: string) => {
+                        const tokenInfo = tokens?.find((t: TokenInfo) => t.address === token);
+                        return tokenInfo?.symbol || token.substring(0, 6) + '...';
+                      }).join(' → ')}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {wallet.connected ? (
           <Button
             onClick={() => swap()}

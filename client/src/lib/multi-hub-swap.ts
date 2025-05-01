@@ -1234,9 +1234,27 @@ export async function findMultiHubSwapRoute(
   intermediateTokens?: string[];
 }> {
   try {
-    // Step 1: Check if these are core tokens that can be swapped directly by our contract
+    console.log(`Finding multi-hub swap route: ${fromTokenMint} → ${toTokenMint}`);
+    
+    // Step 1: Check critical pairs first (YOT and SOL with priority handling)
+    const isSOLPair = fromTokenMint === SOL_TOKEN_ADDRESS || toTokenMint === SOL_TOKEN_ADDRESS;
+    const isYOTPair = fromTokenMint === YOT_TOKEN_ADDRESS || toTokenMint === YOT_TOKEN_ADDRESS;
+    const isYOSPair = fromTokenMint === YOS_TOKEN_ADDRESS || toTokenMint === YOS_TOKEN_ADDRESS;
+    
+    // Force our contract for critical token pairs (highest priority)
+    if ((isSOLPair && isYOTPair) || isYOSPair) {
+      console.log(`Using contract provider for critical token pair: SOL-YOT or YOS pair`);
+      return {
+        provider: SwapProvider.Contract,
+        routeInfo: { direct: true, critical: true },
+        hops: 1
+      };
+    }
+    
+    // Step 2: Check if these tokens can be swapped directly by our contract (for other token pairs)
     const contractEligible = isContractEligible(fromTokenMint, toTokenMint);
     if (contractEligible) {
+      console.log(`Using contract provider for contract-eligible tokens`);
       return {
         provider: SwapProvider.Contract,
         routeInfo: { direct: true },
@@ -1244,19 +1262,76 @@ export async function findMultiHubSwapRoute(
       };
     }
     
-    // Step 2: Try to find routes through all providers
+    // Step 3: Find and score routes through all providers
     const routes = await findAllAvailableRoutes(fromTokenMint, toTokenMint);
     
-    // If we found any routes, return the best one (lowest hops and fees)
+    // If we found any routes, select the optimal route based on scoring
     if (routes.length > 0) {
-      // Sort by number of hops (fewer is better)
-      routes.sort((a, b) => a.hops - b.hops);
+      // Score routes based on multiple factors:
+      // - Hops (fewer is better): 1 hop = 10 points, 2 hops = 5 points, 3+ hops = 1 point
+      // - Provider preference (Contract > Raydium > Jupiter): Contract = 5 points, Raydium = 3 points, Jupiter = 2 points
+      // - SOL as intermediate (preferred): +3 points if SOL is an intermediate token
+      routes.forEach(route => {
+        let score = 0;
+        
+        // Score based on hops
+        if (route.hops === 1) score += 10;
+        else if (route.hops === 2) score += 5;
+        else score += 1;
+        
+        // Score based on provider
+        if (route.provider === SwapProvider.Contract) score += 5;
+        else if (route.provider === SwapProvider.Raydium) score += 3;
+        else if (route.provider === SwapProvider.Jupiter) score += 2;
+        
+        // Score based on intermediate tokens
+        if (route.intermediateTokens?.includes(SOL_TOKEN_ADDRESS)) score += 3;
+        
+        // Store the score
+        route.score = score;
+      });
       
-      // Return the best route
+      // Sort by score (higher is better)
+      routes.sort((a, b) => (b.score || 0) - (a.score || 0));
+      
+      console.log(`Found ${routes.length} routes. Best route: ${routes[0].provider} with ${routes[0].hops} hops and score ${routes[0].score}`);
+      
+      // Return the highest-scored route
       return routes[0];
     }
     
-    // No routes found
+    // Step 4: As a last resort, try to find a route through SOL if one doesn't exist yet
+    if (!isSOLPair) {
+      console.log(`Attempting to create synthetic route through SOL as fallback`);
+      
+      try {
+        // Try to create a synthetic route through SOL
+        // First hop: fromToken → SOL
+        const fromToSolRoute = await findSwapRoute(fromTokenMint, SOL_TOKEN_ADDRESS);
+        
+        // Second hop: SOL → toToken
+        const solToToRoute = await findSwapRoute(SOL_TOKEN_ADDRESS, toTokenMint);
+        
+        if (fromToSolRoute.hops > 0 && solToToRoute.hops > 0) {
+          console.log(`Created synthetic 2-hop route via SOL`);
+          return {
+            provider: SwapProvider.Raydium, // Default to Raydium for synthetic routes
+            routeInfo: { 
+              synthetic: true,
+              firstHop: fromToSolRoute.route,
+              secondHop: solToToRoute.route
+            },
+            hops: 2,
+            intermediateTokens: [SOL_TOKEN_ADDRESS]
+          };
+        }
+      } catch (error) {
+        console.error("Error creating synthetic SOL route:", error);
+      }
+    }
+    
+    // No routes found even after fallback attempts
+    console.log(`No swap route found between these tokens after exhausting all options`);
     throw new Error('No swap route found between these tokens');
   } catch (error) {
     console.error('Error finding multi-hub swap route:', error);
