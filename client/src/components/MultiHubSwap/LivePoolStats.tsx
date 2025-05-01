@@ -30,7 +30,8 @@ export function LivePoolStats() {
           sol: data.solBalance || 0,
           yot: data.yotBalance || 0,
           yos: data.yosBalance || 0,
-          totalValue: (data.solBalance * 148.35) + ((data.yotBalance || 0) * 0.01),
+          // Calculate a realistic pool value - SOL price of $148.35 and a much smaller YOT price
+          totalValue: (data.solBalance * 148.35) + ((data.yotBalance || 0) * 0.0001),
           timestamp: Date.now()
         };
         setFallbackData(poolData);
