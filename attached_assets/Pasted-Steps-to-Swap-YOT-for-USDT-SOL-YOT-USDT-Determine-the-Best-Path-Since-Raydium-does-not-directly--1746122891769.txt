@@ -1,0 +1,78 @@
+Steps to Swap YOT for USDT (SOL-YOT-USDT):
+Determine the Best Path: Since Raydium does not directly support a YOT/USDT pair (unless specifically added), the swap will go through the intermediary token pair, in this case, SOL. This means you will perform a multi-hop swap from YOT → SOL → USDT.
+
+Use the Raydium Router: The Raydium router (which you mentioned earlier) will be responsible for routing the trade through the liquidity pools that contain the SOL/YOT and SOL/USDT pairs.
+
+Quote and Swap using Raydium Router: You will need to call the quote API and then use the swap instructions API to prepare and execute the swap.
+
+Example Steps:
+Step 1: Get the Quote for the Multi-Hop Swap (YOT → SOL → USDT)
+You need to query Raydium to get a route for the swap. For this, you can use Jupiter’s API to calculate the swap quote for multiple hops.
+
+Jupiter Quote API: Request a quote that will get the best path for the swap from YOT to USDT (involving the SOL token in between).
+
+javascript
+Copy
+fetch('https://quote-api.jup.ag/v6/quote?inputMint=<YOT_MINT_ADDRESS>&outputMint=<USDT_MINT_ADDRESS>&amount=<AMOUNT>&slippageBps=50')
+  .then(response => response.json())
+  .then(data => {
+    console.log(data);  // Look for a route with SOL as an intermediary
+  });
+In this example, replace <YOT_MINT_ADDRESS> and <USDT_MINT_ADDRESS> with the actual mint addresses of YOT and USDT respectively. The response will show you the intermediary paths, likely including SOL.
+
+Step 2: Get Swap Instructions
+Once you have the quote, you need to prepare the instructions for the swap using the swap instruction API from Jupiter:
+
+javascript
+Copy
+fetch('https://quote-api.jup.ag/v6/swap-instructions', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    quoteResponse: data.data,  // The quote data from Step 1
+    userPublicKey: '<USER_PUBLIC_KEY>'
+  })
+})
+  .then(response => response.json())
+  .then(instructions => {
+    console.log(instructions);  // This will provide you with the transaction instructions
+  });
+Here, <USER_PUBLIC_KEY> refers to the wallet address where the swap should occur.
+
+Step 3: Execute the Swap via the Router
+After obtaining the transaction instructions from Step 2, you can send these instructions to Raydium's router contract to execute the swap.
+
+Here’s how you might initiate the swap in the Solana network (using Solana Web3.js):
+
+javascript
+Copy
+import { Connection, PublicKey, Keypair, Transaction, SystemProgram } from '@solana/web3.js';
+
+// Set up connection and wallet
+const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+const userKeypair = Keypair.fromSecretKey(<USER_SECRET_KEY>);  // Your wallet
+
+// Raydium Router contract address (example, make sure it's correct)
+const routerAddress = new PublicKey('BVChZ3XFEwTMUk1o9i3HAf91H6mFxSwa5X2wFAWhYPhU');
+
+// Create the transaction with instructions
+const tx = new Transaction().add(...instructions);
+
+// Send the transaction to Solana
+const signature = await connection.sendTransaction(tx, [userKeypair], { skipPreflight: false, preflightCommitment: 'confirmed' });
+console.log('Transaction signature:', signature);
+Router Address: You would use the correct router address for Raydium.
+
+Instructions: These instructions come from the swap instruction API in Step 2.
+
+Step 4: Monitor the Transaction
+Once the transaction is sent, you can monitor its status to check whether the swap was successful.
+
+Summary
+Use Jupiter's quote API to get the best swap path (YOT → SOL → USDT).
+
+Use the swap-instructions API to prepare the transaction instructions.
+
+Send the transaction via the Raydium router smart contract to execute the swap.
+
+Monitor the transaction for success.
