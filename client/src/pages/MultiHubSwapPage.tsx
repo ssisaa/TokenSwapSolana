@@ -69,20 +69,14 @@ export default function MultiHubSwapPage() {
         </AlertDescription>
       </Alert>
       
-      {/* Main Swap and Chart Layout */}
+      {/* User Stats Panel at top */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Swap Panel */}
-        <div>
-          <MultiHubSwapDemo 
-            onTokenChange={(fromToken, toToken) => {
-              setSelectedFromToken(fromToken);
-              setSelectedToToken(toToken);
-            }}
-          />
+        <div className="lg:col-span-1">
+          <UserStatsPanel />
         </div>
         
         {/* Chart Panel */}
-        <div>
+        <div className="lg:col-span-1">
           <Card className="bg-[#0f1421] shadow-xl border-[#1e2a45]">
             <CardHeader className="bg-gradient-to-br from-[#1e2a45] to-[#0f1421] border-b border-[#1e2a45] pb-4">
               <CardTitle className="text-2xl font-bold text-white">
@@ -102,20 +96,22 @@ export default function MultiHubSwapPage() {
         </div>
       </div>
       
-      {/* Stats (Pool Stats, Test Panel and User Stats) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      {/* Main Swap Panel followed by the others */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* Swap Panel */}
         <div className="lg:col-span-1">
-          <LivePoolStats />
+          <MultiHubSwapDemo 
+            onTokenChange={(fromToken, toToken) => {
+              setSelectedFromToken(fromToken);
+              setSelectedToToken(toToken);
+            }}
+          />
         </div>
         
-        {/* Test Swap Panel */}
-        <div className="lg:col-span-1">
+        {/* Test Swap and Pool Stats in a column */}
+        <div className="lg:col-span-1 space-y-6">
           <SwapTestPanel />
-        </div>
-        
-        {/* User Stats Panel */}
-        <div className="lg:col-span-1">
-          <UserStatsPanel />
+          <LivePoolStats />
         </div>
       </div>
       

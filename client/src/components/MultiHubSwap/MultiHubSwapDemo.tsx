@@ -144,24 +144,33 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
         // Only generate demo data for display purposes
         // In a real app, we'd wait for a user-entered amount
         
+        // Calculate using AMM formula based on actual pool reserves
+        const solReserve = 1.65; // SOL amount in pool
+        const yotReserve = 40480290.18; // YOT amount in pool
+        const FEE_MULTIPLIER = 0.997; // 0.3% fee
+        const inputSOL = 1; // Calculate for 1 SOL
+        
+        // Calculate YOT output for 1 SOL using AMM formula
+        const outputYOT = (yotReserve * inputSOL * FEE_MULTIPLIER) / (solReserve + (inputSOL * FEE_MULTIPLIER));
+        
         const testEstimate = {
-          estimatedAmount: 165325.48953,
-          minAmountOut: 163672.23463,
-          priceImpact: 0.0325,
-          fee: 0.025,
+          estimatedAmount: outputYOT,
+          minAmountOut: outputYOT * 0.99, // 1% slippage
+          priceImpact: 0.0025,
+          fee: 0.003, // 0.3% fee 
           routes: ["SOL", "YOT"],
           routeInfo: [
             {
-              label: "SOL→YOT",
-              ammId: "jupiter-direct-soljup928",
-              marketId: "DZjbn4XC8qoHKikZqzmhemykVzmossoayV9ffbsUqxVj",
+              label: "Direct SOL-YOT Pool",
+              ammId: "raydium-sol-yot-pool-v4",
+              marketId: "7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCS9uZSPaGW4",
               percent: 100,
               inputMint: "So11111111111111111111111111111111111111112",
               outputMint: "2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF",
-              marketName: "Jupiter"
+              marketName: "Raydium AMM"
             }
           ],
-          provider: SwapProvider.Jupiter
+          provider: SwapProvider.Contract
         };
         
         // Set demo data for UI display
