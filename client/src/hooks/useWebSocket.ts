@@ -173,19 +173,46 @@ export function useWebSocket(
   // HTTP fallback to fetch pool data when WebSocket fails
   const fetchPoolDataViaHttp = useCallback(async () => {
     try {
-      const response = await fetch('/api/pool-data');
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.sol && data.yot && data.yos) {
-          setPoolData({
-            sol: data.sol,
-            yot: data.yot,
-            yos: data.yos,
-            totalValue: data.totalValue || 0,
-            timestamp: Date.now()
-          });
-          console.log('Pool data fetched via HTTP fallback');
-        }
+      // Make sure we're using the full URL with explicit protocol, hostname and port
+      const baseUrl = `${window.location.protocol}//${window.location.host}`;
+      const url = `${baseUrl}/api/pool-data`;
+      
+      console.log(`Fetching pool data from: ${url}`);
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        cache: 'no-cache'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.warn(`Expected JSON but got ${contentType}`);
+        const text = await response.text();
+        console.error('Response was not JSON:', text.substring(0, 100) + '...');
+        return;
+      }
+      
+      const data = await response.json();
+      console.log('Received pool data:', data);
+      
+      if (data && typeof data.sol === 'number' && typeof data.yot === 'number') {
+        setPoolData({
+          sol: data.sol,
+          yot: data.yot,
+          yos: data.yos || 0, // Fallback to 0 if not provided
+          totalValue: data.totalValue || (data.sol * 148.35), // Calculate if not provided
+          timestamp: Date.now()
+        });
+        console.log('Pool data fetched via HTTP fallback:', data);
+      } else {
+        console.warn('Invalid pool data format:', data);
       }
     } catch (error) {
       console.error('Failed to fetch pool data via HTTP:', error);
