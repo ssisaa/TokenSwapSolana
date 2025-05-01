@@ -543,6 +543,40 @@ export async function getMultiHubSwapEstimate(
     }
   };
   
+  // Find the best route for this token pair using our multi-hub routing
+  let bestRoute = null;
+  let routeHops = 1;
+  let intermediateTokens: string[] = [];
+  
+  try {
+    // Use our advanced routing function to find optimal path
+    console.log(`Finding optimal swap route for ${fromToken.symbol} → ${toToken.symbol}`);
+    bestRoute = await findMultiHubSwapRoute(fromToken.address, toToken.address);
+    
+    if (bestRoute) {
+      console.log(`Found route with provider: ${bestRoute.provider}, hops: ${bestRoute.hops}`);
+      routeHops = bestRoute.hops;
+      intermediateTokens = bestRoute.intermediateTokens || [];
+      
+      // Update route display for UI
+      if (intermediateTokens.length > 0) {
+        route = [fromToken.symbol];
+        
+        // Add intermediate token symbols to the route
+        for (const tokenMint of intermediateTokens) {
+          const intermediateToken = defaultTokens.find(t => t.address === tokenMint);
+          if (intermediateToken) {
+            route.push(intermediateToken.symbol);
+          }
+        }
+        
+        route.push(toToken.symbol);
+      }
+    }
+  } catch (routeError) {
+    console.error('Error finding multi-hub route:', routeError);
+  }
+  
   // Choose the provider based on input criteria
   if (preferredProvider) {
     console.log(`Using preferred provider: ${preferredProvider}`);
@@ -555,7 +589,14 @@ export async function getMultiHubSwapEstimate(
       // Use the preferred provider if possible
       provider = preferredProvider;
     }
+  } else if (bestRoute) {
+    // Use the provider from our route finder if no user preference is set
+    provider = bestRoute.provider;
+    console.log(`Using provider from route finder: ${provider}`);
   } else {
+    // Fall back to auto-select if route finder failed
+    console.log('Route finder did not return a valid route, using auto-select');
+    
     // Auto-select the best provider based on token pair
     if (isSOLPair && isYOTPair) {
       // SOL-YOT pairs always use our contract
@@ -825,16 +866,40 @@ export async function executeMultiHubSwap(
   const isSOLPair = fromToken.address === SOL_TOKEN_ADDRESS || toToken.address === SOL_TOKEN_ADDRESS;
   const isYOTPair = fromToken.address === YOT_TOKEN_ADDRESS || toToken.address === YOT_TOKEN_ADDRESS;
   
-  // Get the preferred provider from the estimate
+  // Find optimal route using our multi-hub routing
+  console.log(`Finding optimal swap route for ${fromToken.symbol} → ${toToken.symbol}`);
+  let bestRoute;
+  try {
+    bestRoute = await findMultiHubSwapRoute(fromToken.address, toToken.address);
+    if (bestRoute) {
+      console.log(`Found optimal route using provider: ${bestRoute.provider}, hops: ${bestRoute.hops}`);
+    }
+  } catch (routeError) {
+    console.error('Error finding multi-hub route:', routeError);
+  }
+  
+  // Get the estimate based on the route or default providers
   const estimate = await getMultiHubSwapEstimate(
     fromToken,
     toToken,
     amount,
     0.01, // Default slippage
-    SwapProvider.Jupiter // Try Jupiter first
+    bestRoute?.provider || SwapProvider.Jupiter // Use route provider or try Jupiter
   );
   
-  const preferredProvider = estimate.provider;
+  // Determine the best provider to use
+  let preferredProvider = estimate.provider;
+  
+  // Override for critical pairs
+  if (((isSOLPair && isYOTPair) || 
+      (isSOLPair && toToken.address === YOS_TOKEN_ADDRESS) || 
+      (isSOLPair && fromToken.address === YOS_TOKEN_ADDRESS)) && 
+      preferredProvider !== SwapProvider.Contract) {
+    
+    console.log('Overriding to direct contract swap for critical token pair');
+    preferredProvider = SwapProvider.Contract;
+  }
+  
   console.log(`Determined best provider: ${preferredProvider}`);
   
   // Try to use Jupiter first if supported
