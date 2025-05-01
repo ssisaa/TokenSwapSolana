@@ -110,66 +110,61 @@ class MultihubSwapClient implements SwapProvider {
         // Note that the token mints are not part of the instruction data,
         // they should be passed as account parameters instead
         
-        // Create the instruction data buffer with all required fields
-        // Looking at the Rust code, SwapToken expects:
+        // We now have the exact definition from the Rust code:
+        // The SwapToken instruction expects:
         // - amount_in (u64)
         // - minimum_amount_out (u64)
         // - input_token_mint (Pubkey - 32 bytes)
         // - output_token_mint (Pubkey - 32 bytes)
         // - referrer (Option<Pubkey> - 1 + 32 bytes)
         
-        // Calculate total buffer size (1 byte tag + two u64s + two Pubkeys + Option<Pubkey>)
-        // 1 + 8 + 8 + 32 + 32 + 1 + (32 optional) = 82 or 114 bytes
-        const hasReferrer = false; // We don't have referrer functionality yet
-        const bufferSize = 1 + 8 + 8 + 32 + 32 + 1 + (hasReferrer ? 32 : 0);
-        const instructionData = Buffer.alloc(bufferSize);
+        // We'll create the instruction data manually since we're not using any external serialization libraries
         
+        // Calculate raw amounts using the decimals of the tokens
+        const amountRaw = Math.floor(amount * Math.pow(10, fromToken.decimals));
+        const minAmountOutRaw = Math.floor(minAmountOut * Math.pow(10, toToken.decimals));
+        
+        // Prepare the instruction data
+        const instructionData = Buffer.alloc(1000); // Allocate enough space
+        
+        // Create the buffer manually with precise byte layout
         let offset = 0;
         
-        // Write instruction tag (1 = SwapToken)
+        // Write the variant index (1 = SwapToken)
         instructionData.writeUInt8(1, offset);
         offset += 1;
         
-        // Write amount_in as u64 (8 bytes in little-endian format)
-        const amountRaw = Math.floor(amount * Math.pow(10, fromToken.decimals));
+        // Write amount_in as u64 (little-endian)
         const amountBigInt = BigInt(amountRaw);
-        for (let i = 0; i < 8; i++) {
-          instructionData[offset + i] = Number((amountBigInt >> BigInt(i * 8)) & BigInt(0xFF));
-        }
+        instructionData.writeBigUInt64LE(amountBigInt, offset);
         offset += 8;
         
-        // Write minimum_amount_out as u64 (8 bytes in little-endian format)
-        const minAmountOutRaw = Math.floor(minAmountOut * Math.pow(10, toToken.decimals));
+        // Write minimum_amount_out as u64 (little-endian)
         const minAmountOutBigInt = BigInt(minAmountOutRaw);
-        for (let i = 0; i < 8; i++) {
-          instructionData[offset + i] = Number((minAmountOutBigInt >> BigInt(i * 8)) & BigInt(0xFF));
-        }
+        instructionData.writeBigUInt64LE(minAmountOutBigInt, offset);
         offset += 8;
         
-        // Write input_token_mint (Pubkey - 32 bytes)
-        const inputTokenBuffer = fromTokenMint.toBuffer();
-        inputTokenBuffer.copy(instructionData, offset);
+        // Write input_token_mint pubkey (32 bytes)
+        fromTokenMint.toBuffer().copy(instructionData, offset);
         offset += 32;
         
-        // Write output_token_mint (Pubkey - 32 bytes)
-        const outputTokenBuffer = toTokenMint.toBuffer();
-        outputTokenBuffer.copy(instructionData, offset);
+        // Write output_token_mint pubkey (32 bytes)
+        toTokenMint.toBuffer().copy(instructionData, offset);
         offset += 32;
         
         // Write referrer as Option<Pubkey>
-        if (hasReferrer) {
-          // Option<T> in Rust serializes as 1 byte (1 for Some, 0 for None) followed by T if Some
-          instructionData.writeUInt8(1, offset); // Some
-          offset += 1;
-          
-          // Write referrer Pubkey (not implemented, using wallet key as placeholder)
-          const referrerBuffer = wallet.publicKey.toBuffer();
-          referrerBuffer.copy(instructionData, offset);
-          // offset += 32; // No need to increment offset further as we're done
-        } else {
-          instructionData.writeUInt8(0, offset); // None
-          // offset += 1; // No need to increment offset further as we're done
-        }
+        // For now, we'll use None (0)
+        instructionData.writeUInt8(0, offset); // None
+        offset += 1;
+        
+        // Trim the buffer to the actual size
+        const finalInstructionData = instructionData.slice(0, offset);
+        
+        console.log(`Instruction data created: Swap ${amountRaw} units of ${fromToken.symbol} for min ${minAmountOutRaw} units of ${toToken.symbol}`);
+        console.log('Input token mint:', fromTokenMint.toString());
+        console.log('Output token mint:', toTokenMint.toString());
+        console.log('Instruction data size:', offset, 'bytes');
+        console.log('Instruction data (hex):', finalInstructionData.toString('hex'));
         
         console.log(`Instruction data created: Swap ${amountRaw} units of ${fromToken.symbol} for min ${minAmountOutRaw} units of ${toToken.symbol}`);
         
@@ -197,27 +192,34 @@ class MultihubSwapClient implements SwapProvider {
           MULTIHUB_SWAP_PROGRAM_ID
         );
         
-        // Based on the error code, we need to adjust the account order to match the program's expectations
+        // CRITICAL: We need to arrange the accounts in EXACTLY the order expected by process_swap function
+        // Based on the Rust code:
+        // let user_wallet = next_account_info(account_info_iter)?;
+        // let user_input_token_account = next_account_info(account_info_iter)?;
+        // let user_output_token_account = next_account_info(account_info_iter)?;
+        // let user_yos_token_account = next_account_info(account_info_iter)?;
+        // let program_state_account = next_account_info(account_info_iter)?;
+        // let _sol_yot_pool_account = next_account_info(account_info_iter)?;
+        // let _admin_fee_account = next_account_info(account_info_iter)?;
+        // let _token_program = next_account_info(account_info_iter)?;
+        
         const accountMetas = [
-          { pubkey: wallet.publicKey, isSigner: true, isWritable: true },           // 0. User's wallet (payer + authority)
-          { pubkey: fromTokenAccount, isSigner: false, isWritable: true },          // 1. User's token account for input token
-          { pubkey: toTokenAccount, isSigner: false, isWritable: true },            // 2. User's token account for output token
-          { pubkey: yosTokenAccount, isSigner: false, isWritable: true },           // 3. User's YOS token account for cashback
-          { pubkey: fromTokenMint, isSigner: false, isWritable: false },            // 4. Input token mint (was missing)
-          { pubkey: toTokenMint, isSigner: false, isWritable: false },              // 5. Output token mint (was missing)
-          { pubkey: YOS_TOKEN_MINT, isSigner: false, isWritable: false },           // 6. YOS token mint (was missing)
-          { pubkey: programState, isSigner: false, isWritable: true },              // 7. Program state account
-          { pubkey: poolAccount, isSigner: false, isWritable: true },               // 8. SOL-YOT liquidity pool
-          { pubkey: feeAccount, isSigner: false, isWritable: true },                // 9. Admin fee account
-          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },         // 10. Token program
-          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },  // 11. System program
+          { pubkey: wallet.publicKey, isSigner: true, isWritable: true },           // 0. User wallet (user_wallet)
+          { pubkey: fromTokenAccount, isSigner: false, isWritable: true },          // 1. User's input token account (user_input_token_account)
+          { pubkey: toTokenAccount, isSigner: false, isWritable: true },            // 2. User's output token account (user_output_token_account)
+          { pubkey: yosTokenAccount, isSigner: false, isWritable: true },           // 3. User's YOS token account (user_yos_token_account)
+          { pubkey: programState, isSigner: false, isWritable: true },              // 4. Program state account (program_state_account)
+          { pubkey: poolAccount, isSigner: false, isWritable: true },               // 5. SOL-YOT liquidity pool (_sol_yot_pool_account)
+          { pubkey: feeAccount, isSigner: false, isWritable: true },                // 6. Admin fee account (_admin_fee_account)
+          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },         // 7. Token program (_token_program)
+          // Optional referrer account and system program not included since those are optional
         ];
         
         // Create the swap instruction
         const swapInstruction = {
           programId: MULTIHUB_SWAP_PROGRAM_ID,
           keys: accountMetas,
-          data: instructionData
+          data: finalInstructionData
         };
         
         // Add it to the transaction
