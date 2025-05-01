@@ -1,8 +1,8 @@
 [package]
-name = "yot-staking"
+name = "multihub-swap"
 version = "0.1.0"
 edition = "2021"
-description = "YOT token staking program for Solana blockchain"
+description = "Multi-Hub Swap program for Solana blockchain"
 
 [features]
 no-entrypoint = []
