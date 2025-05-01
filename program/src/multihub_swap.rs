@@ -461,7 +461,7 @@ fn process_initialize(
     let yot_mint_account = next_account_info(account_info_iter)?;
     let yos_mint_account = next_account_info(account_info_iter)?;
     let sol_yot_pool_account = next_account_info(account_info_iter)?;
-    let rent_account = next_account_info(account_info_iter)?;
+    let _rent_account = next_account_info(account_info_iter)?;
 
     // Verify admin signature
     if !admin_account.is_signer {
@@ -529,9 +529,9 @@ fn process_swap(
     let user_output_token_account = next_account_info(account_info_iter)?;
     let user_yos_token_account = next_account_info(account_info_iter)?;
     let program_state_account = next_account_info(account_info_iter)?;
-    let sol_yot_pool_account = next_account_info(account_info_iter)?;
-    let admin_fee_account = next_account_info(account_info_iter)?;
-    let token_program = next_account_info(account_info_iter)?;
+    let _sol_yot_pool_account = next_account_info(account_info_iter)?;
+    let _admin_fee_account = next_account_info(account_info_iter)?;
+    let _token_program = next_account_info(account_info_iter)?;
     
     // Optional referrer account
     let referrer_account = if referrer.is_some() && !matches!(accounts.get(8), None) {
@@ -682,15 +682,15 @@ fn process_add_liquidity(
     
     // Get accounts
     let user_wallet = next_account_info(account_info_iter)?;
-    let user_token_a_account = next_account_info(account_info_iter)?;
-    let user_token_b_account = next_account_info(account_info_iter)?;
-    let user_lp_token_account = next_account_info(account_info_iter)?;
-    let pool_token_a_account = next_account_info(account_info_iter)?;
-    let pool_token_b_account = next_account_info(account_info_iter)?;
-    let lp_token_mint = next_account_info(account_info_iter)?;
+    let _user_token_a_account = next_account_info(account_info_iter)?;
+    let _user_token_b_account = next_account_info(account_info_iter)?;
+    let _user_lp_token_account = next_account_info(account_info_iter)?;
+    let _pool_token_a_account = next_account_info(account_info_iter)?;
+    let _pool_token_b_account = next_account_info(account_info_iter)?;
+    let _lp_token_mint = next_account_info(account_info_iter)?;
     let program_state_account = next_account_info(account_info_iter)?;
-    let token_program = next_account_info(account_info_iter)?;
-    let program_authority = next_account_info(account_info_iter)?;
+    let _token_program = next_account_info(account_info_iter)?;
+    let _program_authority = next_account_info(account_info_iter)?;
 
     // Check signer
     if !user_wallet.is_signer {
@@ -747,15 +747,15 @@ fn process_remove_liquidity(
     
     // Get accounts
     let user_wallet = next_account_info(account_info_iter)?;
-    let user_lp_token_account = next_account_info(account_info_iter)?;
-    let user_token_a_account = next_account_info(account_info_iter)?;
-    let user_token_b_account = next_account_info(account_info_iter)?;
-    let pool_token_a_account = next_account_info(account_info_iter)?;
-    let pool_token_b_account = next_account_info(account_info_iter)?;
-    let lp_token_mint = next_account_info(account_info_iter)?;
+    let _user_lp_token_account = next_account_info(account_info_iter)?;
+    let _user_token_a_account = next_account_info(account_info_iter)?;
+    let _user_token_b_account = next_account_info(account_info_iter)?;
+    let _pool_token_a_account = next_account_info(account_info_iter)?;
+    let _pool_token_b_account = next_account_info(account_info_iter)?;
+    let _lp_token_mint = next_account_info(account_info_iter)?;
     let program_state_account = next_account_info(account_info_iter)?;
-    let token_program = next_account_info(account_info_iter)?;
-    let program_authority = next_account_info(account_info_iter)?;
+    let _token_program = next_account_info(account_info_iter)?;
+    let _program_authority = next_account_info(account_info_iter)?;
 
     // Check signer
     if !user_wallet.is_signer {
@@ -1292,12 +1292,12 @@ fn should_use_multi_hop(
     }
     
     // If one token is SOL and the other is not YOT, route through YOT
-    if ((is_input_sol && !is_output_yot) || (is_output_sol && !is_input_yot)) {
+    if (is_input_sol && !is_output_yot) || (is_output_sol && !is_input_yot) {
         return (true, false);
     }
     
     // If one token is YOT and the other is not SOL, route through SOL
-    if ((is_input_yot && !is_output_sol) || (is_output_yot && !is_input_sol)) {
+    if (is_input_yot && !is_output_sol) || (is_output_yot && !is_input_sol) {
         return (true, true);
     }
     
