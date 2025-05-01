@@ -1,79 +1,97 @@
-import React, { useState } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useState } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { Connection, PublicKey, Transaction, SystemProgram, clusterApiUrl, LAMPORTS_PER_SOL, sendAndConfirmTransaction } from "@solana/web3.js";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
+import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-import { testWalletTransaction, executeSimpleTransfer } from '@/lib/transaction-test';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import { shortenAddress } from "@/lib/utils";
 
 export default function TransactionDebugPage() {
-  const { toast } = useToast();
   const wallet = useWallet();
-  const [loading, setLoading] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; message: string; signature?: string } | null>(null);
-  const [transferDestination, setTransferDestination] = useState('');
-  const [transferAmount, setTransferAmount] = useState('0.001');
-  const [transferResult, setTransferResult] = useState<{ success: boolean; signature?: string; error?: string } | null>(null);
+  const { toast } = useToast();
+  const [destinationAddress, setDestinationAddress] = useState("");
+  const [amount, setAmount] = useState("0.001");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<string | null>(null);
+  const [isTestLoading, setIsTestLoading] = useState(false);
+  
+  // Connection to devnet
+  const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
 
-  // Run wallet transaction test
-  const runWalletTest = async () => {
-    if (!wallet.connected) {
+  // Test basic wallet signature without sending any transaction
+  const testWalletSignature = async () => {
+    if (!wallet.connected || !wallet.publicKey) {
       toast({
         title: "Wallet not connected",
-        description: "Please connect your wallet to test transaction signing",
+        description: "Please connect your wallet first",
         variant: "destructive"
       });
       return;
     }
 
-    setLoading(true);
+    setIsTestLoading(true);
     setTestResult(null);
-
+    setError(null);
+    
     try {
-      const result = await testWalletTransaction(wallet);
-      setTestResult(result);
+      // Create a minimal transaction that just requires a signature
+      // Here we'll create a transaction that transfers 0 SOL to ourselves, which doesn't cost anything
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: wallet.publicKey,
+          toPubkey: wallet.publicKey,
+          lamports: 0
+        })
+      );
+      
+      // Get a recent blockhash to include in the transaction
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = wallet.publicKey;
+      
+      // Request the wallet to sign the transaction
+      const signedTransaction = await wallet.signTransaction!(transaction);
+      
+      // We don't need to send this transaction, just verify it was signed
+      setTestResult("Wallet signature test passed! Your wallet can sign transactions.");
       
       toast({
-        title: result.success ? "Test Successful" : "Test Failed",
-        description: result.message,
-        variant: result.success ? "default" : "destructive"
+        title: "Success",
+        description: "Wallet signature test successful",
       });
-    } catch (error) {
-      console.error("Error running wallet test:", error);
-      setTestResult({
-        success: false,
-        message: `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`
-      });
+    } catch (err: any) {
+      console.error("Error testing wallet signature:", err);
+      setError(`Wallet signature test failed: ${err.message || 'Unknown error'}`);
       
       toast({
-        title: "Test Error",
-        description: "Unexpected error running the test",
+        title: "Signature test failed",
+        description: err.message || "Unknown error occurred",
         variant: "destructive"
       });
     } finally {
-      setLoading(false);
+      setIsTestLoading(false);
     }
   };
 
-  // Execute simple transfer
-  const runSimpleTransfer = async () => {
-    if (!wallet.connected) {
+  // Send a simple SOL transfer
+  const sendTransaction = async () => {
+    if (!wallet.connected || !wallet.publicKey) {
       toast({
         title: "Wallet not connected",
-        description: "Please connect your wallet to execute a transfer",
+        description: "Please connect your wallet first",
         variant: "destructive"
       });
       return;
     }
 
-    if (!transferDestination) {
+    if (!destinationAddress) {
       toast({
         title: "Missing destination",
         description: "Please enter a destination address",
@@ -82,50 +100,67 @@ export default function TransactionDebugPage() {
       return;
     }
 
-    const amount = parseFloat(transferAmount);
-    if (isNaN(amount) || amount <= 0) {
-      toast({
-        title: "Invalid amount",
-        description: "Please enter a valid amount greater than 0",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setLoading(true);
-    setTransferResult(null);
-
+    setIsLoading(true);
+    setResult(null);
+    setError(null);
+    
     try {
-      const result = await executeSimpleTransfer(wallet, transferDestination, amount);
-      setTransferResult(result);
-      
-      if (result.success) {
-        toast({
-          title: "Transfer Successful",
-          description: `Successfully sent ${amount} SOL`,
-          variant: "default"
-        });
-      } else {
-        toast({
-          title: "Transfer Failed",
-          description: result.error || "Unknown error",
-          variant: "destructive"
-        });
+      // Validate destination address
+      let toPublicKey: PublicKey;
+      try {
+        toPublicKey = new PublicKey(destinationAddress);
+      } catch (err) {
+        throw new Error("Invalid destination address");
       }
-    } catch (error) {
-      console.error("Error executing transfer:", error);
-      setTransferResult({
-        success: false,
-        error: `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`
-      });
+      
+      // Convert amount from SOL to lamports (smallest unit)
+      const lamports = parseFloat(amount) * LAMPORTS_PER_SOL;
+      
+      if (isNaN(lamports) || lamports <= 0) {
+        throw new Error("Invalid amount");
+      }
+      
+      // Create the transaction
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: wallet.publicKey,
+          toPubkey: toPublicKey,
+          lamports
+        })
+      );
+      
+      // Get recent blockhash
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = wallet.publicKey;
+
+      // Sign and send transaction
+      const signature = await wallet.sendTransaction(transaction, connection);
+      
+      // Wait for confirmation
+      const confirmation = await connection.confirmTransaction(signature, "confirmed");
+      
+      if (confirmation.value.err) {
+        throw new Error(`Transaction confirmed but failed: ${JSON.stringify(confirmation.value.err)}`);
+      }
+      
+      setResult(`Transaction successful! Signature: ${signature}`);
       
       toast({
-        title: "Transfer Error",
-        description: "Unexpected error executing the transfer",
+        title: "Transaction successful",
+        description: `Sent ${amount} SOL to ${shortenAddress(destinationAddress)}`,
+      });
+    } catch (err: any) {
+      console.error("Transaction error:", err);
+      setError(`Transaction failed: ${err.message || 'Unknown error'}`);
+      
+      toast({
+        title: "Transaction failed",
+        description: err.message || "Unknown error occurred",
         variant: "destructive"
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -145,71 +180,30 @@ export default function TransactionDebugPage() {
             Test if your wallet can sign and send simple transactions
           </CardDescription>
         </CardHeader>
-        
         <CardContent>
-          <div className="space-y-4">
-            {!wallet.connected ? (
-              <div className="flex justify-center">
-                <WalletMultiButton className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold rounded-lg px-4 py-2" />
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="p-4 bg-muted rounded-lg">
-                  <div className="font-medium">Connected Wallet</div>
-                  <div className="text-sm break-all mt-1">
-                    {wallet.publicKey?.toString()}
-                  </div>
-                </div>
-                
-                <Button
-                  onClick={runWalletTest}
-                  disabled={loading}
-                  className="w-full"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Testing...
-                    </>
-                  ) : (
-                    "Run Simple Transaction Test"
-                  )}
-                </Button>
-              </div>
-            )}
+          <div className="flex items-center gap-4 mb-4">
+            <WalletMultiButton />
             
-            {testResult && (
-              <Alert
-                variant={testResult.success ? "default" : "destructive"}
-                className={testResult.success ? "bg-green-50 border-green-200" : undefined}
-              >
-                {testResult.success ? (
-                  <CheckCircle2 className="h-4 w-4 text-green-600" />
-                ) : (
-                  <AlertCircle className="h-4 w-4" />
-                )}
-                <AlertTitle>{testResult.success ? "Success" : "Error"}</AlertTitle>
-                <AlertDescription>
-                  {testResult.message}
-                  {testResult.signature && (
-                    <div className="mt-2">
-                      <div className="font-medium text-sm">Transaction Signature:</div>
-                      <div className="text-xs break-all mt-1">
-                        <a
-                          href={`https://solscan.io/tx/${testResult.signature}?cluster=devnet`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          {testResult.signature}
-                        </a>
-                      </div>
-                    </div>
-                  )}
-                </AlertDescription>
-              </Alert>
+            {wallet.connected && (
+              <span>Connected: {shortenAddress(wallet.publicKey?.toString() || "")}</span>
             )}
           </div>
+          
+          <Button 
+            onClick={testWalletSignature}
+            disabled={!wallet.connected || isTestLoading}
+            className="mb-4"
+          >
+            {isTestLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Run Simple Transaction Test
+          </Button>
+          
+          {testResult && (
+            <Alert className="mt-4 bg-green-50 border-green-500">
+              <AlertTitle>Success</AlertTitle>
+              <AlertDescription>{testResult}</AlertDescription>
+            </Alert>
+          )}
         </CardContent>
       </Card>
       
@@ -220,106 +214,59 @@ export default function TransactionDebugPage() {
             Test sending a small amount of SOL to an address
           </CardDescription>
         </CardHeader>
-        
         <CardContent>
-          <div className="space-y-4">
-            {!wallet.connected ? (
-              <div className="flex justify-center">
-                <WalletMultiButton className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold rounded-lg px-4 py-2" />
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="destination">Destination Address</Label>
-                  <Input
-                    id="destination"
-                    value={transferDestination}
-                    onChange={(e) => setTransferDestination(e.target.value)}
-                    placeholder="Enter Solana address"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="amount">Amount (SOL)</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    value={transferAmount}
-                    onChange={(e) => setTransferAmount(e.target.value)}
-                    placeholder="0.001"
-                    step="0.001"
-                    min="0.000001"
-                  />
-                  <div className="text-xs text-muted-foreground">
-                    Enter a small amount for testing purposes
-                  </div>
-                </div>
-                
-                <Button
-                  onClick={runSimpleTransfer}
-                  disabled={loading || !transferDestination}
-                  className="w-full"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Sending...
-                    </>
-                  ) : (
-                    "Send SOL"
-                  )}
-                </Button>
-              </div>
-            )}
-            
-            {transferResult && (
-              <Alert
-                variant={transferResult.success ? "default" : "destructive"}
-                className={transferResult.success ? "bg-green-50 border-green-200" : undefined}
-              >
-                {transferResult.success ? (
-                  <CheckCircle2 className="h-4 w-4 text-green-600" />
-                ) : (
-                  <AlertCircle className="h-4 w-4" />
-                )}
-                <AlertTitle>{transferResult.success ? "Transfer Successful" : "Transfer Failed"}</AlertTitle>
-                <AlertDescription>
-                  {transferResult.success ? (
-                    <div>
-                      Successfully sent {transferAmount} SOL to {transferDestination}
-                    </div>
-                  ) : (
-                    <div>{transferResult.error || "Unknown error"}</div>
-                  )}
-                  
-                  {transferResult.signature && (
-                    <div className="mt-2">
-                      <div className="font-medium text-sm">Transaction Signature:</div>
-                      <div className="text-xs break-all mt-1">
-                        <a
-                          href={`https://solscan.io/tx/${transferResult.signature}?cluster=devnet`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          {transferResult.signature}
-                        </a>
-                      </div>
-                    </div>
-                  )}
-                </AlertDescription>
-              </Alert>
-            )}
+          <div className="mb-4">
+            <Label htmlFor="destination" className="mb-2 block">Destination Address</Label>
+            <Input
+              id="destination"
+              value={destinationAddress}
+              onChange={(e) => setDestinationAddress(e.target.value)}
+              placeholder="Enter Solana address"
+              className="mb-2"
+            />
+            <p className="text-sm text-muted-foreground">
+              Use your own wallet address to test a self-transfer
+            </p>
           </div>
-        </CardContent>
-        
-        <CardFooter className="flex flex-col pt-0">
-          <div className="text-center text-xs text-muted-foreground mt-4">
-            <p>
+          
+          <div className="mb-4">
+            <Label htmlFor="amount" className="mb-2 block">Amount (SOL)</Label>
+            <Input
+              id="amount"
+              type="number"
+              min="0.000001"
+              step="0.001"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="mb-2"
+            />
+            <p className="text-sm text-muted-foreground">
               This page is for diagnostic purposes only. Use minimal amounts for testing.
             </p>
           </div>
-        </CardFooter>
+          
+          <Button 
+            onClick={sendTransaction}
+            disabled={!wallet.connected || isLoading || !destinationAddress}
+          >
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Send SOL
+          </Button>
+          
+          {result && (
+            <Alert className="mt-4 bg-green-50 border-green-500">
+              <AlertTitle>Success</AlertTitle>
+              <AlertDescription>{result}</AlertDescription>
+            </Alert>
+          )}
+          
+          {error && (
+            <Alert className="mt-4 bg-red-50 border-red-500">
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
       </Card>
     </div>
   );

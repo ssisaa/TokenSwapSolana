@@ -215,23 +215,59 @@ class MultihubSwapClient implements SwapProvider {
       
       // Set recent blockhash and fee payer
       transaction.feePayer = wallet.publicKey;
-      transaction.recentBlockhash = (await this.connection.getLatestBlockhash()).blockhash;
+      const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('finalized');
+      transaction.recentBlockhash = blockhash;
+      
+      // Simulate transaction first to check for issues
+      console.log("Simulating transaction before sending...");
+      try {
+        const simulation = await this.connection.simulateTransaction(transaction);
+        if (simulation.value.err) {
+          console.error("Transaction simulation failed:", simulation.value.err);
+          throw new Error(`Transaction simulation failed: ${JSON.stringify(simulation.value.err)}`);
+        }
+        console.log("Transaction simulation successful");
+      } catch (simError) {
+        console.error("Error during transaction simulation:", simError);
+        throw new Error(`Transaction simulation error: ${simError.message}`);
+      }
       
       console.log("Sending transaction with token account checks...");
-      const signature = await wallet.sendTransaction(transaction, this.connection);
-      console.log("Transaction sent with signature:", signature);
       
-      // Wait for confirmation
-      await this.connection.confirmTransaction(signature, 'confirmed');
-      
-      return {
-        signature,
-        success: true,
-        fromAmount: amount,
-        fromToken: fromToken.symbol,
-        toAmount: minAmountOut,
-        toToken: toToken.symbol
-      };
+      try {
+        // Use opt-in option to skip preflight (which would repeat the same simulation)
+        const signature = await wallet.sendTransaction(transaction, this.connection, {
+          skipPreflight: true // Skip preflight since we already simulated above
+        });
+        console.log("Transaction sent with signature:", signature);
+        
+        // Wait for confirmation with more specific options
+        const confirmation = await this.connection.confirmTransaction({
+          signature,
+          blockhash,
+          lastValidBlockHeight
+        }, 'confirmed');
+        
+        if (confirmation.value.err) {
+          throw new Error(`Transaction confirmed but failed: ${JSON.stringify(confirmation.value.err)}`);
+        }
+        
+        return {
+          signature,
+          success: true,
+          fromAmount: amount,
+          fromToken: fromToken.symbol,
+          toAmount: minAmountOut,
+          toToken: toToken.symbol
+        };
+      } catch (sendError) {
+        console.error("Error sending transaction:", sendError);
+        if (sendError.message && sendError.message.includes("Simulation failed")) {
+          throw new Error("Transaction would fail. Please check your wallet balance and try again.");
+        } else {
+          throw sendError;
+        }
+      }
     } catch (error) {
       console.error("Transaction failed:", error);
       

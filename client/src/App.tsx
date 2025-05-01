@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { WalletProvider } from "@/context/WalletContext";
 import { MultiWalletProvider } from "@/context/MultiWalletContext";
+import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { AdminAuthProvider } from "@/hooks/use-admin-auth";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import NotFound from "@/pages/not-found";
@@ -181,12 +182,14 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <MultiWalletProvider>
         <WalletProvider>
-          <AdminAuthProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Router />
-            </TooltipProvider>
-          </AdminAuthProvider>
+          <WalletModalProvider>
+            <AdminAuthProvider>
+              <TooltipProvider>
+                <Toaster />
+                <Router />
+              </TooltipProvider>
+            </AdminAuthProvider>
+          </WalletModalProvider>
         </WalletProvider>
       </MultiWalletProvider>
     </QueryClientProvider>
