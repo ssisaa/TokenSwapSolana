@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
@@ -129,21 +129,70 @@ export default function TransactionDebugPage() {
     try {
       // Call the initialization function
       console.log("Initializing MultiHub Swap program...");
+      
+      // There could be multiple failure scenarios:
+      // 1. Transaction rejected by wallet (user cancellation)
+      // 2. Transaction failed at simulation stage (wallet shows warning)
+      // 3. Transaction sent but failed on chain
+      // 4. Successful signature but failed to create accounts properly
+      
       const signature = await multiHubSwapClient.initializeProgram(activeWallet);
       
-      setInitResult(`Program initialization successful! Signature: ${signature}`);
-      
-      toast({
-        title: "Initialization successful",
-        description: "The MultiHub Swap program has been initialized",
-      });
+      if (signature === "Already initialized") {
+        setInitResult("Program is already initialized, state account exists");
+        toast({
+          title: "Already initialized",
+          description: "The MultiHub Swap program was already initialized",
+        });
+      } else {
+        // Wait a moment for blockchain state to update
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Verify the program state actually exists by validating on-chain
+        const { Connection } = await import('@solana/web3.js');
+        const { ENDPOINT } = await import('@/lib/constants');
+        const { validateProgramInitialization } = await import('@/lib/multihub-contract');
+        
+        const connection = new Connection(ENDPOINT);
+        const validation = await validateProgramInitialization(connection);
+        
+        if (validation.initialized) {
+          setInitResult(`Program initialization successful! Signature: ${signature}`);
+          toast({
+            title: "Initialization successful",
+            description: "The MultiHub Swap program has been properly initialized and verified",
+          });
+        } else {
+          // Something went wrong - we have a signature but program isn't initialized
+          setInitResult(null);
+          setError(`Transaction completed but program state is not valid. Error: ${validation.error}`);
+          
+          toast({
+            title: "Validation Failed",
+            description: "Transaction was sent but the program initialization could not be verified. Please check the Solana explorer for details.",
+            variant: "destructive"
+          });
+        }
+      }
     } catch (err: any) {
       console.error("Program initialization error:", err);
-      setError(`Program initialization failed: ${err.message || 'Unknown error'}`);
+      
+      // Try to provide more specific error messages based on common scenarios
+      let errorMessage = err.message || 'Unknown error';
+      
+      if (errorMessage.includes("User rejected")) {
+        errorMessage = "Transaction was rejected by the wallet. Please try again.";
+      } else if (errorMessage.includes("Simulation failed") || errorMessage.includes("reverted")) {
+        errorMessage = "Transaction simulation failed. This usually indicates a configuration issue with the program or insufficient funds.";
+      } else if (errorMessage.includes("Transaction was not confirmed")) {
+        errorMessage = "Transaction was sent but not confirmed by the network. Please check the Solana Explorer for details.";
+      }
+      
+      setError(`Program initialization failed: ${errorMessage}`);
       
       toast({
         title: "Initialization failed",
-        description: err.message || "Unknown error occurred",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -290,7 +339,33 @@ export default function TransactionDebugPage() {
             {initResult && (
               <Alert className="mt-4 bg-green-50 border-green-500">
                 <AlertTitle>Success</AlertTitle>
-                <AlertDescription>{initResult}</AlertDescription>
+                <AlertDescription className="space-y-2">
+                  <p>{initResult}</p>
+                  <p className="text-sm text-green-700">
+                    The program state has been verified on-chain and is ready to use.
+                  </p>
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            {error && (
+              <Alert className="mt-4 bg-destructive/10 border-destructive">
+                <AlertTriangle className="h-5 w-5" />
+                <AlertTitle>Initialization Error</AlertTitle>
+                <AlertDescription className="space-y-2">
+                  <p>{error}</p>
+                  
+                  {error.includes("simulation failed") || error.includes("reverted") ? (
+                    <div className="rounded-md bg-destructive/5 p-3 text-sm mt-2">
+                      <p className="font-semibold text-destructive mb-1">Important Wallet Warning</p>
+                      <p>
+                        If your wallet shows a red warning message about "transaction reverted during simulation",
+                        the transaction will fail even if you approve it. This typically indicates a program
+                        configuration issue.
+                      </p>
+                    </div>
+                  ) : null}
+                </AlertDescription>
               </Alert>
             )}
           </div>
