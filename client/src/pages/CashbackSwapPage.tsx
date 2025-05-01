@@ -40,7 +40,51 @@ export default function CashbackSwapPage() {
   
   const handleExecuteSwap = async () => {
     try {
-      await swap.executeSwap();
+      setSwapSuccess(false);
+      
+      // Import the MultihubSwapProvider directly to use the smart contract
+      const { MultihubSwapProvider } = await import('@/lib/multihub-contract');
+      const multihubProvider = new MultihubSwapProvider();
+      
+      const amount = parseFloat(String(swap.fromAmount));
+      
+      // Get token info objects from addresses
+      const fromTokenInfo = {
+        symbol: swap.fromToken,
+        name: swap.fromToken,
+        address: swap.fromToken === SOL_SYMBOL 
+          ? 'So11111111111111111111111111111111111111112' 
+          : '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF',
+        decimals: swap.fromToken === SOL_SYMBOL ? 9 : 9,
+        logoURI: ''
+      };
+      
+      const toTokenInfo = {
+        symbol: swap.toToken,
+        name: swap.toToken,
+        address: swap.toToken === SOL_SYMBOL 
+          ? 'So11111111111111111111111111111111111111112' 
+          : '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF',
+        decimals: swap.toToken === SOL_SYMBOL ? 9 : 9,
+        logoURI: ''
+      };
+      
+      // Calculate minimum amount out with 1% slippage
+      const minAmountOut = parseFloat(String(swap.toAmount)) * 0.99;
+      
+      console.log(`Executing cashback swap with smart contract: ${amount} ${swap.fromToken} to ${swap.toToken}`);
+      console.log(`This includes 20% liquidity contribution and 5% YOS cashback rewards`);
+      
+      // Execute the swap using the multihub contract
+      const result = await multihubProvider.executeSwap(
+        wallet,
+        fromTokenInfo,
+        toTokenInfo,
+        amount,
+        minAmountOut
+      );
+      
+      console.log("Swap completed with transaction signature:", result.signature);
       setSwapSuccess(true);
       
       // Reset success message after 5 seconds
@@ -49,6 +93,7 @@ export default function CashbackSwapPage() {
       }, 5000);
     } catch (error) {
       console.error("Swap failed:", error);
+      setError(error as Error);
     }
   };
   
