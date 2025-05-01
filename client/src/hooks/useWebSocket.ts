@@ -176,106 +176,77 @@ export function useWebSocket(
     return false;
   }, []);
   
-  // HTTP fallback to fetch pool data when WebSocket fails
-  const fetchPoolDataViaHttp = useCallback(async () => {
+  // Cache to prevent duplicate requests
+  const requestTimeoutRef = useRef<number | null>(null);
+  const lastRequestTimeRef = useRef<number>(0);
+  const cachedDataRef = useRef<PoolData | null>(null);
+  
+  // HTTP fallback to fetch pool data when WebSocket fails - optimized version
+  const fetchPoolDataViaHttp = useCallback(async (forceRefresh = false) => {
+    // Implement rate limiting - only request if it's been at least 10 seconds since last request
+    const now = Date.now();
+    const timeSinceLastRequest = now - lastRequestTimeRef.current;
+    
+    // Return cached data if it's recent (less than 30 seconds old) and not forcing refresh
+    if (!forceRefresh && cachedDataRef.current && timeSinceLastRequest < 30000) {
+      console.log('Using cached pool data (age: ' + Math.floor(timeSinceLastRequest/1000) + 's)');
+      setPoolData(cachedDataRef.current);
+      return;
+    }
+    
+    // Enforce rate limiting of 10 seconds between requests
+    if (!forceRefresh && timeSinceLastRequest < 10000) {
+      console.log(`Rate limiting HTTP requests (${Math.floor((10000 - timeSinceLastRequest)/1000)}s until next allowed)`);
+      return;
+    }
+    
+    // Cancel any pending request
+    if (requestTimeoutRef.current) {
+      clearTimeout(requestTimeoutRef.current);
+      requestTimeoutRef.current = null;
+    }
+    
     try {
-      // Make sure we're using the full URL with explicit protocol, hostname and port
-      const baseUrl = `${window.location.protocol}//${window.location.host}`;
+      // Record request time for rate limiting
+      lastRequestTimeRef.current = now;
       
-      // Try multiple endpoints in order
-      const endpoints = [
-        '/api/pool-data',
-        '/api/pool',
-        '/api/balances/7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK' // Pool authority address as fallback
-      ];
+      // Use the primary endpoint only to reduce request load
+      const url = `${window.location.protocol}//${window.location.host}/api/pool-data`;
+      console.log(`Fetching pool data from: ${url}`);
       
-      // Function to try fetching from a specific endpoint
-      const tryFetchFromEndpoint = async (endpoint: string) => {
-        const url = `${baseUrl}${endpoint}`;
-        console.log(`Trying to fetch pool data from: ${url}`);
-        
-        try {
-          const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-              'Accept': 'application/json',
-              'Content-Type': 'application/json'
-            },
-            cache: 'no-cache'
-          });
-          
-          if (!response.ok) {
-            console.warn(`Endpoint ${url} returned status ${response.status}`);
-            return null;
-          }
-          
-          const contentType = response.headers.get('content-type');
-          if (!contentType || !contentType.includes('application/json')) {
-            console.warn(`Expected JSON but got ${contentType} from ${url}`);
-            return null;
-          }
-          
-          return await response.json();
-        } catch (endpointError) {
-          console.warn(`Error fetching from ${url}:`, endpointError);
-          return null;
-        }
-      };
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        cache: 'no-store' // Force fresh data
+      });
       
-      // Try each endpoint until we get data
-      let data = null;
-      for (const endpoint of endpoints) {
-        data = await tryFetchFromEndpoint(endpoint);
-        if (data) break;
-      }
-      
-      if (!data) {
-        console.error('All HTTP endpoints failed to return valid data');
+      if (!response.ok) {
+        console.warn(`API returned status ${response.status}`);
         return;
       }
       
-      console.log('Received pool data:', data);
+      const data = await response.json();
       
-      // Handle different data formats from different endpoints
-      let poolData: PoolData | null = null;
-      
-      if (data.sol !== undefined && data.yot !== undefined) {
-        // Format from /api/pool-data or /api/pool
-        poolData = {
+      // Process pool data
+      if (data && data.sol !== undefined && data.yot !== undefined) {
+        const poolData: PoolData = {
           sol: typeof data.sol === 'number' ? data.sol : parseFloat(data.sol),
           yot: typeof data.yot === 'number' ? data.yot : parseFloat(data.yot),
           yos: data.yos ? (typeof data.yos === 'number' ? data.yos : parseFloat(data.yos)) : 0,
-          totalValue: data.totalValue || (typeof data.sol === 'number' ? data.sol * 148.35 : parseFloat(data.sol) * 148.35),
-          timestamp: Date.now()
+          totalValue: data.totalValue || (data.sol * 148.35),
+          timestamp: now
         };
-      } else if (data.solBalance !== undefined && data.yotBalance !== undefined) {
-        // Format from /api/pool endpoint
-        poolData = {
-          sol: typeof data.solBalance === 'number' ? data.solBalance : parseFloat(data.solBalance),
-          yot: typeof data.yotBalance === 'number' ? data.yotBalance : parseFloat(data.yotBalance),
-          yos: 0, // /api/pool might not have YOS data
-          totalValue: (typeof data.solBalance === 'number' ? data.solBalance : parseFloat(data.solBalance)) * 148.35,
-          timestamp: Date.now()
-        };
-      } else if (data.sol !== undefined) {
-        // Format from /api/balances endpoint
-        poolData = {
-          sol: typeof data.sol === 'number' ? data.sol : parseFloat(data.sol),
-          yot: data.yot ? (typeof data.yot === 'number' ? data.yot : parseFloat(data.yot)) : 0,
-          yos: data.yos ? (typeof data.yos === 'number' ? data.yos : parseFloat(data.yos)) : 0,
-          totalValue: data.solUsd || (typeof data.sol === 'number' ? data.sol * 148.35 : parseFloat(data.sol) * 148.35),
-          timestamp: Date.now()
-        };
-      }
-      
-      if (poolData) {
+        
+        // Cache the data for future requests
+        cachedDataRef.current = poolData;
         setPoolData(poolData);
-        console.log('Pool data fetched via HTTP fallback:', poolData);
-      } else {
-        console.warn('Could not parse pool data from response:', data);
+        console.log('Pool data fetched and cached:', poolData);
       }
     } catch (error) {
-      console.error('Failed to fetch pool data via HTTP:', error);
+      console.error('Failed to fetch pool data:', error);
     }
   }, []);
 
@@ -284,14 +255,15 @@ export function useWebSocket(
     connect();
     
     // Fetch initial pool data via HTTP as a fallback
-    fetchPoolDataViaHttp();
+    fetchPoolDataViaHttp(true);
     
-    // Set up periodic HTTP fallback when WebSocket is not connected
+    // Set up periodic HTTP fallback with proper rate limiting
     const fallbackInterval = setInterval(() => {
       if (connectionState !== 'open') {
-        fetchPoolDataViaHttp();
+        // Only fetch if WebSocket is not connected
+        fetchPoolDataViaHttp(false);
       }
-    }, 10000); // Check every 10 seconds
+    }, 30000); // Check every 30 seconds instead of 10
     
     return () => {
       disconnect();
