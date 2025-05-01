@@ -18,8 +18,8 @@ import { Buffer } from 'buffer';
 import { SwapEstimate, SwapProvider } from './multi-hub-swap';
 import { TokenInfo } from './token-search-api';
 
-// Constants
-const MULTIHUB_SWAP_PROGRAM_ID = new PublicKey('6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6'); // Use the actual deployed program ID
+// Constants - use the correct Multi-Hub Swap Program ID (not the Staking Program ID)
+const MULTIHUB_SWAP_PROGRAM_ID = new PublicKey('3cXKNjtRv8b1HVYU6vRDvmoSMHfXrWATCLFY2Y5wTsps'); // Multi-Hub Swap Program ID
 const YOT_TOKEN_MINT = new PublicKey('2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF');
 const YOS_TOKEN_MINT = new PublicKey('GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n');
 const SOL_TOKEN_MINT = new PublicKey('So11111111111111111111111111111111111111112');
