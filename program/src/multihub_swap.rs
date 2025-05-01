@@ -20,7 +20,7 @@ use spl_token::{
 use std::convert::TryInto;
 
 // Program ID: Must match the ID in Cargo.toml
-solana_program::declare_id!("MultiHubSwapProgramIDXXXXXXXXXXXXXXXXXXXXXX");
+solana_program::declare_id!("3cXKNjtRv8b1HVYU6vRDvmoSMHfXrWATCLFY2Y5wTsps");
 
 // Define swap fee constants
 const LIQUIDITY_CONTRIBUTION_PERCENT: u8 = 20; // 20% goes to liquidity

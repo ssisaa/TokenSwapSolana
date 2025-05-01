@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 description = "Multi-Hub Swap program for Solana blockchain"
 
+# Must match the program ID in the entrypoint file
+[package.metadata.solana]
+program-id = "3cXKNjtRv8b1HVYU6vRDvmoSMHfXrWATCLFY2Y5wTsps"
+
 [features]
 no-entrypoint = []
 

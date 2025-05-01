@@ -33,8 +33,8 @@ export const POOL_AUTHORITY = '7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK';
 export const POOL_SOL_ACCOUNT = '7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS'; 
 
 // Program IDs
-export const STAKING_PROGRAM_ID = '6Q1qTBNFyV3XqWQpTsLFQnrKKvkzNEQgw9MoqgYDmWFi';
-export const MULTI_HUB_SWAP_PROGRAM_ID = '6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6';
+export const STAKING_PROGRAM_ID = '6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6'; // Existing staking program
+export const MULTI_HUB_SWAP_PROGRAM_ID = '3cXKNjtRv8b1HVYU6vRDvmoSMHfXrWATCLFY2Y5wTsps'; // New multi-hub swap program
 
 // Admin wallet
 export const ADMIN_WALLET_ADDRESS = 'AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ';
