@@ -654,6 +654,12 @@ export async function getMultiHubSwapEstimate(
     const [programStateAccount] = await findProgramStateAddress();
     const programStateInfo = await connection.getAccountInfo(programStateAccount);
     
+    // Use WebSocket API to get latest pool data
+    // This provides real-time updates from the running server
+    const apiUrl = `${window.location.protocol}//${window.location.host}/api/pool-data`;
+    const poolResponse = await fetch(apiUrl);
+    const poolData = await poolResponse.json();
+    
     if (!programStateInfo) {
       console.warn('Program state account not found, using fallback estimate');
       return createFallbackEstimate(fromToken, toToken, amount, slippage);

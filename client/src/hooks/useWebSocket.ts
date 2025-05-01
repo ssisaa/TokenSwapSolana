@@ -175,44 +175,98 @@ export function useWebSocket(
     try {
       // Make sure we're using the full URL with explicit protocol, hostname and port
       const baseUrl = `${window.location.protocol}//${window.location.host}`;
-      const url = `${baseUrl}/api/pool-data`;
       
-      console.log(`Fetching pool data from: ${url}`);
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        cache: 'no-cache'
-      });
+      // Try multiple endpoints in order
+      const endpoints = [
+        '/api/pool-data',
+        '/api/pool',
+        '/api/balances/7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK' // Pool authority address as fallback
+      ];
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      // Function to try fetching from a specific endpoint
+      const tryFetchFromEndpoint = async (endpoint: string) => {
+        const url = `${baseUrl}${endpoint}`;
+        console.log(`Trying to fetch pool data from: ${url}`);
+        
+        try {
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            },
+            cache: 'no-cache'
+          });
+          
+          if (!response.ok) {
+            console.warn(`Endpoint ${url} returned status ${response.status}`);
+            return null;
+          }
+          
+          const contentType = response.headers.get('content-type');
+          if (!contentType || !contentType.includes('application/json')) {
+            console.warn(`Expected JSON but got ${contentType} from ${url}`);
+            return null;
+          }
+          
+          return await response.json();
+        } catch (endpointError) {
+          console.warn(`Error fetching from ${url}:`, endpointError);
+          return null;
+        }
+      };
+      
+      // Try each endpoint until we get data
+      let data = null;
+      for (const endpoint of endpoints) {
+        data = await tryFetchFromEndpoint(endpoint);
+        if (data) break;
       }
       
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        console.warn(`Expected JSON but got ${contentType}`);
-        const text = await response.text();
-        console.error('Response was not JSON:', text.substring(0, 100) + '...');
+      if (!data) {
+        console.error('All HTTP endpoints failed to return valid data');
         return;
       }
       
-      const data = await response.json();
       console.log('Received pool data:', data);
       
-      if (data && typeof data.sol === 'number' && typeof data.yot === 'number') {
-        setPoolData({
-          sol: data.sol,
-          yot: data.yot,
-          yos: data.yos || 0, // Fallback to 0 if not provided
-          totalValue: data.totalValue || (data.sol * 148.35), // Calculate if not provided
+      // Handle different data formats from different endpoints
+      let poolData: PoolData | null = null;
+      
+      if (data.sol !== undefined && data.yot !== undefined) {
+        // Format from /api/pool-data or /api/pool
+        poolData = {
+          sol: typeof data.sol === 'number' ? data.sol : parseFloat(data.sol),
+          yot: typeof data.yot === 'number' ? data.yot : parseFloat(data.yot),
+          yos: data.yos ? (typeof data.yos === 'number' ? data.yos : parseFloat(data.yos)) : 0,
+          totalValue: data.totalValue || (typeof data.sol === 'number' ? data.sol * 148.35 : parseFloat(data.sol) * 148.35),
           timestamp: Date.now()
-        });
-        console.log('Pool data fetched via HTTP fallback:', data);
+        };
+      } else if (data.solBalance !== undefined && data.yotBalance !== undefined) {
+        // Format from /api/pool endpoint
+        poolData = {
+          sol: typeof data.solBalance === 'number' ? data.solBalance : parseFloat(data.solBalance),
+          yot: typeof data.yotBalance === 'number' ? data.yotBalance : parseFloat(data.yotBalance),
+          yos: 0, // /api/pool might not have YOS data
+          totalValue: (typeof data.solBalance === 'number' ? data.solBalance : parseFloat(data.solBalance)) * 148.35,
+          timestamp: Date.now()
+        };
+      } else if (data.sol !== undefined) {
+        // Format from /api/balances endpoint
+        poolData = {
+          sol: typeof data.sol === 'number' ? data.sol : parseFloat(data.sol),
+          yot: data.yot ? (typeof data.yot === 'number' ? data.yot : parseFloat(data.yot)) : 0,
+          yos: data.yos ? (typeof data.yos === 'number' ? data.yos : parseFloat(data.yos)) : 0,
+          totalValue: data.solUsd || (typeof data.sol === 'number' ? data.sol * 148.35 : parseFloat(data.sol) * 148.35),
+          timestamp: Date.now()
+        };
+      }
+      
+      if (poolData) {
+        setPoolData(poolData);
+        console.log('Pool data fetched via HTTP fallback:', poolData);
       } else {
-        console.warn('Invalid pool data format:', data);
+        console.warn('Could not parse pool data from response:', data);
       }
     } catch (error) {
       console.error('Failed to fetch pool data via HTTP:', error);
