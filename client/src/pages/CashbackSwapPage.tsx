@@ -131,14 +131,14 @@ export default function CashbackSwapPage() {
       let errorMsg = error?.message || "Unknown error";
       
       if (errorMsg.includes("Program not initialized") || errorMsg.includes("state account not found")) {
-        errorMsg = "The MultiHub Swap program is not initialized. Please go to the Transaction Debug page to initialize it.";
+        errorMsg = "The MultiHub Swap program is not initialized. Please go to the TX Debug page to initialize it.";
         
         toast({
           title: "Program Not Initialized",
           description: "The MultiHub Swap program must be initialized before swaps can be executed.",
           variant: "destructive",
           action: (
-            <ToastAction altText="Initialize Program" onClick={() => navigate('/transaction-debug')}>
+            <ToastAction altText="Initialize Program" onClick={() => navigate('/tx-debug')}>
               Initialize
             </ToastAction>
           ),
