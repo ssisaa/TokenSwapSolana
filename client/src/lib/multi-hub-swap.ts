@@ -14,7 +14,7 @@ import {
   TOKEN_PROGRAM_ID,
   createTransferInstruction
 } from '@solana/spl-token';
-import { TokenInfo } from './token-search-api';
+import { TokenInfo, defaultTokens } from './token-search-api';
 import { findSwapRoute } from './raydium-pools';
 import { findBestJupiterRoute } from './jupiter-routes';
 import { 
@@ -1284,48 +1284,118 @@ export async function findAllAvailableRoutes(
     routeInfo: any;
     hops: number;
     intermediateTokens?: string[];
+    score?: number; // Higher score = better route
   }> = [];
   
-  // Common intermediate tokens for testing multiple hops
+  // Common intermediate tokens for multi-hop routes
+  // These are our verified tokens with sufficient pool balances
   const intermediateTokens = [
-    SOL_TOKEN_ADDRESS, // SOL (commonly used as an intermediate token)
-    '9T7uw5dqaEmEC4McqyefzYsEg5hoC4e2oV8it1Uc4f1U', // USDC
-    '5kjfp2qfRbqCXTQeUYgHNnTLf13eHoKjC9RcaX3YfSBK', // USDT
+    SOL_TOKEN_ADDRESS, // SOL (primary intermediate token)
+    'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC (used for stable pairs)
+    'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', // USDT (used for stable pairs)
+    'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So', // mSOL (used for liquid staking derivatives)
+    '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R', // RAY (used for Raydium-specific routes)
+    'So11111111111111111111111111111111111111112', // wSOL (wrapped SOL)
   ];
   
-  // Import functions from modules
-  // Using functions from raydium-pools.ts and jupiter-routes.ts
-  // Note: These are imported at the top of the file
-
-  // Try Raydium direct routes
+  // To improve success rates, we prioritize certain routes by token type
+  const isSOL = (mint: string) => mint === SOL_TOKEN_ADDRESS || mint === 'So11111111111111111111111111111111111111112';
+  const isStable = (mint: string) => {
+    return mint === 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' || // USDC
+           mint === 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';  // USDT
+  };
+  const isYOT = (mint: string) => mint === YOT_TOKEN_ADDRESS;
+  const isYOS = (mint: string) => mint === YOS_TOKEN_ADDRESS;
+  
+  console.log(`Finding all available routes from ${fromTokenMint} to ${toTokenMint}`);
+  
+  // Always check contract eligibility first for core token pairs
+  if (isContractEligible(fromTokenMint, toTokenMint)) {
+    routes.push({
+      provider: SwapProvider.Contract,
+      routeInfo: { direct: true },
+      hops: 1,
+      score: 100 // Maximum score for our contract direct trades
+    });
+  }
+  
+  // Add routes using our contract for core token pairs with YOT or YOS via SOL
+  // These always get highest priority as they're core token pairs
+  if ((isYOT(fromTokenMint) || isYOS(fromTokenMint)) && !isSOL(toTokenMint) && !isContractEligible(fromTokenMint, toTokenMint)) {
+    routes.push({
+      provider: SwapProvider.Contract,
+      routeInfo: { throughSOL: true },
+      hops: 2,
+      intermediateTokens: [SOL_TOKEN_ADDRESS],
+      score: 90 // High score for YOT/YOS → SOL → Any
+    });
+  } else if ((isYOT(toTokenMint) || isYOS(toTokenMint)) && !isSOL(fromTokenMint) && !isContractEligible(fromTokenMint, toTokenMint)) {
+    routes.push({
+      provider: SwapProvider.Contract,
+      routeInfo: { throughSOL: true },
+      hops: 2,
+      intermediateTokens: [SOL_TOKEN_ADDRESS],
+      score: 90 // High score for Any → SOL → YOT/YOS
+    });
+  }
+  
+  // Try Raydium direct routes and 1-hop routes
   try {
-    // Raydium lookup using imported findSwapRoute function
+    // Direct route lookup using Raydium DEX 
     const raydiumRoute = await findSwapRoute(fromTokenMint, toTokenMint);
     if (raydiumRoute.hops > 0) {
       routes.push({
         provider: SwapProvider.Raydium,
         routeInfo: raydiumRoute.route,
         hops: raydiumRoute.hops,
-        intermediateTokens: raydiumRoute.hops > 1 ? [SOL_TOKEN_ADDRESS] : undefined
+        intermediateTokens: raydiumRoute.hops > 1 ? raydiumRoute.intermediateTokens : undefined,
+        score: raydiumRoute.hops === 1 ? 85 : 70 // Score based on hop count
       });
     }
+    
+    // If no direct route, try through SOL if neither source nor dest is SOL
+    if (raydiumRoute.hops === 0 && !isSOL(fromTokenMint) && !isSOL(toTokenMint)) {
+      // First check if source → SOL exists
+      const routeToSOL = await findSwapRoute(fromTokenMint, SOL_TOKEN_ADDRESS);
+      
+      // Then check if SOL → dest exists
+      const routeFromSOL = await findSwapRoute(SOL_TOKEN_ADDRESS, toTokenMint);
+      
+      // If both routes exist, we can create a 2-hop route through SOL
+      if (routeToSOL.hops > 0 && routeFromSOL.hops > 0) {
+        routes.push({
+          provider: SwapProvider.Raydium,
+          routeInfo: {
+            from: routeToSOL.route,
+            via: 'SOL',
+            to: routeFromSOL.route
+          },
+          hops: 2,
+          intermediateTokens: [SOL_TOKEN_ADDRESS],
+          score: 65 // Lower score for 2-hop Raydium
+        });
+      }
+    }
   } catch (raydiumError) {
-    console.warn('Raydium direct route finding failed:', raydiumError);
+    console.warn('Raydium route finding failed:', raydiumError);
   }
   
-  // Try Jupiter direct routes
+  // Try Jupiter routes - their API already handles optimized routes
   try {
-    // Jupiter lookup using imported findBestJupiterRoute function
+    // Jupiter lookup handles multi-hop automatically
     const jupiterRoute = await findBestJupiterRoute(fromTokenMint, toTokenMint);
     if (jupiterRoute) {
+      // If Jupiter found a route, it's likely optimized already
       routes.push({
         provider: SwapProvider.Jupiter,
         routeInfo: jupiterRoute,
-        hops: 1
+        hops: jupiterRoute.marketIds?.length || 1,
+        intermediateTokens: jupiterRoute.intermediateTokens || [],
+        score: 80 // High score for Jupiter (often has better routes)
       });
     }
   } catch (jupiterError) {
-    console.warn('Jupiter direct route finding failed:', jupiterError);
+    console.warn('Jupiter route finding failed:', jupiterError);
   }
   
   // Try multi-hop routes through intermediate tokens
@@ -1421,21 +1491,32 @@ export async function findAllAvailableRoutes(
  * This is important for critical token pairs like SOL-YOT
  */
 function isContractEligible(fromTokenMint: string, toTokenMint: string): boolean {
-  // Check if either token is SOL, YOT or YOS
-  const isSOLPair = fromTokenMint === SOL_TOKEN_ADDRESS || toTokenMint === SOL_TOKEN_ADDRESS;
-  const isYOTPair = fromTokenMint === YOT_TOKEN_ADDRESS || toTokenMint === YOT_TOKEN_ADDRESS;
-  const isYOSPair = fromTokenMint === YOS_TOKEN_ADDRESS || toTokenMint === YOS_TOKEN_ADDRESS;
+  // Check if tokens are SOL, YOT or YOS
+  const isFromSOL = fromTokenMint === SOL_TOKEN_ADDRESS || fromTokenMint === 'So11111111111111111111111111111111111111112';
+  const isToSOL = toTokenMint === SOL_TOKEN_ADDRESS || toTokenMint === 'So11111111111111111111111111111111111111112';
+  const isFromYOT = fromTokenMint === YOT_TOKEN_ADDRESS;
+  const isToYOT = toTokenMint === YOT_TOKEN_ADDRESS;
+  const isFromYOS = fromTokenMint === YOS_TOKEN_ADDRESS;
+  const isToYOS = toTokenMint === YOS_TOKEN_ADDRESS;
   
-  // If it's SOL-YOT or SOL-YOS pair, we can use our contract
-  if ((isSOLPair && isYOTPair) || (isSOLPair && isYOSPair)) {
+  // SOL-YOT swaps (both directions)
+  if ((isFromSOL && isToYOT) || (isFromYOT && isToSOL)) {
     return true;
   }
   
-  // Also if it's YOT-YOS pair, we can use our contract
-  if (isYOTPair && isYOSPair) {
+  // SOL-YOS swaps (both directions)
+  if ((isFromSOL && isToYOS) || (isFromYOS && isToSOL)) {
     return true;
   }
   
+  // YOT-YOS swaps (both directions)
+  if ((isFromYOT && isToYOS) || (isFromYOS && isToYOT)) {
+    return true;
+  }
+  
+  // Additional eligible token pairs with sufficient liquidity can be added here
+  // For now, we're just enabling our core token pairs
+
   return false;
 }
 
