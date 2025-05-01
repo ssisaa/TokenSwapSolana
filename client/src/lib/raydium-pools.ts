@@ -32,7 +32,7 @@ const testPools: RaydiumPoolConfig[] = [
   {
     id: "xmp-sol-pool",
     name: "XMP-SOL",
-    baseMint: "XMP9SXVv3Kj6JcnJEyLaQzYEuWEGsHjhJNpkha2Vk5M",
+    baseMint: "HMfSHCLwS6tJmg4aoYnkAqCFte1LQMkjRpfFvP5M3HPs", // Updated with actual token
     baseSymbol: "XMP",
     quoteMint: SOL_TOKEN_ADDRESS,
     quoteSymbol: "SOL",
@@ -46,7 +46,7 @@ const testPools: RaydiumPoolConfig[] = [
     marketAsks: "XMPAsks12345678900987654321XMPAsksAcc",
     marketEventQueue: "XMPEvtQ12345678900987654321XMPEventQ",
     // Track pool token balances for testing
-    baseReserve: 5000000, // 5 million XMP tokens
+    baseReserve: 100000, // 100K XMP tokens (actual supply)
     quoteReserve: 500,    // 500 SOL
     lpSupply: 1500000,    // 1.5 million LP tokens
     volumeUSD: 125000     // $125K daily volume
@@ -55,7 +55,7 @@ const testPools: RaydiumPoolConfig[] = [
   {
     id: "xar-sol-pool",
     name: "XAR-SOL",
-    baseMint: "XAR18RSUr4pRGnmmM5Zz9vAz3EXmvWPx7cMuFB8mvCh",
+    baseMint: "9VnMEkvpCPkRVyxXZQWEDocyipoq2uGehdYwAw3yryEa", // Updated with actual token
     baseSymbol: "XAR",
     quoteMint: SOL_TOKEN_ADDRESS,
     quoteSymbol: "SOL",
@@ -69,7 +69,7 @@ const testPools: RaydiumPoolConfig[] = [
     marketAsks: "XARAsks12345678900987654321XARAsksAcc",
     marketEventQueue: "XAREvtQ12345678900987654321XAREventQ",
     // Track pool token balances for testing
-    baseReserve: 3500000, // 3.5 million XAR tokens
+    baseReserve: 100000, // 100K XAR tokens (actual supply)
     quoteReserve: 350,    // 350 SOL
     lpSupply: 1000000,    // 1 million LP tokens
     volumeUSD: 98000      // $98K daily volume
@@ -323,4 +323,129 @@ export async function getSwappableTokens(tokenMintAddress: string): Promise<{
   }
   
   return swappableTokens;
+}
+
+/**
+ * Get detailed pool information for specific token pairs
+ * This function is tailored for XAR-SOL and XMP-SOL pools
+ */
+export async function getSpecificPoolDetails(tokenAddress1: string, tokenAddress2: string = SOL_TOKEN_ADDRESS): Promise<{
+  poolDetails: RaydiumPoolConfig | null;
+  poolExists: boolean;
+  poolAuthority: string | null;
+  tokenAccounts: {
+    tokenAAccount: string | null;
+    tokenBAccount: string | null;
+  };
+  reserves: {
+    tokenAReserve: number | null;
+    tokenBReserve: number | null;
+  };
+  lpToken: {
+    mintAddress: string | null;
+    totalSupply: number | null;
+  };
+}> {
+  try {
+    const pools = await fetchRaydiumPools();
+    
+    // Find the specific pool
+    const poolDetails = pools.find(pool => 
+      (pool.baseMint === tokenAddress1 && pool.quoteMint === tokenAddress2) ||
+      (pool.baseMint === tokenAddress2 && pool.quoteMint === tokenAddress1)
+    ) || null;
+    
+    // If no pool exists
+    if (!poolDetails) {
+      return {
+        poolDetails: null,
+        poolExists: false,
+        poolAuthority: null,
+        tokenAccounts: {
+          tokenAAccount: null,
+          tokenBAccount: null,
+        },
+        reserves: {
+          tokenAReserve: null,
+          tokenBReserve: null,
+        },
+        lpToken: {
+          mintAddress: null,
+          totalSupply: null,
+        },
+      };
+    }
+    
+    // Determine which token is A and which is B
+    const isFirstTokenBase = poolDetails.baseMint === tokenAddress1;
+    
+    // Get token accounts (vaults)
+    const tokenAAccount = isFirstTokenBase ? poolDetails.marketBaseVault : poolDetails.marketQuoteVault;
+    const tokenBAccount = isFirstTokenBase ? poolDetails.marketQuoteVault : poolDetails.marketBaseVault;
+    
+    // Get reserves
+    const tokenAReserve = isFirstTokenBase ? poolDetails.baseReserve : poolDetails.quoteReserve;
+    const tokenBReserve = isFirstTokenBase ? poolDetails.quoteReserve : poolDetails.baseReserve;
+    
+    return {
+      poolDetails,
+      poolExists: true,
+      poolAuthority: poolDetails.marketAuthority,
+      tokenAccounts: {
+        tokenAAccount,
+        tokenBAccount,
+      },
+      reserves: {
+        tokenAReserve,
+        tokenBReserve,
+      },
+      lpToken: {
+        mintAddress: poolDetails.lpMint,
+        totalSupply: poolDetails.lpSupply,
+      },
+    };
+  } catch (error) {
+    console.error("Error getting specific pool details:", error);
+    return {
+      poolDetails: null,
+      poolExists: false,
+      poolAuthority: null,
+      tokenAccounts: {
+        tokenAAccount: null,
+        tokenBAccount: null,
+      },
+      reserves: {
+        tokenAReserve: null,
+        tokenBReserve: null,
+      },
+      lpToken: {
+        mintAddress: null,
+        totalSupply: null,
+      },
+    };
+  }
+}
+
+/**
+ * Utility function to check XAR-SOL and XMP-SOL pools specifically
+ * Returns detailed info about both pools
+ */
+export async function checkXarXmpPools(): Promise<{
+  xarSolPool: ReturnType<typeof getSpecificPoolDetails> extends Promise<infer T> ? T : never;
+  xmpSolPool: ReturnType<typeof getSpecificPoolDetails> extends Promise<infer T> ? T : never;
+  bothPoolsExist: boolean;
+}> {
+  // Get the updated token addresses from constants
+  const XAR_ADDRESS = '9VnMEkvpCPkRVyxXZQWEDocyipoq2uGehdYwAw3yryEa';
+  const XMP_ADDRESS = 'HMfSHCLwS6tJmg4aoYnkAqCFte1LQMkjRpfFvP5M3HPs';
+  
+  // Get pool details for each token pair
+  const xarSolPool = await getSpecificPoolDetails(XAR_ADDRESS);
+  const xmpSolPool = await getSpecificPoolDetails(XMP_ADDRESS);
+  
+  return {
+    xarSolPool,
+    xmpSolPool,
+    bothPoolsExist: xarSolPool.poolExists && xmpSolPool.poolExists
+  };
 }

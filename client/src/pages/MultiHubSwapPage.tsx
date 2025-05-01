@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import MultiHubSwapDemo from '@/components/MultiHubSwap/MultiHubSwapDemo';
 import { TokenPriceChart } from '@/components/MultiHubSwap/TokenPriceChart';
+import TokenPoolDetails from '@/components/MultiHubSwap/TokenPoolDetails';
 import useMultiHubSwap from '@/hooks/useMultiHubSwap';
 import { formatNumber, shortenAddress } from '@/lib/utils';
 import { useMultiWallet } from '@/context/MultiWalletContext';
@@ -181,9 +182,9 @@ export default function MultiHubSwapPage() {
                           These pools provide the liquidity for the multi-hop routes used in the token swaps.
                           Each pool maintains sufficient reserves to handle test swaps.
                         </p>
-                        <Button variant="outline" className="mt-2 w-full text-primary border-primary hover:bg-primary/10">
-                          View All Pool Details
-                        </Button>
+                        <div className="mt-4">
+                          <TokenPoolDetails />
+                        </div>
                       </div>
                     </TabsContent>
                     
