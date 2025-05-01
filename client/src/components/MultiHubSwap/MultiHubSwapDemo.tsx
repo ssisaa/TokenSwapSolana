@@ -137,63 +137,56 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
     }
   }, [walletConnected, wallet?.publicKey]);
   
-  // Generate a test swap estimate to showcase route info visualization for the demo
+  // Generate a real swap estimate using actual blockchain data
   useEffect(() => {
-    const generateDemoRouteInfo = async () => {
-      if (!amount || parseFloat(amount) <= 0) {
-        // Only generate demo data for display purposes
-        // In a real app, we'd wait for a user-entered amount
+    const generateAccurateRouteInfo = async () => {
+      try {
+        // Use real-time blockchain data for calculating swap estimates
+        const sol = defaultTokens.find(t => t.symbol === 'SOL');
+        const yot = defaultTokens.find(t => t.symbol === 'YOT');
         
-        // Use the getMultiHubSwapEstimate to fetch real-time rates from the blockchain
-        // This function internally fetches the actual pool balances from the blockchain
-        let outputYOT = 24563; // Temporary initialization value that will be replaced with real data
-        
-        // Schedule a background estimation update
-        (async () => {
-          try {
-            const sol = defaultTokens.find(t => t.symbol === 'SOL');
-            const yot = defaultTokens.find(t => t.symbol === 'YOT');
-            if (sol && yot) {
-              const estimate = await getMultiHubSwapEstimate(sol, yot, 1); // 1 SOL to YOT
-              if (estimate && estimate.estimatedAmount) {
-                outputYOT = estimate.estimatedAmount;
-                console.log(`Real-time pool estimate: 1 SOL = ${outputYOT.toFixed(2)} YOT`);
-              }
-            }
-          } catch (error) {
-            console.error("Error fetching real-time rates:", error);
-          }
-        })();
-        
-        const testEstimate = {
-          estimatedAmount: outputYOT,
-          minAmountOut: outputYOT * 0.99, // 1% slippage
-          priceImpact: 0.0025,
-          fee: 0.003, // 0.3% fee 
-          routes: ["SOL", "YOT"],
-          routeInfo: [
-            {
-              label: "Direct SOL-YOT Pool",
-              ammId: "raydium-sol-yot-pool-v4",
-              marketId: "7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCS9uZSPaGW4",
-              percent: 100,
-              inputMint: "So11111111111111111111111111111111111111112",
-              outputMint: "2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF",
-              marketName: "Raydium AMM"
-            }
-          ],
-          provider: SwapProvider.Contract
-        };
-        
-        // Set demo data for UI display
-        if (!swapEstimate) {
-          setSwapEstimate(testEstimate);
+        if (!sol || !yot) {
+          console.error("Could not find SOL or YOT token in the default tokens list");
+          return;
         }
+        
+        // Input amount - if user has entered a value, use it; otherwise use 1 SOL
+        const inputAmount = amount && parseFloat(amount) > 0 ? parseFloat(amount) : 1.0;
+        
+        console.log(`Fetching exchange rate for ${inputAmount} SOL to YOT using real blockchain data...`);
+        
+        // Get real-time estimate from the blockchain
+        const realTimeEstimate = await getMultiHubSwapEstimate(sol, yot, inputAmount);
+        
+        if (realTimeEstimate && realTimeEstimate.estimatedAmount) {
+          console.log(`Real-time blockchain data: ${inputAmount} SOL = ${realTimeEstimate.estimatedAmount.toFixed(2)} YOT`);
+          
+          // If user hasn't entered their own amount or there's no existing estimate, update the UI
+          if (!swapEstimate || (!amount || parseFloat(amount) <= 0)) {
+            setEstimatedAmount(realTimeEstimate.estimatedAmount);
+            setSwapEstimate(realTimeEstimate);
+          }
+        } else {
+          console.error("Failed to get valid estimate from blockchain");
+        }
+      } catch (error) {
+        console.error("Error fetching real-time blockchain rates:", error);
       }
     };
     
-    generateDemoRouteInfo();
-  }, [amount, swapEstimate]);
+    // Execute immediately
+    generateAccurateRouteInfo();
+    
+    // Then set up an interval to refresh every 10 seconds if the user isn't actively trading
+    const refreshInterval = setInterval(() => {
+      if (!amount || parseFloat(amount) <= 0) {
+        generateAccurateRouteInfo();
+      }
+    }, 10000);
+    
+    // Clean up interval on unmount
+    return () => clearInterval(refreshInterval);
+  }, [defaultTokens]);
   
   const handleSwapClick = async () => {
     if (!walletConnected) {
