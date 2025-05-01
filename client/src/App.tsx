@@ -20,11 +20,14 @@ import MultiHubSwapPage from "@/pages/MultiHubSwapPage";
 import Analytics from "@/pages/Analytics";
 import WalletPage from "@/pages/WalletPage";
 import SettingsPage from "@/pages/SettingsPage";
+import AffiliatePage from "@/pages/AffiliatePage";
+import LandingPage from "@/pages/LandingPage";
 import Home from "@/pages/Home"; // Keep for compatibility with existing routes
 
 // Routes that should use the dashboard layout
 const dashboardRoutes = [
   '/',
+  '/dashboard',
   '/swap',
   '/multi-hub-swap',
   '/stake',
@@ -34,7 +37,9 @@ const dashboardRoutes = [
   '/analytics',
   '/wallet',
   '/admin',
-  '/settings'
+  '/settings',
+  '/affiliate',
+  '/memes'
 ];
 
 function Router() {
@@ -111,6 +116,17 @@ function Router() {
           </DashboardLayout>
         </Route>
         
+        <Route path="/affiliate">
+          <DashboardLayout>
+            <AffiliatePage />
+          </DashboardLayout>
+        </Route>
+        
+        {/* Landing page as root, with dashboard accessible via /dashboard */}
+        <Route path="/landing">
+          <LandingPage />
+        </Route>
+
         {/* Legacy routes without dashboard layout */}
         <Route path="/home">
           <Home />
