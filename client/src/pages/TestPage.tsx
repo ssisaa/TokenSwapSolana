@@ -5,7 +5,6 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 
 export default function TestPage() {
   return (
-    <DashboardLayout>
       <div className="container mx-auto py-6">
         <h1 className="text-2xl font-bold mb-6">Token Display Testing</h1>
         
@@ -61,6 +60,5 @@ export default function TestPage() {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
   );
 }

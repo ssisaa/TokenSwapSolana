@@ -51,7 +51,6 @@ export default function TokenTestingPage() {
   };
 
   return (
-    <DashboardLayout>
       <div className="flex flex-col space-y-8 p-8">
         <div>
           <h2 className="text-3xl font-bold">Token Testing Tools</h2>
@@ -130,6 +129,5 @@ export default function TokenTestingPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </DashboardLayout>
   );
 }
