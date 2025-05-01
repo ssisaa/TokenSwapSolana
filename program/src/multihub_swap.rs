@@ -851,7 +851,7 @@ fn process_claim_rewards(
     )?;
 
     // Get authority seeds for signing
-    let (authority_key, authority_bump) = Pubkey::find_program_address(&[b"authority"], program_id);
+    let (_authority_key, authority_bump) = Pubkey::find_program_address(&[b"authority"], program_id);
     let authority_seeds = &[b"authority".as_ref(), &[authority_bump]];
 
     // Execute transfer with PDA as signer
@@ -951,7 +951,7 @@ fn process_claim_yield_rewards(
     )?;
 
     // Get authority seeds for signing
-    let (authority_key, authority_bump) = Pubkey::find_program_address(&[b"authority"], program_id);
+    let (_authority_key, authority_bump) = Pubkey::find_program_address(&[b"authority"], program_id);
     let authority_seeds = &[b"authority".as_ref(), &[authority_bump]];
 
     // Execute transfer with PDA as signer
@@ -1098,7 +1098,7 @@ fn process_unstake_lp_tokens(
     )?;
     
     // Get authority seeds for signing
-    let (authority_key, authority_bump) = Pubkey::find_program_address(&[b"authority"], program_id);
+    let (_authority_key, authority_bump) = Pubkey::find_program_address(&[b"authority"], program_id);
     let authority_seeds = &[b"authority".as_ref(), &[authority_bump]];
     
     invoke_signed(
