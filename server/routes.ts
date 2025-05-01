@@ -13,6 +13,7 @@ import {
   getAccount, 
   getAssociatedTokenAddress
 } from "@solana/spl-token";
+import { WebSocketServer, WebSocket } from 'ws';
 
 // Constants
 const CLUSTER = 'devnet';
@@ -561,5 +562,156 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+  
+  // Set up WebSocket server
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  // Client connections map
+  const clients = new Map<WebSocket, { id: string, subscriptions: string[] }>();
+  
+  // Connection event
+  wss.on('connection', (ws) => {
+    const clientId = Math.random().toString(36).substring(2, 10);
+    clients.set(ws, { id: clientId, subscriptions: [] });
+    
+    console.log(`WebSocket client connected: ${clientId}`);
+    
+    // Send initial connection confirmation
+    ws.send(JSON.stringify({
+      type: 'connection',
+      status: 'connected',
+      clientId
+    }));
+    
+    // Message handling
+    ws.on('message', (message) => {
+      try {
+        const data = JSON.parse(message.toString());
+        
+        // Handle subscription requests
+        if (data.type === 'subscribe') {
+          const clientInfo = clients.get(ws);
+          if (clientInfo && data.channel) {
+            clientInfo.subscriptions.push(data.channel);
+            clients.set(ws, clientInfo);
+            
+            // Confirm subscription
+            ws.send(JSON.stringify({
+              type: 'subscription',
+              status: 'subscribed',
+              channel: data.channel
+            }));
+            
+            // If subscribing to pool updates, send initial data
+            if (data.channel === 'pool_updates') {
+              sendPoolData(ws);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('WebSocket message error:', error);
+        ws.send(JSON.stringify({
+          type: 'error',
+          message: 'Invalid message format'
+        }));
+      }
+    });
+    
+    // Handle disconnection
+    ws.on('close', () => {
+      const clientInfo = clients.get(ws);
+      if (clientInfo) {
+        console.log(`WebSocket client disconnected: ${clientInfo.id}`);
+        clients.delete(ws);
+      }
+    });
+  });
+  
+  // Set up periodic pool data updates
+  let lastPoolData: any = null;
+  
+  async function sendPoolData(client?: WebSocket) {
+    try {
+      const poolSolAccount = new PublicKey(POOL_SOL_ACCOUNT);
+      const solBalance = await connection.getBalance(poolSolAccount);
+      
+      const poolAuthority = new PublicKey(POOL_AUTHORITY);
+      const yotTokenMint = new PublicKey(YOT_TOKEN_ADDRESS);
+      
+      const yotTokenAccount = await getAssociatedTokenAddress(
+        yotTokenMint,
+        poolAuthority
+      );
+      
+      let yotBalance = 0;
+      try {
+        const tokenAccountInfo = await getAccount(connection, yotTokenAccount);
+        const mintInfo = await getMint(connection, yotTokenMint);
+        yotBalance = Number(tokenAccountInfo.amount) / Math.pow(10, mintInfo.decimals);
+      } catch (error) {
+        console.error('Error getting YOT balance:', error);
+      }
+      
+      // Get YOS balance for the pool
+      const yosTokenMint = new PublicKey(YOS_TOKEN_ADDRESS);
+      const yosTokenAccount = await getAssociatedTokenAddress(
+        yosTokenMint,
+        poolAuthority
+      );
+      
+      let yosBalance = 0;
+      try {
+        const tokenAccountInfo = await getAccount(connection, yosTokenAccount);
+        const mintInfo = await getMint(connection, yosTokenMint);
+        yosBalance = Number(tokenAccountInfo.amount) / Math.pow(10, mintInfo.decimals);
+      } catch (error) {
+        // If account doesn't exist, balance remains 0
+      }
+      
+      // Calculate approximate USD value (mock price for now)
+      const solPrice = 148.35; // Current SOL price in USD
+      const solValue = (solBalance / LAMPORTS_PER_SOL) * solPrice;
+      const totalValue = solValue + (yotBalance * 0.01); // YOT price estimate
+      
+      const poolData = {
+        sol: solBalance / LAMPORTS_PER_SOL,
+        yot: yotBalance,
+        yos: yosBalance,
+        totalValue,
+        timestamp: Date.now()
+      };
+      
+      // Check if data has changed before broadcasting
+      if (JSON.stringify(poolData) !== JSON.stringify(lastPoolData)) {
+        lastPoolData = poolData;
+        
+        const message = JSON.stringify({
+          type: 'pool_update',
+          data: poolData
+        });
+        
+        // Send to specific client if provided, otherwise broadcast
+        if (client && client.readyState === WebSocket.OPEN) {
+          client.send(message);
+        } else {
+          // Broadcast to all subscribed clients
+          for (const [client, info] of clients.entries()) {
+            if (
+              client.readyState === WebSocket.OPEN && 
+              info.subscriptions.includes('pool_updates')
+            ) {
+              client.send(message);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching pool data for WebSocket:', error);
+    }
+  }
+  
+  // Poll for pool updates every 5 seconds
+  setInterval(sendPoolData, 5000);
+  
   return httpServer;
 }
