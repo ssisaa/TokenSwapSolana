@@ -1,0 +1,27 @@
+Simulation logs: 
+(3) ['Program 3cXKNjtRv8b1HVYU6vRDvmoSMHfXrWATCLFY2Y5wTsps invoke [1]', 'Program 3cXKNjtRv8b1HVYU6vRDvmoSMHfXrWATCLFY2Y5wTsps consumed 2419 of 200000 compute units', 'Program 3cXKNjtRv8b1HVYU6vRDvmoSMHfXrWATCLFY2Y5wTsps failed: custom program error: 0x0']
+multihub-swap-helper.ts:354 Transaction confirmed but has error: 
+{InstructionError: Array(2)}
+executeSwap	@	multihub-swap-helper.ts:354
+multihub-swap-helper.ts:363 Transaction logs: 
+(7) ['Program ComputeBudget111111111111111111111111111111 invoke [1]', 'Program ComputeBudget111111111111111111111111111111 success', 'Program ComputeBudget111111111111111111111111111111 invoke [1]', 'Program ComputeBudget111111111111111111111111111111 success', 'Program 3cXKNjtRv8b1HVYU6vRDvmoSMHfXrWATCLFY2Y5wTsps invoke [1]', 'Program 3cXKNjtRv8b1HVYU6vRDvmoSMHfXrWATCLFY2Y5wTsps consumed 2419 of 199700 compute units', 'Program 3cXKNjtRv8b1HVYU6vRDvmoSMHfXrWATCLFY2Y5wTsps failed: custom program error: 0x0']
+multihub-swap-helper.ts:378 Error sending transaction: Error: Transaction confirmed but failed: {"InstructionError":[2,{"Custom":0}]}
+    at MultihubSwapClient.executeSwap (multihub-swap-helper.ts:366:17)
+    at async executeMultiHubSwap (multihub-swap-helper.ts:443:20)
+    at async handleExecuteSwap (CashbackSwapPage.tsx:89:22)
+executeSwap	@	multihub-swap-helper.ts:378
+multihub-swap-helper.ts:412 Transaction failed: Error: Transaction error: Transaction confirmed but failed: {"InstructionError":[2,{"Custom":0}]}
+    at MultihubSwapClient.executeSwap (multihub-swap-helper.ts:408:17)
+    at async executeMultiHubSwap (multihub-swap-helper.ts:443:20)
+    at async handleExecuteSwap (CashbackSwapPage.tsx:89:22)
+executeSwap	@	multihub-swap-helper.ts:412
+multihub-swap-helper.ts:453 Error executing multi-hub swap: Error: Swap failed: Transaction error: Transaction confirmed but failed: {"InstructionError":[2,{"Custom":0}]}
+    at MultihubSwapClient.executeSwap (multihub-swap-helper.ts:422:15)
+    at async executeMultiHubSwap (multihub-swap-helper.ts:443:20)
+    at async handleExecuteSwap (CashbackSwapPage.tsx:89:22)
+executeMultiHubSwap	@	multihub-swap-helper.ts:453
+CashbackSwapPage.tsx:105 Swap failed: Error: Swap failed: Transaction error: Transaction confirmed but failed: {"InstructionError":[2,{"Custom":0}]}
+    at MultihubSwapClient.executeSwap (multihub-swap-helper.ts:422:15)
+    at async executeMultiHubSwap (multihub-swap-helper.ts:443:20)
+    at async handleExecuteSwap (CashbackSwapPage.tsx:89:22)
+handleExecuteSwap	@	CashbackSwapPage.tsx:105

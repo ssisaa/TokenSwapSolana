@@ -110,32 +110,65 @@ class MultihubSwapClient implements SwapProvider {
         // Note that the token mints are not part of the instruction data,
         // they should be passed as account parameters instead
         
-        // Create the instruction data buffer with just what's needed
-        // Different Rust programs serialize instructions in different ways
-        // The program may be using anchor which has a specific format
+        // Create the instruction data buffer with all required fields
+        // Looking at the Rust code, SwapToken expects:
+        // - amount_in (u64)
+        // - minimum_amount_out (u64)
+        // - input_token_mint (Pubkey - 32 bytes)
+        // - output_token_mint (Pubkey - 32 bytes)
+        // - referrer (Option<Pubkey> - 1 + 32 bytes)
         
-        // Let's try a simpler approach: a single byte tag (0 for Initialize, 1 for SwapToken)
-        // followed by arguments in a format the program expects
+        // Calculate total buffer size (1 byte tag + two u64s + two Pubkeys + Option<Pubkey>)
+        // 1 + 8 + 8 + 32 + 32 + 1 + (32 optional) = 82 or 114 bytes
+        const hasReferrer = false; // We don't have referrer functionality yet
+        const bufferSize = 1 + 8 + 8 + 32 + 32 + 1 + (hasReferrer ? 32 : 0);
+        const instructionData = Buffer.alloc(bufferSize);
         
-        // Create a buffer for SwapToken instruction (tag 1)
-        // Add 1 byte for tag, plus 8 bytes each for the two u64 values
-        const instructionData = Buffer.alloc(1 + 8 + 8); // Total = 17 bytes
+        let offset = 0;
         
-        // Write instruction tag (1 = SwapToken) - this is how Anchor serializes the tag
-        instructionData.writeUInt8(1, 0); 
+        // Write instruction tag (1 = SwapToken)
+        instructionData.writeUInt8(1, offset);
+        offset += 1;
         
-        // Write amount_in as a u64 (8 bytes in little-endian format)
+        // Write amount_in as u64 (8 bytes in little-endian format)
         const amountRaw = Math.floor(amount * Math.pow(10, fromToken.decimals));
         const amountBigInt = BigInt(amountRaw);
         for (let i = 0; i < 8; i++) {
-          instructionData[i + 1] = Number((amountBigInt >> BigInt(i * 8)) & BigInt(0xFF));
+          instructionData[offset + i] = Number((amountBigInt >> BigInt(i * 8)) & BigInt(0xFF));
         }
+        offset += 8;
         
-        // Write minimum_amount_out as a u64 (8 bytes in little-endian format)
+        // Write minimum_amount_out as u64 (8 bytes in little-endian format)
         const minAmountOutRaw = Math.floor(minAmountOut * Math.pow(10, toToken.decimals));
         const minAmountOutBigInt = BigInt(minAmountOutRaw);
         for (let i = 0; i < 8; i++) {
-          instructionData[i + 9] = Number((minAmountOutBigInt >> BigInt(i * 8)) & BigInt(0xFF));
+          instructionData[offset + i] = Number((minAmountOutBigInt >> BigInt(i * 8)) & BigInt(0xFF));
+        }
+        offset += 8;
+        
+        // Write input_token_mint (Pubkey - 32 bytes)
+        const inputTokenBuffer = fromTokenMint.toBuffer();
+        inputTokenBuffer.copy(instructionData, offset);
+        offset += 32;
+        
+        // Write output_token_mint (Pubkey - 32 bytes)
+        const outputTokenBuffer = toTokenMint.toBuffer();
+        outputTokenBuffer.copy(instructionData, offset);
+        offset += 32;
+        
+        // Write referrer as Option<Pubkey>
+        if (hasReferrer) {
+          // Option<T> in Rust serializes as 1 byte (1 for Some, 0 for None) followed by T if Some
+          instructionData.writeUInt8(1, offset); // Some
+          offset += 1;
+          
+          // Write referrer Pubkey (not implemented, using wallet key as placeholder)
+          const referrerBuffer = wallet.publicKey.toBuffer();
+          referrerBuffer.copy(instructionData, offset);
+          // offset += 32; // No need to increment offset further as we're done
+        } else {
+          instructionData.writeUInt8(0, offset); // None
+          // offset += 1; // No need to increment offset further as we're done
         }
         
         console.log(`Instruction data created: Swap ${amountRaw} units of ${fromToken.symbol} for min ${minAmountOutRaw} units of ${toToken.symbol}`);
