@@ -26,12 +26,27 @@ export function LivePoolStats() {
       if (response.ok) {
         const data = await response.json();
         // Transform to match PoolData interface
+        // Calculate pool value based on real AMM formula: liquidity = sqrt(solAmount * yotAmount)
+        const solAmount = data.solBalance || 0;
+        const yotAmount = data.yotBalance || 0;
+        
+        // Price calculation based on AMM constant product formula
+        // For SOL-YOT pool, price of YOT in SOL = solAmount / yotAmount
+        // Convert to USD using SOL price of $148.35
+        const yotPriceInSol = yotAmount > 0 ? solAmount / yotAmount : 0;
+        const yotPriceInUsd = yotPriceInSol * 148.35;
+        
+        // Total value calculation using AMM invariant
+        // The value of a liquidity pool typically is 2× the value of one asset side
+        const poolValueInSol = 2 * solAmount;
+        const poolValueInUsd = poolValueInSol * 148.35;
+        
         const poolData: PoolData = {
-          sol: data.solBalance || 0,
-          yot: data.yotBalance || 0,
-          yos: data.yosBalance || 0,
-          // Calculate a realistic pool value - SOL price of $148.35 and a much smaller YOT price
-          totalValue: (data.solBalance * 148.35) + ((data.yotBalance || 0) * 0.0001),
+          sol: solAmount,
+          yot: yotAmount,
+          yos: 0, // YOS balance will be tracked in future when available
+          // Total value in USD based on AMM calculation
+          totalValue: poolValueInUsd,
           timestamp: Date.now()
         };
         setFallbackData(poolData);
@@ -169,12 +184,15 @@ export function LivePoolStats() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">YOS Balance</span>
-                  <span className="text-sm font-medium flex items-center">
-                    {formatNumber((poolData || fallbackData)!.yos, 6)} YOS
-                    {renderChangeIndicator(changes.yos)}
-                  </span>
+                  <div className="flex items-center">
+                    <span className="text-sm font-medium">Not Available Yet</span>
+                    <Badge variant="outline" className="ml-2 text-xs">Coming Soon</Badge>
+                  </div>
                 </div>
-                <Progress value={(poolData || fallbackData) ? Math.min(((poolData || fallbackData)!.yos / 1_000_000) * 100, 100) : 0} />
+                <div className="flex items-center space-x-2">
+                  <Progress value={0} className="flex-1" />
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">0.000000 YOS</span>
+                </div>
               </div>
 
               {/* Total Value */}
