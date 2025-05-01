@@ -167,7 +167,6 @@ export default function Liquidity() {
   }, [fetchPoolData]);
 
   return (
-    <DashboardLayout title="Liquidity">
       <div className="max-w-6xl mx-auto">
         {/* Liquidity Pool Overview */}
         <Card className="bg-dark-200 border-dark-400 p-6 mb-8">
@@ -519,6 +518,5 @@ export default function Liquidity() {
           </div>
         </Card>
       </div>
-    </DashboardLayout>
   );
 }
