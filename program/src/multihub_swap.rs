@@ -6,18 +6,12 @@ use solana_program::{
     msg,
     program::{invoke, invoke_signed},
     program_error::ProgramError,
-    program_pack::{IsInitialized, Pack},
+    program_pack::IsInitialized,
     pubkey::Pubkey,
-    system_instruction,
-    sysvar::{rent::Rent, Sysvar},
+    sysvar::Sysvar,
 };
 use borsh::{BorshDeserialize, BorshSerialize};
-use spl_token::{
-    id as token_program_id,
-    instruction as token_instruction,
-    state::{Account as TokenAccount, Mint},
-};
-use std::convert::TryInto;
+use spl_token::instruction as token_instruction;
 
 // Program ID: Must match the ID in Cargo.toml
 solana_program::declare_id!("3cXKNjtRv8b1HVYU6vRDvmoSMHfXrWATCLFY2Y5wTsps");

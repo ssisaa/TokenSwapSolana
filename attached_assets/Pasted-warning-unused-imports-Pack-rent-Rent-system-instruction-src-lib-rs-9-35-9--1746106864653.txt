@@ -1,0 +1,311 @@
+warning: unused imports: `Pack`, `rent::Rent`, `system_instruction`
+  --> src/lib.rs:9:35
+   |
+9  |     program_pack::{IsInitialized, Pack},
+   |                                   ^^^^
+10 |     pubkey::Pubkey,
+11 |     system_instruction,
+   |     ^^^^^^^^^^^^^^^^^^
+12 |     sysvar::{rent::Rent, Sysvar},
+   |              ^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+ 
+warning: unused imports: `Account as TokenAccount`, `Mint`, `id as token_program_id`
+  --> src/lib.rs:16:5
+   |
+16 |     id as token_program_id,
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+17 |     instruction as token_instruction,
+18 |     state::{Account as TokenAccount, Mint},
+   |             ^^^^^^^^^^^^^^^^^^^^^^^  ^^^^
+ 
+warning: unused import: `std::convert::TryInto`
+  --> src/lib.rs:20:5
+   |
+20 | use std::convert::TryInto;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+ 
+warning: unnecessary parentheses around `if` condition
+    --> src/lib.rs:1295:8
+     |
+1295 |     if (!is_input_sol && !is_output_sol && !is_input_yot && !is_output_yot) {
+     |        ^                                                                  ^
+     |
+     = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+     |
+1295 -     if (!is_input_sol && !is_output_sol && !is_input_yot && !is_output_yot) {
+1295 +     if !is_input_sol && !is_output_sol && !is_input_yot && !is_output_yot {
+     |
+ 
+warning: unnecessary parentheses around `if` condition
+    --> src/lib.rs:1301:8
+     |
+1301 |     if ((is_input_sol && !is_output_yot) || (is_output_sol && !is_input_yot)) {
+     |        ^                                                                    ^
+     |
+help: remove these parentheses
+     |
+1301 -     if ((is_input_sol && !is_output_yot) || (is_output_sol && !is_input_yot)) {
+1301 +     if (is_input_sol && !is_output_yot) || (is_output_sol && !is_input_yot) {
+     |
+ 
+warning: unnecessary parentheses around `if` condition
+    --> src/lib.rs:1306:8
+     |
+1306 |     if ((is_input_yot && !is_output_sol) || (is_output_yot && !is_input_sol)) {
+     |        ^                                                                    ^
+     |
+help: remove these parentheses
+     |
+1306 -     if ((is_input_yot && !is_output_sol) || (is_output_yot && !is_input_sol)) {
+1306 +     if (is_input_yot && !is_output_sol) || (is_output_yot && !is_input_sol) {
+     |
+ 
+warning: unused variable: `rent_account`
+   --> src/lib.rs:470:9
+    |
+470 |     let rent_account = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_rent_account`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+ 
+warning: unused variable: `user_input_token_account`
+   --> src/lib.rs:534:9
+    |
+534 |     let user_input_token_account = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_user_input_token_account`
+ 
+warning: unused variable: `user_output_token_account`
+   --> src/lib.rs:535:9
+    |
+535 |     let user_output_token_account = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_user_output_token_account`
+ 
+warning: unused variable: `user_yos_token_account`
+   --> src/lib.rs:536:9
+    |
+536 |     let user_yos_token_account = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_user_yos_token_account`
+ 
+warning: unused variable: `sol_yot_pool_account`
+   --> src/lib.rs:538:9
+    |
+538 |     let sol_yot_pool_account = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_sol_yot_pool_account`
+ 
+warning: unused variable: `admin_fee_account`
+   --> src/lib.rs:539:9
+    |
+539 |     let admin_fee_account = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_admin_fee_account`
+ 
+warning: unused variable: `token_program`
+   --> src/lib.rs:540:9
+    |
+540 |     let token_program = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_token_program`
+ 
+warning: unused variable: `referrer_account`
+   --> src/lib.rs:543:9
+    |
+543 |     let referrer_account = if referrer.is_some() && !matches!(accounts.get(8), None) {
+    |         ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_referrer_account`
+ 
+warning: unused variable: `user_rewards_pda`
+   --> src/lib.rs:564:10
+    |
+564 |     let (user_rewards_pda, user_rewards_bump) = Pubkey::find_program_address(
+    |          ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_user_rewards_pda`
+ 
+warning: unused variable: `user_rewards_bump`
+   --> src/lib.rs:564:28
+    |
+564 |     let (user_rewards_pda, user_rewards_bump) = Pubkey::find_program_address(
+    |                            ^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_user_rewards_bump`
+ 
+warning: unused variable: `actual_swap_amount`
+   --> src/lib.rs:643:9
+    |
+643 |     let actual_swap_amount = amount_in
+    |         ^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_actual_swap_amount`
+ 
+warning: unused variable: `user_token_a_account`
+   --> src/lib.rs:691:9
+    |
+691 |     let user_token_a_account = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_user_token_a_account`
+ 
+warning: unused variable: `user_token_b_account`
+   --> src/lib.rs:692:9
+    |
+692 |     let user_token_b_account = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_user_token_b_account`
+ 
+warning: unused variable: `user_lp_token_account`
+   --> src/lib.rs:693:9
+    |
+693 |     let user_lp_token_account = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_user_lp_token_account`
+ 
+warning: unused variable: `pool_token_a_account`
+   --> src/lib.rs:694:9
+    |
+694 |     let pool_token_a_account = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_pool_token_a_account`
+ 
+warning: unused variable: `pool_token_b_account`
+   --> src/lib.rs:695:9
+    |
+695 |     let pool_token_b_account = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_pool_token_b_account`
+ 
+warning: unused variable: `lp_token_mint`
+   --> src/lib.rs:696:9
+    |
+696 |     let lp_token_mint = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_lp_token_mint`
+ 
+warning: unused variable: `token_program`
+   --> src/lib.rs:698:9
+    |
+698 |     let token_program = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_token_program`
+ 
+warning: unused variable: `program_authority`
+   --> src/lib.rs:699:9
+    |
+699 |     let program_authority = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_program_authority`
+ 
+warning: unused variable: `program_id`
+   --> src/lib.rs:681:5
+    |
+681 |     program_id: &Pubkey,
+    |     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_program_id`
+ 
+warning: unused variable: `user_lp_token_account`
+   --> src/lib.rs:756:9
+    |
+756 |     let user_lp_token_account = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_user_lp_token_account`
+ 
+warning: unused variable: `user_token_a_account`
+   --> src/lib.rs:757:9
+    |
+757 |     let user_token_a_account = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_user_token_a_account`
+ 
+warning: unused variable: `user_token_b_account`
+   --> src/lib.rs:758:9
+    |
+758 |     let user_token_b_account = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_user_token_b_account`
+ 
+warning: unused variable: `pool_token_a_account`
+   --> src/lib.rs:759:9
+    |
+759 |     let pool_token_a_account = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_pool_token_a_account`
+ 
+warning: unused variable: `pool_token_b_account`
+   --> src/lib.rs:760:9
+    |
+760 |     let pool_token_b_account = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_pool_token_b_account`
+ 
+warning: unused variable: `lp_token_mint`
+   --> src/lib.rs:761:9
+    |
+761 |     let lp_token_mint = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_lp_token_mint`
+ 
+warning: unused variable: `token_program`
+   --> src/lib.rs:763:9
+    |
+763 |     let token_program = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_token_program`
+ 
+warning: unused variable: `program_authority`
+   --> src/lib.rs:764:9
+    |
+764 |     let program_authority = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_program_authority`
+ 
+warning: unused variable: `program_id`
+   --> src/lib.rs:746:5
+    |
+746 |     program_id: &Pubkey,
+    |     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_program_id`
+ 
+warning: unused variable: `authority_key`
+   --> src/lib.rs:860:10
+    |
+860 |     let (authority_key, authority_bump) = Pubkey::find_program_address(&[b"authority"], program_id);
+    |          ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_authority_key`
+ 
+warning: unused variable: `clock_sysvar`
+   --> src/lib.rs:903:9
+    |
+903 |     let clock_sysvar = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_clock_sysvar`
+ 
+warning: unused variable: `authority_key`
+   --> src/lib.rs:960:10
+    |
+960 |     let (authority_key, authority_bump) = Pubkey::find_program_address(&[b"authority"], program_id);
+    |          ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_authority_key`
+ 
+warning: unused variable: `clock_sysvar`
+    --> src/lib.rs:1001:9
+     |
+1001 |     let clock_sysvar = next_account_info(account_info_iter)?;
+     |         ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_clock_sysvar`
+ 
+warning: unused variable: `program_id`
+   --> src/lib.rs:989:5
+    |
+989 |     program_id: &Pubkey,
+    |     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_program_id`
+ 
+warning: unused variable: `clock_sysvar`
+    --> src/lib.rs:1076:9
+     |
+1076 |     let clock_sysvar = next_account_info(account_info_iter)?;
+     |         ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_clock_sysvar`
+ 
+warning: unused variable: `authority_key`
+    --> src/lib.rs:1107:10
+     |
+1107 |     let (authority_key, authority_bump) = Pubkey::find_program_address(&[b"authority"], program_id);
+     |          ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_authority_key`
+ 
+warning: unused variable: `rent_sysvar`
+    --> src/lib.rs:1142:9
+     |
+1142 |     let rent_sysvar = next_account_info(account_info_iter)?;
+     |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_rent_sysvar`
+ 
+warning: unused variable: `program_id`
+    --> src/lib.rs:1134:5
+     |
+1134 |     program_id: &Pubkey,
+     |     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_program_id`
+ 
+warning: unused variable: `program_id`
+    --> src/lib.rs:1168:5
+     |
+1168 |     program_id: &Pubkey,
+     |     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_program_id`
+ 
+warning: unused variable: `program_id`
+    --> src/lib.rs:1240:5
+     |
+1240 |     program_id: &Pubkey,
+     |     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_program_id`
+ 
+warning: `stake` (lib) generated 46 warnings (run `cargo fix --lib -p stake` to apply 46 suggestions)
+Build successful. Completed in 8.37s.
+
+$ 
