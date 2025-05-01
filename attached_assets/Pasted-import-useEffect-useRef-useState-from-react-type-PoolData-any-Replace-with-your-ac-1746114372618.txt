@@ -1,0 +1,94 @@
+import { useEffect, useRef, useState } from 'react';
+
+type PoolData = any; // Replace with your actual pool data structure
+
+export function usePoolData() {
+  const [poolData, setPoolData] = useState<PoolData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+
+  const cacheRef = useRef<{ data: PoolData | null; timestamp: number }>({
+    data: null,
+    timestamp: 0,
+  });
+
+  const socketRef = useRef<WebSocket | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+
+  // Fetch from REST endpoint with cache + retry
+  const fetchPoolData = async () => {
+    const now = Date.now();
+    if (now - cacheRef.current.timestamp < 10000 && cacheRef.current.data) {
+      console.log('Using cached pool data');
+      setPoolData(cacheRef.current.data);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/pool');
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const data = await response.json();
+      cacheRef.current = { data, timestamp: now };
+      setPoolData(data);
+      setError(null);
+    } catch (err: any) {
+      console.error('Fetch error:', err);
+      setError(err.message || 'Failed to fetch pool data');
+    }
+  };
+
+  // Setup and manage WebSocket connection
+  const connectWebSocket = () => {
+    if (socketRef.current) return;
+
+    console.log('Connecting to WebSocket...');
+    const ws = new WebSocket('wss://your-backend/ws');
+    socketRef.current = ws;
+
+    ws.onopen = () => {
+      console.log('✅ WebSocket connected');
+      setIsConnected(true);
+      reconnectAttemptsRef.current = 0;
+    };
+
+    ws.onmessage = (event) => {
+      console.log('🔁 WebSocket update received');
+      try {
+        const data = JSON.parse(event.data);
+        setPoolData(data);
+        cacheRef.current = { data, timestamp: Date.now() };
+      } catch (err) {
+        console.warn('Invalid WebSocket message', err);
+      }
+    };
+
+    ws.onerror = (event) => {
+      console.error('❌ WebSocket error', event);
+    };
+
+    ws.onclose = () => {
+      console.warn('🔌 WebSocket closed (Code 1006 likely)');
+      setIsConnected(false);
+      socketRef.current = null;
+
+      if (reconnectAttemptsRef.current < 5) {
+        setTimeout(connectWebSocket, 1000 * Math.pow(2, reconnectAttemptsRef.current));
+        reconnectAttemptsRef.current++;
+      }
+    };
+  };
+
+  useEffect(() => {
+    fetchPoolData(); // Initial fetch
+    connectWebSocket(); // Start WebSocket
+
+    const interval = setInterval(fetchPoolData, 30000); // fallback polling every 30s
+    return () => {
+      clearInterval(interval);
+      socketRef.current?.close();
+    };
+  }, []);
+
+  return { poolData, error, isConnected };
+}

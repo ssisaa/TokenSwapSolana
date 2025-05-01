@@ -829,19 +829,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let yotBalance = 0;
       let yosBalance = 0;
       
+      // Get a connection from the connection manager
+      const conn = getConnection();
+      
       // Step 1: Get SOL balance with retry mechanism
       try {
         const poolSolAccount = new PublicKey(POOL_SOL_ACCOUNT);
-        solBalance = await connection.getBalance(poolSolAccount);
+        solBalance = await conn.getBalance(poolSolAccount);
         console.log(`Fetched SOL balance: ${solBalance / LAMPORTS_PER_SOL} SOL`);
       } catch (solError) {
         console.error('Error fetching SOL balance, will try one more time:', solError);
         
-        // Retry once after small delay
+        // Retry once after small delay with a fresh connection
         try {
           await new Promise(resolve => setTimeout(resolve, 500));
+          const freshConn = getConnection();
           const poolSolAccount = new PublicKey(POOL_SOL_ACCOUNT);
-          solBalance = await connection.getBalance(poolSolAccount);
+          solBalance = await freshConn.getBalance(poolSolAccount);
           console.log(`Retry successful, fetched SOL balance: ${solBalance / LAMPORTS_PER_SOL} SOL`);
         } catch (retryError) {
           console.error('Retry failed to fetch SOL balance:', retryError);
@@ -858,8 +862,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           poolAuthority
         );
         
-        const tokenAccountInfo = await getAccount(connection, yotTokenAccount);
-        const mintInfo = await getMint(connection, yotTokenMint);
+        const tokenAccountInfo = await getAccount(conn, yotTokenAccount);
+        const mintInfo = await getMint(conn, yotTokenMint);
         yotBalance = Number(tokenAccountInfo.amount) / Math.pow(10, mintInfo.decimals);
         console.log(`Fetched YOT balance: ${yotBalance} YOT`);
       } catch (yotError) {
@@ -876,8 +880,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           poolAuthority
         );
         
-        const tokenAccountInfo = await getAccount(connection, yosTokenAccount);
-        const mintInfo = await getMint(connection, yosTokenMint);
+        const tokenAccountInfo = await getAccount(conn, yosTokenAccount);
+        const mintInfo = await getMint(conn, yosTokenMint);
         yosBalance = Number(tokenAccountInfo.amount) / Math.pow(10, mintInfo.decimals);
         console.log(`Fetched YOS balance: ${yosBalance} YOS`);
       } catch (yosError) {

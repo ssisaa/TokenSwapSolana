@@ -109,7 +109,7 @@ export default function MultiHubSwapPage() {
           <SwapTestPanel />
         </div>
         <div className="lg:col-span-1">
-          <LivePoolStats />
+          <LivePoolStatsOptimized />
         </div>
       </div>
       
