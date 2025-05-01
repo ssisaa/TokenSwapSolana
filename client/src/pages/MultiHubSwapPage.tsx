@@ -8,6 +8,7 @@ import { TokenPriceChart } from '@/components/MultiHubSwap/TokenPriceChart';
 import TokenPoolDetails from '@/components/MultiHubSwap/TokenPoolDetails';
 import SwapTestPanel from '@/components/MultiHubSwap/SwapTestPanel';
 import { LivePoolStats } from '@/components/MultiHubSwap/LivePoolStats';
+import LivePoolStatsOptimized from '@/components/MultiHubSwap/LivePoolStatsOptimized';
 import { UserStatsPanel } from '@/components/MultiHubSwap/UserStatsPanel';
 import YOTExchangeCard from '@/components/MultiHubSwap/YOTExchangeCard';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';

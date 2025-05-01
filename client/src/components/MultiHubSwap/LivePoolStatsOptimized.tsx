@@ -28,7 +28,7 @@ const formatNumber = (value: number, decimals = 2): string => {
   }
 };
 
-export function LivePoolStatsOptimized() {
+export default function LivePoolStatsOptimized() {
   const { poolData, error, isConnected, refreshData } = usePoolData();
   const [previousData, setPreviousData] = React.useState<any>(null);
   const [changes, setChanges] = React.useState<{sol: number, yot: number, yos: number}>({
