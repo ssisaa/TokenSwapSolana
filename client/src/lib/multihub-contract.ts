@@ -13,7 +13,7 @@ import {
   getAssociatedTokenAddress,
   getAccount,
 } from '@solana/spl-token';
-import * as borsh from 'borsh';
+import { serialize, deserialize, BinaryReader, BinaryWriter } from 'borsh';
 import { Buffer } from 'buffer';
 import { SwapEstimate, SwapProvider } from './multi-hub-swap';
 import { TokenInfo } from './token-search-api';
@@ -73,19 +73,49 @@ class SwapTokenLayout {
   }
 
   serialize(): Buffer {
-    const dataLayout = borsh.struct([
-      borsh.u8('instruction'),
-      borsh.u64('amount_in'),
-      borsh.u64('minimum_amount_out'),
-      borsh.fixedArray(borsh.u8(), 32, 'input_token_mint'),
-      borsh.fixedArray(borsh.u8(), 32, 'output_token_mint'),
-      borsh.u8('has_referrer'),
-      borsh.option(borsh.fixedArray(borsh.u8(), 32), 'referrer'),
-    ]);
-
+    // Manually serialize the data - more reliable than using borsh layout
     const data = Buffer.alloc(1000); // Allocate enough space
-    const len = dataLayout.encode(this, data);
-    return data.slice(0, len);
+    let offset = 0;
+
+    // Instruction (1 byte)
+    data.writeUInt8(this.instruction, offset);
+    offset += 1;
+
+    // Amount in (8 bytes)
+    this.writeBigUInt64LE(data, this.amount_in, offset);
+    offset += 8;
+
+    // Minimum amount out (8 bytes)
+    this.writeBigUInt64LE(data, this.minimum_amount_out, offset);
+    offset += 8;
+
+    // Input token mint (32 bytes)
+    this.input_token_mint.copy(data, offset);
+    offset += 32;
+
+    // Output token mint (32 bytes)
+    this.output_token_mint.copy(data, offset);
+    offset += 32;
+
+    // Has referrer (1 byte)
+    data.writeUInt8(this.has_referrer, offset);
+    offset += 1;
+
+    // Optional referrer (32 bytes if present)
+    if (this.has_referrer && this.referrer) {
+      this.referrer.copy(data, offset);
+      offset += 32;
+    }
+
+    return data.slice(0, offset);
+  }
+
+  // Helper function to write BigInt as little-endian
+  private writeBigUInt64LE(buffer: Buffer, value: bigint, offset: number): void {
+    const view = new DataView(new ArrayBuffer(8));
+    view.setBigUint64(0, value, true);
+    const tempBuffer = Buffer.from(view.buffer);
+    tempBuffer.copy(buffer, offset);
   }
 }
 
@@ -98,13 +128,10 @@ class ClaimRewardsLayout {
   }
 
   serialize(): Buffer {
-    const dataLayout = borsh.struct([
-      borsh.u8('instruction'),
-    ]);
-
+    // Manually create instruction buffer
     const data = Buffer.alloc(1);
-    const len = dataLayout.encode(this, data);
-    return data.slice(0, len);
+    data.writeUInt8(this.instruction, 0);
+    return data;
   }
 }
 
