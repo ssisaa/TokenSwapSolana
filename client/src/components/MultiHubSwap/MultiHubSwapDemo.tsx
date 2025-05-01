@@ -617,127 +617,84 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
           <div className="bg-[#141c2f] rounded-md p-4 space-y-3 text-sm border border-[#1e2a45]">
             <div className="flex justify-between items-center">
               <span className="text-[#7d8ab1]">Route Provider</span>
-              <div className="flex space-x-1">
-                {[
-                  { id: SwapProvider.Contract, name: 'YOT' },
-                  { id: SwapProvider.Raydium, name: 'Raydium' },
-                  { id: SwapProvider.Jupiter, name: 'Jupiter' }
-                ].map((provider) => (
-                  <button
-                    key={provider.id}
-                    onClick={async () => {
-                      // First directly set the UI state
-                      setRouteProvider(provider.id);
-                      
-                      // Then recalculate the estimate with the chosen provider
+              <ProviderSelector
+                selectedProvider={selectedProvider}
+                currentProvider={routeProvider}
+                onSelectProvider={(provider) => {
+                  setSelectedProvider(provider);
+                  
+                  // If a provider is selected, calculate the estimate with that provider
+                  if (provider !== undefined) {
+                    (async () => {
                       try {
                         setEstimateLoading(true);
                         if (!fromToken || !toToken || !amount || parseFloat(amount) <= 0) return;
                         
                         const parsedAmount = parseFloat(amount);
-                        console.log(`Getting estimate with provider: ${provider.id}`);
+                        console.log(`Getting estimate with provider: ${provider}`);
                         
                         const estimate = await getMultiHubSwapEstimate(
                           fromToken, 
                           toToken, 
                           parsedAmount,
                           slippage / 100, 
-                          provider.id
+                          provider
                         );
                         
                         if (estimate && estimate.estimatedAmount !== undefined) {
                           setEstimatedAmount(estimate.estimatedAmount);
                           setSwapEstimate(estimate);
-                          // Don't override the provider we just set
-                          //setRouteProvider(estimate.provider ?? SwapProvider.Contract);
                         }
                       } catch (error) {
-                        console.error(`Error getting estimate with provider ${provider.id}:`, error);
+                        console.error(`Error getting estimate with provider ${provider}:`, error);
                       } finally {
                         setEstimateLoading(false);
                       }
-                    }}
-                    className={`px-2 py-0.5 text-xs rounded-md ${
-                      routeProvider === provider.id
-                        ? 'bg-gradient-to-r from-primary to-[#7043f9] text-white shadow-sm'
-                        : 'bg-[#1e2a45] text-[#a3accd] hover:bg-[#252f4a]'
-                    }`}
-                  >
-                    {provider.name}
-                  </button>
-                ))}
-              </div>
+                    })();
+                  }
+                }}
+              />
             </div>
             
-            {/* Route Visualization */}
-            {swapEstimate?.routeInfo && swapEstimate.routeInfo.length > 0 && (
-              <div className="py-1 mt-1">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-1">
-                    <span className="text-[#7d8ab1]">Order Routing</span>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger className="cursor-help">
-                          <Info className="h-3 w-3 text-[#7d8ab1]" />
-                        </TooltipTrigger>
-                        <TooltipContent className="bg-[#1e2a45] border-[#2a3553] text-[#a3accd]">
-                          <p className="text-xs w-72">
-                            The exact path your tokens will take through different liquidity pools. 
-                            Multi-hop routing can result in better rates for your swap.
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                </div>
-                
-                {/* Route Steps */}
-                <div className="mt-2 space-y-2">
-                  {swapEstimate.routeInfo.map((route: any, index: number) => (
-                    <div key={index} className="bg-[#1a2338] p-2 rounded border border-[#1e2a45] flex items-center justify-between">
-                      <div className="flex flex-col">
-                        <div className="flex items-center text-[#a3accd]">
-                          <span className="text-xs">{route.label}</span>
-                        </div>
-                        <div className="flex items-center space-x-1 mt-1">
-                          <a 
-                            href={`https://explorer.solana.com/address/${route.ammId}?cluster=devnet`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[10px] text-[#7d8ab1] hover:text-primary"
-                          >
-                            AMM: {route.ammId.substring(0, 8)}...
-                          </a>
-                        </div>
-                      </div>
-                      
-                      <div className="flex flex-col items-end text-xs">
-                        <span className="text-[#a3accd]">{route.marketName}</span>
-                        <div className="flex items-center mt-1">
-                          <a 
-                            href={`https://explorer.solana.com/address/${route.inputMint}?cluster=devnet`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[10px] text-[#7d8ab1] hover:text-primary"
-                          >
-                            In: {route.inputMint.substring(0, 4)}...
-                          </a>
-                          <ArrowRight className="mx-1 h-2 w-2 text-[#7d8ab1]" />
-                          <a 
-                            href={`https://explorer.solana.com/address/${route.outputMint}?cluster=devnet`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[10px] text-[#7d8ab1] hover:text-primary"
-                          >
-                            Out: {route.outputMint.substring(0, 4)}...
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+            {/* Route Display Section */}
+            <div className="py-1 mt-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center space-x-1">
+                  <span className="text-[#7d8ab1]">Order Routing</span>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger className="cursor-help">
+                        <Info className="h-3 w-3 text-[#7d8ab1]" />
+                      </TooltipTrigger>
+                      <TooltipContent className="bg-[#1e2a45] border-[#2a3553] text-[#a3accd]">
+                        <p className="text-xs w-72">
+                          The exact path your tokens will take through different liquidity pools. 
+                          Multi-hop routing can result in better rates for your swap.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               </div>
-            )}
+              
+              {/* Route Display */}
+              {swapEstimate && (
+                <button 
+                  className={`w-full py-1 px-2 rounded-md text-xs font-medium mb-2 ${showRouteInfo ? 'bg-primary/20 text-primary' : 'bg-[#1e2a45] text-[#a3accd]'}`}
+                  onClick={() => setShowRouteInfo(!showRouteInfo)}
+                >
+                  {showRouteInfo ? 'Hide Detailed Route' : 'Show Detailed Route'}
+                </button>
+              )}
+              
+              {swapEstimate && showRouteInfo && (
+                <RouteDisplay 
+                  fromToken={fromToken} 
+                  toToken={toToken} 
+                  swapEstimate={swapEstimate}
+                />
+              )}
+            </div>
             
             <div className="flex justify-between">
               <span className="text-[#7d8ab1]">Estimated Rate</span>
