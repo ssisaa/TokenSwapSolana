@@ -1,0 +1,87 @@
+import {
+  Connection,
+  PublicKey,
+  clusterApiUrl,
+  Commitment,
+} from '@solana/web3.js';
+
+type Cluster = 'mainnet-beta' | 'devnet' | 'testnet';
+
+export class SolanaConnectionManager {
+  private static instance: SolanaConnectionManager;
+  public connection: Connection;
+  private subscriptions: Map<string, number>;
+  private commitment: Commitment;
+  private wsEndpoint: string;
+
+  private constructor(cluster: Cluster, commitment: Commitment = 'confirmed') {
+    this.wsEndpoint = clusterApiUrl(cluster);
+    this.commitment = commitment;
+    this.connection = new Connection(this.wsEndpoint, this.commitment);
+    this.subscriptions = new Map();
+  }
+
+  // Singleton to ensure one connection
+  public static getInstance(cluster: Cluster = 'devnet'): SolanaConnectionManager {
+    if (!SolanaConnectionManager.instance) {
+      SolanaConnectionManager.instance = new SolanaConnectionManager(cluster);
+    }
+    return SolanaConnectionManager.instance;
+  }
+
+  public async subscribeToAccountChanges(
+    publicKey: PublicKey,
+    callback: (info: any) => void
+  ) {
+    const key = publicKey.toBase58();
+
+    if (this.subscriptions.has(key)) {
+      console.log(`Already subscribed to ${key}`);
+      return;
+    }
+
+    try {
+      const listenerId = this.connection.onAccountChange(
+        publicKey,
+        (accountInfo) => {
+          callback(accountInfo);
+        },
+        this.commitment
+      );
+
+      this.subscriptions.set(key, listenerId);
+      console.log(`Subscribed to ${key}`);
+    } catch (err) {
+      console.error(`Error subscribing to ${key}`, err);
+      this.retrySubscribe(publicKey, callback);
+    }
+  }
+
+  private async retrySubscribe(
+    publicKey: PublicKey,
+    callback: (info: any) => void,
+    attempt = 1
+  ) {
+    if (attempt > 5) return;
+    const delay = Math.pow(2, attempt) * 500;
+
+    setTimeout(() => {
+      console.warn(`Retrying subscription to ${publicKey.toBase58()} [Attempt ${attempt}]`);
+      this.subscribeToAccountChanges(publicKey, callback);
+    }, delay);
+  }
+
+  public async unsubscribe(publicKey: PublicKey) {
+    const key = publicKey.toBase58();
+    const id = this.subscriptions.get(key);
+    if (id !== undefined) {
+      await this.connection.removeAccountChangeListener(id);
+      this.subscriptions.delete(key);
+      console.log(`Unsubscribed from ${key}`);
+    }
+  }
+
+  public getConnection(): Connection {
+    return this.connection;
+  }
+}

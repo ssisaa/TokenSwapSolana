@@ -14,32 +14,102 @@ import {
   getAssociatedTokenAddress
 } from "@solana/spl-token";
 import { WebSocketServer, WebSocket } from 'ws';
+import { LRUCache } from "../client/src/lib/lruCache";
 
 // Constants
 const CLUSTER = 'devnet';
-const ENDPOINT = clusterApiUrl(CLUSTER);
+const RPC_ENDPOINTS = [
+  clusterApiUrl(CLUSTER),
+  'https://rpc-devnet.helius.xyz/?api-key=15319bf6-5525-43d0-8cdc-17f54a2c452a',
+  'https://rpc.ankr.com/solana_devnet'
+];
 const YOT_TOKEN_ADDRESS = '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF';
 const YOS_TOKEN_ADDRESS = 'GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n';
 const POOL_AUTHORITY = '7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK';
 const POOL_SOL_ACCOUNT = '7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS';
 
-// Create a connection to the Solana cluster
-const connection = new Connection(ENDPOINT, 'confirmed');
+// Connection manager for Solana RPC
+class SolanaConnectionManager {
+  private static instance: SolanaConnectionManager;
+  private connections: Connection[] = [];
+  private currentIndex = 0;
+  private requestCount = 0;
+  private cache = {
+    poolData: new LRUCache<string, any>(10, 30000), // 30 seconds
+    accountInfo: new LRUCache<string, any>(100, 10000), // 10 seconds
+    tokenAccounts: new LRUCache<string, any>(100, 15000) // 15 seconds
+  };
+  
+  private constructor() {
+    // Initialize connections to all endpoints
+    RPC_ENDPOINTS.forEach(endpoint => {
+      this.connections.push(new Connection(endpoint, 'confirmed'));
+    });
+    
+    // Set up periodic cache cleanup
+    setInterval(() => {
+      this.cache.poolData.cleanup();
+      this.cache.accountInfo.cleanup();
+      this.cache.tokenAccounts.cleanup();
+    }, 60000); // Every minute
+  }
+  
+  public static getInstance(): SolanaConnectionManager {
+    if (!SolanaConnectionManager.instance) {
+      SolanaConnectionManager.instance = new SolanaConnectionManager();
+    }
+    return SolanaConnectionManager.instance;
+  }
+  
+  public getConnection(): Connection {
+    // Basic round-robin with request counting for monitoring
+    this.requestCount++;
+    this.currentIndex = (this.currentIndex + 1) % this.connections.length;
+    return this.connections[this.currentIndex];
+  }
+  
+  public getCache(type: 'poolData' | 'accountInfo' | 'tokenAccounts'): LRUCache<string, any> {
+    return this.cache[type];
+  }
+  
+  public getRequestCount(): number {
+    return this.requestCount;
+  }
+}
+
+// Create a singleton connection manager
+const connectionManager = SolanaConnectionManager.getInstance();
+
+// Get a connection from the manager
+const getConnection = () => connectionManager.getConnection();
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Add HTTP fallback route for pool data
+  // Add HTTP fallback route for pool data with caching
   app.get('/api/pool-data', async (req, res) => {
     try {
+      const cacheKey = 'pool_data';
+      const poolDataCache = connectionManager.getCache('poolData');
+      
+      // Check if we have cached data
+      const cachedData = poolDataCache.get(cacheKey);
+      if (cachedData) {
+        // Return cached data
+        return res.json(cachedData);
+      }
+      
+      // Get a connection from the manager
+      const conn = getConnection();
+      
       // Get SOL balance
-      const solBalance = await connection.getBalance(new PublicKey(POOL_SOL_ACCOUNT)) / LAMPORTS_PER_SOL;
+      const solBalance = await conn.getBalance(new PublicKey(POOL_SOL_ACCOUNT)) / LAMPORTS_PER_SOL;
       
       // Get YOT token account
       const yotTokenAccount = await getAssociatedTokenAddress(
         new PublicKey(YOT_TOKEN_ADDRESS),
         new PublicKey(POOL_AUTHORITY)
       );
-      const yotAccount = await getAccount(connection, yotTokenAccount);
-      const yotMint = await getMint(connection, new PublicKey(YOT_TOKEN_ADDRESS));
+      const yotAccount = await getAccount(conn, yotTokenAccount);
+      const yotMint = await getMint(conn, new PublicKey(YOT_TOKEN_ADDRESS));
       const YOT_DECIMALS = yotMint.decimals;
       const yotBalance = Number(yotAccount.amount) / Math.pow(10, YOT_DECIMALS);
       
@@ -48,23 +118,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         new PublicKey(YOS_TOKEN_ADDRESS),
         new PublicKey(POOL_AUTHORITY)
       );
-      const yosAccount = await getAccount(connection, yosTokenAccount);
-      const yosMint = await getMint(connection, new PublicKey(YOS_TOKEN_ADDRESS));
-      const YOS_DECIMALS = yosMint.decimals;
-      const yosBalance = Number(yosAccount.amount) / Math.pow(10, YOS_DECIMALS);
+      
+      let yosBalance = 0;
+      try {
+        const yosAccount = await getAccount(conn, yosTokenAccount);
+        const yosMint = await getMint(conn, new PublicKey(YOS_TOKEN_ADDRESS));
+        const YOS_DECIMALS = yosMint.decimals;
+        yosBalance = Number(yosAccount.amount) / Math.pow(10, YOS_DECIMALS);
+      } catch (error) {
+        console.warn('Error fetching YOS balance, using 0:', error);
+      }
       
       // Calculate total value (simple estimation)
       const totalValue = solBalance * 148.35; // Assuming $148.35 per SOL
       
-      res.json({
+      // Create response data
+      const poolData = {
         sol: solBalance,
         yot: yotBalance,
         yos: yosBalance,
         totalValue,
         timestamp: Date.now()
-      });
+      };
+      
+      // Cache the data
+      poolDataCache.set(cacheKey, poolData);
+      
+      // Return the data
+      res.json(poolData);
     } catch (error) {
       console.error('Error fetching pool data:', error);
+      
+      // Try to return cached data if available, even if it's stale
+      const poolDataCache = connectionManager.getCache('poolData');
+      const cachedData = poolDataCache.get('pool_data');
+      
+      if (cachedData) {
+        console.log('Returning stale cached data due to error');
+        return res.json({
+          ...cachedData,
+          stale: true
+        });
+      }
+      
       res.status(500).json({ error: 'Failed to fetch pool data' });
     }
   });
@@ -86,8 +182,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Get a connection from the manager
+      const conn = getConnection();
+      
       // Get the token mint info
-      const mintInfo = await getMint(connection, publicKey);
+      const mintInfo = await getMint(conn, publicKey);
       
       res.json({
         address,
