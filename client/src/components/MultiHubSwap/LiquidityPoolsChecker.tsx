@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getRaydiumPools } from '@/lib/raydium-pools';
+import { fetchRaydiumPools } from '@/lib/raydium-pools';
 import { getJupiterRoutes } from '@/lib/jupiter-routes';
 import { TEST_TOKENS } from '@/lib/test-token-transfer';
 import { Loader2, AlertCircle, Check } from 'lucide-react';
@@ -43,7 +43,7 @@ export default function LiquidityPoolsChecker() {
     
     try {
       // Fetch Raydium pools and Jupiter routes
-      const raydiumPools = await getRaydiumPools();
+      const raydiumPools = await fetchRaydiumPools();
       const jupiterRoutes = await getJupiterRoutes();
       
       // Create a list of token pairs to check

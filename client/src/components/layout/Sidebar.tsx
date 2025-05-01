@@ -8,7 +8,9 @@ import {
   Database,
   Settings,
   Landmark,
-  ShieldCheck
+  ShieldCheck,
+  TestTube,
+  Coins
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -33,6 +35,7 @@ export default function Sidebar() {
     { href: '/analytics', icon: BarChart3, label: 'Analytics' },
     { href: '/wallet', icon: Wallet, label: 'Wallet' },
     { href: '/pool', icon: Database, label: 'Liquidity Pool' },
+    { href: '/token-testing', icon: TestTube, label: 'Token Testing' },
     { href: '/admin', icon: ShieldCheck, label: 'Admin' },
     { href: '/settings', icon: Settings, label: 'Settings' },
   ];

@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getRaydiumPools } from '@/lib/raydium-pools';
+import { fetchRaydiumPools } from '@/lib/raydium-pools';
 import { getJupiterRoutes } from '@/lib/jupiter-routes';
 import { TEST_TOKENS } from '@/lib/test-token-transfer';
 import { Loader2 } from 'lucide-react';
@@ -38,7 +38,7 @@ export default function PoolLiquidityTable() {
     
     try {
       // Load Raydium pools
-      const raydiumPools = await getRaydiumPools();
+      const raydiumPools = await fetchRaydiumPools();
       const raydiumPoolInfo: TokenPoolInfo[] = raydiumPools
         .filter(pool => {
           // Check if either the input or output token is in our test tokens

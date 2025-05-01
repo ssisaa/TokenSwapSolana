@@ -16,6 +16,7 @@ import Memes from "@/pages/Memes";
 import Integration from "@/pages/Integration";
 import AdminPage from "@/pages/AdminPage";
 import TestPage from "@/pages/TestPage";
+import TokenTestingPage from "@/pages/TokenTestingPage";
 import MultiHubSwapPage from "@/pages/MultiHubSwapPage";
 import Analytics from "@/pages/Analytics";
 import WalletPage from "@/pages/WalletPage";
@@ -95,6 +96,12 @@ function Router() {
         <Route path="/test">
           <DashboardLayout>
             <TestPage />
+          </DashboardLayout>
+        </Route>
+        
+        <Route path="/token-testing">
+          <DashboardLayout>
+            <TokenTestingPage />
           </DashboardLayout>
         </Route>
         
