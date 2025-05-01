@@ -39,7 +39,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         new PublicKey(POOL_AUTHORITY)
       );
       const yotAccount = await getAccount(connection, yotTokenAccount);
-      const yotBalance = Number(yotAccount.amount);
+      const yotMint = await getMint(connection, new PublicKey(YOT_TOKEN_ADDRESS));
+      const YOT_DECIMALS = yotMint.decimals;
+      const yotBalance = Number(yotAccount.amount) / Math.pow(10, YOT_DECIMALS);
       
       // Get YOS token account
       const yosTokenAccount = await getAssociatedTokenAddress(
@@ -47,7 +49,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         new PublicKey(POOL_AUTHORITY)
       );
       const yosAccount = await getAccount(connection, yosTokenAccount);
-      const yosBalance = Number(yosAccount.amount);
+      const yosMint = await getMint(connection, new PublicKey(YOS_TOKEN_ADDRESS));
+      const YOS_DECIMALS = yosMint.decimals;
+      const yosBalance = Number(yosAccount.amount) / Math.pow(10, YOS_DECIMALS);
       
       // Calculate total value (simple estimation)
       const totalValue = solBalance * 148.35; // Assuming $148.35 per SOL
