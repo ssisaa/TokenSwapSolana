@@ -206,9 +206,20 @@ export default function SwapTestPanel() {
         const xarToSolRate = 0.00015; // Approximate exchange rate
         const solAmount = swappedAmount * xarToSolRate;
         
-        // Calculate YOT amount from SOL in second hop
-        const solToYotRate = 24480; // Approximate exchange rate
-        const yotAmount = solAmount * solToYotRate;
+        // Calculate YOT amount from SOL in second hop using AMM formula
+        // Use the same constant product AMM formula as in multi-hub-swap.ts
+        // x * y = k => (x + dx) * (y - dy) = k
+        // dy = y - k/(x + dx) = y - (x*y)/(x + dx) = y*dx/(x + dx)
+        
+        // Simplified values for demonstration
+        const solPoolBalance = 50; // SOL in pool (example value)
+        const yotPoolBalance = 1200000; // YOT in pool (example value)
+        const FEE_DENOMINATOR = 10000;
+        const FEE_NUMERATOR = 30; // 0.3% fee
+        const feeMultiplier = (FEE_DENOMINATOR - FEE_NUMERATOR) / FEE_DENOMINATOR;
+        
+        // AMM formula: output = (reserveOut * amountIn * feeMultiplier) / (reserveIn + amountIn * feeMultiplier)
+        const yotAmount = (yotPoolBalance * solAmount * feeMultiplier) / (solPoolBalance + (solAmount * feeMultiplier));
         
         // 3% cashback in YOS tokens based on initial amount
         const cashbackAmount = inputAmount * 0.03;
@@ -225,10 +236,10 @@ export default function SwapTestPanel() {
           • Received ${cashbackAmount.toFixed(4)} YOS as cashback reward (3%)
           
           Liquidity contribution:
-          • ${(contributionAmount * xarToSolRate * solToYotRate).toFixed(4)} YOT value added to YOT-SOL liquidity pool
+          • ${(contributionAmount * xarToSolRate * 0.5).toFixed(6)} SOL and equivalent YOT added to YOT-SOL liquidity pool
           
           Yield farming rewards:
-          • 100% APR paid weekly in YOS tokens (${(contributionAmount * xarToSolRate * solToYotRate * 0.02).toFixed(4)} YOS estimated weekly reward on YOT contribution)`
+          • 100% APR paid weekly in YOS tokens (${(contributionAmount * xarToSolRate * 0.02).toFixed(6)} YOS estimated weekly reward on contribution)`
         });
       } else {
         // For other token pairs, use simplified simulation

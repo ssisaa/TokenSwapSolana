@@ -68,11 +68,6 @@ export default function MultiHubSwapPage() {
         </AlertDescription>
       </Alert>
       
-      {/* Test Swap Panel */}
-      <div className="mb-6">
-        <SwapTestPanel />
-      </div>
-      
       {/* Main Swap and Chart Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Swap Panel */}
@@ -104,6 +99,11 @@ export default function MultiHubSwapPage() {
             </CardContent>
           </Card>
         </div>
+      </div>
+      
+      {/* Test Swap Panel */}
+      <div className="mb-6">
+        <SwapTestPanel />
       </div>
       
       {/* Market Stats and User Stats */}
