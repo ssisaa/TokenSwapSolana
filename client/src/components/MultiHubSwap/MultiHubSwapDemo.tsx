@@ -50,7 +50,60 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
   const [toTokenBalance, setToTokenBalance] = useState<number | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
   
-  // Get swap estimate when tokens or amount changes
+  // Instant calculation for better user experience while API completes
+  useEffect(() => {
+    const calculateInstantEstimate = async () => {
+      if (!fromToken || !toToken || !amount || parseFloat(amount) <= 0) {
+        setEstimatedAmount(null);
+        return;
+      }
+      
+      const parsedAmount = parseFloat(amount);
+      
+      // Try to get the pool data from API directly
+      try {
+        const apiUrl = `${window.location.protocol}//${window.location.host}/api/pool-data`;
+        const poolResponse = await fetch(apiUrl);
+        const poolData = await poolResponse.json();
+        
+        // If we have valid pool data, do an instant calculation using proper AMM formula
+        if (poolData && poolData.sol && poolData.yot) {
+          const fee = 0.003; // 0.3% swap fee
+          const FEE_MULTIPLIER = 1 - fee; // 0.997
+          
+          // We have the data we need for accurate estimate
+          const solReserve = poolData.sol;
+          const yotReserve = poolData.yot;
+          
+          let instantEstimate = 0;
+          
+          if (fromToken.symbol === 'SOL' && toToken.symbol === 'YOT') {
+            // SOL to YOT - using proper AMM formula
+            instantEstimate = (parsedAmount * yotReserve * FEE_MULTIPLIER) / (solReserve + parsedAmount);
+            console.log(`INSTANT CALC (SOL→YOT): ${parsedAmount} SOL = ${instantEstimate} YOT`);
+          } 
+          else if (fromToken.symbol === 'YOT' && toToken.symbol === 'SOL') {
+            // YOT to SOL - using proper AMM formula
+            instantEstimate = (parsedAmount * solReserve * FEE_MULTIPLIER) / (yotReserve + parsedAmount);
+            console.log(`INSTANT CALC (YOT→SOL): ${parsedAmount} YOT = ${instantEstimate} SOL`);
+          }
+          
+          // Show the instant estimate immediately
+          if (instantEstimate > 0) {
+            setEstimatedAmount(instantEstimate);
+          }
+        }
+      } catch (error) {
+        console.warn("Error providing instant estimate:", error);
+        // Don't set loading or errors, as the main calculation will still run
+      }
+    };
+    
+    // Run the instant calculation without waiting
+    calculateInstantEstimate();
+  }, [fromToken, toToken, amount]);
+  
+  // Get full swap estimate from the backend when tokens or amount changes
   useEffect(() => {
     const getEstimate = async () => {
       if (!fromToken || !toToken || !amount || parseFloat(amount) <= 0) {
