@@ -5,6 +5,16 @@ export const SOL_TOKEN_ADDRESS = 'So11111111111111111111111111111111111111112'; 
 export const YOT_TOKEN_ADDRESS = '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF';
 export const YOS_TOKEN_ADDRESS = 'GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n';
 
+// Test token addresses
+export const TEST_TOKENS = {
+  MTA: 'MTAwpfGYQbnJkjB2iHUNpGV4yxkpJpgAQNHpg3ZJXKd',
+  SAMX: 'SAMXjJJa4XShbsyK3ZK1qUKgHs45u8YUySGBbKctwKX',
+  XAR: 'XAR18RSUr4pRGnmmM5Zz9vAz3EXmvWPx7cMuFB8mvCh',
+  XMP: 'XMP9SXVv3Kj6JcnJEyLaQzYEuWEGsHjhJNpkha2Vk5M',
+  RAMX: 'RAMXd3mgY5XFyWbfgNh9LT7BcuW5w7jqRFgNkwZEhhsu',
+  TRAXX: 'TRXXpN1Y4tAYcfp3QxCKLeVDvUnjGWQvA2HTQ5VTytA',
+};
+
 // Token symbols
 export const SOL_SYMBOL = 'SOL';
 export const YOT_SYMBOL = 'YOT';

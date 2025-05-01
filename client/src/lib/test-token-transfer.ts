@@ -10,12 +10,12 @@ import { ENDPOINT } from './constants';
 
 // Test token addresses
 export const TEST_TOKENS = {
-  MTA: 'MTAwpfGYQbnJkjB2iHUNpGV4yxkpJpgAQNHpg3ZJXKd',
-  SAMX: 'SAMXjJJa4XShbsyK3ZK1qUKgHs45u8YUySGBbKctwKX',
-  XAR: 'XAR18RSUr4pRGnmmM5Zz9vAz3EXmvWPx7cMuFB8mvCh',
-  XMP: 'XMP9SXVv3Kj6JcnJEyLaQzYEuWEGsHjhJNpkha2Vk5M',
-  RAMX: 'RAMXd3mgY5XFyWbfgNh9LT7BcuW5w7jqRFgNkwZEhhsu',
-  TRAXX: 'TRXXpN1Y4tAYcfp3QxCKLeVDvUnjGWQvA2HTQ5VTytA',
+  MTA: 'MTAwhynnxuZPWeRaKdZNgCiLgv8qTzhMV7SE6cuvjLf',
+  SAMX: 'SAMXtxdXUeRHkeFp3JbCJcDtVPM18tqcEFmhsJtUYU7',
+  XAR: 'XARMztsUvnKamdA2TgSEEib7H7zCUwF3jgChMGHXXSp',
+  XMP: 'XMPuiiydZfyYNSXY894NucMmFZyEwuK7i1uHLmDyDN1',
+  RAMX: 'RAMXriMbBGpXU8FMj2Y7WEcTXNfWGhkmkYdgZZ26i5F',
+  TRAXX: 'TRAXXapnMX3NYpuYpXuRJjpH7Vop8YZtxRrPEAVTJhY',
 };
 
 // Decimals for the test tokens (most are 9 decimals like SOL)
