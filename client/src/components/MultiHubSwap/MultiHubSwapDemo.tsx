@@ -82,14 +82,33 @@ export default function MultiHubSwapDemo({ onTokenChange }: MultiHubSwapDemoProp
           let instantEstimate = 0;
           
           if (fromToken.symbol === 'SOL' && toToken.symbol === 'YOT') {
-            // SOL to YOT - using proper AMM formula
-            instantEstimate = (parsedAmount * yotReserve * FEE_MULTIPLIER) / (solReserve + parsedAmount);
-            console.log(`INSTANT CALC (SOL→YOT): ${parsedAmount} SOL = ${instantEstimate} YOT`);
+            // CRITICAL FIX: For SOL → YOT, use the correct exchange rate calculation
+            // Convert SOL to lamports for accurate calculation
+            const solReserveInLamports = solReserve * 1e9; 
+            const yotReserveInSmallestUnit = yotReserve;
+            
+            // Calculate exchange rate from pool data
+            const yotPerSol = yotReserveInSmallestUnit / solReserveInLamports;
+            
+            // Calculate output amount for the given input
+            // Apply 0.3% fee
+            instantEstimate = parsedAmount * 1e9 * yotPerSol * FEE_MULTIPLIER;
+            
+            console.log(`INSTANT CALC (SOL→YOT): ${parsedAmount} SOL = ${instantEstimate} YOT (rate: ${yotPerSol * 1e9})`);
           } 
           else if (fromToken.symbol === 'YOT' && toToken.symbol === 'SOL') {
-            // YOT to SOL - using proper AMM formula
-            instantEstimate = (parsedAmount * solReserve * FEE_MULTIPLIER) / (yotReserve + parsedAmount);
-            console.log(`INSTANT CALC (YOT→SOL): ${parsedAmount} YOT = ${instantEstimate} SOL`);
+            // CRITICAL FIX: For YOT → SOL, use the correct exchange rate calculation
+            const solReserveInLamports = solReserve * 1e9;
+            const yotReserveInSmallestUnit = yotReserve;
+            
+            // Calculate exchange rate from pool data
+            const solPerYot = solReserveInLamports / yotReserveInSmallestUnit;
+            
+            // Calculate output amount for the given input
+            // Apply 0.3% fee
+            instantEstimate = parsedAmount * solPerYot * FEE_MULTIPLIER / 1e9; // Convert back to SOL
+            
+            console.log(`INSTANT CALC (YOT→SOL): ${parsedAmount} YOT = ${instantEstimate} SOL (rate: ${solPerYot / 1e9})`);
           }
           
           // Show the instant estimate immediately

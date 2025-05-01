@@ -91,8 +91,67 @@ export async function getMultiHubSwapEstimate(
   } catch (error) {
     console.error('Error getting contract estimate, using fallback:', error);
     
-    // Fallback to a simple estimate if contract implementation fails
-    const estimatedAmount = amount * 0.98; // Assume 2% slippage for fallback
+    // CRITICAL FIX: Use proper exchange rate calculation for fallback estimates
+    // Try to fetch pool data from API for more accurate rates
+    try {
+      // Attempt to get real pool data from the API
+      const response = await fetch('/api/pool-data');
+      if (response.ok) {
+        const poolData = await response.json();
+        console.log("Using API-based fallback estimation for better accuracy");
+        
+        if (fromToken.address === SOL_TOKEN_ADDRESS && toToken.address === YOT_TOKEN_ADDRESS) {
+          // Calculate SOL → YOT rate using correct formula
+          // SOL is measured in lamports (1e9 smallest units)
+          const solReserveInLamports = poolData.sol * 1e9;
+          const yotReserveInSmallestUnit = poolData.yot;
+          
+          // Calculate rate (adjusted by fee)
+          const yotPerSol = yotReserveInSmallestUnit / solReserveInLamports;
+          const estimatedAmount = amount * 1e9 * yotPerSol * 0.997; // Apply 0.3% fee
+          const minAmountOut = estimatedAmount * (1 - slippage);
+          
+          console.log(`FALLBACK CALC (SOL→YOT): ${amount} SOL should yield ${estimatedAmount} YOT`);
+          
+          return {
+            estimatedAmount,
+            minAmountOut,
+            priceImpact: Math.min(0.01, amount / poolData.sol), // Cap at 1%
+            liquidityFee: amount * 0.003, // 0.3% fee
+            route: [`${fromToken.symbol} → ${toToken.symbol}`],
+            provider: SwapProvider.Contract
+          };
+        } 
+        else if (fromToken.address === YOT_TOKEN_ADDRESS && toToken.address === SOL_TOKEN_ADDRESS) {
+          // Calculate YOT → SOL rate using correct formula
+          const solReserveInLamports = poolData.sol * 1e9;
+          const yotReserveInSmallestUnit = poolData.yot;
+          
+          // Calculate rate (adjusted by fee)
+          const solPerYot = solReserveInLamports / yotReserveInSmallestUnit;
+          const estimatedAmountInLamports = amount * solPerYot * 0.997; // Apply 0.3% fee
+          const estimatedAmount = estimatedAmountInLamports / 1e9; // Convert from lamports to SOL
+          const minAmountOut = estimatedAmount * (1 - slippage);
+          
+          console.log(`FALLBACK CALC (YOT→SOL): ${amount} YOT should yield ${estimatedAmount} SOL`);
+          
+          return {
+            estimatedAmount,
+            minAmountOut,
+            priceImpact: Math.min(0.01, amount / poolData.yot), // Cap at 1%
+            liquidityFee: amount * 0.003, // 0.3% fee
+            route: [`${fromToken.symbol} → ${toToken.symbol}`],
+            provider: SwapProvider.Contract
+          };
+        }
+      }
+    } catch (error) {
+      console.warn('API-based fallback estimation failed:', error);
+      // Continue to simple fallback if API fetch fails
+    }
+    
+    // Simple fallback if everything else fails
+    const estimatedAmount = amount * 0.98; // Assume 2% slippage
     const minAmountOut = estimatedAmount * (1 - slippage);
     
     return {
