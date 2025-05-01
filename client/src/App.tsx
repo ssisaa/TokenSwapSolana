@@ -17,6 +17,9 @@ import Integration from "@/pages/Integration";
 import AdminPage from "@/pages/AdminPage";
 import TestPage from "@/pages/TestPage";
 import MultiHubSwapPage from "@/pages/MultiHubSwapPage";
+import Analytics from "@/pages/Analytics";
+import WalletPage from "@/pages/WalletPage";
+import SettingsPage from "@/pages/SettingsPage";
 import Home from "@/pages/Home"; // Keep for compatibility with existing routes
 
 // Routes that should use the dashboard layout
@@ -87,6 +90,24 @@ function Router() {
         <Route path="/test">
           <DashboardLayout>
             <TestPage />
+          </DashboardLayout>
+        </Route>
+        
+        <Route path="/analytics">
+          <DashboardLayout>
+            <Analytics />
+          </DashboardLayout>
+        </Route>
+        
+        <Route path="/wallet">
+          <DashboardLayout>
+            <WalletPage />
+          </DashboardLayout>
+        </Route>
+        
+        <Route path="/settings">
+          <DashboardLayout>
+            <SettingsPage />
           </DashboardLayout>
         </Route>
         

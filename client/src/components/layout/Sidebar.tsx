@@ -28,7 +28,7 @@ export default function Sidebar() {
   
   const menuItems = [
     { href: '/', icon: Home, label: 'Dashboard' },
-    { href: '/swap', icon: ArrowRightLeft, label: 'Multi-Hub Swap' },
+    { href: '/multi-hub-swap', icon: ArrowRightLeft, label: 'Multi-Hub Swap' },
     { href: '/staking', icon: Landmark, label: 'Staking' },
     { href: '/analytics', icon: BarChart3, label: 'Analytics' },
     { href: '/wallet', icon: Wallet, label: 'Wallet' },
