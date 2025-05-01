@@ -761,12 +761,14 @@ export async function getMultiHubSwapEstimate(
       
       if (fromToken.address === 'So11111111111111111111111111111111111111112' && 
           toToken.address === '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF') {
-        // SOL to YOT swap
-        // Formula: yot_out = yotReserve - (solReserve * yotReserve) / (solReserve + sol_in * (1 - fee))
+        // SOL to YOT swap using AMM constant product formula
+        // Formula: dx * y / (x + dx * (1-fee))
+        // Where dx is input amount, x is input reserve, y is output reserve
         const solIn = swapAmount;
-        const numerator = solReserve * yotReserve;
-        const denominator = solReserve + (solIn * (1 - fee));
-        estimatedAmount = yotReserve - (numerator / denominator);
+        
+        // Apply the correct AMM formula: (input_amount * output_reserve * (1-fee)) / (input_reserve + input_amount * (1-fee))
+        const adjustedSolIn = solIn * (1 - fee);
+        estimatedAmount = (adjustedSolIn * yotReserve) / (solReserve + adjustedSolIn);
         
         // Calculate price impact
         const initialPrice = solReserve / yotReserve;
@@ -774,14 +776,20 @@ export async function getMultiHubSwapEstimate(
         const newYotReserve = yotReserve - estimatedAmount;
         const newPrice = newSolReserve / newYotReserve;
         priceImpact = Math.abs((newPrice - initialPrice) / initialPrice);
+        
+        console.log(`AMM Calculation (SOL→YOT): ${solIn} SOL should yield ${estimatedAmount} YOT`);
+        console.log(`Pool data: SOL reserve=${solReserve}, YOT reserve=${yotReserve}`);
+        console.log(`Formula: (${adjustedSolIn} * ${yotReserve}) / (${solReserve} + ${adjustedSolIn})`);
       } else if (fromToken.address === '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF' && 
                 toToken.address === 'So11111111111111111111111111111111111111112') {
-        // YOT to SOL swap
-        // Formula: sol_out = solReserve - (yotReserve * solReserve) / (yotReserve + yot_in * (1 - fee))
+        // YOT to SOL swap using AMM constant product formula
+        // Formula: dx * y / (x + dx * (1-fee))
+        // Where dx is input amount, x is input reserve, y is output reserve
         const yotIn = swapAmount;
-        const numerator = yotReserve * solReserve;
-        const denominator = yotReserve + (yotIn * (1 - fee));
-        estimatedAmount = solReserve - (numerator / denominator);
+        
+        // Apply the correct AMM formula: (input_amount * output_reserve * (1-fee)) / (input_reserve + input_amount * (1-fee))
+        const adjustedYotIn = yotIn * (1 - fee);
+        estimatedAmount = (adjustedYotIn * solReserve) / (yotReserve + adjustedYotIn);
         
         // Calculate price impact
         const initialPrice = yotReserve / solReserve;
@@ -789,6 +797,10 @@ export async function getMultiHubSwapEstimate(
         const newSolReserve = solReserve - estimatedAmount;
         const newPrice = newYotReserve / newSolReserve;
         priceImpact = Math.abs((newPrice - initialPrice) / initialPrice);
+        
+        console.log(`AMM Calculation (YOT→SOL): ${yotIn} YOT should yield ${estimatedAmount} SOL`);
+        console.log(`Pool data: YOT reserve=${yotReserve}, SOL reserve=${solReserve}`);
+        console.log(`Formula: (${adjustedYotIn} * ${solReserve}) / (${yotReserve} + ${adjustedYotIn})`);
       } else {
         // Fallback for other pairs
         return createFallbackEstimate(fromToken, toToken, amount, slippage);

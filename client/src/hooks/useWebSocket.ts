@@ -67,12 +67,15 @@ export function useWebSocket(
       
       setConnectionState('connecting');
       
-      // Create WebSocket connection with relative path to avoid protocol/host issues in Replit
-      const wsUrl = `/ws`;
+      // Create WebSocket connection with proper protocol, host and path
+      // Use an absolute path with explicit protocol to avoid connection issues
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.host;
+      const wsUrl = `${protocol}//${host}/ws`;
       
-      console.log(`Connecting to WebSocket at ${wsUrl}`);
+      console.log(`Connecting to WebSocket at ${wsUrl} (fixing code 1006 error)`);
       
-      const ws = new WebSocket((window.location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + window.location.host + wsUrl);
+      const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
       
       // Connection opened
@@ -90,10 +93,13 @@ export function useWebSocket(
         });
       });
       
-      // Connection error
+      // Connection error - improved error handling
       ws.addEventListener('error', (error) => {
         console.error('WebSocket error:', error);
         setConnectionState('error');
+        
+        // Try fetching pool data via HTTP right after a connection error
+        fetchPoolDataViaHttp();
       });
       
       // Connection closed
