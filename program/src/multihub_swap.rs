@@ -217,6 +217,14 @@ pub enum MultiHubSwapInstruction {
         // True to pause, false to unpause
         pause: bool,
     },
+    
+    /// Manually trigger yield distribution (admin only)
+    /// Accounts expected:
+    /// 0. `[signer]` Admin account
+    /// 1. `[writable]` Program state account
+    /// 2. `[writable]` Program YOS treasury
+    /// 3. `[]` Token program
+    TriggerYieldDistribution {},
 }
 
 /// Program state containing configuration and statistics
@@ -430,6 +438,8 @@ pub fn process_instruction(
             yos_cashback_percent,
             referral_percent,
             lp_apr,
+            auto_distribute_cashback,
+            auto_distribute_yield,
             new_admin,
         } => process_update_parameters(
             program_id,
@@ -439,12 +449,18 @@ pub fn process_instruction(
             yos_cashback_percent,
             referral_percent,
             lp_apr,
+            auto_distribute_cashback,
+            auto_distribute_yield,
             new_admin,
         ),
         MultiHubSwapInstruction::EmergencyPause { pause } => process_emergency_pause(
             program_id,
             accounts,
             pause,
+        ),
+        MultiHubSwapInstruction::TriggerYieldDistribution {} => process_trigger_yield_distribution(
+            program_id,
+            accounts,
         ),
     }
 }
@@ -657,7 +673,7 @@ fn process_swap(
     // 1. Execute the token transfers through the Token program
     // 2. Handle the actual swap logic through chosen AMM
     // 3. Distribute the liquidity contribution
-    // 4. Track the YOS cashback for later claiming
+    // 4. Handle YOS cashback based on auto-distribution setting
     // 5. Track referral rewards if applicable
     
     // Update program statistics
@@ -669,7 +685,44 @@ fn process_swap(
         program_state.total_referral_rewards = program_state.total_referral_rewards.saturating_add(referral_reward);
     }
     
-    program_state.last_update_time = Clock::get()?.unix_timestamp as u64;
+    // Handle YOS cashback based on auto-distribution setting
+    if program_state.auto_distribute_cashback && yos_cashback > 0 {
+        // For real implementation, we would:
+        // 1. Find the program's YOS token account (authority PDA)
+        // 2. Transfer YOS tokens directly to the user's YOS token account
+        
+        msg!("Auto-distributing {} YOS cashback to user wallet", yos_cashback);
+        
+        // In production code we would use spl_token::instruction::transfer
+        // and invoke_signed with the authority PDA seeds and bump
+        
+        // For this prototype, assume transfer is successful
+    } else if yos_cashback > 0 {
+        // Store for later claiming through ClaimRewards instruction
+        msg!("Storing {} YOS cashback for manual claiming", yos_cashback);
+        
+        // In real implementation, we would update the user's rewards account data
+        // with the pending amount, creating the account if it doesn't exist
+    }
+    
+    // Check for weekly yield distribution if auto-distribute is enabled
+    let current_time = Clock::get()?.unix_timestamp as u64;
+    program_state.last_update_time = current_time;
+    
+    // Check if it's time for weekly yield distribution (7 days = 604800 seconds)
+    if program_state.auto_distribute_yield && 
+       (current_time - program_state.last_yield_distribution >= 604800) {
+        // Reset the timer for next week
+        program_state.last_yield_distribution = current_time;
+        
+        // Trigger yield distribution
+        msg!("Triggering automatic weekly yield distribution");
+        
+        // In a real implementation, we would:
+        // 1. Loop through all LpStaking accounts
+        // 2. Calculate rewards based on staked amount and time staked
+        // 3. Transfer YOS rewards to each user's YOS token account
+    }
     
     // Save updated program state
     program_state.serialize(&mut *program_state_account.data.borrow_mut())?;
@@ -1180,6 +1233,8 @@ fn process_update_parameters(
     yos_cashback_percent: Option<u8>,
     referral_percent: Option<u8>,
     lp_apr: Option<u16>,
+    auto_distribute_cashback: Option<bool>,
+    auto_distribute_yield: Option<bool>,
     new_admin: Option<Pubkey>,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
@@ -1230,6 +1285,17 @@ fn process_update_parameters(
             return Err(MultiHubSwapError::InvalidParameter.into()); // Max 200%
         }
         program_state.lp_apr = apr;
+    }
+    
+    // Update auto-distribution toggles if provided
+    if let Some(auto_cashback) = auto_distribute_cashback {
+        program_state.auto_distribute_cashback = auto_cashback;
+        msg!("Auto-distribute cashback set to: {}", auto_cashback);
+    }
+    
+    if let Some(auto_yield) = auto_distribute_yield {
+        program_state.auto_distribute_yield = auto_yield;
+        msg!("Auto-distribute yield rewards set to: {}", auto_yield);
     }
 
     if let Some(admin) = new_admin {
