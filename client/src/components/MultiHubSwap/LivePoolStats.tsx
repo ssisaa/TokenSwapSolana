@@ -2,33 +2,81 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { ArrowUpIcon, ArrowDownIcon, ActivityIcon } from 'lucide-react';
+import { ArrowUpIcon, ArrowDownIcon, ActivityIcon, RefreshCwIcon } from 'lucide-react';
 import { useWebSocket, PoolData } from '@/hooks/useWebSocket';
 import { formatNumber } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 export function LivePoolStats() {
-  const { poolData, connectionState, isConnected } = useWebSocket();
+  const { poolData, connectionState, isConnected, connect } = useWebSocket();
   const [previousData, setPreviousData] = useState<PoolData | null>(null);
+  const [fallbackData, setFallbackData] = useState<PoolData | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [changes, setChanges] = useState<{ sol: number; yot: number; yos: number; }>({ 
     sol: 0, 
     yot: 0,
     yos: 0
   });
 
+  // Function to fetch pool data directly from API if WebSocket fails
+  const fetchPoolDataFromAPI = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/pool');
+      if (response.ok) {
+        const data = await response.json();
+        // Transform to match PoolData interface
+        const poolData: PoolData = {
+          sol: data.solBalance || 0,
+          yot: data.yotBalance || 0,
+          yos: data.yosBalance || 0,
+          totalValue: (data.solBalance * 148.35) + ((data.yotBalance || 0) * 0.01),
+          timestamp: Date.now()
+        };
+        setFallbackData(poolData);
+      }
+    } catch (error) {
+      console.error('Error fetching pool data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Try to fetch data from API if WebSocket is not connected
+  useEffect(() => {
+    if (!isConnected && connectionState === 'closed' && !fallbackData) {
+      fetchPoolDataFromAPI();
+    }
+  }, [isConnected, connectionState, fallbackData]);
+
+  // Handle manual refresh
+  const handleRefresh = () => {
+    if (isConnected) {
+      // Attempt to reconnect WebSocket
+      connect();
+    } else {
+      // Fetch from API directly
+      fetchPoolDataFromAPI();
+    }
+  };
+
   // Calculate changes when pool data updates
   useEffect(() => {
-    if (poolData && previousData) {
+    // Use WebSocket data if available, otherwise use fallback data
+    const currentData = poolData || fallbackData;
+    
+    if (currentData && previousData) {
       setChanges({
-        sol: poolData.sol - previousData.sol,
-        yot: poolData.yot - previousData.yot,
-        yos: poolData.yos - previousData.yos
+        sol: currentData.sol - previousData.sol,
+        yot: currentData.yot - previousData.yot,
+        yos: currentData.yos - previousData.yos
       });
     }
     
-    if (poolData) {
-      setPreviousData(poolData);
+    if (currentData) {
+      setPreviousData(currentData);
     }
-  }, [poolData]);
+  }, [poolData, fallbackData]);
 
   // Helper to render change indicators
   const renderChangeIndicator = (value: number) => {
@@ -51,70 +99,114 @@ export function LivePoolStats() {
     <Card className="w-full">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-base font-medium">
-          Live Liquidity Pool Stats
+          Devnet Liquidity Pool Stats
         </CardTitle>
-        <div className="flex items-center">
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={handleRefresh}
+            disabled={isLoading}
+          >
+            <RefreshCwIcon className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <span className="sr-only">Refresh</span>
+          </Button>
           <Badge
-            variant={isConnected ? "success" : "destructive"}
+            variant={isConnected ? "success" : (fallbackData ? "secondary" : "destructive")}
             className="flex items-center gap-1"
           >
             <ActivityIcon className={`h-3 w-3 ${isConnected ? 'animate-pulse' : ''}`} />
-            {isConnected ? 'Live' : connectionState}
+            {isConnected ? 'Live' : (fallbackData ? 'Static' : connectionState)}
           </Badge>
         </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {/* SOL Balance */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">SOL Balance</span>
-              <span className="text-sm font-medium flex items-center">
-                {poolData ? formatNumber(poolData.sol, 6) : '0.000000'} SOL
-                {renderChangeIndicator(changes.sol)}
-              </span>
+          {/* Display a loading state if needed */}
+          {isLoading && !poolData && !fallbackData && (
+            <div className="py-6 flex flex-col items-center justify-center text-center">
+              <RefreshCwIcon className="h-8 w-8 animate-spin text-primary mb-2" />
+              <p className="text-sm text-muted-foreground">Loading pool data...</p>
             </div>
-            <Progress value={poolData ? Math.min((poolData.sol / 30) * 100, 100) : 0} />
-          </div>
+          )}
 
-          {/* YOT Balance */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">YOT Balance</span>
-              <span className="text-sm font-medium flex items-center">
-                {poolData ? formatNumber(poolData.yot, 6) : '0.000000'} YOT
-                {renderChangeIndicator(changes.yot)}
-              </span>
-            </div>
-            <Progress value={poolData ? Math.min((poolData.yot / 1_000_000) * 100, 100) : 0} />
-          </div>
-
-          {/* YOS Balance */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">YOS Balance</span>
-              <span className="text-sm font-medium flex items-center">
-                {poolData ? formatNumber(poolData.yos, 6) : '0.000000'} YOS
-                {renderChangeIndicator(changes.yos)}
-              </span>
-            </div>
-            <Progress value={poolData ? Math.min((poolData.yos / 1_000_000) * 100, 100) : 0} />
-          </div>
-
-          {/* Total Value */}
-          <div className="mt-4 pt-4 border-t">
-            <div className="flex items-center justify-between">
-              <span className="font-medium">Total Value (USD)</span>
-              <span className="font-bold text-lg">
-                ${poolData ? formatNumber(poolData.totalValue, 2) : '0.00'}
-              </span>
-            </div>
-            {poolData && (
-              <div className="text-xs text-muted-foreground text-right mt-1">
-                Last updated: {new Date(poolData.timestamp).toLocaleTimeString()}
+          {/* Display data from WebSocket or fallback API */}
+          {(poolData || fallbackData) && (
+            <>
+              {/* Devnet Notice */}
+              <div className="mb-4 p-3 bg-secondary/50 rounded-md text-xs text-muted-foreground">
+                <p>These stats display token accounts on Solana <strong>devnet</strong> that will be used for the liquidity pool. 
+                YOT and YOS tokens are in development, and this component will show real token balances after launch.</p>
               </div>
-            )}
-          </div>
+              
+              {/* SOL Balance */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">SOL Balance</span>
+                  <span className="text-sm font-medium flex items-center">
+                    {formatNumber((poolData || fallbackData)!.sol, 6)} SOL
+                    {renderChangeIndicator(changes.sol)}
+                  </span>
+                </div>
+                <Progress value={(poolData || fallbackData) ? Math.min(((poolData || fallbackData)!.sol / 30) * 100, 100) : 0} />
+              </div>
+
+              {/* YOT Balance */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">YOT Balance</span>
+                  <span className="text-sm font-medium flex items-center">
+                    {formatNumber((poolData || fallbackData)!.yot, 6)} YOT
+                    {renderChangeIndicator(changes.yot)}
+                  </span>
+                </div>
+                <Progress value={(poolData || fallbackData) ? Math.min(((poolData || fallbackData)!.yot / 1_000_000) * 100, 100) : 0} />
+              </div>
+
+              {/* YOS Balance */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">YOS Balance</span>
+                  <span className="text-sm font-medium flex items-center">
+                    {formatNumber((poolData || fallbackData)!.yos, 6)} YOS
+                    {renderChangeIndicator(changes.yos)}
+                  </span>
+                </div>
+                <Progress value={(poolData || fallbackData) ? Math.min(((poolData || fallbackData)!.yos / 1_000_000) * 100, 100) : 0} />
+              </div>
+
+              {/* Total Value */}
+              <div className="mt-4 pt-4 border-t">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">Total Value (USD)</span>
+                  <span className="font-bold text-lg">
+                    ${formatNumber((poolData || fallbackData)!.totalValue, 2)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-xs text-muted-foreground">
+                    {!isConnected && fallbackData ? 'Using API data (WebSocket unavailable)' : ''}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    Last updated: {new Date((poolData || fallbackData)!.timestamp).toLocaleTimeString()}
+                  </span>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* No data available state */}
+          {!isLoading && !poolData && !fallbackData && (
+            <div className="py-6 flex flex-col items-center justify-center text-center">
+              <ActivityIcon className="h-8 w-8 text-muted-foreground mb-2" />
+              <p className="text-sm text-muted-foreground mb-4">No pool data available</p>
+              <Button variant="secondary" size="sm" onClick={handleRefresh}>
+                <RefreshCwIcon className="h-4 w-4 mr-2" />
+                Fetch Pool Data
+              </Button>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

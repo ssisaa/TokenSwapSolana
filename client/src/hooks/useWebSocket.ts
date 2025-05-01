@@ -18,6 +18,11 @@ export interface PoolData {
   timestamp: number;
 }
 
+// Constants
+export const CLUSTER = 'devnet';
+export const YOT_TOKEN_ADDRESS = '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF';
+export const YOS_TOKEN_ADDRESS = 'GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n';
+
 interface UseWebSocketOptions {
   reconnectInterval?: number;
   reconnectAttempts?: number;
@@ -62,13 +67,12 @@ export function useWebSocket(
       
       setConnectionState('connecting');
       
-      // Create WebSocket connection with correct protocol based on current URL
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/ws`;
+      // Create WebSocket connection with relative path to avoid protocol/host issues in Replit
+      const wsUrl = `/ws`;
       
       console.log(`Connecting to WebSocket at ${wsUrl}`);
       
-      const ws = new WebSocket(wsUrl);
+      const ws = new WebSocket((window.location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + window.location.host + wsUrl);
       wsRef.current = ws;
       
       // Connection opened
