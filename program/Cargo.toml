@@ -19,4 +19,10 @@ borsh = "0.10.3"
 borsh-derive = "0.10.3"
 
 [lib]
+name = "multihub_swap"
 crate-type = ["cdylib", "lib"]
+
+# Fixed executable for multihub swap
+[[bin]]
+name = "multihub_swap_fixed"
+path = "src/multihub_swap.rs"
