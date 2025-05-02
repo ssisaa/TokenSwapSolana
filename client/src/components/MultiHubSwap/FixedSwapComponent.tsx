@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
-import { PublicKey } from '@solana/web3.js';
+import { PublicKey, SystemProgram } from '@solana/web3.js';
 import { executeMultiHubSwap, initializeMultiHubSwap } from '@/lib/multihub-client-final';
 
 // Token definitions
@@ -157,9 +157,33 @@ const FixedSwapComponent: React.FC = () => {
       const amountValue = parseFloat(amount);
       const minAmountOutValue = parseFloat(minAmountOut);
       
-      const fromAddress = new PublicKey(fromToken.address);
-      const toAddress = new PublicKey(toToken.address);
+      // Extra validation for token addresses
+      if (fromToken.address === 'native' && fromToken.symbol !== 'SOL') {
+        throw new Error("Native token must be SOL");
+      }
       
+      if (toToken.address === 'native' && toToken.symbol !== 'SOL') {
+        throw new Error("Native token must be SOL");
+      }
+      
+      // Create properly validated PublicKeys or handle SOL (native) special case
+      let fromAddress = fromToken.address === 'native' 
+        ? SystemProgram.programId // Use SystemProgram ID for SOL
+        : new PublicKey(fromToken.address);
+      
+      let toAddress = toToken.address === 'native'
+        ? SystemProgram.programId // Use SystemProgram ID for SOL
+        : new PublicKey(toToken.address);
+      
+      console.log(`Starting swap from ${fromToken.symbol} (${fromAddress.toString()}) to ${toToken.symbol} (${toAddress.toString()})`);
+      console.log(`Amount: ${amountValue}, Minimum out: ${minAmountOutValue}`);
+      
+      // Check if swapping between same tokens
+      if (fromAddress.equals(toAddress)) {
+        throw new Error("Cannot swap between the same token");
+      }
+      
+      // Execute the swap with detailed error handling
       const signature = await executeMultiHubSwap(
         wallet,
         fromAddress,
@@ -179,11 +203,27 @@ const FixedSwapComponent: React.FC = () => {
       });
     } catch (error: any) {
       console.error("Swap error:", error);
-      setError(error.message || "Failed to execute swap");
+      
+      // Enhanced error handling with specific messages
+      let errorMsg = "Failed to execute swap: ";
+      
+      if (error.message.includes("Custom program error: 0x")) {
+        // Extract specific error codes
+        if (error.message.includes("Custom program error: 0xb") || 
+            error.message.includes("Custom program error: 0x11")) {
+          errorMsg += "Invalid parameter or account. Check that all required token accounts exist.";
+        } else {
+          errorMsg = error.message;
+        }
+      } else {
+        errorMsg = error.message;
+      }
+      
+      setError(errorMsg);
       
       toast({
         title: "Swap failed",
-        description: error.message || "An error occurred",
+        description: errorMsg,
         variant: "destructive",
       });
     } finally {

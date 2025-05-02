@@ -259,17 +259,29 @@ export async function executeMultiHubSwap(
     );
   }
 
+  // Find authority PDA
+  const [authorityAddress] = findAuthorityAddress(MULTIHUB_SWAP_PROGRAM_ID);
+  console.log("Authority address:", authorityAddress.toString());
+  
+  // Find or create SOL-YOT pool reference
+  const solYotPool = new PublicKey("7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS");
+  console.log("Using SOL-YOT pool:", solYotPool.toString());
+
   // Add the swap instruction with exact account ordering matching the contract
+  // Add missing accounts required by the contract
   const swapInstruction = new TransactionInstruction({
     keys: [
       { pubkey: wallet.publicKey, isSigner: true, isWritable: true },             // 0. User wallet (signer)
       { pubkey: fromTokenAccount, isSigner: false, isWritable: true },            // 1. User's input token account
       { pubkey: toTokenAccount, isSigner: false, isWritable: true },              // 2. User's output token account
       { pubkey: yosTokenAccount, isSigner: false, isWritable: true },             // 3. User's YOS token account
-      { pubkey: programStateAddress, isSigner: false, isWritable: false },        // 4. Program state account
+      { pubkey: programStateAddress, isSigner: false, isWritable: true },         // 4. Program state account (marked writable)
       { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },           // 5. Token program
       { pubkey: fromMint, isSigner: false, isWritable: false },                   // 6. Input token mint
       { pubkey: toMint, isSigner: false, isWritable: false },                     // 7. Output token mint
+      { pubkey: authorityAddress, isSigner: false, isWritable: true },            // 8. Program authority PDA
+      { pubkey: solYotPool, isSigner: false, isWritable: true },                  // 9. SOL-YOT liquidity pool
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },    // 10. System program
     ],
     programId: MULTIHUB_SWAP_PROGRAM_ID,
     data: data
