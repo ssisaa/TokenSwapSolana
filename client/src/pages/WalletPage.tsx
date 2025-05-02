@@ -5,9 +5,11 @@ import { useWallet } from '@/hooks/useSolanaWallet';
 import { useMultiWallet } from '@/context/MultiWalletContext';
 import { useToast } from '@/hooks/use-toast';
 import { useTokenData } from '@/hooks/useTokenData';
-import { Copy, ExternalLink, Plus, RefreshCw, Send } from 'lucide-react';
+import { useWalletAssets } from '@/hooks/useWalletAssets';
+import { Copy, ExternalLink, Plus, RefreshCw, Send, Loader2 } from 'lucide-react';
 import { formatCurrency, shortenAddress } from '@/lib/utils';
 import { useState, useEffect } from 'react';
+import { EXPLORER_URL } from '@/lib/constants';
 
 export default function WalletPage() {
   const { toast } = useToast();
