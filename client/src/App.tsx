@@ -4,8 +4,9 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { WalletProvider } from "@/context/WalletContext";
-import { MultiWalletProvider } from "@/context/MultiWalletContext";
+import { MultiWalletProvider, useMultiWallet } from "@/context/MultiWalletContext";
 import { AdminAuthProvider } from "@/hooks/use-admin-auth";
+import { useEffect } from "react";
 
 // Solana wallet adapter
 import { ConnectionProvider, WalletProvider as SolanaWalletProvider } from "@solana/wallet-adapter-react";
@@ -188,6 +189,24 @@ function Router() {
   );
 }
 
+function AutoConnectWallet() {
+  const { connect, connecting, connected } = useMultiWallet();
+  
+  useEffect(() => {
+    console.log("Auto-connect effect running");
+    
+    if (!connected && !connecting) {
+      // Try to auto-connect to the demo wallet for testing
+      console.log("Attempting to auto-connect to Demo Wallet");
+      connect("Demo Wallet").catch((err: Error) => {
+        console.error("Auto-connect error:", err);
+      });
+    }
+  }, [connect, connecting, connected]);
+  
+  return null;
+}
+
 function App() {
   // Set up Solana connection
   const network = SOLANA_CLUSTER; // "devnet" or "mainnet-beta"
@@ -214,6 +233,7 @@ function App() {
                 <AdminAuthProvider>
                   <TooltipProvider>
                     <Toaster />
+                    <AutoConnectWallet />
                     <Router />
                   </TooltipProvider>
                 </AdminAuthProvider>

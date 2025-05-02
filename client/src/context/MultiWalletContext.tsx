@@ -169,6 +169,25 @@ export function MultiWalletProvider({ children, cluster = SOLANA_CLUSTER as Clus
         console.error('Error initializing Solflare adapter:', error);
       }
       
+      // Import and use the DemoWalletAdapter
+      try {
+        // Import synchronously to avoid async issues
+        const DemoWalletAdapter = require('../lib/DemoWalletAdapter').DemoWalletAdapter;
+        const demoAdapter = new DemoWalletAdapter();
+        
+        // Add the demo wallet first (for easy access)
+        availableWallets.unshift({
+          name: 'Demo Wallet',
+          icon: 'https://cdn-icons-png.flaticon.com/512/2534/2534310.png', // Generic wallet icon
+          adapter: demoAdapter,
+          installed: true // Mark as installed so it can be used
+        });
+        
+        console.log('Added Demo Wallet for testing without browser extensions');
+      } catch (error) {
+        console.error('Error setting up Demo Wallet:', error);
+      }
+      
       // If no wallets were detected at all, add basic fallback options
       if (availableWallets.length === 0) {
         console.warn('No wallets detected, adding basic fallback options');

@@ -186,14 +186,19 @@ class UnstakeLpTokensLayout {
   }
 
   serialize(): Buffer {
-    const dataLayout = borsh.struct([
-      borsh.u8('instruction'),
-      borsh.u64('amount'),
-    ]);
-
+    // Manual serialization to replace borsh
     const data = Buffer.alloc(9); // 1 byte for instruction + 8 bytes for amount
-    const len = dataLayout.encode(this, data);
-    return data.slice(0, len);
+    
+    // Write instruction
+    data.writeUInt8(this.instruction, 0);
+    
+    // Write amount (8 bytes)
+    const view = new DataView(new ArrayBuffer(8));
+    view.setBigUint64(0, this.amount, true);
+    const tempBuffer = Buffer.from(view.buffer);
+    tempBuffer.copy(data, 1);
+    
+    return data;
   }
 }
 
@@ -206,13 +211,13 @@ class RegisterReferrerLayout {
   }
 
   serialize(): Buffer {
-    const dataLayout = borsh.struct([
-      borsh.u8('instruction'),
-    ]);
-
+    // Manual serialization to replace borsh
     const data = Buffer.alloc(1);
-    const len = dataLayout.encode(this, data);
-    return data.slice(0, len);
+    
+    // Write instruction (1 byte)
+    data.writeUInt8(this.instruction, 0);
+    
+    return data;
   }
 }
 
@@ -225,13 +230,13 @@ class TriggerYieldDistributionLayout {
   }
 
   serialize(): Buffer {
-    const dataLayout = borsh.struct([
-      borsh.u8('instruction'),
-    ]);
-
+    // Manual serialization to replace borsh
     const data = Buffer.alloc(1);
-    const len = dataLayout.encode(this, data);
-    return data.slice(0, len);
+    
+    // Write instruction (1 byte)
+    data.writeUInt8(this.instruction, 0);
+    
+    return data;
   }
 }
 
