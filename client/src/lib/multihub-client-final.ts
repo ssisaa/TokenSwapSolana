@@ -200,13 +200,33 @@ export async function executeMultiHubSwap(
   console.log("Amount (raw):", amountRaw.toString());
   console.log("Min amount out (raw):", minAmountOutRaw.toString());
 
-  // Create instruction data for SwapToken
+  // Create instruction data for SwapToken using simple binary format to match the contract
   // Format: [1, amount_in (8 bytes), min_amount_out (8 bytes)]
   const SWAP_TOKEN_INSTRUCTION = 1;
   const data = Buffer.alloc(1 + 8 + 8);
   data.writeUInt8(SWAP_TOKEN_INSTRUCTION, 0);
-  data.writeBigUInt64LE(amountRaw, 1);
-  data.writeBigUInt64LE(minAmountOutRaw, 9);
+  
+  // Write the bigint values as little-endian 64-bit integers
+  const amountBuffer = Buffer.alloc(8);
+  const minAmountBuffer = Buffer.alloc(8);
+  
+  // Convert BigInt to bytes (little-endian)
+  let tempBigInt = amountRaw;
+  for (let i = 0; i < 8; i++) {
+    amountBuffer.writeUInt8(Number(tempBigInt & BigInt(0xFF)), i);
+    tempBigInt = tempBigInt >> BigInt(8);
+  }
+  
+  tempBigInt = minAmountOutRaw;
+  for (let i = 0; i < 8; i++) {
+    minAmountBuffer.writeUInt8(Number(tempBigInt & BigInt(0xFF)), i);
+    tempBigInt = tempBigInt >> BigInt(8);
+  }
+  
+  // Copy the individual buffers into the main data buffer
+  amountBuffer.copy(data, 1);
+  minAmountBuffer.copy(data, 9);
+  console.log("Swap instruction data:", Buffer.from(data).toString('hex'));
 
   console.log("Swap instruction data:", data.toString('hex'));
 
@@ -340,7 +360,7 @@ export async function executeMultiHubSwap(
 
   // Add the swap instruction with EXACTLY the 8 accounts expected by the contract
   // This matches the process_swap_token function in program/src/multihub_swap_final.rs
-  const swapInstruction = new TransactionInstruction({
+  const finalSwapInstruction = new TransactionInstruction({
     keys: [
       { pubkey: wallet.publicKey, isSigner: true, isWritable: true },             // 0. User wallet (signer)
       { pubkey: fromTokenAccount, isSigner: false, isWritable: true },            // 1. User's input token account
@@ -355,7 +375,7 @@ export async function executeMultiHubSwap(
     data: data
   });
 
-  transaction.add(swapInstruction);
+  transaction.add(finalSwapInstruction);
 
   // Get a recent blockhash
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
