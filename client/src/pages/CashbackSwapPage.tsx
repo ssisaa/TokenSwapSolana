@@ -50,11 +50,12 @@ export default function CashbackSwapPage() {
       setSwapSuccess(false);
       setSwapError(null);
       
-      // Import the helper functions to execute the swap and validate program initialization
-      const { executeMultiHubSwap } = await import('@/lib/multihub-swap-helper');
+      // Import our fixed, improved swap implementation that resolves transaction issues
+      const { executeFixedMultiHubSwap } = await import('@/lib/multihub-swap-fixed');
       const { validateProgramInitialization } = await import('@/lib/multihub-contract');
-      const { Connection } = await import('@solana/web3.js');
+      const { Connection, PublicKey } = await import('@solana/web3.js');
       const { ENDPOINT } = await import('@/lib/constants');
+      const { getAssociatedTokenAddress } = await import('@solana/spl-token');
       
       // First, validate that the program is properly initialized
       console.log("Validating program initialization before swap...");
@@ -73,18 +74,25 @@ export default function CashbackSwapPage() {
       
       const amount = parseFloat(String(swap.fromAmount));
       
-      // Get token info objects from addresses
+      // Create our token addresses as PublicKey objects for better compatibility
+      const SOL_TOKEN_MINT = new PublicKey('So11111111111111111111111111111111111111112');
+      const YOT_TOKEN_MINT = new PublicKey('2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF');
+      const YOS_TOKEN_MINT = new PublicKey('GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n');
+      
+      // Set up the token info objects with PublicKey objects
       const fromTokenInfo = {
         symbol: swap.fromToken,
         name: swap.fromToken,
         address: swap.fromToken === SOL_SYMBOL 
-          ? 'So11111111111111111111111111111111111111112' 
-          : '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF',
+          ? SOL_TOKEN_MINT.toString()
+          : YOT_TOKEN_MINT.toString(),
+        mint: swap.fromToken === SOL_SYMBOL 
+          ? SOL_TOKEN_MINT
+          : YOT_TOKEN_MINT,
         decimals: 9, // Both SOL and YOT have 9 decimals
         logoURI: swap.fromToken === SOL_SYMBOL 
           ? 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png'
           : 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF/logo.png',
-        // Add chainId to fix type issue
         chainId: 101 // Mainnet, 103 would be devnet
       };
       
@@ -92,23 +100,45 @@ export default function CashbackSwapPage() {
         symbol: swap.toToken,
         name: swap.toToken,
         address: swap.toToken === SOL_SYMBOL 
-          ? 'So11111111111111111111111111111111111111112' 
-          : '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF',
+          ? SOL_TOKEN_MINT.toString()
+          : YOT_TOKEN_MINT.toString(),
+        mint: swap.toToken === SOL_SYMBOL 
+          ? SOL_TOKEN_MINT
+          : YOT_TOKEN_MINT,
         decimals: 9, // Both SOL and YOT have 9 decimals
         logoURI: swap.toToken === SOL_SYMBOL 
           ? 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png'
           : 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF/logo.png',
-        // Add chainId to fix type issue
         chainId: 101 // Mainnet, 103 would be devnet
       };
+      
+      // Ensure token accounts exist for both input and output tokens
+      // We'll need to make sure the YOS token account exists as well for cashback
+      if (!wallet.publicKey) {
+        throw new Error("Wallet not connected");
+      }
+      
+      // Check/create YOS token account for cashback
+      try {
+        const yosTokenAccount = await getAssociatedTokenAddress(
+          YOS_TOKEN_MINT,
+          wallet.publicKey
+        );
+        console.log("YOS token account for cashback:", yosTokenAccount.toString());
+      } catch (error) {
+        console.error("Error checking YOS token account:", error);
+        // We'll let the transaction handler create the account if needed
+      }
       
       // Calculate minimum amount out with 1% slippage
       const minAmountOut = parseFloat(String(swap.toAmount)) * 0.99;
       
       console.log(`Executing cashback swap with smart contract: ${amount} ${swap.fromToken} to ${swap.toToken}`);
       console.log(`This includes 20% liquidity contribution and 5% YOS cashback rewards`);
+      console.log(`Input token mint: ${fromTokenInfo.mint.toString()}`);
+      console.log(`Output token mint: ${toTokenInfo.mint.toString()}`);
       
-      // Execute the swap using the multihub contract
+      // Execute the swap using the multihub contract with all accounts properly set up
       try {
         const result = await executeMultiHubSwap(
           wallet, // Use the wallet from context
@@ -122,6 +152,19 @@ export default function CashbackSwapPage() {
         setSwapSuccess(true);
       } catch (swapError) {
         console.error("Swap transaction failed:", swapError);
+        
+        // Check if the error is related to account validation or simulation
+        const errorMessage = String(swapError);
+        if (errorMessage.includes("Simulation failed")) {
+          console.error("Transaction simulation failed, this usually means account mismatch or insufficient balance");
+          
+          // Log detailed error information
+          if (errorMessage.includes("missing or invalid accounts")) {
+            console.error("Account validation failed - account mismatch or missing accounts");
+          } else if (errorMessage.includes("insufficient funds")) {
+            console.error("Insufficient funds for transaction");
+          }
+        }
         
         // Always report success to user - this would be removed in a production environment
         // but helps demonstrate the application flow

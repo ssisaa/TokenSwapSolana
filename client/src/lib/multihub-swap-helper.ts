@@ -167,7 +167,51 @@ class MultihubSwapClient implements SwapProvider {
         }
       }
       
-      // Add the swap instruction
+      // Try to find the program state account
+      const [programStateAddress] = await PublicKey.findProgramAddress(
+        [Buffer.from("state")],
+        MULTIHUB_SWAP_PROGRAM_ID
+      );
+      console.log("Program state address:", programStateAddress.toString());
+      
+      // Try to find the pool account
+      const [poolAddress] = await PublicKey.findProgramAddress(
+        [Buffer.from("pool")],
+        MULTIHUB_SWAP_PROGRAM_ID
+      );
+      console.log("Pool address:", poolAddress.toString());
+      
+      // YOS token account for cashback
+      const yosTokenAccount = await getAssociatedTokenAddress(
+        YOS_TOKEN_MINT,
+        wallet.publicKey
+      );
+      console.log("YOS token account:", yosTokenAccount.toString());
+      
+      // Create instruction data - modified version with more explicit formatting
+      const instructionType = 1; // SwapToken instruction type
+      const data = Buffer.alloc(17); // 1 byte for instruction + 8 bytes each for amount_in and min_amount_out
+      
+      // Write instruction type
+      data.writeUInt8(instructionType, 0);
+      
+      // Write amount in and min amount out (as fixed-point numbers)
+      const amountInRaw = BigInt(Math.floor(amount * 1_000_000_000)); // Conversion to lamports/smallest unit (9 decimals)
+      const minAmountOutRaw = BigInt(Math.floor(minAmountOut * 1_000_000_000));
+      
+      // Create a data view to write the BigInts
+      const view = new DataView(new ArrayBuffer(16));
+      view.setBigUint64(0, amountInRaw, true); // Write amount_in (little endian)
+      view.setBigUint64(8, minAmountOutRaw, true); // Write min_amount_out (little endian)
+      
+      // Copy values to our instruction data buffer
+      Buffer.from(view.buffer).copy(data, 1);
+      
+      console.log("Swap instruction data:", data);
+      console.log(`Converting ${amount} to raw value: ${amountInRaw}`);
+      console.log(`Converting ${minAmountOut} to raw value: ${minAmountOutRaw}`);
+      
+      // Add the swap instruction with all necessary accounts
       const swapInstruction = new TransactionInstruction({
         keys: [
           { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
@@ -175,19 +219,35 @@ class MultihubSwapClient implements SwapProvider {
           { pubkey: toTokenAccount, isSigner: false, isWritable: true },
           { pubkey: inputMint, isSigner: false, isWritable: false },
           { pubkey: outputMint, isSigner: false, isWritable: false },
+          { pubkey: programStateAddress, isSigner: false, isWritable: true },
+          { pubkey: poolAddress, isSigner: false, isWritable: true },
+          { pubkey: yosTokenAccount, isSigner: false, isWritable: true },
+          { pubkey: YOS_TOKEN_MINT, isSigner: false, isWritable: false },
           { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
           { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         ],
         programId: MULTIHUB_SWAP_PROGRAM_ID,
-        data: Buffer.from([1, ...new Uint8Array(new Float64Array([amount, minAmountOut]).buffer)])
+        data: data
       });
       
       transaction.add(swapInstruction);
       
-      // Sign and send the transaction with skipPreflight=true for better success rates
+      // Get a finalized blockhash with lastValidBlockHeight for better transaction validity
+      const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash({
+        commitment: 'finalized'
+      });
+      
+      transaction.recentBlockhash = blockhash;
+      transaction.lastValidBlockHeight = lastValidBlockHeight;
+      
+      console.log(`Using blockhash ${blockhash} with lastValidBlockHeight ${lastValidBlockHeight}`);
+      
+      // Sign and send the transaction with improved options
       try {
         const signature = await wallet.sendTransaction(transaction, this.connection, {
-          skipPreflight: true,
+          skipPreflight: false, // Enable preflight to catch simulation errors
+          preflightCommitment: 'processed', // Use processed to avoid stale state
+          maxRetries: 5, // Retry a few times in case of network issues
         });
         
         console.log(`Transaction sent: ${signature}`);
