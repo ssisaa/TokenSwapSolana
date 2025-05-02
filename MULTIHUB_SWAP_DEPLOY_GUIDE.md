@@ -1,130 +1,120 @@
-# MultiHub Swap Contract Deployment Guide
+# MultiHub Swap Deployment Guide
 
-This guide outlines the steps to build and deploy the fixed MultiHub Swap contract to Solana devnet.
+This guide provides detailed instructions for deploying the fixed MultiHub Swap program to Solana devnet.
 
 ## Prerequisites
 
-1. Solana CLI tools (v1.17.0+)
+1. Solana CLI tools installed (v1.17.x or newer recommended)
 2. Rust and Cargo installed
-3. The Solana BPF toolchain
-4. A funded Solana devnet wallet for deployment 
-5. Access to the program keypair file (`multihub-keypair.json`)
+3. The Solana BPF toolchain (`cargo-build-sbf`)
+4. A funded devnet wallet with enough SOL for deployment
+5. The program keypair file (`multihub-keypair.json`)
 
-## Build Process
+## Step 1: Prepare the Environment
 
-### 1. Ensure Required Tools Are Installed
+Ensure your system is configured for Solana development:
 
 ```bash
-# Check Solana CLI version
-solana --version
+# Install Solana CLI if needed
+sh -c "$(curl -sSfL https://release.solana.com/v1.17.31/install)"
 
-# Make sure Rust is installed
-rustc --version
-cargo --version
+# Update your PATH (add to your .bashrc or .zshrc for persistence)
+export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
 
-# Install Solana BPF toolchain if not already installed
-sh -c "$(curl -sSfL https://release.solana.com/v1.16.14/install)"
+# Install the BPF toolchain if needed
 cargo install --git https://github.com/solana-labs/rbpf cargo-build-sbf
-rustup component add rust-src
-```
 
-### 2. Configure Solana CLI for Devnet
-
-```bash
-# Configure Solana CLI to use devnet
+# Configure for devnet
 solana config set --url https://api.devnet.solana.com
 
-# Ensure your wallet is funded (required for deployment)
+# Check your configuration
+solana config get
+
+# Check your wallet balance
 solana balance
 ```
 
-### 3. Build the Contract
+## Step 2: Build the Program
+
+Build both the original and fixed implementation of the MultiHub Swap program:
 
 ```bash
 # Navigate to the program directory
 cd program
 
-# Build the program
+# Build the original program
 cargo build-sbf
+
+# Build the fixed implementation
+cargo build-sbf --bin multihub_swap_fixed_new
 ```
 
-This will create a compiled `.so` file in the `target/deploy` directory.
+## Step 3: Deploy the Program
 
-## Deployment Process
-
-### 1. Deploy the Contract to Devnet
+Use the provided deployment script to automate the process:
 
 ```bash
-# Deploy using the program keypair
-solana program deploy \
-  --program-id multihub-keypair.json \
-  target/deploy/multihub_swap.so
+# Make the deployment script executable
+chmod +x deploy_multihub_swap.sh
+
+# Run the deployment script
+./deploy_multihub_swap.sh
 ```
 
-Alternatively, if you want to deploy the fixed version:
+The script will:
+1. Verify you have the correct keypair file
+2. Build both implementations
+3. Let you choose which one to deploy
+4. Deploy the selected implementation to the MultiHub Swap program ID
+5. Verify the deployment was successful
 
-```bash
-solana program deploy \
-  --program-id multihub-keypair.json \
-  target/deploy/multihub_swap_fixed_new.so
-```
+## Step 4: Initialize the Program (if needed)
 
-### 2. Verify Deployment
+If this is a fresh deployment (not an upgrade), you'll need to initialize the program:
 
-```bash
-# Get program account info to confirm successful deployment
-solana program show \
-  --programs \
-  3cXKNjtRv8b1HVYU6vRDvmoSMHfXrWATCLFY2Y5wTsps
-```
+1. Navigate to the web interface
+2. Connect your admin wallet (must match the admin wallet used during development)
+3. Go to the Admin tab
+4. Click "Initialize MultiHub Swap Program"
+5. Provide the following parameters:
+   - YOT Mint: `2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF`
+   - YOS Mint: `GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n`
+   - Liquidity Contribution: 20 (%)
+   - Admin Fee: 0.1 (%)
+   - YOS Cashback: 5 (%)
 
-### 3. Initialize the Program
+## Step 5: Verify the Deployment
 
-After deploying the contract, you need to initialize it using the client application. Navigate to the Transaction Debug page in the web application and click "Initialize MultiHub Swap."
+Test the deployment by:
 
-## Important Notes
-
-1. The program ID must match `3cXKNjtRv8b1HVYU6vRDvmoSMHfXrWATCLFY2Y5wTsps` for compatibility with the client application.
-2. Ensure the `multihub-keypair.json` file is used to maintain the same program ID.
-3. Store your deployment wallet securely as it has authority over program upgrades.
+1. Connect a wallet that has never received YOS tokens
+2. Attempt a swap on the CashbackSwap page
+3. The transaction should succeed on the first attempt
+4. Check that a new YOS token account was created for the user
+5. Verify that YOS cashback was received
 
 ## Troubleshooting
 
-### Common Deployment Issues
+If deployment fails:
 
-1. **Insufficient Funds**: Ensure your wallet has enough SOL for deployment (approximately 5 SOL).
-   ```bash
-   solana airdrop 2 # Request devnet SOL
-   ```
+1. Check that your wallet has enough SOL
+2. Verify the program ID in the keypair file matches the expected ID
+3. Ensure you have the correct permissions for the program deployment
+4. Check for any error messages in the transaction logs
 
-2. **Program Size Limit**: If the program exceeds Solana's size limit (≈400kb), you may need to optimize the code.
+## Important Notes
 
-3. **RPC Node Connection Issues**: Try switching to a different RPC endpoint if deployment fails:
-   ```bash
-   solana config set --url https://solana-devnet.g.alchemy.com/v2/YOUR_API_KEY
-   ```
+- The program ID for the MultiHub Swap is: `3cXKNjtRv8b1HVYU6vRDvmoSMHfXrWATCLFY2Y5wTsps`
+- The updated implementation handles YOS token account validation correctly
+- All percentage values in the program are stored as integers:
+  - 20% = 20
+  - 5% = 5
+  - 0.1% = 1 (scaled by 10)
 
-### Verifying Contract Functionality
+## Next Steps
 
-After deployment, test the functionality through the web interface:
-1. Connect your wallet to the application
-2. Navigate to the CashbackSwap page
-3. Perform a test swap with a small amount
-4. Verify in Solana Explorer that the transaction succeeded
+After deployment:
 
-## Upgrade Process
-
-To upgrade the existing program:
-
-```bash
-solana program deploy \
-  --program-id multihub-keypair.json \
-  target/deploy/multihub_swap_fixed_new.so \
-  --upgrade
-```
-
-## Security Considerations
-
-1. Never share your deployment keypair (`multihub-keypair.json`).
-2. Use program authority PDAs for privileged operations within the contract.
-3. Maintain proper access controls for admin functions.
+1. Monitor initial user interactions to confirm the fix works as expected
+2. Update any client code to use the improved implementation
+3. Consider future improvements as outlined in the MULTIHUB_SWAP_FIX_README.md

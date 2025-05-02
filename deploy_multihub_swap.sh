@@ -51,8 +51,27 @@ if [ ! -f "multihub-keypair.json" ]; then
 fi
 
 # Verify program ID matches expected value
-PROGRAM_ID=$(solana-keygen pubkey multihub-keypair.json)
+KEYPAIR_FILE="multihub-keypair.json"
 EXPECTED_ID="3cXKNjtRv8b1HVYU6vRDvmoSMHfXrWATCLFY2Y5wTsps"
+
+echo -e "${BLUE}Using Program ID: ${EXPECTED_ID}${NC}"
+
+# Check if the keypair file exists
+if [ ! -f "$KEYPAIR_FILE" ]; then
+  echo -e "${RED}Error: Keypair file ${KEYPAIR_FILE} not found${NC}"
+  echo "Would you like to create a new keypair file? This is NOT recommended if you're updating an existing program."
+  read -p "Create new keypair? (y/n) " -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Yy]$ ]]; then
+    echo "Creating new keypair file: ${KEYPAIR_FILE}"
+    solana-keygen new -o "$KEYPAIR_FILE" --force
+  else
+    exit 1
+  fi
+fi
+
+# Verify program ID matches expected value
+PROGRAM_ID=$(solana-keygen pubkey "$KEYPAIR_FILE")
 
 if [ "$PROGRAM_ID" != "$EXPECTED_ID" ]; then
   echo -e "${RED}Warning: Program ID from keypair doesn't match expected ID${NC}"
@@ -81,13 +100,13 @@ echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
   echo -e "${BLUE}Deploying fixed implementation...${NC}"
   solana program deploy \
-    --program-id ../multihub-keypair.json \
+    --program-id ../$KEYPAIR_FILE \
     target/deploy/multihub_swap_fixed_new.so \
     --upgrade
 else
   echo -e "${BLUE}Deploying standard implementation...${NC}"
   solana program deploy \
-    --program-id ../multihub-keypair.json \
+    --program-id ../$KEYPAIR_FILE \
     target/deploy/multihub_swap.so \
     --upgrade
 fi
