@@ -252,8 +252,9 @@ export async function closeProgram(
   // Create a new transaction
   const transaction = new Transaction();
   
-  // Get program state address
+  // Get program state and authority addresses
   const [programStateAddress, _] = findProgramStateAddress();
+  const [programAuthorityAddress, __] = findProgramAuthorityAddress();
   
   // Create the close program instruction using a simple Buffer
   // This is a safer approach than using BorshCoder with an empty IDL
@@ -268,14 +269,31 @@ export async function closeProgram(
   const closeProgramData = dataLayout;
   
   // Add the close program instruction to the transaction
+  // Include all required accounts similar to initialize
   transaction.add({
     keys: [
       { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
-      { pubkey: programStateAddress, isSigner: false, isWritable: true }
+      { pubkey: programStateAddress, isSigner: false, isWritable: true },
+      { pubkey: programAuthorityAddress, isSigner: false, isWritable: false },
+      { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false }, // System program
+      { pubkey: wallet.publicKey, isSigner: false, isWritable: true } // Rent receiver
     ],
     programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID),
     data: Buffer.from(closeProgramData)
   });
+  
+  // Simulate the transaction first to check for errors
+  try {
+    console.log('Simulating close program transaction...');
+    const simulation = await connection.simulateTransaction(transaction);
+    if (simulation.value.err) {
+      console.error('Transaction simulation failed:', simulation.value.err);
+      throw new Error(`Simulation failed: ${JSON.stringify(simulation.value.err)}`);
+    }
+  } catch (error) {
+    console.error('Simulation error:', error);
+    throw error;
+  }
   
   // Send the transaction
   const signature = await wallet.sendTransaction(transaction, connection);

@@ -28,10 +28,29 @@ export function MultihubV3AdminActions({ wallet }: MultihubV3AdminActionsProps) 
     try {
       setIsInitializing(true);
       
+      // Check if wallet address matches expected admin wallet
+      const adminWalletAddress = "AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ";
+      const currentWalletAddress = wallet.publicKey.toString();
+      
+      if (currentWalletAddress !== adminWalletAddress) {
+        toast({
+          title: 'Admin Wallet Required',
+          description: `Please connect with the admin wallet (${adminWalletAddress.slice(0, 6)}...${adminWalletAddress.slice(-6)})`,
+          variant: 'destructive',
+        });
+        setIsInitializing(false);
+        return;
+      }
+      
+      toast({
+        title: 'Preparing Transaction',
+        description: 'Please approve the transaction in your wallet...',
+      });
+      
       const signature = await MultihubIntegrationV3.initializeMultihubSwapV3(wallet);
       
       toast({
-        title: 'Program Initialized',
+        title: 'Program Initialized Successfully',
         description: `Transaction signature: ${signature.slice(0, 8)}...${signature.slice(-8)}`,
       });
       
@@ -41,9 +60,18 @@ export function MultihubV3AdminActions({ wallet }: MultihubV3AdminActionsProps) 
       
     } catch (error: any) {
       console.error('Failed to initialize program:', error);
+      
+      // Extract meaningful error message
+      let errorMessage = error.message || 'Unknown error';
+      if (errorMessage.includes('Transaction simulation failed')) {
+        errorMessage = 'Transaction simulation failed. The program may already be initialized.';
+      } else if (errorMessage.includes('User rejected')) {
+        errorMessage = 'Transaction was rejected by the user.';
+      }
+      
       toast({
         title: 'Failed to initialize program',
-        description: error.message || 'Unknown error',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -64,10 +92,29 @@ export function MultihubV3AdminActions({ wallet }: MultihubV3AdminActionsProps) 
     try {
       setIsClosing(true);
       
+      // Check if wallet address matches expected admin wallet
+      const adminWalletAddress = "AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ";
+      const currentWalletAddress = wallet.publicKey.toString();
+      
+      if (currentWalletAddress !== adminWalletAddress) {
+        toast({
+          title: 'Admin Wallet Required',
+          description: `Please connect with the admin wallet (${adminWalletAddress.slice(0, 6)}...${adminWalletAddress.slice(-6)})`,
+          variant: 'destructive',
+        });
+        setIsClosing(false);
+        return;
+      }
+      
+      toast({
+        title: 'Preparing Transaction',
+        description: 'Please approve the transaction in your wallet...',
+      });
+      
       const signature = await MultihubIntegrationV3.closeMultihubSwapV3(wallet);
       
       toast({
-        title: 'Program Closed',
+        title: 'Program Closed Successfully',
         description: `Transaction signature: ${signature.slice(0, 8)}...${signature.slice(-8)}`,
       });
       
@@ -77,9 +124,18 @@ export function MultihubV3AdminActions({ wallet }: MultihubV3AdminActionsProps) 
       
     } catch (error: any) {
       console.error('Failed to close program:', error);
+      
+      // Extract meaningful error message
+      let errorMessage = error.message || 'Unknown error';
+      if (errorMessage.includes('Transaction simulation failed')) {
+        errorMessage = 'Transaction simulation failed. The program may already be closed or the wallet is not authorized.';
+      } else if (errorMessage.includes('User rejected')) {
+        errorMessage = 'Transaction was rejected by the user.';
+      }
+      
       toast({
         title: 'Failed to close program',
-        description: error.message || 'Unknown error',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {

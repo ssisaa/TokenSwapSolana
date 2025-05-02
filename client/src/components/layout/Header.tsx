@@ -1,164 +1,174 @@
-import React, { useState } from 'react';
-import { useMultiWallet } from '@/context/MultiWalletContext';
+import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Loader2, Wallet, ChevronDown, RefreshCw, LogOut } from 'lucide-react';
-import { formatTokenAmount } from '@/lib/utils';
-import {
+import { 
+  Wallet,
+  MoreVertical,
+  Copy,
+  ExternalLink,
+  LogOut,
+  ChevronDown
+} from 'lucide-react';
+import { 
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
+import { useMultiWallet } from '@/context/MultiWalletContext';
+import { copyToClipboard, formatTokenAmount } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export default function Header() {
-  const { wallet, publicKey, connected, connecting, disconnect, wallets, connect, setShowWalletSelector, showWalletSelector } = useMultiWallet();
-  const [yotBalance, setYotBalance] = useState<number | null>(null);
-  const [yosBalance, setYosBalance] = useState<number | null>(null);
-  const [solBalance, setSolBalance] = useState<number | null>(null);
+  const { toast } = useToast();
+  const { connected, publicKey, connect, disconnect, yotBalance, yosBalance, solBalance } = useMultiWallet();
   
-  // Placeholder for actual balance fetching - we'll use this from the wallet logs
-  React.useEffect(() => {
-    if (connected && publicKey) {
-      // This is just for the UI preview - in reality these would be fetched
-      const consoleYotBalance = 151198847.47;
-      const consoleYosBalance = 437056995.76;
-      const consoleSolBalance = 7.494;
-      
-      setYotBalance(consoleYotBalance);
-      setYosBalance(consoleYosBalance);
-      setSolBalance(consoleSolBalance);
-    } else {
-      setYotBalance(null);
-      setYosBalance(null);
-      setSolBalance(null);
+  const handleConnectWallet = async () => {
+    if (typeof connect === 'function') {
+      try {
+        await connect();
+      } catch (error: any) {
+        toast({
+          title: 'Wallet Connection Failed',
+          description: error.message || 'Could not connect to wallet',
+          variant: 'destructive',
+        });
+      }
     }
-  }, [connected, publicKey]);
-
-  const handleConnect = () => {
-    setShowWalletSelector(true);
   };
-
-  const handleDisconnect = async () => {
-    await disconnect();
+  
+  const handleCopyAddress = () => {
+    if (publicKey) {
+      const copied = copyToClipboard(publicKey);
+      if (copied) {
+        toast({
+          title: 'Address Copied',
+          description: 'Wallet address copied to clipboard',
+        });
+      }
+    }
   };
-
-  const handleSelectWallet = (walletName: string) => {
-    connect(walletName);
+  
+  const handleDisconnect = () => {
+    if (typeof disconnect === 'function') {
+      disconnect();
+      toast({
+        title: 'Wallet Disconnected',
+        description: 'Your wallet has been disconnected',
+      });
+    }
   };
-
+  
+  const handleOpenExplorer = () => {
+    if (publicKey) {
+      window.open(`https://explorer.solana.com/address/${publicKey}?cluster=devnet`, '_blank');
+    }
+  };
+  
+  const formatWalletAddress = (address: string | null) => {
+    if (!address) return '';
+    return `${address.slice(0, 4)}...${address.slice(-4)}`;
+  };
+  
   return (
-    <header className="h-16 border-b border-[#1e2a45] bg-[#0f1421] px-4 flex items-center justify-end">
-      {connected && publicKey ? (
-        <div className="flex items-center space-x-4">
-          {/* Token Balances */}
-          <div className="hidden md:flex items-center space-x-4">
-            {yotBalance !== null && (
-              <div className="text-sm text-white">
-                <span className="font-medium">{formatTokenAmount(yotBalance)}</span> YOT
-              </div>
-            )}
+    <header className="h-16 border-b border-[#1e2a45] bg-[#0f1421] px-6 flex items-center justify-between">
+      <div>
+        {/* Left side content if needed */}
+      </div>
+      
+      <div className="flex items-center space-x-4">
+        {/* Balances (only show when connected) */}
+        {connected && (
+          <div className="hidden md:flex items-center space-x-3">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="bg-[#1e2a45] rounded-md px-3 py-1.5 flex items-center space-x-2">
+                    <div className="h-4 w-4 rounded-full bg-gradient-to-br from-[#f6c549] to-[#f8de7d]" />
+                    <span className="text-sm">{formatTokenAmount(solBalance || 0)} SOL</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>SOL Balance</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             
-            {yosBalance !== null && (
-              <div className="text-sm text-white">
-                <span className="font-medium">{formatTokenAmount(yosBalance)}</span> YOS
-              </div>
-            )}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="bg-[#1e2a45] rounded-md px-3 py-1.5 flex items-center space-x-2">
+                    <div className="h-4 w-4 rounded-full bg-gradient-to-br from-[#7388ea] to-[#8e4af0]" />
+                    <span className="text-sm">{formatTokenAmount(yotBalance || 0)} YOT</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>YOT Token Balance</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             
-            {solBalance !== null && (
-              <div className="text-sm text-white">
-                <span className="font-medium">{formatTokenAmount(solBalance)}</span> SOL
-              </div>
-            )}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="bg-[#1e2a45] rounded-md px-3 py-1.5 flex items-center space-x-2">
+                    <div className="h-4 w-4 rounded-full bg-gradient-to-br from-[#5ce6a8] to-[#42c286]" />
+                    <span className="text-sm">{formatTokenAmount(yosBalance || 0)} YOS</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>YOS Token Balance</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
-          
-          {/* Wallet */}
+        )}
+        
+        {/* Wallet Button or Connected Status */}
+        {!connected ? (
+          <Button 
+            className="bg-gradient-to-r from-primary to-[#7043f9] text-white"
+            onClick={handleConnectWallet}
+          >
+            <Wallet className="h-4 w-4 mr-2" />
+            Connect Wallet
+          </Button>
+        ) : (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="border-[#1e2a45] bg-[#1a2236] hover:bg-[#232e47] text-white">
-                <div className="flex items-center">
-                  <div className="mr-2 h-5 w-5 rounded-full bg-gradient-to-br from-purple-400 to-indigo-600 flex items-center justify-center">
-                    <Wallet className="h-3 w-3 text-white" />
-                  </div>
-                  <span className="hidden md:inline">
-                    {publicKey.toString().slice(0, 5)}...{publicKey.toString().slice(-3)}
-                  </span>
-                  <ChevronDown className="ml-2 h-4 w-4" />
-                </div>
+              <Button variant="outline" className="border-[#2e3c58] bg-[#1e2a45]">
+                <div className="h-4 w-4 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 mr-2" />
+                <span className="mr-1">{formatWalletAddress(publicKey)}</span>
+                <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 bg-[#1a2236] border-[#1e2a45] text-white">
-              <DropdownMenuItem
-                className="flex cursor-pointer items-center hover:bg-[#232e47]"
-                onClick={handleConnect}
-              >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Switch Wallet
+            <DropdownMenuContent className="min-w-[240px]">
+              <DropdownMenuLabel>My Wallet</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleCopyAddress}>
+                <Copy className="h-4 w-4 mr-2" />
+                Copy Address
               </DropdownMenuItem>
-              <DropdownMenuItem
-                className="flex cursor-pointer items-center text-red-400 hover:bg-[#232e47] hover:text-red-400"
-                onClick={handleDisconnect}
-              >
-                <LogOut className="mr-2 h-4 w-4" />
+              <DropdownMenuItem onClick={handleOpenExplorer}>
+                <ExternalLink className="h-4 w-4 mr-2" />
+                View on Explorer
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleDisconnect}>
+                <LogOut className="h-4 w-4 mr-2" />
                 Disconnect
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
-      ) : (
-        <Button 
-          onClick={handleConnect}
-          className="bg-gradient-to-r from-primary to-[#7043f9] text-white"
-          disabled={connecting}
-        >
-          {connecting ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Connecting...
-            </>
-          ) : (
-            <>
-              <Wallet className="mr-2 h-4 w-4" />
-              Connect Wallet
-            </>
-          )}
-        </Button>
-      )}
-      
-      {/* Wallet Selector Modal */}
-      {showWalletSelector && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-[#0f1421] rounded-lg border border-[#1e2a45] p-6 w-full max-w-md">
-            <h3 className="text-xl font-bold text-white mb-4">Connect a wallet</h3>
-            <div className="space-y-2">
-              {wallets.map((walletInfo) => (
-                <Button
-                  key={walletInfo.name}
-                  onClick={() => handleSelectWallet(walletInfo.name)}
-                  className="w-full bg-[#1a2236] hover:bg-[#232e47] justify-start text-white border border-[#1e2a45]"
-                  variant="outline"
-                >
-                  <img 
-                    src={walletInfo.icon} 
-                    alt={walletInfo.name} 
-                    className="w-5 h-5 mr-3" 
-                  />
-                  {walletInfo.name}
-                  {!walletInfo.installed && (
-                    <span className="ml-auto text-xs text-gray-400">(Install)</span>
-                  )}
-                </Button>
-              ))}
-            </div>
-            <Button
-              onClick={() => setShowWalletSelector(false)}
-              className="mt-4 w-full bg-[#1a2236] hover:bg-[#232e47] text-white border border-[#1e2a45]"
-              variant="outline"
-            >
-              Cancel
-            </Button>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </header>
   );
 }
