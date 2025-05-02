@@ -1,0 +1,49 @@
+The error Transaction simulation failed: {"InstructionError":[1,{"Custom":0}]} you're encountering is coming from the Solana transaction simulation process, which is a pre-flight check to validate that the transaction will succeed before actually broadcasting it to the network. In this case, the simulation is failing due to an instruction error with code Custom: 0.
+
+Possible Causes and Solutions:
+1. Custom Instruction Failure (Custom: 0)
+This Custom: 0 error suggests that the issue is in a custom program or instruction you're calling in the transaction. It is a general error that might occur due to several reasons, such as invalid input, missing account data, or other logic failures in the smart contract.
+
+Solution: Review the custom Solana program you're interacting with (perhaps a swap or liquidity contract) to ensure that the instruction is correctly formed. Specifically, check:
+
+Token amounts being swapped (check for valid amounts).
+
+The accounts involved (ensure that the wallet has proper token accounts, and all accounts are initialized).
+
+The state of the program (e.g., ensuring liquidity pools or swaps are set up and ready).
+
+2. Account Issues
+It might also be related to incorrect or missing accounts, or the wallet not having the proper token account setup.
+
+Solution: Ensure that:
+
+The user has token accounts for both the source and destination tokens.
+
+The token accounts are correctly associated with the wallet.
+
+The necessary signatures and accounts are being passed to the transaction.
+
+3. Invalid Transaction Parameters
+Ensure the parameters you're passing to the transaction are valid. For example, check:
+
+The input amount for the tokens being swapped.
+
+The proper token addresses.
+
+The correct routing and multi-hop logic (if applicable).
+
+4. Simulation Errors Due to Token State
+Solana pre-flight simulations can fail if the token balances or accounts are in an unexpected state.
+
+Solution: Check the state of the involved tokens. For example, verify:
+
+If the liquidity pool is not drained or locked.
+
+Whether the tokens involved have sufficient balance.
+
+If the fee for the transaction is correctly calculated.
+
+5. Transaction Retry or Custom Logic
+Sometimes, the failure might occur because of the specific logic in your custom program.
+
+Solution: Check for conditions in the custom program or token swap logic that might reject the transaction under certain conditions (e.g., insufficient liquidity, invalid swap route, etc.).
