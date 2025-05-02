@@ -63,17 +63,18 @@ export async function executeFixedMultiHubSwap(
     console.log(`From token account: ${fromTokenAccount.toString()}`);
     console.log(`To token account: ${toTokenAccount.toString()}`);
 
-    // Try to find the program state account
+    // Try to find the program state account - must match the contract's findProgramStateAddress
     const [programStateAddress] = await PublicKey.findProgramAddress(
       [Buffer.from("state")],
-      new PublicKey(MULTIHUB_SWAP_PROGRAM_ID)
+      MULTIHUB_SWAP_PROGRAM_ID
     );
     console.log("Program state address:", programStateAddress.toString());
     
-    // Try to find the pool account
+    // Find SOL-YOT pool address - must match what's defined in the contract
+    const SOL_YOT_POOL_SEED = "sol_yot_pool";
     const [poolAddress] = await PublicKey.findProgramAddress(
-      [Buffer.from("pool")],
-      new PublicKey(MULTIHUB_SWAP_PROGRAM_ID)
+      [Buffer.from(SOL_YOT_POOL_SEED)],
+      MULTIHUB_SWAP_PROGRAM_ID
     );
     console.log("Pool address:", poolAddress.toString());
     
@@ -133,44 +134,90 @@ export async function executeFixedMultiHubSwap(
       );
     }
 
-    // Create instruction data for swap with proper serialization
-    const instructionType = 1; // SwapToken instruction type
-    const data = Buffer.alloc(17); // 1 byte for instruction + 8 bytes each for amount_in and min_amount_out
+    // Create instruction data for swap that matches the contract's expected format
+    // In the contract:
+    // fn process_swap(
+    //   program_id: &Pubkey,
+    //   accounts: &[AccountInfo],
+    //   amount_in: u64,
+    //   minimum_amount_out: u64,
+    //   input_token_mint: Pubkey,
+    //   output_token_mint: Pubkey,
+    //   referrer: Option<Pubkey>,
+    // )
+    
+    const instructionType = 1; // Swap instruction type
+    
+    // Calculate the total data size:
+    // 1 byte for instruction + 
+    // 8 bytes each for amount_in and min_amount_out +
+    // 32 bytes each for input_mint and output_mint +
+    // 1 byte for referrer flag
+    const data = Buffer.alloc(1 + 8 + 8 + 32 + 32 + 1);
     
     // Write instruction type
     data.writeUInt8(instructionType, 0);
+    let offset = 1;
     
-    // Write amount in and min amount out (as fixed-point numbers with 9 decimals)
+    // Write amount_in and minimum_amount_out (as fixed-point numbers with 9 decimals)
     const amountInRaw = BigInt(Math.floor(amount * 1_000_000_000));
     const minAmountOutRaw = BigInt(Math.floor(minAmountOut * 1_000_000_000));
     
-    // Create a data view to write the BigInts
-    const view = new DataView(new ArrayBuffer(16));
-    view.setBigUint64(0, amountInRaw, true); // Write amount_in (little endian)
-    view.setBigUint64(8, minAmountOutRaw, true); // Write min_amount_out (little endian)
+    // Write the values directly to the buffer
+    data.writeBigUInt64LE(amountInRaw, offset);
+    offset += 8;
     
-    // Copy values to our instruction data buffer
-    Buffer.from(view.buffer).copy(data, 1);
+    data.writeBigUInt64LE(minAmountOutRaw, offset);
+    offset += 8;
+    
+    // Write input and output token mints
+    fromMint.toBuffer().copy(data, offset);
+    offset += 32;
+    
+    toMint.toBuffer().copy(data, offset);
+    offset += 32;
+    
+    // No referrer for now (0 = no referrer)
+    data.writeUInt8(0, offset);
+    
+    console.log("Swap instruction data:", data.toString('hex'));
     
     console.log(`Converting ${amount} to raw value: ${amountInRaw}`);
     console.log(`Converting ${minAmountOut} to raw value: ${minAmountOutRaw}`);
     
-    // Add the swap instruction with all necessary accounts
+    // Account ordering must exactly match what's expected in the process_swap function:
+    // 
+    // 0. `[signer]` User's wallet
+    // 1. `[writable]` User's token account for input token
+    // 2. `[writable]` User's token account for output token
+    // 3. `[writable]` User's YOS token account for cashback
+    // 4. `[writable]` Program state account
+    // 5. `[writable]` SOL-YOT liquidity pool account
+    // 6. `[writable]` Admin fee account
+    // 7. `[]` Token program
+    // 8. `[writable]` (Optional) Referrer's account
+    //
+    
+    // For admin fee account, use a derived address
+    const [adminFeeAddress] = await PublicKey.findProgramAddress(
+      [Buffer.from("fee")],
+      MULTIHUB_SWAP_PROGRAM_ID
+    );
+    console.log("Admin fee address:", adminFeeAddress.toString());
+    
     const swapInstruction = new TransactionInstruction({
       keys: [
-        { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
-        { pubkey: fromTokenAccount, isSigner: false, isWritable: true },
-        { pubkey: toTokenAccount, isSigner: false, isWritable: true },
-        { pubkey: fromMint, isSigner: false, isWritable: false },
-        { pubkey: toMint, isSigner: false, isWritable: false },
-        { pubkey: programStateAddress, isSigner: false, isWritable: true },
-        { pubkey: poolAddress, isSigner: false, isWritable: true },
-        { pubkey: yosTokenAccount, isSigner: false, isWritable: true },
-        { pubkey: new PublicKey(YOS_TOKEN_MINT), isSigner: false, isWritable: false },
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        { pubkey: wallet.publicKey, isSigner: true, isWritable: true },             // 0. User wallet (signer)
+        { pubkey: fromTokenAccount, isSigner: false, isWritable: true },            // 1. User's input token account
+        { pubkey: toTokenAccount, isSigner: false, isWritable: true },              // 2. User's output token account
+        { pubkey: yosTokenAccount, isSigner: false, isWritable: true },             // 3. User's YOS token account for cashback
+        { pubkey: programStateAddress, isSigner: false, isWritable: true },         // 4. Program state account
+        { pubkey: poolAddress, isSigner: false, isWritable: true },                 // 5. SOL-YOT liquidity pool account
+        { pubkey: adminFeeAddress, isSigner: false, isWritable: true },             // 6. Admin fee account
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },           // 7. Token program
+        // No referrer for now
       ],
-      programId: MULTIHUB_SWAP_PROGRAM_ID,
+      programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID),
       data: data
     });
     
