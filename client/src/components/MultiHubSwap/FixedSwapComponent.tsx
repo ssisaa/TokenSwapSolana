@@ -1,88 +1,107 @@
 import React, { useState, useEffect } from 'react';
-import { PublicKey } from '@solana/web3.js';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { 
-  initializeMultiHubSwap, 
-  executeMultiHubSwap 
-} from '@/lib/multihub-client-fixed';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { useMultiWallet } from '@/context/MultiWalletContext';
 import { useToast } from '@/hooks/use-toast';
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { PublicKey } from '@solana/web3.js';
+import { executeMultiHubSwap, initializeMultiHubSwap } from '@/lib/multihub-client-final';
 
-// Predefined tokens for testing
+// Token definitions
 const TOKENS = [
-  { symbol: 'SOL', name: 'Solana', address: 'So11111111111111111111111111111111111111112', decimals: 9 },
-  { symbol: 'YOT', name: 'YieldOwlToken', address: '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF', decimals: 9 },
-  { symbol: 'YOS', name: 'YieldOwlShares', address: 'GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n', decimals: 9 },
-  { symbol: 'USDC', name: 'USD Coin', address: '9T7uw5dqaEmEC4McqyefzYsrEP5hoC4e2oV8it1Uc4f1', decimals: 9 }
+  { symbol: 'YOT', name: 'Yot Token', address: '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF' },
+  { symbol: 'YOS', name: 'Yos Token', address: 'GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n' },
+  { symbol: 'SOL', name: 'Solana', address: 'native' },
+  { symbol: 'XAR', name: 'XAR Test Token', address: '9VnMEkvpCPkRVyxXZQWEDocyipoq2uGehdYwAw3yryEa' },
+  { symbol: 'XMP', name: 'XMP Test Token', address: 'HMfSHCLwS6tJmg4aoYnkAqCFte1LQMkjRpfFvP5M3HPs' },
 ];
 
+type TokenInfo = {
+  symbol: string;
+  name: string;
+  address: string;
+};
+
+type TxResult = {
+  success: boolean;
+  signature: string;
+};
+
 const FixedSwapComponent: React.FC = () => {
-  const { publicKey, connected, signTransaction, signAllTransactions, sendTransaction } = useWallet();
-  const [fromToken, setFromToken] = useState(TOKENS[0]);
-  const [toToken, setToToken] = useState(TOKENS[1]);
-  const [amount, setAmount] = useState('1');
-  const [minAmountOut, setMinAmountOut] = useState('0.95');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(false);
-  const [txResult, setTxResult] = useState<{ signature: string, success: boolean } | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const { connected, wallet } = useMultiWallet();
+  
+  const [fromToken, setFromToken] = useState<TokenInfo>(TOKENS[0]); // Default to YOT
+  const [toToken, setToToken] = useState<TokenInfo>(TOKENS[1]); // Default to YOS
+  const [amount, setAmount] = useState<string>('100');
+  const [minAmountOut, setMinAmountOut] = useState<string>('95');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isInitializing, setIsInitializing] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [txResult, setTxResult] = useState<TxResult | null>(null);
 
-  const handleFromTokenChange = (value: string) => {
-    const token = TOKENS.find(t => t.symbol === value);
-    if (token) {
-      setFromToken(token);
-    }
+  const clearStatus = () => {
+    setError(null);
+    setTxResult(null);
   };
 
-  const handleToTokenChange = (value: string) => {
-    const token = TOKENS.find(t => t.symbol === value);
-    if (token) {
-      setToToken(token);
-    }
-  };
-
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (/^\d*\.?\d*$/.test(value)) { // Allow numbers and a single decimal point
-      setAmount(value);
-      
-      // Update min amount based on 5% slippage
-      if (value) {
-        const parsedValue = parseFloat(value);
-        if (!isNaN(parsedValue)) {
-          setMinAmountOut((parsedValue * 0.95).toFixed(2));
-        }
+  const handleFromTokenChange = (symbol: string) => {
+    clearStatus();
+    const newToken = TOKENS.find(t => t.symbol === symbol);
+    if (newToken) {
+      setFromToken(newToken);
+      // Swap to token if same tokens selected
+      if (newToken.symbol === toToken.symbol) {
+        const otherToken = TOKENS.find(t => t.symbol !== symbol) || TOKENS[1];
+        setToToken(otherToken);
       }
     }
   };
 
-  const handleMinAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (/^\d*\.?\d*$/.test(value)) { // Allow numbers and a single decimal point
-      setMinAmountOut(value);
+  const handleToTokenChange = (symbol: string) => {
+    clearStatus();
+    const newToken = TOKENS.find(t => t.symbol === symbol);
+    if (newToken) {
+      setToToken(newToken);
+      // Swap from token if same tokens selected
+      if (newToken.symbol === fromToken.symbol) {
+        const otherToken = TOKENS.find(t => t.symbol !== symbol) || TOKENS[0];
+        setFromToken(otherToken);
+      }
     }
   };
 
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    clearStatus();
+    setAmount(e.target.value);
+  };
+
+  const handleMinAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    clearStatus();
+    setMinAmountOut(e.target.value);
+  };
+
   const handleSwapTokens = () => {
+    clearStatus();
     const temp = fromToken;
     setFromToken(toToken);
     setToToken(temp);
   };
 
   const handleInitialize = async () => {
-    if (!connected || !publicKey) {
-      toast({
-        title: "Wallet not connected",
-        description: "Please connect your wallet first",
-        variant: "destructive"
-      });
+    if (!connected || !wallet) {
+      setError("Wallet not connected");
       return;
     }
 
@@ -91,26 +110,22 @@ const FixedSwapComponent: React.FC = () => {
     setTxResult(null);
 
     try {
-      const wallet = { publicKey, signTransaction, signAllTransactions, sendTransaction };
       const signature = await initializeMultiHubSwap(wallet);
-      
       setTxResult({
+        success: true,
         signature,
-        success: true
       });
-      
       toast({
-        title: "Program Initialized",
-        description: "MultiHub Swap program has been successfully initialized",
+        title: "Initialization successful",
+        description: "MultiHub Swap program has been initialized",
       });
-    } catch (err) {
-      console.error("Initialization error:", err);
-      setError(err instanceof Error ? err.message : "Unknown error during initialization");
-      
+    } catch (error: any) {
+      console.error("Initialization error:", error);
+      setError(error.message || "Failed to initialize MultiHub Swap program");
       toast({
-        title: "Initialization Failed",
-        description: err instanceof Error ? err.message : "Unknown error",
-        variant: "destructive"
+        title: "Initialization failed",
+        description: error.message || "An error occurred",
+        variant: "destructive",
       });
     } finally {
       setIsInitializing(false);
@@ -118,21 +133,19 @@ const FixedSwapComponent: React.FC = () => {
   };
 
   const handleExecuteSwap = async () => {
-    if (!connected || !publicKey) {
-      toast({
-        title: "Wallet not connected",
-        description: "Please connect your wallet first",
-        variant: "destructive"
-      });
+    if (!connected || !wallet) {
+      setError("Wallet not connected");
       return;
     }
 
-    if (!amount || parseFloat(amount) <= 0) {
-      toast({
-        title: "Invalid amount",
-        description: "Please enter a valid amount to swap",
-        variant: "destructive"
-      });
+    // Validate inputs
+    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+      setError("Please enter a valid amount");
+      return;
+    }
+
+    if (!minAmountOut || isNaN(parseFloat(minAmountOut)) || parseFloat(minAmountOut) <= 0) {
+      setError("Please enter a valid minimum amount out");
       return;
     }
 
@@ -141,37 +154,37 @@ const FixedSwapComponent: React.FC = () => {
     setTxResult(null);
 
     try {
-      const wallet = { publicKey, signTransaction, signAllTransactions, sendTransaction };
-      const fromMint = new PublicKey(fromToken.address);
-      const toMint = new PublicKey(toToken.address);
       const amountValue = parseFloat(amount);
       const minAmountOutValue = parseFloat(minAmountOut);
       
+      const fromAddress = new PublicKey(fromToken.address);
+      const toAddress = new PublicKey(toToken.address);
+      
       const signature = await executeMultiHubSwap(
         wallet,
-        fromMint,
-        toMint,
+        fromAddress,
+        toAddress,
         amountValue,
         minAmountOutValue
       );
       
       setTxResult({
+        success: true,
         signature,
-        success: true
       });
       
       toast({
-        title: "Swap Successful",
-        description: `Successfully swapped ${amount} ${fromToken.symbol} to ${toToken.symbol}`,
+        title: "Swap successful",
+        description: `${amount} ${fromToken.symbol} swapped to ${toToken.symbol}`,
       });
-    } catch (err) {
-      console.error("Swap error:", err);
-      setError(err instanceof Error ? err.message : "Unknown error during swap");
+    } catch (error: any) {
+      console.error("Swap error:", error);
+      setError(error.message || "Failed to execute swap");
       
       toast({
-        title: "Swap Failed",
-        description: err instanceof Error ? err.message : "Unknown error",
-        variant: "destructive"
+        title: "Swap failed",
+        description: error.message || "An error occurred",
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
@@ -179,13 +192,13 @@ const FixedSwapComponent: React.FC = () => {
   };
 
   return (
-    <div className="flex justify-center">
-      <Card className="w-full max-w-md">
+    <div className="max-w-md mx-auto">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-center text-xl font-bold">
-            MultiHub Fixed Swap
-            <div className="text-sm text-muted-foreground mt-1">
-              New implementation with fixed initialization
+          <CardTitle className="flex justify-between items-center">
+            <span>MultiHub Swap</span>
+            <div className="text-sm font-normal text-muted-foreground flex items-center space-x-1">
+              <span>Fixed Implementation</span>
             </div>
           </CardTitle>
         </CardHeader>
