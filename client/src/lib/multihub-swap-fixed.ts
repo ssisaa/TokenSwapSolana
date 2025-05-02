@@ -25,6 +25,29 @@ const YOS_TOKEN_MINT = new PublicKey('GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW
 const MULTIHUB_SWAP_PROGRAM_ID = MULTI_HUB_SWAP_PROGRAM_ID;
 
 /**
+ * Utility function to get token balance
+ */
+async function getTokenBalance(connection: Connection, walletAddress: PublicKey, mint: PublicKey): Promise<number> {
+  try {
+    // Get the associated token account address
+    const tokenAccount = await getAssociatedTokenAddress(mint, walletAddress);
+    
+    // Check if the account exists
+    try {
+      const account = await getAccount(connection, tokenAccount);
+      // Convert from raw units to decimal
+      return Number(account.amount) / 1e9; // Assuming 9 decimals for all tokens
+    } catch (error) {
+      console.log(`Token account for ${mint.toString()} does not exist yet`);
+      return 0;
+    }
+  } catch (error) {
+    console.error("Error fetching token balance:", error);
+    return 0;
+  }
+}
+
+/**
  * Improved, fixed implementation of MultiHub swap functionality to address common transaction issues
  */
 export async function executeFixedMultiHubSwap(
@@ -149,14 +172,17 @@ export async function executeFixedMultiHubSwap(
     //   referrer: Option<Pubkey>,
     // )
     
+    // Simplify the instruction data format to avoid serialization issues
+    // Instruction format:
+    // - 1 byte: instruction type (1 = swap)
+    // - 8 bytes: amount_in as u64
+    // - 8 bytes: minimum_amount_out as u64
+    
     const instructionType = 1; // Swap instruction type
     
-    // Calculate the total data size:
-    // 1 byte for instruction + 
-    // 8 bytes each for amount_in and min_amount_out +
-    // 32 bytes each for input_mint and output_mint +
-    // 1 byte for referrer flag
-    const data = Buffer.alloc(1 + 8 + 8 + 32 + 32 + 1);
+    // Calculate the total data size - simplified version
+    // 1 byte for instruction + 8 bytes for amount_in + 8 bytes for min_amount_out
+    const data = Buffer.alloc(1 + 8 + 8);
     
     // Write instruction type
     data.writeUInt8(instructionType, 0);
@@ -171,17 +197,7 @@ export async function executeFixedMultiHubSwap(
     offset += 8;
     
     data.writeBigUInt64LE(minAmountOutRaw, offset);
-    offset += 8;
-    
-    // Write input and output token mints
-    fromMint.toBuffer().copy(data, offset);
-    offset += 32;
-    
-    toMint.toBuffer().copy(data, offset);
-    offset += 32;
-    
-    // No referrer for now (0 = no referrer)
-    data.writeUInt8(0, offset);
+    // The token mints are already provided as accounts in the transaction instruction
     
     console.log("Swap instruction data:", data.toString('hex'));
     
@@ -196,9 +212,11 @@ export async function executeFixedMultiHubSwap(
     // 3. `[writable]` User's YOS token account for cashback
     // 4. `[writable]` Program state account
     // 5. `[writable]` SOL-YOT liquidity pool account
-    // 6. `[writable]` Admin fee account
+    // 6. `[writable]` Admin fee account 
     // 7. `[]` Token program
-    // 8. `[writable]` (Optional) Referrer's account
+    // 8. `[]` Input token mint
+    // 9. `[]` Output token mint
+    // 10. `[writable]` (Optional) Referrer's account
     //
     
     // For admin fee account, use a derived address
@@ -208,6 +226,10 @@ export async function executeFixedMultiHubSwap(
     );
     console.log("Admin fee address:", adminFeeAddress.toString());
     
+    // Add the system program as we might need it for account creation
+    const systemProgram = SystemProgram.programId;
+    
+    // Include the token mints explicitly in the transaction
     const swapInstruction = new TransactionInstruction({
       keys: [
         { pubkey: wallet.publicKey, isSigner: true, isWritable: true },             // 0. User wallet (signer)
@@ -218,6 +240,9 @@ export async function executeFixedMultiHubSwap(
         { pubkey: poolAddress, isSigner: false, isWritable: true },                 // 5. SOL-YOT liquidity pool account
         { pubkey: adminFeeAddress, isSigner: false, isWritable: true },             // 6. Admin fee account
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },           // 7. Token program
+        { pubkey: fromMint, isSigner: false, isWritable: false },                   // 8. Input token mint
+        { pubkey: toMint, isSigner: false, isWritable: false },                     // 9. Output token mint
+        { pubkey: systemProgram, isSigner: false, isWritable: false },              // 10. System program
         // No referrer for now
       ],
       programId,
@@ -237,13 +262,64 @@ export async function executeFixedMultiHubSwap(
     
     console.log(`Using blockhash ${blockhash} with lastValidBlockHeight ${lastValidBlockHeight}`);
     
-    // Sign and send transaction
+    // First - log the transaction for debugging
+    console.log("Transaction accounts:", transaction.instructions[transaction.instructions.length - 1].keys.map(k => 
+      `${k.pubkey.toString()} (writable: ${k.isWritable}, signer: ${k.isSigner})`
+    ));
+    
+    // Sign and send transaction - with improved error handling
     try {
-      const signature = await wallet.sendTransaction(transaction, connection, {
-        skipPreflight: false, // Enable preflight checks to catch errors before submitting
-        preflightCommitment: 'processed', // Use "processed" instead of "confirmed" to avoid staleness
-        maxRetries: 3, // Retry a few times in case of network issues
-      });
+      console.log("Sending transaction to wallet...");
+      
+      // Simulate the transaction before sending to catch any issues
+      console.log("Simulating transaction before sending...");
+      try {
+        const simulation = await connection.simulateTransaction(transaction);
+        if (simulation.value.err) {
+          console.error("Transaction simulation failed:", simulation.value.err);
+          throw new Error(`Transaction simulation failed: ${JSON.stringify(simulation.value.err)}`);
+        }
+        console.log("Simulation successful!");
+      } catch (simError: any) {
+        console.error("Simulation error:", simError);
+        throw new Error(`Pre-flight simulation failed: ${simError.message}`);
+      }
+      
+      // Try signing and sending with preflight disabled as a fallback option
+      console.log("Attempting to send transaction with wallet.sendTransaction...");
+      let signature;
+      
+      try {
+        // First attempt - normal sign and send
+        signature = await wallet.sendTransaction(transaction, connection, {
+          skipPreflight: true, // Disable preflight as we've already simulated
+          preflightCommitment: 'processed',
+          maxRetries: 3,
+        });
+      } catch (sendError: any) {
+        console.error("Initial transaction send failed:", sendError.message);
+        
+        // Fallback for Phantom wallet - use signTransaction + sendRawTransaction pattern
+        if (sendError.name === "WalletSendTransactionError" && wallet.signTransaction) {
+          console.log("Trying alternative sign + send pattern...");
+          
+          // 1. Sign transaction with wallet
+          const signedTransaction = await wallet.signTransaction(transaction);
+          console.log("Transaction signed successfully, now sending raw transaction...");
+          
+          // 2. Send raw transaction
+          signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
+            skipPreflight: true,
+            preflightCommitment: 'processed',
+            maxRetries: 5,
+          });
+          
+          console.log("Raw transaction sent successfully");
+        } else {
+          // Re-throw if we can't handle it
+          throw sendError;
+        }
+      }
       
       console.log(`Transaction sent with signature: ${signature}`);
       
@@ -271,7 +347,21 @@ export async function executeFixedMultiHubSwap(
     } catch (error: any) {
       console.error("Transaction failed:", error);
       
-      // Handle specific errors
+      // Enhanced wallet error handling
+      if (error.name === 'WalletSendTransactionError') {
+        console.error("Wallet send transaction error:", error);
+        
+        if (error.message.includes("Unexpected error")) {
+          // Could be a wallet connection issue
+          throw new Error("Wallet connection error. Please reconnect your wallet and try again.");
+        } else if (error.message.includes("User rejected")) {
+          throw new Error("Transaction was rejected by the wallet. Please approve the transaction.");
+        } else {
+          throw new Error(`Wallet error: ${error.message}`);
+        }
+      }
+      
+      // Handle simulation errors
       const errorMessage = error.message || "Unknown error";
       
       if (errorMessage.includes("Simulation failed")) {

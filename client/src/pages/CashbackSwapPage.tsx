@@ -141,6 +141,14 @@ export default function CashbackSwapPage() {
       // Execute the swap using our new fixed implementation that properly handles transaction errors
       try {
         console.log("Using fixed implementation for swap transaction");
+        
+        // Display processing state on UI
+        toast({
+          title: "Processing Transaction",
+          description: "Your swap is being processed. Please approve the transaction in your wallet.",
+          variant: "default"
+        });
+        
         const result = await executeFixedMultiHubSwap(
           wallet, // Use the wallet from context
           fromTokenInfo,
@@ -150,22 +158,68 @@ export default function CashbackSwapPage() {
         );
         
         console.log("Swap completed with transaction signature:", result.signature);
+        
+        // Show success message with signature
+        toast({
+          title: "Swap Successful!",
+          description: (
+            <div>
+              <p>Swap completed successfully.</p>
+              <a 
+                href={`https://explorer.solana.com/tx/${result.signature}?cluster=devnet`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline break-all"
+              >
+                View on Solana Explorer
+              </a>
+            </div>
+          ),
+          variant: "success"
+        });
+        
         setSwapSuccess(true);
       } catch (swapError) {
         console.error("Swap transaction failed:", swapError);
         
         // Check if the error is related to account validation or simulation
         const errorMessage = String(swapError);
+        let errorTitle = "Transaction Failed";
+        let errorDescription = errorMessage;
+        
+        // Provide more user-friendly error messages
         if (errorMessage.includes("Simulation failed")) {
           console.error("Transaction simulation failed, this usually means account mismatch or insufficient balance");
           
+          errorTitle = "Transaction Simulation Failed";
+          
           // Log detailed error information
           if (errorMessage.includes("missing or invalid accounts")) {
-            console.error("Account validation failed - account mismatch or missing accounts");
+            errorDescription = "Transaction accounts could not be validated. This may be due to a mismatch between the client and program expectations.";
           } else if (errorMessage.includes("insufficient funds")) {
-            console.error("Insufficient funds for transaction");
+            errorDescription = "Insufficient funds for this transaction. Please check your balances.";
+          } else if (errorMessage.includes("invalid program id")) {
+            errorDescription = "The program ID is not valid or not deployed to this network.";
+          } else {
+            errorDescription = "The transaction could not be processed by the network. Please try again.";
           }
+        } else if (errorMessage.includes("Unexpected error")) {
+          errorTitle = "Wallet Connection Error";
+          errorDescription = "There was an issue connecting to your wallet. Please disconnect and reconnect your wallet, then try again.";
+        } else if (errorMessage.includes("User rejected")) {
+          errorTitle = "Transaction Rejected";
+          errorDescription = "You rejected the transaction. Please approve it to complete the swap.";
+        } else if (errorMessage.includes("blockhash")) {
+          errorTitle = "Transaction Timeout";
+          errorDescription = "The transaction timed out. Please try again.";
         }
+        
+        // Show toast with detailed error information
+        toast({
+          title: errorTitle,
+          description: errorDescription,
+          variant: "destructive",
+        });
         
         // Don't report success when transaction fails
         console.log("Transaction failed - showing error to user");
