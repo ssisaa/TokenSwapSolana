@@ -34,6 +34,7 @@ import MultiHubSwapPage from "@/pages/MultiHubSwapPage";
 import CashbackSwapPage from "@/pages/CashbackSwapPage";
 import AdvancedSwapPage from "@/pages/AdvancedSwapPage";
 import TransactionDebugPage from "@/pages/TransactionDebugPage";
+import FixedSwapTestPage from "@/pages/FixedSwapTestPage";
 import Analytics from "@/pages/Analytics";
 import WalletPage from "@/pages/WalletPage";
 import SettingsPage from "@/pages/SettingsPage";
@@ -162,6 +163,12 @@ function Router() {
         <Route path="/tx-debug">
           <DashboardLayout>
             <TransactionDebugPage />
+          </DashboardLayout>
+        </Route>
+
+        <Route path="/fixed-swap">
+          <DashboardLayout>
+            <FixedSwapTestPage />
           </DashboardLayout>
         </Route>
         
