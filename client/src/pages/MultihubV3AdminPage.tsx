@@ -1,5 +1,5 @@
 import React from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useMultiWallet } from '@/context/MultiWalletContext';
 
 import PageHeader from '@/components/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,7 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle } from 'lucide-react';
 
 export function MultihubV3AdminPage() {
-  const wallet = useWallet();
+  const { wallet, connected } = useMultiWallet();
   
   return (
     <div className="container mx-auto p-4">
@@ -17,7 +17,7 @@ export function MultihubV3AdminPage() {
         description="Manage the Multihub Swap V3 program"
       />
       
-      {!wallet.connected && (
+      {!connected && (
         <Alert variant="destructive" className="mb-6">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Wallet not connected</AlertTitle>
