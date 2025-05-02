@@ -180,54 +180,64 @@ export async function initializeMultiHubSwapProgram(wallet: any): Promise<string
   const YOT_MINT = new PublicKey('2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF');
   const YOS_MINT = new PublicKey('GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n');
   
-  // Initialize instruction discriminant is 0
-  const INITIALIZE_INSTRUCTION = 0;
+  // For Borsh serialization, we need to match EXACTLY the Rust enum format
+  console.log("Creating initialization instruction using Borsh serialization format...");
   
-  // Prepare data buffer
-  // Layout: [1 byte discriminant][32 bytes admin][32 bytes yot_mint][32 bytes yos_mint][8 bytes lp_contribution_rate][8 bytes admin_fee_rate][8 bytes yos_cashback_rate][8 bytes swap_fee_rate][8 bytes referral_rate]
-  const data = Buffer.alloc(1 + 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8);
-  let offset = 0;
+  // First, construct the data matching how Borsh serializes enums
+  // First byte is the enum variant (0 for Initialize)
+  const instructionVariant = Buffer.from([0]); // 0 = Initialize
   
-  // Write discriminant
-  data.writeUInt8(INITIALIZE_INSTRUCTION, offset);
-  offset += 1;
+  // Then include all the struct fields in order
+  // Admin pubkey (32 bytes)
+  const adminBuffer = adminPublicKey.toBuffer();
   
-  // Write admin pubkey
-  adminPublicKey.toBuffer().copy(data, offset);
-  offset += 32;
+  // YOT mint (32 bytes)
+  const yotMintBuffer = YOT_MINT.toBuffer();
   
-  // Write YOT mint
-  YOT_MINT.toBuffer().copy(data, offset);
-  offset += 32;
+  // YOS mint (32 bytes)
+  const yosMintBuffer = YOS_MINT.toBuffer();
   
-  // Write YOS mint
-  YOS_MINT.toBuffer().copy(data, offset);
-  offset += 32;
+  // Rates as little-endian u64 values (8 bytes each)
+  const lpContributionBuffer = Buffer.alloc(8);
+  lpContributionBuffer.writeBigUInt64LE(BigInt(2000)); // 20%
   
-  // Write rates (all as u64, little-endian)
-  const lpContribution = Buffer.alloc(8);
-  lpContribution.writeBigUInt64LE(BigInt(2000)); // 20%
-  lpContribution.copy(data, offset);
-  offset += 8;
+  const adminFeeBuffer = Buffer.alloc(8);
+  adminFeeBuffer.writeBigUInt64LE(BigInt(10)); // 0.1%
   
-  const adminFee = Buffer.alloc(8);
-  adminFee.writeBigUInt64LE(BigInt(10)); // 0.1%
-  adminFee.copy(data, offset);
-  offset += 8;
+  const yosCashbackBuffer = Buffer.alloc(8);
+  yosCashbackBuffer.writeBigUInt64LE(BigInt(500)); // 5%
   
-  const yosCashback = Buffer.alloc(8);
-  yosCashback.writeBigUInt64LE(BigInt(500)); // 5%
-  yosCashback.copy(data, offset);
-  offset += 8;
+  const swapFeeBuffer = Buffer.alloc(8);
+  swapFeeBuffer.writeBigUInt64LE(BigInt(30)); // 0.3%
   
-  const swapFee = Buffer.alloc(8);
-  swapFee.writeBigUInt64LE(BigInt(30)); // 0.3%
-  swapFee.copy(data, offset);
-  offset += 8;
+  const referralRateBuffer = Buffer.alloc(8);
+  referralRateBuffer.writeBigUInt64LE(BigInt(50)); // 0.5%
   
-  const referralRate = Buffer.alloc(8);
-  referralRate.writeBigUInt64LE(BigInt(50)); // 0.5%
-  referralRate.copy(data, offset);
+  // Combine all buffers
+  const data = Buffer.concat([
+    instructionVariant,
+    adminBuffer,
+    yotMintBuffer,
+    yosMintBuffer,
+    lpContributionBuffer,
+    adminFeeBuffer,
+    yosCashbackBuffer,
+    swapFeeBuffer,
+    referralRateBuffer
+  ]);
+  
+  console.log(`Instruction data (${data.length} bytes):`, data.toString('hex'));
+  
+  // Log the buffer segments for debugging
+  console.log("Variant:", instructionVariant.toString('hex'));
+  console.log("Admin:", adminBuffer.toString('hex'));
+  console.log("YOT mint:", yotMintBuffer.toString('hex'));
+  console.log("YOS mint:", yosMintBuffer.toString('hex'));
+  console.log("LP contribution:", lpContributionBuffer.toString('hex'));
+  console.log("Admin fee:", adminFeeBuffer.toString('hex'));
+  console.log("YOS cashback:", yosCashbackBuffer.toString('hex'));
+  console.log("Swap fee:", swapFeeBuffer.toString('hex'));
+  console.log("Referral rate:", referralRateBuffer.toString('hex'));
   
   // Create initialization instruction with all required accounts
   const initInstruction = new TransactionInstruction({
@@ -244,41 +254,46 @@ export async function initializeMultiHubSwapProgram(wallet: any): Promise<string
   
   transaction.add(initInstruction);
   
-  // Send and confirm transaction
-  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-  transaction.recentBlockhash = blockhash;
-  transaction.lastValidBlockHeight = lastValidBlockHeight;
-  transaction.feePayer = wallet.publicKey;
-  
-  // Simulate first
-  console.log("Simulating initialization transaction...");
-  const simulation = await connection.simulateTransaction(transaction);
-  
-  if (simulation.value.err) {
-    console.error("Initialization simulation failed:", simulation.value.err);
-    throw new Error(`Initialization simulation failed: ${JSON.stringify(simulation.value.err)}`);
+  try {
+    // Send and confirm transaction
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    transaction.lastValidBlockHeight = lastValidBlockHeight;
+    transaction.feePayer = wallet.publicKey;
+    
+    // Simulate first
+    console.log("Simulating initialization transaction...");
+    const simulation = await connection.simulateTransaction(transaction);
+    
+    if (simulation.value.err) {
+      console.error("Initialization simulation failed:", simulation.value.err);
+      throw new Error(`Initialization simulation failed: ${JSON.stringify(simulation.value.err)}`);
+    }
+    
+    console.log("Initialization simulation logs:", simulation.value.logs);
+    
+    // Send transaction
+    console.log("Sending initialization transaction...");
+    const signature = await wallet.sendTransaction(transaction, connection);
+    console.log("Initialization transaction sent:", signature);
+    
+    // Confirm transaction
+    const confirmation = await connection.confirmTransaction({
+      signature,
+      blockhash,
+      lastValidBlockHeight
+    }, 'confirmed');
+    
+    if (confirmation.value.err) {
+      throw new Error(`Initialization failed: ${JSON.stringify(confirmation.value.err)}`);
+    }
+    
+    console.log("Program initialized successfully!");
+    return signature;
+  } catch (error) {
+    console.error("Error in initialization:", error);
+    throw error;
   }
-  
-  console.log("Initialization simulation logs:", simulation.value.logs);
-  
-  // Send transaction
-  console.log("Sending initialization transaction...");
-  const signature = await wallet.sendTransaction(transaction, connection);
-  console.log("Initialization transaction sent:", signature);
-  
-  // Confirm transaction
-  const confirmation = await connection.confirmTransaction({
-    signature,
-    blockhash,
-    lastValidBlockHeight
-  }, 'confirmed');
-  
-  if (confirmation.value.err) {
-    throw new Error(`Initialization failed: ${JSON.stringify(confirmation.value.err)}`);
-  }
-  
-  console.log("Program initialized successfully!");
-  return signature;
 }
 
 /**
