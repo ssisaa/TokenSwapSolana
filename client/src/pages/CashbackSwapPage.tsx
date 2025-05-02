@@ -50,8 +50,8 @@ export default function CashbackSwapPage() {
       setSwapSuccess(false);
       setSwapError(null);
       
-      // Import our corrected, improved swap implementation that resolves transaction issues
-      const { executeMultiHubSwap } = await import('@/lib/multihub-client-final');
+      // Import our improved swap implementation with YOS token account verification
+      const { executeMultiHubSwapImproved, ensureYosTokenAccountExists } = await import('@/lib/multihub-client-improved');
       const { validateProgramInitialization } = await import('@/lib/multihub-contract');
       const { Connection, PublicKey } = await import('@solana/web3.js');
       const { ENDPOINT } = await import('@/lib/constants');
@@ -68,6 +68,17 @@ export default function CashbackSwapPage() {
       }
       
       console.log("Program validation successful. Proceeding with swap...");
+      
+      // IMPORTANT: Ensure YOS token account exists before performing the swap
+      // This is a critical fix to prevent the "InvalidMint" error during swap operation
+      console.log("Ensuring YOS token account exists...");
+      try {
+        await ensureYosTokenAccountExists(connection, wallet);
+        console.log("YOS token account confirmed. Proceeding with swap...");
+      } catch (error) {
+        console.error("Failed to ensure YOS token account exists:", error);
+        throw new Error("Could not create YOS token account. Please try again.");
+      }
       console.log("Using program state:", validation.programState?.toString());
       console.log("Using pool account:", validation.poolAccount?.toString());
       console.log("Using fee account:", validation.feeAccount?.toString());
@@ -179,7 +190,7 @@ export default function CashbackSwapPage() {
           
         console.log(`Swapping from ${fromTokenInfo.symbol} (${fromAddress.toString()}) to ${toTokenInfo.symbol} (${toAddress.toString()})`);
         
-        const signature = await executeMultiHubSwap(
+        const signature = await executeMultiHubSwapImproved(
           wallet, // Use the wallet from context
           fromAddress, 
           toAddress,
