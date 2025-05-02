@@ -259,29 +259,97 @@ export async function executeMultiHubSwap(
     );
   }
 
-  // Find authority PDA
-  const [authorityAddress] = findAuthorityAddress(MULTIHUB_SWAP_PROGRAM_ID);
-  console.log("Authority address:", authorityAddress.toString());
+  // Find authority PDA for token transfers
+  const [authorityAddress, authorityBump] = findAuthorityAddress(MULTIHUB_SWAP_PROGRAM_ID);
+  console.log("Authority address:", authorityAddress.toString(), "with bump:", authorityBump);
   
-  // Find or create SOL-YOT pool reference
+  // Get YOT and YOS mint addresses from program state or use default values
+  const yotMint = new PublicKey("2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF");
+  const yosMint = new PublicKey("GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n");
+  console.log("YOT mint:", yotMint.toString());
+  console.log("YOS mint:", yosMint.toString());
+  
+  // SOL-YOT Pool for liquidity contribution (20%)
   const solYotPool = new PublicKey("7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS");
   console.log("Using SOL-YOT pool:", solYotPool.toString());
 
-  // Add the swap instruction with exact account ordering matching the contract
-  // Add missing accounts required by the contract
+  // Find program-owned token accounts for YOT and YOS
+  const programYotAccount = await getAssociatedTokenAddress(yotMint, authorityAddress, true);
+  const programYosAccount = await getAssociatedTokenAddress(yosMint, authorityAddress, true);
+  console.log("Program YOT account:", programYotAccount.toString());
+  console.log("Program YOS account:", programYosAccount.toString());
+  
+  // Try to get the program token accounts to check if they exist
+  try {
+    await getAccount(connection, programYotAccount);
+    console.log("Program YOT account exists");
+  } catch (error) {
+    console.log("Creating program YOT account");
+    // Create the program YOT account if it doesn't exist
+    transaction.add(
+      createAssociatedTokenAccountInstruction(
+        wallet.publicKey,
+        programYotAccount,
+        authorityAddress,
+        yotMint
+      )
+    );
+  }
+
+  try {
+    await getAccount(connection, programYosAccount);
+    console.log("Program YOS account exists");
+  } catch (error) {
+    console.log("Creating program YOS account");
+    // Create the program YOS account if it doesn't exist
+    transaction.add(
+      createAssociatedTokenAccountInstruction(
+        wallet.publicKey,
+        programYosAccount,
+        authorityAddress,
+        yosMint
+      )
+    );
+  }
+
+  // Handle special case for SOL (native) tokens
+  // When swapping with SOL, we need to ensure it's properly handled
+  let wrappedSolAccount: PublicKey | null = null;
+  
+  // Check if we're swapping from or to SOL
+  const isFromSol = fromToken === SystemProgram.programId || 
+                    (typeof fromToken === 'string' && fromToken === 'native');
+  const isToSol = toToken === SystemProgram.programId || 
+                  (typeof toToken === 'string' && toToken === 'native');
+                  
+  if (isFromSol || isToSol) {
+    console.log("SOL is involved in this swap - handling wrapped SOL");
+    // Since this is a special case, we'll adjust our approach in a future update
+  }
+
+  // Determine admin fee account based on tokens involved
+  let adminFeeAccount;
+  if (fromMint.equals(yotMint) || toMint.equals(yotMint)) {
+    // If swapping YOT, use YOT admin fee account
+    adminFeeAccount = programYotAccount;
+  } else {
+    // Otherwise, default to YOS admin fee account
+    adminFeeAccount = programYosAccount;
+  }
+  console.log("Admin fee account:", adminFeeAccount.toString());
+
+  // Add the swap instruction with EXACTLY the 8 accounts expected by the contract
+  // This matches the process_swap_token function in program/src/multihub_swap_final.rs
   const swapInstruction = new TransactionInstruction({
     keys: [
       { pubkey: wallet.publicKey, isSigner: true, isWritable: true },             // 0. User wallet (signer)
       { pubkey: fromTokenAccount, isSigner: false, isWritable: true },            // 1. User's input token account
       { pubkey: toTokenAccount, isSigner: false, isWritable: true },              // 2. User's output token account
-      { pubkey: yosTokenAccount, isSigner: false, isWritable: true },             // 3. User's YOS token account
-      { pubkey: programStateAddress, isSigner: false, isWritable: true },         // 4. Program state account (marked writable)
+      { pubkey: yosTokenAccount, isSigner: false, isWritable: true },             // 3. User's YOS token account (for cashback)
+      { pubkey: programStateAddress, isSigner: false, isWritable: true },         // 4. Program state account
       { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },           // 5. Token program
       { pubkey: fromMint, isSigner: false, isWritable: false },                   // 6. Input token mint
       { pubkey: toMint, isSigner: false, isWritable: false },                     // 7. Output token mint
-      { pubkey: authorityAddress, isSigner: false, isWritable: true },            // 8. Program authority PDA
-      { pubkey: solYotPool, isSigner: false, isWritable: true },                  // 9. SOL-YOT liquidity pool
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },    // 10. System program
     ],
     programId: MULTIHUB_SWAP_PROGRAM_ID,
     data: data
