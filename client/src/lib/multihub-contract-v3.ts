@@ -78,31 +78,61 @@ export async function initializeProgram(
     const [programStateAddress, _] = findProgramStateAddress();
     const [programAuthorityAddress, __] = findProgramAuthorityAddress();
     
-    // Create the initialize instruction using a simple Buffer
-    // This is a safer approach than using BorshCoder with an empty IDL
+    // Create the initialize instruction properly formatted for Borsh serialization
+    // According to the SwapInstruction enum in Rust, Initialize is the first variant (index 0)
+    // with fields for admin, yot_mint, yos_mint, and several rates
     const INSTRUCTION_INITIALIZE = 0; // Initialize instruction is index 0
     
-    // Create a buffer for the instruction data
-    const dataLayout = Buffer.alloc(107); // 1 + 32 + 32 + 32 + 2 + 2 + 2 + 2 + 2
+    // Create a buffer for the instruction data - exact format for Borsh
+    // Need space for: 1 byte enum variant + fields:
+    // - 32 bytes (admin pubkey)
+    // - 32 bytes (yot_mint)
+    // - 32 bytes (yos_mint)
+    // - 8 bytes (lp_contribution_rate as u64)
+    // - 8 bytes (admin_fee_rate as u64)
+    // - 8 bytes (yos_cashback_rate as u64)
+    // - 8 bytes (swap_fee_rate as u64)
+    // - 8 bytes (referral_rate as u64)
+    const dataLayout = Buffer.alloc(1 + 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8);
     
-    // Instruction index
-    dataLayout.writeUInt8(INSTRUCTION_INITIALIZE, 0);
+    // Position tracker for writing to buffer
+    let position = 0;
+    
+    // Instruction enum variant index
+    dataLayout.writeUInt8(INSTRUCTION_INITIALIZE, position);
+    position += 1;
     
     // Admin pubkey
-    wallet.publicKey.toBuffer().copy(dataLayout, 1);
+    wallet.publicKey.toBuffer().copy(dataLayout, position);
+    position += 32;
     
     // YOT mint
-    new PublicKey(YOT_TOKEN_MINT).toBuffer().copy(dataLayout, 33);
+    new PublicKey(YOT_TOKEN_MINT).toBuffer().copy(dataLayout, position);
+    position += 32;
     
     // YOS mint
-    new PublicKey(YOS_TOKEN_MINT).toBuffer().copy(dataLayout, 65);
+    new PublicKey(YOS_TOKEN_MINT).toBuffer().copy(dataLayout, position);
+    position += 32;
     
-    // Rates as little-endian u16 values
-    dataLayout.writeUInt16LE(LP_CONTRIBUTION_RATE, 97);
-    dataLayout.writeUInt16LE(ADMIN_FEE_RATE, 99);
-    dataLayout.writeUInt16LE(YOS_CASHBACK_RATE, 101);
-    dataLayout.writeUInt16LE(SWAP_FEE_RATE, 103);
-    dataLayout.writeUInt16LE(REFERRAL_RATE, 105);
+    // Rates as little-endian u64 values (not u16)
+    // lp_contribution_rate: u64 (8 bytes)
+    dataLayout.writeBigUInt64LE(BigInt(LP_CONTRIBUTION_RATE), position);
+    position += 8;
+    
+    // admin_fee_rate: u64 (8 bytes)
+    dataLayout.writeBigUInt64LE(BigInt(ADMIN_FEE_RATE), position);
+    position += 8;
+    
+    // yos_cashback_rate: u64 (8 bytes)
+    dataLayout.writeBigUInt64LE(BigInt(YOS_CASHBACK_RATE), position);
+    position += 8;
+    
+    // swap_fee_rate: u64 (8 bytes)
+    dataLayout.writeBigUInt64LE(BigInt(SWAP_FEE_RATE), position);
+    position += 8;
+    
+    // referral_rate: u64 (8 bytes)
+    dataLayout.writeBigUInt64LE(BigInt(REFERRAL_RATE), position);
     
     const initializeData = dataLayout;
     
@@ -305,14 +335,15 @@ export async function closeProgram(
     const [programStateAddress, _] = findProgramStateAddress();
     const [programAuthorityAddress, __] = findProgramAuthorityAddress();
     
-    // Create the close program instruction using a simple Buffer
-    // This is a safer approach than using BorshCoder with an empty IDL
-    const INSTRUCTION_CLOSE_PROGRAM = 2; // Close program instruction is index 2
+    // Create the close program instruction properly formatted for Borsh serialization
+    // According to the SwapInstruction enum in Rust, CloseProgram is a variant with variant index 4
+    // with no additional fields
+    const INSTRUCTION_CLOSE_PROGRAM = 4; // CloseProgram is the 5th variant (0-indexed)
     
-    // Create a buffer for the instruction data (just the instruction index)
-    const dataLayout = Buffer.alloc(1);
+    // Create a buffer that matches exactly what Borsh expects for the enum variant
+    const dataLayout = Buffer.alloc(1);  // Just the variant index
     
-    // Instruction index
+    // Enum variant index
     dataLayout.writeUInt8(INSTRUCTION_CLOSE_PROGRAM, 0);
     
     const closeProgramData = dataLayout;
