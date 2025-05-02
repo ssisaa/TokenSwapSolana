@@ -376,16 +376,24 @@ export default function CashbackSwapPage() {
         // We'll create an error message with an inline button for better UX
         errorMsg = "The MultiHub Swap program needs to be initialized first.";
         
-        toast({
-          title: "Program Not Initialized",
-          description: "The MultiHub Swap program must be initialized before swaps can be executed.",
-          variant: "destructive",
-          action: (
-            <ToastAction altText="Initialize Program" onClick={() => navigate('/tx-debug')}>
-              Initialize
-            </ToastAction>
-          ),
-        });
+        if (isAdmin) {
+          toast({
+            title: "Program Not Initialized",
+            description: "The MultiHub Swap program must be initialized before swaps can be executed.",
+            variant: "destructive",
+            action: (
+              <ToastAction altText="Initialize Program" onClick={handleInitializeProgram}>
+                Initialize
+              </ToastAction>
+            ),
+          });
+        } else {
+          toast({
+            title: "Program Not Initialized",
+            description: "The MultiHub Swap program must be initialized by an admin before swaps can be executed.",
+            variant: "destructive",
+          });
+        }
       } else if (errorMsg.includes("insufficient funds")) {
         errorMsg = "Insufficient funds for this swap. Please check your wallet balance.";
       } else if (errorMsg.includes("User rejected")) {
@@ -413,28 +421,69 @@ export default function CashbackSwapPage() {
           <AlertTitle className="font-semibold">Program Initialization Required</AlertTitle>
           <AlertDescription className="flex flex-col gap-2">
             <p>The MultiHub Swap program needs to be initialized before you can perform swaps.</p>
-            <div>
-              <Button 
-                size="sm" 
-                variant="destructive"
-                onClick={() => navigate('/tx-debug')}
-                className="mt-2"
-              >
-                <Wrench className="h-4 w-4 mr-2" />
-                Go to TX Debug to Initialize
-              </Button>
-            </div>
+            {isAdmin && (
+              <div>
+                <Button 
+                  size="sm" 
+                  variant="destructive"
+                  onClick={handleInitializeProgram}
+                  disabled={isInitializing}
+                  className="mt-2"
+                >
+                  <Key className="h-4 w-4 mr-2" />
+                  {isInitializing ? "Initializing..." : "Initialize Program"}
+                </Button>
+              </div>
+            )}
           </AlertDescription>
         </Alert>
       )}
       
-      <div className="mb-8 text-center">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-600 bg-clip-text text-transparent">
-          Cashback Swap
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          Swap tokens with 5% cashback in YOS tokens
-        </p>
+      <div className="mb-8">
+        <div className="flex justify-between items-center">
+          <div className="text-center">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-600 bg-clip-text text-transparent">
+              Cashback Swap
+            </h1>
+            <p className="text-muted-foreground mt-2">
+              Swap tokens with 5% cashback in YOS tokens
+            </p>
+          </div>
+          
+          {isAdmin && (
+            <div className="flex items-center">
+              <Button 
+                variant={isProgramInitialized ? "outline" : "default"}
+                onClick={handleInitializeProgram}
+                disabled={isInitializing || isProgramInitialized}
+                className="flex items-center gap-2"
+                size="sm"
+              >
+                <Key className="h-4 w-4" />
+                {isInitializing 
+                  ? "Initializing..." 
+                  : isProgramInitialized 
+                    ? "Program Initialized" 
+                    : "Initialize Program"
+                }
+              </Button>
+            </div>
+          )}
+        </div>
+        
+        {/* Add program status notification */}
+        {!isProgramInitialized && (
+          <Alert className="mt-4 bg-orange-500/10 text-orange-500 border-orange-500/20">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Program Not Initialized</AlertTitle>
+            <AlertDescription>
+              The Multi-Hub Swap program needs to be initialized before use. 
+              {isAdmin 
+                ? " Click the 'Initialize Program' button above to set up the program."
+                : " Please contact the admin to initialize the program."}
+            </AlertDescription>
+          </Alert>
+        )}
       </div>
       
       <Card className="border-2 bg-card/50 backdrop-blur-sm">
@@ -620,14 +669,15 @@ export default function CashbackSwapPage() {
                   <AlertCircle className="h-4 w-4 mr-2" />
                   <AlertDescription className="flex items-center justify-between">
                     <span>{swapError.message}</span>
-                    {swapError.message.includes("needs to be initialized") && (
+                    {swapError.message.includes("needs to be initialized") && isAdmin && (
                       <Button 
                         variant="outline" 
                         size="sm" 
                         className="ml-4 bg-destructive/20 hover:bg-destructive/30 text-white border-destructive/50"
-                        onClick={() => navigate('/tx-debug')}
+                        onClick={handleInitializeProgram}
+                        disabled={isInitializing}
                       >
-                        Initialize
+                        {isInitializing ? "Initializing..." : "Initialize"}
                       </Button>
                     )}
                   </AlertDescription>
