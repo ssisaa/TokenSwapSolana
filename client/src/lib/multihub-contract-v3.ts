@@ -78,63 +78,43 @@ export async function initializeProgram(
     const [programStateAddress, _] = findProgramStateAddress();
     const [programAuthorityAddress, __] = findProgramAuthorityAddress();
     
-    // Create the initialize instruction properly formatted for Borsh serialization
-    // According to the SwapInstruction enum in Rust, Initialize is the first variant (index 0)
-    // with fields for admin, yot_mint, yos_mint, and several rates
-    const INSTRUCTION_INITIALIZE = 0; // Initialize instruction is index 0
+    // Create a conforming Borsh serialization for the Rust-side SwapInstruction enum
+    // Initialize has fields for admin, mints, and rates
+    const adminPubkey = wallet.publicKey.toBuffer();
+    const yotMintPubkey = new PublicKey(YOT_TOKEN_MINT).toBuffer();
+    const yosMintPubkey = new PublicKey(YOS_TOKEN_MINT).toBuffer();
     
-    // Create a buffer for the instruction data - exact format for Borsh
-    // Need space for: 1 byte enum variant + fields:
-    // - 32 bytes (admin pubkey)
-    // - 32 bytes (yot_mint)
-    // - 32 bytes (yos_mint)
-    // - 8 bytes (lp_contribution_rate as u64)
-    // - 8 bytes (admin_fee_rate as u64)
-    // - 8 bytes (yos_cashback_rate as u64)
-    // - 8 bytes (swap_fee_rate as u64)
-    // - 8 bytes (referral_rate as u64)
-    const dataLayout = Buffer.alloc(1 + 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8);
+    // Create a buffer for each of the u64 rates
+    const lpContributionBuffer = Buffer.alloc(8);
+    const adminFeeBuffer = Buffer.alloc(8);
+    const yosCashbackBuffer = Buffer.alloc(8);
+    const swapFeeBuffer = Buffer.alloc(8);
+    const referralBuffer = Buffer.alloc(8);
     
-    // Position tracker for writing to buffer
-    let position = 0;
+    // Write the u64 values in little-endian format
+    lpContributionBuffer.writeBigUInt64LE(BigInt(LP_CONTRIBUTION_RATE), 0);
+    adminFeeBuffer.writeBigUInt64LE(BigInt(ADMIN_FEE_RATE), 0);
+    yosCashbackBuffer.writeBigUInt64LE(BigInt(YOS_CASHBACK_RATE), 0);
+    swapFeeBuffer.writeBigUInt64LE(BigInt(SWAP_FEE_RATE), 0);
+    referralBuffer.writeBigUInt64LE(BigInt(REFERRAL_RATE), 0);
     
-    // Instruction enum variant index
-    dataLayout.writeUInt8(INSTRUCTION_INITIALIZE, position);
-    position += 1;
+    // Combine all buffers in the exact order expected by the SwapInstruction::Initialize variant
+    const instructionData = Buffer.concat([
+      Buffer.from([0]), // Variant index for Initialize (0-indexed)
+      adminPubkey,      // admin: Pubkey (32 bytes)
+      yotMintPubkey,    // yot_mint: Pubkey (32 bytes)
+      yosMintPubkey,    // yos_mint: Pubkey (32 bytes)
+      lpContributionBuffer, // lp_contribution_rate: u64 (8 bytes)
+      adminFeeBuffer,       // admin_fee_rate: u64 (8 bytes)
+      yosCashbackBuffer,    // yos_cashback_rate: u64 (8 bytes)
+      swapFeeBuffer,        // swap_fee_rate: u64 (8 bytes)
+      referralBuffer        // referral_rate: u64 (8 bytes)
+    ]);
     
-    // Admin pubkey
-    wallet.publicKey.toBuffer().copy(dataLayout, position);
-    position += 32;
+    // Output debugging info
+    console.log('Initialize program instruction data length:', instructionData.length);
     
-    // YOT mint
-    new PublicKey(YOT_TOKEN_MINT).toBuffer().copy(dataLayout, position);
-    position += 32;
-    
-    // YOS mint
-    new PublicKey(YOS_TOKEN_MINT).toBuffer().copy(dataLayout, position);
-    position += 32;
-    
-    // Rates as little-endian u64 values (not u16)
-    // lp_contribution_rate: u64 (8 bytes)
-    dataLayout.writeBigUInt64LE(BigInt(LP_CONTRIBUTION_RATE), position);
-    position += 8;
-    
-    // admin_fee_rate: u64 (8 bytes)
-    dataLayout.writeBigUInt64LE(BigInt(ADMIN_FEE_RATE), position);
-    position += 8;
-    
-    // yos_cashback_rate: u64 (8 bytes)
-    dataLayout.writeBigUInt64LE(BigInt(YOS_CASHBACK_RATE), position);
-    position += 8;
-    
-    // swap_fee_rate: u64 (8 bytes)
-    dataLayout.writeBigUInt64LE(BigInt(SWAP_FEE_RATE), position);
-    position += 8;
-    
-    // referral_rate: u64 (8 bytes)
-    dataLayout.writeBigUInt64LE(BigInt(REFERRAL_RATE), position);
-    
-    const initializeData = dataLayout;
+    const initializeData = instructionData;
     
     // Add the initialize instruction to the transaction
     transaction.add({
@@ -253,48 +233,89 @@ export async function performSwap(
     const [programStateAddress, _] = findProgramStateAddress();
     const [programAuthorityAddress, __] = findProgramAuthorityAddress();
     
-    // Create the swap instruction using a simple Buffer
-    // This is a safer approach than using BorshCoder with an empty IDL
-    const INSTRUCTION_SWAP = 1; // Swap instruction is index 1
+    // Create a conforming Borsh serialization for the Rust-side SwapInstruction enum
+    // The Swap variant has amount_in and min_amount_out fields
     
-    // Create a buffer for the instruction data
-    const dataLayout = Buffer.alloc(1 + 8 + 8);
+    // Create buffers for the u64 values
+    const amountInBuffer = Buffer.alloc(8);
+    const minAmountOutBuffer = Buffer.alloc(8);
     
-    // Instruction index
-    dataLayout.writeUInt8(INSTRUCTION_SWAP, 0);
+    // Write the values in little-endian format
+    amountInBuffer.writeBigUInt64LE(BigInt(amountIn), 0);
+    minAmountOutBuffer.writeBigUInt64LE(BigInt(minAmountOut), 0);
     
-    // Amount in (u64 / 8 bytes)
-    const amountInBigInt = BigInt(amountIn);
-    let bufferView = new DataView(dataLayout.buffer, dataLayout.byteOffset + 1, 8);
-    writeBigUInt64LE(bufferView, 0, amountInBigInt);
+    // Combine the buffers in the exact order expected by the Swap variant
+    const instructionData = Buffer.concat([
+      Buffer.from([1]), // Variant index for Swap (0-indexed)
+      amountInBuffer,    // amount_in: u64 (8 bytes)
+      minAmountOutBuffer // min_amount_out: u64 (8 bytes)
+    ]);
     
-    // Min amount out (u64 / 8 bytes)
-    const minAmountOutBigInt = BigInt(minAmountOut);
-    bufferView = new DataView(dataLayout.buffer, dataLayout.byteOffset + 9, 8);
-    writeBigUInt64LE(bufferView, 0, minAmountOutBigInt);
+    // Output debugging info
+    console.log('Swap instruction data length:', instructionData.length);
+    console.log('Swap instruction data:', Buffer.isBuffer(instructionData) ? 
+      Array.from(new Uint8Array(instructionData)) : instructionData);
     
-    const swapData = dataLayout;
+    const swapData = instructionData;
     
-    // Add the swap instruction to the transaction
+    // Find all Token Program PDAs for token account verification
+    const tokenFromMintATA = await getAssociatedTokenAddress(
+      tokenFromMint,
+      programAuthorityAddress,
+      true  // allowOwnerOffCurve: true for PDAs
+    );
+    
+    const tokenToMintATA = await getAssociatedTokenAddress(
+      tokenToMint, 
+      programAuthorityAddress,
+      true // allowOwnerOffCurve: true for PDAs
+    );
+    
+    const yosTokenProgramATA = await getAssociatedTokenAddress(
+      new PublicKey(YOS_TOKEN_MINT),
+      programAuthorityAddress,
+      true // allowOwnerOffCurve: true for PDAs
+    );
+    
+    console.log('Token accounts for program operation:', {
+      tokenFromAccount: tokenFromAccount.toBase58(),
+      tokenToAccount: tokenToAccount.toBase58(),
+      tokenFromMintATA: tokenFromMintATA.toBase58(),
+      tokenToMintATA: tokenToMintATA.toBase58(),
+      yosTokenAccount: yosTokenAccount.toBase58(),
+      yosTokenProgramATA: yosTokenProgramATA.toBase58(),
+      programAuthorityAddress: programAuthorityAddress.toBase58()
+    });
+    
+    // Add the swap instruction to the transaction with more complete account list
     transaction.add({
       keys: [
-        { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
-        { pubkey: programStateAddress, isSigner: false, isWritable: false },
-        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false },
-        { pubkey: tokenFromAccount, isSigner: false, isWritable: true },
-        { pubkey: tokenToAccount, isSigner: false, isWritable: true },
-        { pubkey: yosTokenAccount, isSigner: false, isWritable: true },
-        { pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), isSigner: false, isWritable: false }
+        { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // User wallet
+        { pubkey: programStateAddress, isSigner: false, isWritable: true }, // Program state for updating
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }, // Program authority for token transfers
+        { pubkey: tokenFromAccount, isSigner: false, isWritable: true }, // User's source token account
+        { pubkey: tokenToAccount, isSigner: false, isWritable: true }, // User's destination token account
+        { pubkey: yosTokenAccount, isSigner: false, isWritable: true }, // User's YOS token account for cashback
+        { pubkey: tokenFromMintATA, isSigner: false, isWritable: true }, // Program's token account for source token
+        { pubkey: tokenToMintATA, isSigner: false, isWritable: true }, // Program's token account for destination token
+        { pubkey: yosTokenProgramATA, isSigner: false, isWritable: true }, // Program's YOS token account
+        { pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), isSigner: false, isWritable: false }, // SPL Token program
+        { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false }, // System program
       ],
       programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID),
       data: Buffer.from(swapData)
     });
     
-    // Simulate the transaction to check for errors
+    // Simulate the transaction to check for errors with detailed output
     console.log('Simulating swap transaction...');
     const simulation = await connection.simulateTransaction(transaction);
+    
+    // Log detailed simulation results
+    console.log('Detailed swap simulation logs:', simulation.value.logs);
+    
     if (simulation.value.err) {
       console.error('Swap simulation failed:', simulation.value.err);
+      console.error('Simulation error details:', JSON.stringify(simulation.value.err));
       throw new Error(`Simulation failed: ${JSON.stringify(simulation.value.err)}`);
     }
     
@@ -335,28 +356,33 @@ export async function closeProgram(
     const [programStateAddress, _] = findProgramStateAddress();
     const [programAuthorityAddress, __] = findProgramAuthorityAddress();
     
-    // Create the close program instruction properly formatted for Borsh serialization
-    // According to the SwapInstruction enum in Rust, CloseProgram is a variant with variant index 4
-    // with no additional fields
-    const INSTRUCTION_CLOSE_PROGRAM = 4; // CloseProgram is the 5th variant (0-indexed)
+    // Create a conforming to Borsh serialization for the Rust-side SwapInstruction enum
+    // The tricky part is that Borsh serializes enums with a discriminator followed by the fields
+    // CloseProgram {} is the last variant (index 4) with no fields
     
-    // Create a buffer that matches exactly what Borsh expects for the enum variant
-    const dataLayout = Buffer.alloc(1);  // Just the variant index
+    // Create a properly serialized Borsh enum object
+    const instructionData = Buffer.from([
+      4, // Variant index for CloseProgram (0-indexed)
+      // No additional fields for the CloseProgram variant
+    ]);
     
-    // Enum variant index
-    dataLayout.writeUInt8(INSTRUCTION_CLOSE_PROGRAM, 0);
+    // Output debugging info
+    console.log('Close program instruction data:', Buffer.isBuffer(instructionData) ? 
+      Array.from(new Uint8Array(instructionData)) : instructionData);
     
-    const closeProgramData = dataLayout;
+    const closeProgramData = instructionData;
     
     // Add the close program instruction to the transaction
-    // IMPORTANT: Include ONLY the accounts required by the smart contract
-    // From the Rust code, only these accounts are needed:
+    // IMPORTANT: Ensure we include ALL the required accounts:
     // 1. Admin account (signer)
     // 2. Program state account (PDA)
+    // 3. Program authority account (PDA used for token operations)
     transaction.add({
       keys: [
         { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // Admin account that receives the rent
         { pubkey: programStateAddress, isSigner: false, isWritable: true }, // Program state account to be closed
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }, // Program authority - may be needed
+        { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false }, // System Program - needed for closing accounts
       ],
       programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID),
       data: Buffer.from(closeProgramData)
@@ -364,9 +390,18 @@ export async function closeProgram(
     
     // Simulate the transaction to check for errors
     console.log('Simulating close program transaction...');
-    const simulation = await connection.simulateTransaction(transaction);
+    const simulation = await connection.simulateTransaction(transaction, {
+      commitment: 'confirmed',
+      sigVerify: false,
+      replaceRecentBlockhash: true
+    });
+    
+    // Log detailed information
+    console.log('Detailed simulation logs:', simulation.value.logs);
+    
     if (simulation.value.err) {
       console.error('Transaction simulation failed:', simulation.value.err);
+      console.error('Simulation error details:', JSON.stringify(simulation.value.err));
       throw new Error(`Simulation failed: ${JSON.stringify(simulation.value.err)}`);
     }
     
