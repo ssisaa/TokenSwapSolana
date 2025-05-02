@@ -243,7 +243,7 @@ class TriggerYieldDistributionLayout {
 // Helper function to derive the program state account address
 export async function findProgramStateAddress(): Promise<[PublicKey, number]> {
   return PublicKey.findProgramAddress(
-    [Buffer.from('state')],
+    [Buffer.from('state_v2')], // Updated to use new seed to avoid collision
     MULTIHUB_SWAP_PROGRAM_ID
   );
 }

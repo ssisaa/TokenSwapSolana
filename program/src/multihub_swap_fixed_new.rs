@@ -62,8 +62,8 @@ pub fn process_initialize(
         return Err(ProgramError::MissingRequiredSignature);
     }
     
-    // Calculate PDA for program state
-    let (state_pda, state_bump) = Pubkey::find_program_address(&[b"state"], program_id);
+    // Calculate PDA for program state - using a new seed to avoid collision with existing state
+    let (state_pda, state_bump) = Pubkey::find_program_address(&[b"state_v2"], program_id);
     if state_pda != *program_state_account.key {
         msg!("❌ ERROR: Invalid program state account");
         msg!("Expected: {}, Got: {}", state_pda, program_state_account.key);
@@ -90,7 +90,7 @@ pub fn process_initialize(
                 program_state_account.clone(),
                 system_program.clone(),
             ],
-            &[&[b"state", &[state_bump]]],
+            &[&[b"state_v2", &[state_bump]]],
         )?;
     }
     
