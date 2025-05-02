@@ -137,7 +137,8 @@ export default function CashbackSwapPage() {
       console.error("Swap failed:", error);
       
       // Provide more descriptive error messages based on common failure scenarios
-      let errorMsg = error?.message || "Unknown error";
+      const errorObj = error as Error;
+      let errorMsg = errorObj?.message || "Unknown error";
       
       if (errorMsg.includes("Program not initialized") || errorMsg.includes("state account not found")) {
         // We'll create an error message with an inline button for better UX
