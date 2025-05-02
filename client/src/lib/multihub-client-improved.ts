@@ -30,8 +30,10 @@ const MULTIHUB_SWAP_PROGRAM_ID = new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID);
  * Calculate PDA for program state
  */
 function findProgramStateAddress(programId: PublicKey): [PublicKey, number] {
+  // CRITICAL FIX: Changed from "program_state" to "state" to match the Rust contract
+  // The Rust code uses: Pubkey::find_program_address(&[b"state"], program_id)
   return PublicKey.findProgramAddressSync(
-    [Buffer.from("program_state")],
+    [Buffer.from("state")],
     programId
   );
 }
