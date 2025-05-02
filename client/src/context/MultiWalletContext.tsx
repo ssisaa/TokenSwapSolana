@@ -2,9 +2,9 @@ import React, { createContext, useState, useEffect, useCallback, ReactNode, useC
 import { PhantomWalletAdapter } from '@solana/wallet-adapter-phantom';
 import { SolflareWalletAdapter } from '@solana/wallet-adapter-solflare';
 import { WalletError, WalletAdapter } from '@solana/wallet-adapter-base';
-import { Cluster, PublicKey } from '@solana/web3.js';
+import { Cluster, PublicKey, Keypair, Transaction } from '@solana/web3.js';
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
-import { SOLANA_CLUSTER } from '../lib/constants';
+import { SOLANA_CLUSTER, ADMIN_WALLET_ADDRESS } from '../lib/constants';
 
 interface WalletInfo {
   name: string;

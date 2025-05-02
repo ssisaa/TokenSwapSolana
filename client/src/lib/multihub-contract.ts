@@ -99,11 +99,11 @@ class SwapTokenLayout {
     offset += 8;
 
     // Input token mint (32 bytes)
-    this.input_token_mint.copy(data, offset);
+    data.set(this.input_token_mint, offset);
     offset += 32;
 
     // Output token mint (32 bytes)
-    this.output_token_mint.copy(data, offset);
+    data.set(this.output_token_mint, offset);
     offset += 32;
 
     // Has referrer (1 byte)
@@ -112,7 +112,7 @@ class SwapTokenLayout {
 
     // Optional referrer (32 bytes if present)
     if (this.has_referrer && this.referrer) {
-      this.referrer.copy(data, offset);
+      data.set(this.referrer, offset);
       offset += 32;
     }
 
