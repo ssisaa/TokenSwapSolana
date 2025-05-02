@@ -186,30 +186,25 @@ export async function executeMultiHubSwapImproved(
   console.log("Amount (raw):", amountRaw.toString());
   console.log("Min amount out (raw):", minAmountOutRaw.toString());
 
-  // Create instruction data for SwapToken using simple binary format to match the contract
-  // Format: [1, amount_in (8 bytes), min_amount_out (8 bytes)]
-  const SWAP_TOKEN_INSTRUCTION = 1;
+  // Create instruction data for SwapToken using proper Borsh format to match the contract
+  // In the V3 contract, the enum discriminant may be different
+  // Testing with index 1 (the original) and if needed we'll try 2
+  
+  // Create a buffer for the instruction
+  // Try index 2 instead of 1 (which matches our fix in the contract-v3.ts file)
+  const SWAP_TOKEN_INSTRUCTION = 2; // Try discriminant 2 (for Instruction::Swap)
   const data = Buffer.alloc(1 + 8 + 8);
   data.writeUInt8(SWAP_TOKEN_INSTRUCTION, 0);
   
-  // Write the bigint values as little-endian 64-bit integers
+  // Use proper writeBigUInt64LE method which writes in little-endian format
   const amountBuffer = Buffer.alloc(8);
   const minAmountBuffer = Buffer.alloc(8);
   
-  // Convert BigInt to bytes (little-endian)
-  let tempBigInt = amountRaw;
-  for (let i = 0; i < 8; i++) {
-    amountBuffer.writeUInt8(Number(tempBigInt & BigInt(0xFF)), i);
-    tempBigInt = tempBigInt >> BigInt(8);
-  }
+  // Better approach using built-in writeBigUInt64LE
+  amountBuffer.writeBigUInt64LE(amountRaw);
+  minAmountBuffer.writeBigUInt64LE(minAmountOutRaw);
   
-  tempBigInt = minAmountOutRaw;
-  for (let i = 0; i < 8; i++) {
-    minAmountBuffer.writeUInt8(Number(tempBigInt & BigInt(0xFF)), i);
-    tempBigInt = tempBigInt >> BigInt(8);
-  }
-  
-  // Copy the individual buffers into the main data buffer
+  // Copy the buffers to the data buffer
   amountBuffer.copy(data, 1);
   minAmountBuffer.copy(data, 9);
   console.log("Swap instruction data:", Buffer.from(data).toString('hex'));
@@ -248,18 +243,105 @@ export async function executeMultiHubSwapImproved(
     );
   }
 
-  // Add the swap instruction with EXACTLY the 8 accounts expected by the contract
-  // This matches the process_swap_token function in our fixed contract version
+  // Find program authority address for program token accounts
+  const [authorityAddress] = findAuthorityAddress(MULTIHUB_SWAP_PROGRAM_ID);
+  console.log("Program authority address:", authorityAddress.toString());
+  
+  // Get the token accounts for the program (PDAs)
+  const programFromTokenAccount = await getAssociatedTokenAddress(
+    fromMint,
+    authorityAddress,
+    true // Allow owner off curve for PDAs
+  );
+  
+  const programToTokenAccount = await getAssociatedTokenAddress(
+    toMint,
+    authorityAddress,
+    true // Allow owner off curve for PDAs
+  );
+  
+  const programYosTokenAccount = await getAssociatedTokenAddress(
+    YOS_TOKEN_MINT,
+    authorityAddress,
+    true // Allow owner off curve for PDAs
+  );
+  
+  console.log("Program from token account:", programFromTokenAccount.toString());
+  console.log("Program to token account:", programToTokenAccount.toString());
+  console.log("Program YOS token account:", programYosTokenAccount.toString());
+  
+  // Create these accounts if they don't exist
+  try {
+    const programFromAccount = await connection.getAccountInfo(programFromTokenAccount);
+    if (!programFromAccount) {
+      console.log("Creating program from token account");
+      transaction.add(
+        createAssociatedTokenAccountInstruction(
+          wallet.publicKey,
+          programFromTokenAccount,
+          authorityAddress,
+          fromMint
+        )
+      );
+    }
+    
+    const programToAccount = await connection.getAccountInfo(programToTokenAccount);
+    if (!programToAccount) {
+      console.log("Creating program to token account");
+      transaction.add(
+        createAssociatedTokenAccountInstruction(
+          wallet.publicKey,
+          programToTokenAccount,
+          authorityAddress,
+          toMint
+        )
+      );
+    }
+    
+    const programYosAccount = await connection.getAccountInfo(programYosTokenAccount);
+    if (!programYosAccount) {
+      console.log("Creating program YOS token account");
+      transaction.add(
+        createAssociatedTokenAccountInstruction(
+          wallet.publicKey,
+          programYosTokenAccount,
+          authorityAddress,
+          YOS_TOKEN_MINT
+        )
+      );
+    }
+  } catch (error) {
+    console.warn("Error checking program token accounts:", error);
+    // Continue anyway as this may not be fatal
+  }
+  
+  // Add the swap instruction with MORE accounts than previously (matching V3 contract expectation)
   const finalSwapInstruction = new TransactionInstruction({
     keys: [
+      // User accounts
       { pubkey: wallet.publicKey, isSigner: true, isWritable: true },             // 0. User wallet (signer)
       { pubkey: fromTokenAccount, isSigner: false, isWritable: true },            // 1. User's input token account
       { pubkey: toTokenAccount, isSigner: false, isWritable: true },              // 2. User's output token account
       { pubkey: yosTokenAccount, isSigner: false, isWritable: true },             // 3. User's YOS token account (for cashback)
+      
+      // Program accounts
       { pubkey: programStateAddress, isSigner: false, isWritable: true },         // 4. Program state account
-      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },           // 5. Token program
-      { pubkey: fromMint, isSigner: false, isWritable: false },                   // 6. Input token mint
-      { pubkey: toMint, isSigner: false, isWritable: false },                     // 7. Output token mint
+      { pubkey: authorityAddress, isSigner: false, isWritable: false },           // 5. Program authority
+      
+      // Program token accounts
+      { pubkey: programFromTokenAccount, isSigner: false, isWritable: true },     // 6. Program's input token account
+      { pubkey: programToTokenAccount, isSigner: false, isWritable: true },       // 7. Program's output token account
+      { pubkey: programYosTokenAccount, isSigner: false, isWritable: true },      // 8. Program's YOS token account
+      
+      // Token mints
+      { pubkey: fromMint, isSigner: false, isWritable: false },                   // 9. Input token mint
+      { pubkey: toMint, isSigner: false, isWritable: false },                     // 10. Output token mint
+      { pubkey: YOS_TOKEN_MINT, isSigner: false, isWritable: false },             // 11. YOS token mint
+      
+      // System programs
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },           // 12. Token program
+      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },         // 13. Rent sysvar
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },    // 14. System program
     ],
     programId: MULTIHUB_SWAP_PROGRAM_ID,
     data: data

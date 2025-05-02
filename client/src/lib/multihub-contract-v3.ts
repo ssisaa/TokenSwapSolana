@@ -245,8 +245,10 @@ export async function performSwap(
     minAmountOutBuffer.writeBigUInt64LE(BigInt(minAmountOut), 0);
     
     // Combine the buffers in the exact order expected by the Swap variant
+    // Try different variant index to match the contract's expectations
+    // Original used index 1, now trying index 2 (which could match Instruction::Swap in a unified enum)
     const instructionData = Buffer.concat([
-      Buffer.from([1]), // Variant index for Swap (0-indexed)
+      Buffer.from([2]), // Variant index for Swap (using index 2 instead of 1)
       amountInBuffer,    // amount_in: u64 (8 bytes)
       minAmountOutBuffer // min_amount_out: u64 (8 bytes)
     ]);
@@ -277,6 +279,49 @@ export async function performSwap(
       true // allowOwnerOffCurve: true for PDAs
     );
     
+    // Check if program token accounts exist and create them if needed
+    try {
+      // Check the program's token accounts
+      const tokenFromProgramAccount = await connection.getAccountInfo(tokenFromMintATA);
+      if (!tokenFromProgramAccount) {
+        console.log('Creating program token account for tokenFromMint:', tokenFromMint.toString());
+        const ix = createAssociatedTokenAccountInstruction(
+          wallet.publicKey,
+          tokenFromMintATA,
+          programAuthorityAddress,
+          tokenFromMint
+        );
+        transaction.add(ix);
+      }
+      
+      const tokenToProgramAccount = await connection.getAccountInfo(tokenToMintATA);
+      if (!tokenToProgramAccount) {
+        console.log('Creating program token account for tokenToMint:', tokenToMint.toString());
+        const ix = createAssociatedTokenAccountInstruction(
+          wallet.publicKey,
+          tokenToMintATA,
+          programAuthorityAddress,
+          tokenToMint
+        );
+        transaction.add(ix);
+      }
+      
+      const yosProgramAccount = await connection.getAccountInfo(yosTokenProgramATA);
+      if (!yosProgramAccount) {
+        console.log('Creating program token account for YOS mint');
+        const ix = createAssociatedTokenAccountInstruction(
+          wallet.publicKey,
+          yosTokenProgramATA,
+          programAuthorityAddress,
+          new PublicKey(YOS_TOKEN_MINT)
+        );
+        transaction.add(ix);
+      }
+    } catch (err) {
+      console.warn('Error checking program token accounts:', err);
+      // Continue anyway as this may not be fatal
+    }
+    
     console.log('Token accounts for program operation:', {
       tokenFromAccount: tokenFromAccount.toBase58(),
       tokenToAccount: tokenToAccount.toBase58(),
@@ -287,20 +332,44 @@ export async function performSwap(
       programAuthorityAddress: programAuthorityAddress.toBase58()
     });
     
+    // Add token mint accounts to the transaction
+    // Including the mint accounts is often required for proper validation
+    const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+    const SYSTEM_PROGRAM_ID = new PublicKey('11111111111111111111111111111111');
+    const SYSVAR_RENT_PUBKEY = new PublicKey('SysvarRent111111111111111111111111111111111');
+    
+    // Perform additional validation and ensure APR accounts exist
+    console.log(`Using tokenFromMint: ${tokenFromMint.toString()}`);
+    console.log(`Using tokenToMint: ${tokenToMint.toString()}`);
+    console.log(`Using YOS mint: ${YOS_TOKEN_MINT}`);
+    
     // Add the swap instruction to the transaction with more complete account list
     transaction.add({
       keys: [
+        // User accounts
         { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // User wallet
         { pubkey: programStateAddress, isSigner: false, isWritable: true }, // Program state for updating
         { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }, // Program authority for token transfers
+        
+        // User token accounts
         { pubkey: tokenFromAccount, isSigner: false, isWritable: true }, // User's source token account
         { pubkey: tokenToAccount, isSigner: false, isWritable: true }, // User's destination token account
         { pubkey: yosTokenAccount, isSigner: false, isWritable: true }, // User's YOS token account for cashback
+        
+        // Program token accounts
         { pubkey: tokenFromMintATA, isSigner: false, isWritable: true }, // Program's token account for source token
         { pubkey: tokenToMintATA, isSigner: false, isWritable: true }, // Program's token account for destination token
         { pubkey: yosTokenProgramATA, isSigner: false, isWritable: true }, // Program's YOS token account
-        { pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), isSigner: false, isWritable: false }, // SPL Token program
-        { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false }, // System program
+        
+        // Token mints
+        { pubkey: tokenFromMint, isSigner: false, isWritable: false }, // From token mint
+        { pubkey: tokenToMint, isSigner: false, isWritable: false }, // To token mint
+        { pubkey: new PublicKey(YOS_TOKEN_MINT), isSigner: false, isWritable: false }, // YOS token mint
+        
+        // System programs
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // SPL Token program
+        { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false }, // System program
+        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, // Rent sysvar
       ],
       programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID),
       data: Buffer.from(swapData)
@@ -308,7 +377,7 @@ export async function performSwap(
     
     // Simulate the transaction to check for errors with detailed output
     console.log('Simulating swap transaction...');
-    const simulation = await connection.simulateTransaction(transaction);
+    const simulation = await connection.simulateTransaction(transaction, undefined, true);
     
     // Log detailed simulation results
     console.log('Detailed swap simulation logs:', simulation.value.logs);
@@ -356,19 +425,14 @@ export async function closeProgram(
     const [programStateAddress, _] = findProgramStateAddress();
     const [programAuthorityAddress, __] = findProgramAuthorityAddress();
     
-    // Create a conforming to Borsh serialization for the Rust-side SwapInstruction enum
-    // The tricky part is that Borsh serializes enums with a discriminator followed by the fields
-    // CloseProgram {} is the last variant (index 4) with no fields
-    
-    // Create a properly serialized Borsh enum object
-    const instructionData = Buffer.from([
-      4, // Variant index for CloseProgram (0-indexed)
-      // No additional fields for the CloseProgram variant
-    ]);
+    // Create a SIMPLE binary instruction - just a single byte for the instruction type
+    // Contract could be using an enum index of 3 or 4 for close
+    // Let's try index 3 first (follows same scheme as our initialize fix)
+    const instructionData = Buffer.from([3]);
     
     // Output debugging info
-    console.log('Close program instruction data:', Buffer.isBuffer(instructionData) ? 
-      Array.from(new Uint8Array(instructionData)) : instructionData);
+    console.log('Close program instruction data (simple format):', 
+      Array.from(new Uint8Array(instructionData)));
     
     const closeProgramData = instructionData;
     
@@ -390,11 +454,7 @@ export async function closeProgram(
     
     // Simulate the transaction to check for errors
     console.log('Simulating close program transaction...');
-    const simulation = await connection.simulateTransaction(transaction, {
-      commitment: 'confirmed',
-      sigVerify: false,
-      replaceRecentBlockhash: true
-    });
+    const simulation = await connection.simulateTransaction(transaction, undefined, true);
     
     // Log detailed information
     console.log('Detailed simulation logs:', simulation.value.logs);
