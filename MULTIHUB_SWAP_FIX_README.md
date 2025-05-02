@@ -1,138 +1,140 @@
-# MultiHub Swap Contract Fix
+# Multi-Hub Swap Update and Fix
 
-This document explains the issues in the original MultiHub Swap implementation and the fixes applied to address them.
+This document explains the implementation of the Multi-Hub Swap system updates and fixes to address the deployment issues we've been encountering.
 
-## Original Issue
+## Overview of the Fix
 
-The original MultiHub Swap implementation had a critical issue related to YOS token accounts:
+This repository contains several key improvements to the Multi-Hub Swap system:
 
-1. When users attempted to swap tokens, the contract would check if the user had a YOS token account, but **it didn't create one** if missing.
-2. This caused transactions to fail with: `Transaction simulation failed: InstructionError(1, Custom(0))` - indicating a problem in the second instruction.
-3. The error occurs because the contract attempts to send YOS cashback to a non-existent account.
+1. **New Program ID**: Created a new program ID `J66SY1YNFyXt6jat8Ek8uAUshxBY2mLrubsMRN4wggt3` for fresh deployment
+2. **YOS Token Account Validation**: Robust client-side validation to ensure YOS token accounts exist
+3. **Token Account Management**: Pre-transaction checks for required token accounts with automatic creation
+4. **Integration Layer**: A compatibility layer that supports both old and new program IDs
+5. **Documentation**: Comprehensive guides for debugging and deployment
 
-## Root Cause Analysis
+## Key Files
 
-The root cause of the swap failure is:
+- **deploy_multihub_swap_v2.sh**: Script for deploying the updated program with new ID
+- **client/src/lib/multihub-contract-v2.ts**: Updated client code for the new program ID
+- **client/src/lib/account-validation.ts**: Helper module for token account validation
+- **client/src/lib/multihub-integration.ts**: Integration layer for multi-version support
+- **MULTIHUB_SWAP_DEBUGGING_GUIDE.md**: In-depth analysis of issues and solutions
+- **MULTIHUB_SWAP_DEPLOY_GUIDE.md**: Deployment instructions for various scenarios
 
-1. **Missing YOS Token Account**: The contract assumes the user always has an SPL token account for YOS, but this account might not exist if the user hasn't interacted with YOS tokens before.
-2. **Instruction Data Format**: The data unpacking in the contract had a mismatch with the client format.
-3. **Validation Error**: The contract tried to access the YOS token account but ran into missing account validation.
+## How the Fix Works
 
-## Error Manifestation
+### 1. YOS Token Account Creation
 
-This error manifests in various ways:
-
-```
-Transaction simulation failed: 
-Error: InstructionError(1, Custom(0))
-```
-
-In the simulation logs, we can see:
-```
-❌ ERROR: Failed to unpack YOS token account data
-Program returned error: "InvalidAccountData"
-```
-
-## Applied Fixes
-
-The following fixes have been implemented:
-
-### 1. Improved Error Handling and Logging
-
-- Added comprehensive error messages to identify failure points
-- Included detailed data validation for account ownership and balances
-- Enhanced transaction logging for debugging
-
-### 2. Fix for Token Account Validation
-
-In the original code:
-```rust
-// Original problematic code
-if let Ok(yos_token_account) = TokenAccount::unpack(&user_yos_token_account.data.borrow()) {
-    // Validation checks
-} else {
-    // ERROR: Just returns an error without handling account creation
-    return Err(ProgramError::InvalidAccountData);
-}
-```
-
-Improved implementation:
-```rust
-// Check the user's YOS token account with detailed logging
-if let Ok(yos_token_account) = TokenAccount::unpack(&user_yos_token_account.data.borrow()) {
-    msg!("YOS token account mint: {}, expected: {}", 
-        yos_token_account.mint, program_state.yos_mint);
-    // Further validation with specific error messages
-} else {
-    msg!("❌ ERROR: Failed to unpack YOS token account data");
-    return Err(ProgramError::InvalidAccountData);
-}
-```
-
-### 3. Client-Side Fix
-
-The client implementation now ensures the YOS token account exists before executing the swap:
+The primary issue was that users often did not have a YOS token account before attempting to swap tokens. This fix includes robust token account validation:
 
 ```typescript
-// Check if YOS token account exists, create if it doesn't
-const userYosAta = await getOrCreateAssociatedTokenAccount(
-  connection,
-  wallet,
-  yosMintAddress,
-  wallet.publicKey,
-  true // Allow owner off curve for some wallet types
+// Check if YOS token account exists
+const yosTokenAccount = await getAssociatedTokenAddress(
+  YOS_TOKEN_MINT,
+  wallet.publicKey
 );
-```
 
-## Deployment Process
+// Check if the account exists
+const accountInfo = await connection.getAccountInfo(yosTokenAccount);
 
-The fixed implementation has been built as a new binary target in the Cargo.toml:
-
-```toml
-[[bin]]
-name = "multihub_swap_fixed_new"
-path = "src/multihub_swap_fixed_new.rs"
-```
-
-A deployment script `deploy_multihub_swap.sh` is provided to simplify the deployment process.
-
-## Verification Process
-
-After deployment, verify the fix by:
-
-1. Connect a wallet that's never received YOS tokens
-2. Attempt a swap on the CashbackSwap page
-3. Examine transaction logs - the swap should work on first attempt
-4. Verify YOS cashback was received in the newly created token account
-
-## Future Improvements
-
-While this fix addresses the immediate issue, future improvements could include:
-
-1. **Account Creation**: Add logic to create a YOS token account in the contract if it doesn't exist
-2. **State Management**: Better tracking of user accounts to simplify validation
-3. **Upgrade Mechanism**: Implement a proper upgrade mechanism for future enhancements
-
-## Technical Details
-
-The fixed implementation uses the Solana Program Pack trait properly with:
-```rust
-use solana_program::program_pack::Pack;
-```
-
-And correctly accesses token accounts with:
-```rust
-if let Ok(token_account) = TokenAccount::unpack(&account.data.borrow()) {
-    // Safe access to token account data
+// If account doesn't exist, create it
+if (!accountInfo) {
+  console.log('Creating YOS token account...');
+  const createAtaIx = createAssociatedTokenAccountInstruction(
+    wallet.publicKey,
+    yosTokenAccount,
+    wallet.publicKey,
+    YOS_TOKEN_MINT
+  );
+  transaction.add(createAtaIx);
 }
 ```
 
-## Testing & Validation
+### 2. New Program ID Approach
 
-The fix has been tested in the following scenarios:
+Due to persistent issues with redeploying the program with the existing ID, we generated a new program ID:
 
-1. **New User Flow**: A wallet without a YOS token account performs a swap
-2. **Existing User Flow**: A wallet with an existing YOS token account performs a swap
-3. **Edge Cases**: Various token amounts, including minimum values
+```
+J66SY1YNFyXt6jat8Ek8uAUshxBY2mLrubsMRN4wggt3
+```
 
-In all cases, the fixed implementation successfully handles the swap operation, creates necessary accounts, and distributes rewards correctly.
+This allows us to deploy a fresh version of the program without conflicts.
+
+### 3. Integration Layer
+
+To support both old and new program IDs, we created an integration layer:
+
+```typescript
+export async function detectProgramVersion(
+  connection: Connection
+): Promise<'v1' | 'v2'> {
+  try {
+    // Try to access the v2 program's state account
+    const [stateAddressV2] = MultihubSwapV2.findProgramStateAddress();
+    const stateAccountV2 = await connection.getAccountInfo(stateAddressV2);
+    
+    if (stateAccountV2 && stateAccountV2.owner.equals(new PublicKey(PROGRAM_ID_V2))) {
+      console.log('V2 program state account found, using V2 program');
+      return 'v2';
+    }
+  } catch (error) {
+    console.log('Error checking V2 program:', error);
+  }
+  
+  // Default to v1 if v2 is not available
+  console.log('Using V1 program by default');
+  return 'v1';
+}
+```
+
+## Deployment Steps
+
+1. **Prepare Environment**:
+   ```
+   chmod +x deploy_multihub_swap_v2.sh
+   ```
+
+2. **Build Program**:
+   Update program files with new program ID and build
+
+3. **Deploy Program**:
+   ```
+   ./deploy_multihub_swap_v2.sh
+   ```
+
+4. **Update Client Code**:
+   Import and use the new integration layer in your component:
+   ```typescript
+   import { MultihubIntegration } from '../lib/multihub-integration';
+   ```
+
+## Migration Guide
+
+For existing components using the old Multi-Hub Swap functionality:
+
+1. Import the integration layer:
+   ```typescript
+   import { MultihubIntegration } from '../lib/multihub-integration';
+   ```
+
+2. Replace direct calls with integration calls:
+   ```typescript
+   // Old code
+   const signature = await performSwap(wallet, tokenFrom, tokenTo, amountIn, swapEstimate);
+   
+   // New code
+   const signature = await MultihubIntegration.performMultiHubSwap(
+     wallet, tokenFrom, tokenTo, amountIn, swapEstimate
+   );
+   ```
+
+## Testing Recommendations
+
+1. Test with wallets that don't have a YOS token account to verify automatic creation
+2. Test with both old and new program IDs to ensure compatibility
+3. Test edge cases with various token combinations
+4. Verify error messages are clear and helpful
+
+## Conclusion
+
+These changes address both the deployment issues and the root cause of the swap failures (missing YOS token accounts). By using a new program ID and robust client-side validation, we ensure a more reliable swapping experience while maintaining backward compatibility.
