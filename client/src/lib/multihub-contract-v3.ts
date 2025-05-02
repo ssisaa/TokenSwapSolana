@@ -318,14 +318,14 @@ export async function closeProgram(
     const closeProgramData = dataLayout;
     
     // Add the close program instruction to the transaction
-    // Include all required accounts similar to initialize
+    // IMPORTANT: Include ONLY the accounts required by the smart contract
+    // From the Rust code, only these accounts are needed:
+    // 1. Admin account (signer)
+    // 2. Program state account (PDA)
     transaction.add({
       keys: [
-        { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
-        { pubkey: programStateAddress, isSigner: false, isWritable: true },
-        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false },
-        { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false }, // System program
-        { pubkey: wallet.publicKey, isSigner: false, isWritable: true } // Rent receiver
+        { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // Admin account that receives the rent
+        { pubkey: programStateAddress, isSigner: false, isWritable: true }, // Program state account to be closed
       ],
       programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID),
       data: Buffer.from(closeProgramData)
