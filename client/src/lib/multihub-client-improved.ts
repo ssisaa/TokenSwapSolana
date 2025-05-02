@@ -315,33 +315,18 @@ export async function executeMultiHubSwapImproved(
     // Continue anyway as this may not be fatal
   }
   
-  // Add the swap instruction with MORE accounts than previously (matching V3 contract expectation)
+  // Create the swap instruction with exactly the accounts the contract expects
+  // The process_swap function in the contract expects only 7 accounts in this specific order
   const finalSwapInstruction = new TransactionInstruction({
     keys: [
-      // User accounts
+      // These are the exact accounts needed in the exact order per the contract
       { pubkey: wallet.publicKey, isSigner: true, isWritable: true },             // 0. User wallet (signer)
-      { pubkey: fromTokenAccount, isSigner: false, isWritable: true },            // 1. User's input token account
-      { pubkey: toTokenAccount, isSigner: false, isWritable: true },              // 2. User's output token account
-      { pubkey: yosTokenAccount, isSigner: false, isWritable: true },             // 3. User's YOS token account (for cashback)
-      
-      // Program accounts
-      { pubkey: programStateAddress, isSigner: false, isWritable: true },         // 4. Program state account
-      { pubkey: authorityAddress, isSigner: false, isWritable: false },           // 5. Program authority
-      
-      // Program token accounts
-      { pubkey: programFromTokenAccount, isSigner: false, isWritable: true },     // 6. Program's input token account
-      { pubkey: programToTokenAccount, isSigner: false, isWritable: true },       // 7. Program's output token account
-      { pubkey: programYosTokenAccount, isSigner: false, isWritable: true },      // 8. Program's YOS token account
-      
-      // Token mints
-      { pubkey: fromMint, isSigner: false, isWritable: false },                   // 9. Input token mint
-      { pubkey: toMint, isSigner: false, isWritable: false },                     // 10. Output token mint
-      { pubkey: YOS_TOKEN_MINT, isSigner: false, isWritable: false },             // 11. YOS token mint
-      
-      // System programs
-      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },           // 12. Token program
-      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },         // 13. Rent sysvar
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },    // 14. System program
+      { pubkey: programStateAddress, isSigner: false, isWritable: true },         // 1. Program state account
+      { pubkey: authorityAddress, isSigner: false, isWritable: false },           // 2. Program authority
+      { pubkey: fromTokenAccount, isSigner: false, isWritable: true },            // 3. User's input token account
+      { pubkey: toTokenAccount, isSigner: false, isWritable: true },              // 4. User's output token account  
+      { pubkey: yosTokenAccount, isSigner: false, isWritable: true },             // 5. User's YOS token account (for cashback)
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },           // 6. Token program
     ],
     programId: MULTIHUB_SWAP_PROGRAM_ID,
     data: data
