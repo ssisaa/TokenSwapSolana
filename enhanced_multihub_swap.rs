@@ -2,17 +2,14 @@ use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
     msg,
-    program::{invoke, invoke_signed},
     program_error::ProgramError,
     program_pack::Pack,
     pubkey::Pubkey,
-    rent::Rent,
     system_instruction,
     sysvar::Sysvar,
 };
 use spl_token::{
-    instruction as token_instruction,
-    state::{Account, Mint},
+    state::{Account},
 };
 use borsh::{BorshDeserialize, BorshSerialize};
 
