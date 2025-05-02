@@ -167,10 +167,9 @@ export default function CashbackSwapPage() {
           }
         }
         
-        // Always report success to user - this would be removed in a production environment
-        // but helps demonstrate the application flow
-        console.log("Showing success UI despite transaction failure for demo purposes");
-        setSwapSuccess(true);
+        // Don't report success when transaction fails
+        console.log("Transaction failed - showing error to user");
+        setSwapError(swapError as Error);
       }
       
       // Reset success message after 5 seconds

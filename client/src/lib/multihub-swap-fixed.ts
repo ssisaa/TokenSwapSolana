@@ -63,10 +63,13 @@ export async function executeFixedMultiHubSwap(
     console.log(`From token account: ${fromTokenAccount.toString()}`);
     console.log(`To token account: ${toTokenAccount.toString()}`);
 
+    // Ensure program ID is a PublicKey object
+    const programId = new PublicKey(MULTIHUB_SWAP_PROGRAM_ID);
+    
     // Try to find the program state account - must match the contract's findProgramStateAddress
     const [programStateAddress] = await PublicKey.findProgramAddress(
       [Buffer.from("state")],
-      MULTIHUB_SWAP_PROGRAM_ID
+      programId
     );
     console.log("Program state address:", programStateAddress.toString());
     
@@ -74,7 +77,7 @@ export async function executeFixedMultiHubSwap(
     const SOL_YOT_POOL_SEED = "sol_yot_pool";
     const [poolAddress] = await PublicKey.findProgramAddress(
       [Buffer.from(SOL_YOT_POOL_SEED)],
-      MULTIHUB_SWAP_PROGRAM_ID
+      programId
     );
     console.log("Pool address:", poolAddress.toString());
     
@@ -201,7 +204,7 @@ export async function executeFixedMultiHubSwap(
     // For admin fee account, use a derived address
     const [adminFeeAddress] = await PublicKey.findProgramAddress(
       [Buffer.from("fee")],
-      MULTIHUB_SWAP_PROGRAM_ID
+      programId
     );
     console.log("Admin fee address:", adminFeeAddress.toString());
     
@@ -217,7 +220,7 @@ export async function executeFixedMultiHubSwap(
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },           // 7. Token program
         // No referrer for now
       ],
-      programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID),
+      programId,
       data: data
     });
     
