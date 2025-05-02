@@ -22,7 +22,12 @@ borsh-derive = "0.10.3"
 name = "multihub_swap"
 crate-type = ["cdylib", "lib"]
 
-# Fixed executable for multihub swap
+# Original fixed executable for multihub swap
 [[bin]]
 name = "multihub_swap_fixed"
 path = "src/multihub_swap.rs"
+
+# New improved implementation with robust YOS token account handling
+[[bin]]
+name = "multihub_swap_fixed_new"
+path = "src/multihub_swap_fixed_new.rs"

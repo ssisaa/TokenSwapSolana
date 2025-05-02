@@ -1,0 +1,40 @@
+Building...
+error[E0599]: no function or associated item named `unpack` found for struct `Account` in the current scope
+   --> src/lib.rs:268:52
+    |
+268 |     if let Ok(input_token_account) = TokenAccount::unpack(&user_input_token_account.data.borrow()) {
+    |                                                    ^^^^^^ function or associated item not found in `Account`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: the following trait is implemented but not in scope; perhaps add a `use` for it:
+    |
+1   | use solana_program::program_pack::Pack;
+    |
+ 
+error[E0599]: no function or associated item named `unpack` found for struct `Account` in the current scope
+   --> src/lib.rs:292:53
+    |
+292 |     if let Ok(output_token_account) = TokenAccount::unpack(&user_output_token_account.data.borrow()) {
+    |                                                     ^^^^^^ function or associated item not found in `Account`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: the following trait is implemented but not in scope; perhaps add a `use` for it:
+    |
+1   | use solana_program::program_pack::Pack;
+    |
+ 
+error[E0599]: no function or associated item named `unpack` found for struct `Account` in the current scope
+   --> src/lib.rs:310:50
+    |
+310 |     if let Ok(yos_token_account) = TokenAccount::unpack(&user_yos_token_account.data.borrow()) {
+    |                                                  ^^^^^^ function or associated item not found in `Account`
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: the following trait is implemented but not in scope; perhaps add a `use` for it:
+    |
+1   | use solana_program::program_pack::Pack;
+    |
+ 
+Note: This is a shorter version of the error logs to make it easier to debug. Currently 3 errors are displayed but there are 8 errors. Disable "Improve build errors" setting to see the full error output.
+
+$ 
