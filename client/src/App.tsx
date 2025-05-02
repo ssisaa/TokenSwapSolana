@@ -35,6 +35,7 @@ import CashbackSwapPage from "@/pages/CashbackSwapPage";
 import AdvancedSwapPage from "@/pages/AdvancedSwapPage";
 import TransactionDebugPage from "@/pages/TransactionDebugPage";
 import FixedSwapTestPage from "@/pages/FixedSwapTestPage";
+import MultihubV3AdminPage from "@/pages/MultihubV3AdminPage";
 import Analytics from "@/pages/Analytics";
 import WalletPage from "@/pages/WalletPage";
 import SettingsPage from "@/pages/SettingsPage";
@@ -58,6 +59,7 @@ const dashboardRoutes = [
   '/analytics',
   '/wallet',
   '/admin',
+  '/multihub-v3-admin',
   '/settings',
   '/affiliate',
   '/memes'
@@ -169,6 +171,12 @@ function Router() {
         <Route path="/fixed-swap">
           <DashboardLayout>
             <FixedSwapTestPage />
+          </DashboardLayout>
+        </Route>
+
+        <Route path="/multihub-v3-admin">
+          <DashboardLayout>
+            <MultihubV3AdminPage />
           </DashboardLayout>
         </Route>
         
