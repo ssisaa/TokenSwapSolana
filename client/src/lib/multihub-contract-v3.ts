@@ -74,7 +74,7 @@ export async function initializeProgram(
   const INSTRUCTION_INITIALIZE = 0; // Initialize instruction is index 0
   
   // Create a buffer for the instruction data
-  const dataLayout = Buffer.alloc(1 + 32 + 32 + 2 + 2 + 2 + 2 + 2);
+  const dataLayout = Buffer.alloc(107); // 1 + 32 + 32 + 32 + 2 + 2 + 2 + 2 + 2
   
   // Instruction index
   dataLayout.writeUInt8(INSTRUCTION_INITIALIZE, 0);
@@ -109,6 +109,26 @@ export async function initializeProgram(
     programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID),
     data: Buffer.from(initializeData)
   });
+  
+  // Set fee payer
+  transaction.feePayer = wallet.publicKey;
+  
+  // Add a recent blockhash
+  const { blockhash } = await connection.getLatestBlockhash();
+  transaction.recentBlockhash = blockhash;
+  
+  // Simulate the transaction first to check for errors
+  try {
+    console.log('Simulating initialize program transaction...');
+    const simulation = await connection.simulateTransaction(transaction);
+    if (simulation.value.err) {
+      console.error('Initialization simulation failed:', simulation.value.err);
+      throw new Error(`Simulation failed: ${JSON.stringify(simulation.value.err)}`);
+    }
+  } catch (error) {
+    console.error('Initialization simulation error:', error);
+    throw error;
+  }
   
   // Send the transaction
   const signature = await wallet.sendTransaction(transaction, connection);
@@ -281,6 +301,13 @@ export async function closeProgram(
     programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID),
     data: Buffer.from(closeProgramData)
   });
+  
+  // Set fee payer
+  transaction.feePayer = wallet.publicKey;
+  
+  // Add a recent blockhash
+  const { blockhash } = await connection.getLatestBlockhash();
+  transaction.recentBlockhash = blockhash;
   
   // Simulate the transaction first to check for errors
   try {

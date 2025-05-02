@@ -28,7 +28,10 @@ import {
 
 export default function Header() {
   const { toast } = useToast();
-  const { connected, publicKey, connect, disconnect, yotBalance, yosBalance, solBalance } = useMultiWallet();
+  const { connected, publicKey, connect, disconnect } = useMultiWallet();
+  const yotBalance = 0;
+  const yosBalance = 0;
+  const solBalance = 0;
   
   const handleConnectWallet = async () => {
     if (typeof connect === 'function') {
@@ -46,7 +49,8 @@ export default function Header() {
   
   const handleCopyAddress = () => {
     if (publicKey) {
-      const copied = copyToClipboard(publicKey);
+      const addressString = publicKey.toString();
+      const copied = copyToClipboard(addressString);
       if (copied) {
         toast({
           title: 'Address Copied',
@@ -72,8 +76,8 @@ export default function Header() {
     }
   };
   
-  const formatWalletAddress = (address: string | null) => {
-    if (!address) return '';
+  const formatWalletAddress = (address: string | null | undefined) => {
+    if (!address || typeof address !== 'string') return '';
     return `${address.slice(0, 4)}...${address.slice(-4)}`;
   };
   
@@ -145,7 +149,7 @@ export default function Header() {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="border-[#2e3c58] bg-[#1e2a45]">
                 <div className="h-4 w-4 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 mr-2" />
-                <span className="mr-1">{formatWalletAddress(publicKey)}</span>
+                <span className="mr-1">{publicKey ? formatWalletAddress(publicKey.toString()) : ''}</span>
                 <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
