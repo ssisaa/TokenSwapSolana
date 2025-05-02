@@ -11,8 +11,8 @@ use solana_program::{
     sysvar::Sysvar,
 };
 use spl_token::{
-    instruction as token_instruction,
-    state::{Account as TokenAccount, Mint},
+    // Remove unused imports
+    state::{Account as TokenAccount},
 };
 use borsh::{BorshDeserialize, BorshSerialize};
 
