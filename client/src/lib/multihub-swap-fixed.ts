@@ -160,44 +160,63 @@ export async function executeFixedMultiHubSwap(
       );
     }
 
-    // Create instruction data for swap that matches the contract's expected format
+    // Create instruction data for SwapToken instruction that matches the contract's expected format
     // In the contract:
-    // fn process_swap(
-    //   program_id: &Pubkey,
-    //   accounts: &[AccountInfo],
-    //   amount_in: u64,
-    //   minimum_amount_out: u64,
-    //   input_token_mint: Pubkey,
-    //   output_token_mint: Pubkey,
-    //   referrer: Option<Pubkey>,
-    // )
+    // SwapToken {
+    //     // Amount of input token to swap
+    //     amount_in: u64,
+    //     // Minimum amount of output token to receive
+    //     minimum_amount_out: u64,
+    //     // Input token mint
+    //     input_token_mint: Pubkey,
+    //     // Output token mint
+    //     output_token_mint: Pubkey,
+    //     // Optional referrer
+    //     referrer: Option<Pubkey>,
+    // }
     
-    // Simplify the instruction data format to avoid serialization issues
-    // Instruction format:
-    // - 1 byte: instruction type (1 = swap)
+    // Instruction format using Borsh serialization:
+    // - 1 byte: instruction variant index (1 = SwapToken)
     // - 8 bytes: amount_in as u64
     // - 8 bytes: minimum_amount_out as u64
+    // - 32 bytes: input_token_mint as Pubkey
+    // - 32 bytes: output_token_mint as Pubkey
+    // - 1 byte: 0 for None, 1 for Some<Pubkey>
+    // - [Optional] 32 bytes: referrer Pubkey if present
     
-    const instructionType = 1; // Swap instruction type
+    const SWAP_TOKEN_INSTRUCTION = 1; // SwapToken variant index
     
-    // Calculate the total data size - simplified version
-    // 1 byte for instruction + 8 bytes for amount_in + 8 bytes for min_amount_out
-    const data = Buffer.alloc(1 + 8 + 8);
+    // Calculate the total data size
+    // 1 byte for variant + 8 bytes for amount_in + 8 bytes for min_amount_out
+    // + 32 bytes for input_token_mint + 32 bytes for output_token_mint + 1 byte for Option<Pubkey>
+    const data = Buffer.alloc(1 + 8 + 8 + 32 + 32 + 1);
     
-    // Write instruction type
-    data.writeUInt8(instructionType, 0);
+    // Write instruction variant
+    data.writeUInt8(SWAP_TOKEN_INSTRUCTION, 0);
     let offset = 1;
     
-    // Write amount_in and minimum_amount_out (as fixed-point numbers with 9 decimals)
+    // Convert input and minimum output amounts to raw values (as fixed-point numbers with 9 decimals)
     const amountInRaw = BigInt(Math.floor(amount * 1_000_000_000));
     const minAmountOutRaw = BigInt(Math.floor(minAmountOut * 1_000_000_000));
     
-    // Write the values directly to the buffer
+    // Write amount_in as u64
     data.writeBigUInt64LE(amountInRaw, offset);
     offset += 8;
     
+    // Write minimum_amount_out as u64
     data.writeBigUInt64LE(minAmountOutRaw, offset);
-    // The token mints are already provided as accounts in the transaction instruction
+    offset += 8;
+    
+    // Write input_token_mint as Pubkey
+    fromMint.toBuffer().copy(data, offset);
+    offset += 32;
+    
+    // Write output_token_mint as Pubkey
+    toMint.toBuffer().copy(data, offset);
+    offset += 32;
+    
+    // Write Option<Pubkey> as 0 for None (no referrer)
+    data.writeUInt8(0, offset);
     
     console.log("Swap instruction data:", data.toString('hex'));
     

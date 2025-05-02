@@ -175,7 +175,7 @@ export default function CashbackSwapPage() {
               </a>
             </div>
           ),
-          variant: "success"
+          variant: "default"
         });
         
         setSwapSuccess(true);
