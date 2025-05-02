@@ -1,120 +1,184 @@
-# MultiHub Swap Deployment Guide
+# Multi-Hub Swap Deployment Guide
 
-This guide provides detailed instructions for deploying the fixed MultiHub Swap program to Solana devnet.
+This guide outlines the process for deploying the Multi-Hub Swap program on Solana. It covers both deployment options and recommended configuration settings.
 
-## Prerequisites
+## Program ID
 
-1. Solana CLI tools installed (v1.17.x or newer recommended)
-2. Rust and Cargo installed
-3. The Solana BPF toolchain (`cargo-build-sbf`)
-4. A funded devnet wallet with enough SOL for deployment
-5. The program keypair file (`multihub-keypair.json`)
-
-## Step 1: Prepare the Environment
-
-Ensure your system is configured for Solana development:
-
-```bash
-# Install Solana CLI if needed
-sh -c "$(curl -sSfL https://release.solana.com/v1.17.31/install)"
-
-# Update your PATH (add to your .bashrc or .zshrc for persistence)
-export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
-
-# Install the BPF toolchain if needed
-cargo install --git https://github.com/solana-labs/rbpf cargo-build-sbf
-
-# Configure for devnet
-solana config set --url https://api.devnet.solana.com
-
-# Check your configuration
-solana config get
-
-# Check your wallet balance
-solana balance
+The currently deployed program ID is:
+```
+3cXKNjtRv8b1HVYU6vRDvmoSMHfXrWATCLFY2Y5wTsps
 ```
 
-## Step 2: Build the Program
+## Deployment Options
 
-Build both the original and fixed implementation of the MultiHub Swap program:
+### Option 1: Solana Playground (Recommended for Initial Deployments)
 
-```bash
-# Navigate to the program directory
-cd program
+1. **Upload Source Files**:
+   - Upload `lib.rs`, `multihub_swap_fixed_new.rs`, and other necessary files to Solana Playground
+   - Ensure `Cargo.toml` is correctly configured with dependencies
 
-# Build the original program
-cargo build-sbf
+2. **Set Program ID**:
+   - In Solana Playground, set the Program ID to `3cXKNjtRv8b1HVYU6vRDvmoSMHfXrWATCLFY2Y5wTsps`
 
-# Build the fixed implementation
-cargo build-sbf --bin multihub_swap_fixed_new
-```
+3. **Build and Deploy**:
+   - Click "Build" to compile the program
+   - Click "Deploy" to deploy the program to Solana devnet
 
-## Step 3: Deploy the Program
+### Option 2: Command Line Deployment (Recommended for Updates)
 
-Use the provided deployment script to automate the process:
+For established programs that need updates:
 
-```bash
-# Make the deployment script executable
-chmod +x deploy_multihub_swap.sh
+1. **Install Solana CLI Tools**:
+   ```bash
+   sh -c "$(curl -sSfL https://release.solana.com/v1.16.15/install)"
+   ```
 
-# Run the deployment script
-./deploy_multihub_swap.sh
-```
+2. **Setup Environment**:
+   ```bash
+   solana config set --url devnet
+   ```
 
-The script will:
-1. Verify you have the correct keypair file
-2. Build both implementations
-3. Let you choose which one to deploy
-4. Deploy the selected implementation to the MultiHub Swap program ID
-5. Verify the deployment was successful
+3. **Compile Program**:
+   ```bash
+   cd program
+   cargo build-bpf
+   ```
 
-## Step 4: Initialize the Program (if needed)
+4. **Deploy With Force Option**:
+   ```bash
+   solana program deploy --program-id 3cXKNjtRv8b1HVYU6vRDvmoSMHfXrWATCLFY2Y5wTsps --keypair path/to/multihub-keypair.json target/deploy/multihub_swap.so --force
+   ```
 
-If this is a fresh deployment (not an upgrade), you'll need to initialize the program:
+### Option 3: New Program ID (Last Resort)
 
-1. Navigate to the web interface
-2. Connect your admin wallet (must match the admin wallet used during development)
-3. Go to the Admin tab
-4. Click "Initialize MultiHub Swap Program"
-5. Provide the following parameters:
-   - YOT Mint: `2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF`
-   - YOS Mint: `GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n`
-   - Liquidity Contribution: 20 (%)
-   - Admin Fee: 0.1 (%)
-   - YOS Cashback: 5 (%)
+If neither option above works due to persistent account data conflicts:
 
-## Step 5: Verify the Deployment
+1. **Generate New Keypair**:
+   ```bash
+   solana-keygen new -o multihub-swap-v2-keypair.json
+   ```
 
-Test the deployment by:
+2. **Extract Program ID**:
+   ```bash
+   solana-keygen pubkey multihub-swap-v2-keypair.json
+   ```
 
-1. Connect a wallet that has never received YOS tokens
-2. Attempt a swap on the CashbackSwap page
-3. The transaction should succeed on the first attempt
-4. Check that a new YOS token account was created for the user
-5. Verify that YOS cashback was received
+3. **Update Program ID in Code**:
+   - Modify the program ID in your Rust file
+   - Update client code to reference new program ID
 
-## Troubleshooting
+4. **Deploy as New Program**:
+   ```bash
+   solana program deploy --program-id NEW_PROGRAM_ID --keypair multihub-swap-v2-keypair.json target/deploy/multihub_swap.so
+   ```
 
-If deployment fails:
+## Client-Side Deployment Fixes
 
-1. Check that your wallet has enough SOL
-2. Verify the program ID in the keypair file matches the expected ID
-3. Ensure you have the correct permissions for the program deployment
-4. Check for any error messages in the transaction logs
+The most reliable approach for immediate fixes is to enhance the client-side code:
 
-## Important Notes
+1. **YOS Token Account Verification**:
+   Add explicit checks to verify if YOS token accounts exist and create them if they don't:
 
-- The program ID for the MultiHub Swap is: `3cXKNjtRv8b1HVYU6vRDvmoSMHfXrWATCLFY2Y5wTsps`
-- The updated implementation handles YOS token account validation correctly
-- All percentage values in the program are stored as integers:
-  - 20% = 20
-  - 5% = 5
-  - 0.1% = 1 (scaled by 10)
+   ```typescript
+   // Check if YOS token account exists
+   const yosTokenAccount = await getAssociatedTokenAddress(
+     new PublicKey(YOS_MINT_ADDRESS),
+     wallet.publicKey
+   );
+   
+   // Verify account existence
+   const accountInfo = await connection.getAccountInfo(yosTokenAccount);
+   
+   // If account doesn't exist, create it
+   if (!accountInfo) {
+     console.log("Creating YOS token account...");
+     const createAtaIx = createAssociatedTokenAccountInstruction(
+       wallet.publicKey,
+       yosTokenAccount,
+       wallet.publicKey,
+       new PublicKey(YOS_MINT_ADDRESS)
+     );
+     
+     // Add to transaction
+     transaction.add(createAtaIx);
+   }
+   ```
 
-## Next Steps
+2. **Pre-Transaction Checks**:
+   Always validate all necessary accounts before attempting transactions:
 
-After deployment:
+   ```typescript
+   // Create a helper function to validate all required accounts
+   async function validateRequiredAccounts(wallet, requiredMints) {
+     const missingAccounts = [];
+     
+     for (const mint of requiredMints) {
+       const tokenAccount = await getAssociatedTokenAddress(
+         new PublicKey(mint),
+         wallet.publicKey
+       );
+       
+       const accountInfo = await connection.getAccountInfo(tokenAccount);
+       if (!accountInfo) {
+         missingAccounts.push({ mint, tokenAccount });
+       }
+     }
+     
+     return missingAccounts;
+   }
+   ```
 
-1. Monitor initial user interactions to confirm the fix works as expected
-2. Update any client code to use the improved implementation
-3. Consider future improvements as outlined in the MULTIHUB_SWAP_FIX_README.md
+3. **Robust Error Handling**:
+   Add comprehensive error handling to detect and provide user-friendly messages:
+
+   ```typescript
+   try {
+     // Transaction code here
+   } catch (error) {
+     if (error.message.includes("invalid account data")) {
+       console.error("Account structure mismatch. This usually means the token accounts aren't properly set up.");
+       // Create missing accounts
+     } else if (error.message.includes("insufficient funds")) {
+       console.error("Insufficient balance to complete transaction");
+     } else {
+       console.error("Transaction failed:", error);
+     }
+   }
+   ```
+
+## Troubleshooting Common Deployment Issues
+
+### Invalid Account Data for Instruction
+
+This error typically occurs when:
+1. The program has already been initialized with a different account structure
+2. Required token accounts don't exist
+
+**Solution**:
+- Use the `--force` flag when deploying via command line
+- Ensure all token accounts exist before sending transactions
+- Consider creating a new program ID as a last resort
+
+### Transaction Simulation Failed
+
+This usually indicates issues with:
+1. Insufficient SOL for transaction fees
+2. Missing token accounts
+3. Incorrect account permissions
+
+**Solution**:
+- Check wallet SOL balance
+- Verify all token accounts exist
+- Use transaction simulation before sending to debug issues
+
+## Best Practices for Future Deployments
+
+1. **Always simulate transactions** before sending to catch errors early
+2. **Create essential token accounts** before attempting any swap
+3. **Use unique PDA seeds** when updating program logic to avoid conflicts
+4. **Implement thorough client-side validation** to prevent common errors
+5. **Document changes extensively** to maintain knowledge of the system
+
+---
+
+By following this guide, you can effectively deploy and maintain the Multi-Hub Swap program, even when faced with common deployment challenges.
