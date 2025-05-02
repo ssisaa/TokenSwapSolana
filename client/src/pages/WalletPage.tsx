@@ -13,16 +13,28 @@ import { EXPLORER_URL } from '@/lib/constants';
 
 export default function WalletPage() {
   const { toast } = useToast();
-  const { connected, wallet, publicKey } = useWallet();
-  const { connect } = useMultiWallet();
-  const { balances, loading, fetchBalances } = useTokenData();
+  const { connected, wallet } = useWallet();
+  const { connect, publicKey } = useMultiWallet();
   const [selectedTab, setSelectedTab] = useState('tokens');
   
-  useEffect(() => {
-    if (connected && publicKey) {
-      fetchBalances(publicKey.toString());
-    }
-  }, [connected, publicKey, fetchBalances]);
+  // Use our new wallet assets hook
+  const { 
+    tokens, 
+    nfts, 
+    transactions, 
+    isLoading, 
+    transactionsLoading, 
+    refreshWalletData 
+  } = useWalletAssets();
+  
+  // Calculate total balance in USD
+  const totalUsdBalance = tokens.reduce((total, token) => {
+    return total + token.usdValue;
+  }, 0);
+  
+  // Find SOL and YOT tokens
+  const solToken = tokens.find(token => token.symbol === 'SOL');
+  const yotToken = tokens.find(token => token.symbol === 'YOT');
   
   const copyAddress = () => {
     if (publicKey) {
@@ -47,6 +59,14 @@ export default function WalletPage() {
     }
   };
   
+  const handleRefresh = () => {
+    refreshWalletData();
+    toast({
+      title: "Refreshing data",
+      description: "Fetching latest wallet information",
+    });
+  };
+  
   if (!connected) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh]">
@@ -69,45 +89,6 @@ export default function WalletPage() {
       </div>
     );
   }
-  
-  const tokensList = [
-    { symbol: 'SOL', name: 'Solana', balance: balances?.sol || 0, price: 148.35, iconClass: 'bg-[#9945FF]' },
-    { symbol: 'YOT', name: 'Your Own Token', balance: balances?.yot || 0, price: 0.00000200, iconClass: 'bg-[#3e63dd]' },
-    { symbol: 'YOS', name: 'Your Own Story', balance: balances?.yos || 0, price: 0.00002000, iconClass: 'bg-[#10B981]' },
-  ];
-  
-  const nftsList = [
-    { name: 'YOT NFT #123', collection: 'YOT Collection', floor: 1.5, imageUrl: 'https://via.placeholder.com/100' },
-    { name: 'YOS NFT #456', collection: 'YOS Collection', floor: 0.8, imageUrl: 'https://via.placeholder.com/100' },
-  ];
-  
-  const transactionsList = [
-    { 
-      type: 'send', 
-      token: 'SOL', 
-      amount: 0.5, 
-      date: '2023-04-28', 
-      status: 'confirmed',
-      to: '8JzqAnf...'
-    },
-    { 
-      type: 'receive', 
-      token: 'YOT', 
-      amount: 1000, 
-      date: '2023-04-27', 
-      status: 'confirmed',
-      from: '7m7RAFh...'
-    },
-    { 
-      type: 'swap', 
-      tokenFrom: 'SOL', 
-      amountFrom: 0.2, 
-      tokenTo: 'YOT', 
-      amountTo: 500, 
-      date: '2023-04-25', 
-      status: 'confirmed'
-    },
-  ];
   
   return (
     <div className="space-y-6">
@@ -141,13 +122,12 @@ export default function WalletPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-white">
-              {loading ? 
-                "Loading..." :
-                `$${formatCurrency(
-                  (balances?.sol || 0) * 148.35 +
-                  (balances?.yot || 0) * 0.00000200 +
-                  (balances?.yos || 0) * 0.00002000
-                )}`
+              {isLoading ? 
+                <div className="flex items-center">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Loading...
+                </div> :
+                `$${formatCurrency(totalUsdBalance)}`
               }
             </div>
             <div className="text-xs text-gray-400 mt-1">Across all tokens</div>
@@ -160,10 +140,16 @@ export default function WalletPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-white">
-              {loading ? "Loading..." : `${balances?.sol || 0} SOL`}
+              {isLoading ? 
+                <div className="flex items-center">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Loading...
+                </div> : 
+                `${solToken?.balance || 0} SOL`
+              }
             </div>
             <div className="text-xs text-gray-400 mt-1">
-              ≈ ${formatCurrency((balances?.sol || 0) * 148.35)}
+              ≈ ${formatCurrency(solToken?.usdValue || 0)}
             </div>
           </CardContent>
         </Card>
@@ -174,10 +160,16 @@ export default function WalletPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-white">
-              {loading ? "Loading..." : `${formatCurrency(balances?.yot || 0)} YOT`}
+              {isLoading ? 
+                <div className="flex items-center">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Loading...
+                </div> : 
+                `${formatCurrency(yotToken?.balance || 0)} YOT`
+              }
             </div>
             <div className="text-xs text-gray-400 mt-1">
-              ≈ ${formatCurrency((balances?.yot || 0) * 0.00000200)}
+              ≈ ${formatCurrency(yotToken?.usdValue || 0)}
             </div>
           </CardContent>
         </Card>
@@ -211,8 +203,18 @@ export default function WalletPage() {
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold text-white">Your Tokens</h2>
                 <div className="flex space-x-2">
-                  <Button size="sm" variant="outline" className="border-[#1e2a45] bg-[#141c2f] text-white">
-                    <RefreshCw className="h-4 w-4 mr-2" />
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="border-[#1e2a45] bg-[#141c2f] text-white"
+                    onClick={handleRefresh}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                    )}
                     Refresh
                   </Button>
                   <Button size="sm" variant="outline" className="border-[#1e2a45] bg-[#141c2f] text-white">
@@ -224,29 +226,39 @@ export default function WalletPage() {
               
               <Card className="bg-[#0f1421] shadow-xl border-[#1e2a45]">
                 <CardContent className="p-0">
-                  <div className="divide-y divide-[#1e2a45]">
-                    {tokensList.map((token, index) => (
-                      <div key={index} className="flex items-center justify-between p-4">
-                        <div className="flex items-center">
-                          <div className={`w-10 h-10 rounded-full ${token.iconClass} flex items-center justify-center text-white font-bold`}>
-                            {token.symbol.substring(0, 1)}
+                  {isLoading ? (
+                    <div className="p-8 flex justify-center">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : tokens.length === 0 ? (
+                    <div className="p-8 text-center text-gray-400">
+                      No tokens found in this wallet
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-[#1e2a45]">
+                      {tokens.map((token, index) => (
+                        <div key={index} className="flex items-center justify-between p-4">
+                          <div className="flex items-center">
+                            <div className={`w-10 h-10 rounded-full ${token.iconClass || 'bg-gray-700'} flex items-center justify-center text-white font-bold`}>
+                              {token.symbol.substring(0, 1)}
+                            </div>
+                            <div className="ml-3">
+                              <div className="text-white font-semibold">{token.symbol}</div>
+                              <div className="text-xs text-gray-400">{token.name}</div>
+                            </div>
                           </div>
-                          <div className="ml-3">
-                            <div className="text-white font-semibold">{token.symbol}</div>
-                            <div className="text-xs text-gray-400">{token.name}</div>
+                          <div className="text-right">
+                            <div className="text-white font-semibold">
+                              {formatCurrency(token.balance)} {token.symbol}
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              ${formatCurrency(token.usdValue)}
+                            </div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-white font-semibold">
-                            {formatCurrency(token.balance)} {token.symbol}
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            ${formatCurrency(token.balance * token.price)}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -254,73 +266,120 @@ export default function WalletPage() {
             <TabsContent value="nfts">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold text-white">Your NFTs</h2>
-                <Button size="sm" variant="outline" className="border-[#1e2a45] bg-[#141c2f] text-white">
-                  <RefreshCw className="h-4 w-4 mr-2" />
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="border-[#1e2a45] bg-[#141c2f] text-white"
+                  onClick={handleRefresh}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  )}
                   Refresh
                 </Button>
               </div>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {nftsList.map((nft, index) => (
-                  <Card key={index} className="bg-[#0f1421] shadow-xl border-[#1e2a45]">
-                    <div className="aspect-square bg-[#141c2f] rounded-t-lg overflow-hidden">
-                      <div className="w-full h-full bg-[#1e2a45] flex items-center justify-center text-gray-400">
-                        NFT Image
+              {isLoading ? (
+                <div className="p-8 flex justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : nfts.length === 0 ? (
+                <div className="p-8 text-center bg-[#0f1421] shadow-xl border-[#1e2a45] rounded-lg text-gray-400">
+                  No NFTs found in this wallet
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {nfts.map((nft, index) => (
+                    <Card key={index} className="bg-[#0f1421] shadow-xl border-[#1e2a45]">
+                      <div className="aspect-square bg-[#141c2f] rounded-t-lg overflow-hidden">
+                        <img 
+                          src={nft.imageUrl} 
+                          alt={nft.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=NFT';
+                          }}
+                        />
                       </div>
-                    </div>
-                    <CardContent className="p-4">
-                      <h3 className="text-white font-semibold">{nft.name}</h3>
-                      <p className="text-xs text-gray-400">{nft.collection}</p>
-                      <div className="mt-2 text-sm text-gray-300">
-                        Floor: {nft.floor} SOL
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                      <CardContent className="p-4">
+                        <h3 className="text-white font-semibold">{nft.name}</h3>
+                        <p className="text-xs text-gray-400">{nft.collection}</p>
+                        {nft.floor && (
+                          <div className="mt-2 text-sm text-gray-300">
+                            Floor: {nft.floor} SOL
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </TabsContent>
             
             <TabsContent value="transactions">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold text-white">Recent Transactions</h2>
-                <Button size="sm" variant="outline" className="border-[#1e2a45] bg-[#141c2f] text-white">
-                  <RefreshCw className="h-4 w-4 mr-2" />
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="border-[#1e2a45] bg-[#141c2f] text-white"
+                  onClick={handleRefresh}
+                  disabled={transactionsLoading}
+                >
+                  {transactionsLoading ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  )}
                   Refresh
                 </Button>
               </div>
               
               <Card className="bg-[#0f1421] shadow-xl border-[#1e2a45]">
                 <CardContent className="p-0">
-                  <div className="divide-y divide-[#1e2a45]">
-                    {transactionsList.map((tx, index) => (
-                      <div key={index} className="flex items-center justify-between p-4">
-                        <div className="flex items-center">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
-                            tx.type === 'send' ? 'bg-amber-600' : 
-                            tx.type === 'receive' ? 'bg-green-600' : 'bg-blue-600'
-                          }`}>
-                            {tx.type === 'send' ? <Send className="h-5 w-5" /> : 
-                             tx.type === 'receive' ? <Send className="h-5 w-5 transform rotate-180" /> : 
-                             <RefreshCw className="h-5 w-5" />}
-                          </div>
-                          <div className="ml-3">
-                            <div className="text-white font-semibold capitalize">{tx.type}</div>
-                            <div className="text-xs text-gray-400">
-                              {tx.type === 'swap' ? 
-                                `${tx.amountFrom} ${tx.tokenFrom} → ${tx.amountTo} ${tx.tokenTo}` : 
-                                `${tx.amount} ${tx.token}`}
+                  {transactionsLoading ? (
+                    <div className="p-8 flex justify-center">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : transactions.length === 0 ? (
+                    <div className="p-8 text-center text-gray-400">
+                      No transactions found for this wallet
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-[#1e2a45]">
+                      {transactions.map((tx, index) => (
+                        <div key={index} className="flex items-center justify-between p-4">
+                          <div className="flex items-center">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
+                              tx.type === 'send' ? 'bg-amber-600' : 
+                              tx.type === 'receive' ? 'bg-green-600' : 'bg-blue-600'
+                            }`}>
+                              {tx.type === 'send' ? <Send className="h-5 w-5" /> : 
+                               tx.type === 'receive' ? <Send className="h-5 w-5 transform rotate-180" /> : 
+                               <RefreshCw className="h-5 w-5" />}
                             </div>
-                            {tx.to && <div className="text-xs text-gray-500">To: {tx.to}</div>}
-                            {tx.from && <div className="text-xs text-gray-500">From: {tx.from}</div>}
+                            <div className="ml-3">
+                              <div className="text-white font-semibold capitalize">{tx.type}</div>
+                              <div className="text-xs text-gray-400">
+                                {tx.type === 'swap' ? 
+                                  `${tx.amountFrom} ${tx.tokenFrom} → ${tx.amountTo} ${tx.tokenTo}` : 
+                                  `${tx.amount} ${tx.token}`}
+                              </div>
+                              {tx.to && <div className="text-xs text-gray-500">To: {tx.to}</div>}
+                              {tx.from && <div className="text-xs text-gray-500">From: {tx.from}</div>}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-white text-sm">{tx.date}</div>
+                            <div className="text-xs text-green-400 capitalize">{tx.status}</div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-white text-sm">{tx.date}</div>
-                          <div className="text-xs text-green-400 capitalize">{tx.status}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
