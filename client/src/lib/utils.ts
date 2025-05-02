@@ -124,6 +124,40 @@ export function copyToClipboard(text: string): boolean {
 }
 
 /**
+ * Formats a token amount to a readable string with appropriate formatting
+ * @param value The token amount to format
+ * @param maxDecimals Maximum number of decimal places to show (default: 2)
+ * @returns Formatted token amount string
+ */
+export function formatTokenAmount(value: number, maxDecimals = 2): string {
+  if (value === null || value === undefined || isNaN(value)) {
+    return '0';
+  }
+  
+  // For large numbers
+  if (value >= 1_000_000_000) {
+    return `${(value / 1_000_000_000).toFixed(2)}B`;
+  }
+  if (value >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(2)}M`;
+  }
+  if (value >= 1_000) {
+    return `${(value / 1_000).toFixed(2)}K`;
+  }
+  
+  // For small numbers, we want to show more decimals
+  if (value < 0.01 && value > 0) {
+    return value.toFixed(6);
+  }
+  
+  // For normal numbers
+  return value.toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: maxDecimals
+  });
+}
+
+/**
  * Formats a Unix timestamp or Date object to a readable time string
  * @param timestamp Unix timestamp in seconds or milliseconds, or Date object
  * @returns Formatted time string
