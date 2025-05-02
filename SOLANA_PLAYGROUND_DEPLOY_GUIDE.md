@@ -1,86 +1,103 @@
-# Solana Playground Deployment Guide
+# Solana Playground Deployment Guide for Multihub Swap V3
 
-This guide provides instructions for deploying the MultiHub Swap program using Solana Playground, which doesn't support the `--force` flag. We've implemented a special version that avoids initialization conflicts.
+This guide provides step-by-step instructions for deploying the Multihub Swap V3 program using Solana Playground.
 
-## Overview
+## Preparation
 
-To deploy the program without using the `--force` flag in Solana Playground, we've modified the implementation to use a different seed for the program state account PDA. This allows us to deploy to the same program ID without conflicts.
+1. Copy the program code to Solana Playground:
+   - Go to [Solana Playground](https://beta.solpg.io/)
+   - Create a new project
+   - Copy the entire content of `multihub_swap_v3.rs` to the main file
 
-## Key Modifications
+## Program ID Setup
 
-1. **New PDA Seed**: Changed from `state` to `state_v2` for the program state account
-2. **Client-Side Changes**: Updated the client code to use the new seed when finding the program state PDA
-3. **Error Handling**: Improved error handling in YOS token account validation and creation
+2. Create a new program ID in Solana Playground:
+   - Click on "Build" menu in Playground
+   - Select "Create New Program ID"
+   - Save the generated Program ID (you'll need it later)
 
-## Deployment Steps
+3. Update the program ID in the code:
+   - Find the line with `solana_program::declare_id!("Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L");`
+   - Replace it with the new Program ID from Playground: `solana_program::declare_id!("YOUR_NEW_PLAYGROUND_PROGRAM_ID");`
 
-### 1. Prepare the Program
+## Build and Deploy
 
-Ensure the program is using the updated implementation with the `state_v2` seed for the program state PDA.
+4. Build the program:
+   - Click "Build" button in Playground
+   - Verify there are no errors in the console output
 
-### 2. Deploy using Solana Playground
+5. Deploy the program:
+   - Click "Deploy" button in Playground
+   - Select "Deploy new" option
+   - Wait for deployment to complete (this may take a few minutes)
+   - If you encounter any errors, check the console output for details
 
-1. Open [Solana Playground](https://beta.solpg.io/)
-2. Import the `multihub_swap_fixed_new.rs` file
-3. Set the deployment target to Devnet
-4. Configure the Program ID to match your existing program: `3cXKNjtRv8b1HVYU6vRDvmoSMHfXrWATCLFY2Y5wTsps`
-5. Build the program
-6. Deploy without using the `--force` flag
+## Initialization
 
-### 3. Initialize the Program
+6. Initialize the program:
+   - Using Playground's interface:
+     - Click on "Program" tab
+     - Select "Initialize" from the instruction dropdown
+     - Fill in the parameters:
+       - Admin: Your wallet address
+       - YOT Mint: `2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF`
+       - YOS Mint: `GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n`
+       - LP Contribution Rate: `2000` (20%)
+       - Admin Fee Rate: `10` (0.1%)
+       - YOS Cashback Rate: `300` (3%) 
+       - Swap Fee Rate: `30` (0.3%)
+       - Referral Rate: `50` (0.5%)
+     - Click "Send Transaction"
+     - Approve the transaction in your wallet
 
-After deployment, initialize the program with the proper parameters:
+## Update Client Code
+
+7. Update the client code with the new Program ID:
 
 ```typescript
-// Example initialization code
-const initializeLayout = new InitializeLayout({
-  liquidity_contribution_percent: 20,  // 20%
-  admin_fee_percent: 1,               // 0.1%
-  yos_cashback_percent: 5,            // 5%
-});
-
-// Create and send the initialization transaction
-// (See client/src/lib/multihub-contract.ts for the full implementation)
+// Update in client/src/lib/multihub-contract-v3.ts
+export const MULTIHUB_SWAP_PROGRAM_ID = 'YOUR_NEW_PLAYGROUND_PROGRAM_ID';
 ```
-
-## Verification
-
-To verify the deployment was successful:
-
-1. Check that the program state account exists with the new PDA:
-```bash
-solana account $(solana-keygen pubkey -s "state_v2" 3cXKNjtRv8b1HVYU6vRDvmoSMHfXrWATCLFY2Y5wTsps)
-```
-
-2. Try to perform a swap from a wallet that doesn't have a YOS token account yet:
-   - The swap should succeed on the first try
-   - A new YOS token account should be created automatically
-   - YOS cashback should be received
 
 ## Troubleshooting
 
-### Initialization Issues
+If you encounter "invalid account data for instruction" errors:
+1. Try initializing the program first before attempting any swaps
+2. Make sure all token accounts exist before interacting with the program
+3. Check the program logs for detailed error messages
 
-If initialization fails, check:
-- That you're using the correct admin wallet
-- That the program state account doesn't already exist
-- That the YOT and YOS token mints are correctly specified
+## Common Issues and Solutions
 
-### Swap Issues
+### Issue: Transaction simulation failed
+Solution: Ensure the YOS token account exists for the user before sending the swap transaction. The program will validate this account.
 
-If swaps fail, check:
-- Transaction logs for detailed error messages
-- That all required token accounts exist
-- That the swap parameters are valid
+### Issue: Program already initialized
+Solution: Use the CloseProgram instruction to reset the program state before reinitializing.
 
-### Token Account Creation
+### Issue: Insufficient funds
+Solution: Make sure your wallet has enough SOL to cover transaction fees and account creation.
 
-If token account creation fails:
-- Ensure your wallet has enough SOL to cover account creation costs
-- Try creating the token accounts manually before the swap
+## Testing the Deployment
 
-## Summary
+After successful deployment and initialization, you can test the program using Playground's interface:
 
-This approach allows deploying to the same program ID using Solana Playground, which doesn't support the `--force` flag. By using a different PDA seed, we can initialize a new program state without conflicting with the existing one.
+1. Create token accounts for testing:
+   - Click on "SPL Token" tab
+   - Use "Create Account" to create accounts for YOT, YOS and test tokens
 
-The updated implementation also fixes the critical issues with YOS token account handling, ensuring users can successfully perform swaps and receive cashback rewards.
+2. Test a swap:
+   - Click on "Program" tab
+   - Select "Swap" from the instruction dropdown
+   - Fill in the parameters:
+     - Amount In: Amount of tokens to swap (e.g., `1000000000` for 1 token with 9 decimals)
+     - Min Amount Out: Minimum amount you expect to receive
+   - Click "Send Transaction"
+   - Approve the transaction in your wallet
+
+## Integrating with Frontend
+
+Once deployed and tested, update your frontend to use the new program ID:
+
+1. Update the program ID in `multihub-contract-v3.ts` 
+2. Use `MultihubIntegrationV3` for token swaps
+3. Test the integration with various token combinations
