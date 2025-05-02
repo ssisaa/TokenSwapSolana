@@ -300,9 +300,9 @@ pub fn process_swap_token(
     let liquidity_contribution_percentage = program_state.liquidity_contribution_percentage as u64;
     let liquidity_amount = amount_in
         .checked_mul(liquidity_contribution_percentage)
-        .ok_or(ProgramError::ArithmeticOverflow)?
+        .ok_or(ProgramError::InvalidArgument)?
         .checked_div(100)
-        .ok_or(ProgramError::ArithmeticOverflow)?;
+        .ok_or(ProgramError::InvalidArgument)?;
     msg!("{}% liquidity contribution: {}", 
         liquidity_contribution_percentage, liquidity_amount);
     
@@ -310,18 +310,18 @@ pub fn process_swap_token(
     let admin_fee_percentage = program_state.admin_fee_percentage as u64;
     let admin_fee = amount_in
         .checked_mul(admin_fee_percentage)
-        .ok_or(ProgramError::ArithmeticOverflow)?
+        .ok_or(ProgramError::InvalidArgument)?
         .checked_div(1000) // Because it's 0.1%
-        .ok_or(ProgramError::ArithmeticOverflow)?;
+        .ok_or(ProgramError::InvalidArgument)?;
     msg!("{}% admin fee: {}", 
         admin_fee_percentage as f64 / 10.0, admin_fee);
     
     // Amount available for swap after liquidity contribution and admin fee
     remaining_amount = remaining_amount
         .checked_sub(liquidity_amount)
-        .ok_or(ProgramError::ArithmeticOverflow)?
+        .ok_or(ProgramError::InvalidArgument)?
         .checked_sub(admin_fee)
-        .ok_or(ProgramError::ArithmeticOverflow)?;
+        .ok_or(ProgramError::InvalidArgument)?;
     msg!("Remaining amount for swap after deductions: {}", remaining_amount);
     
     // In a real implementation, we would now perform the actual swap
@@ -346,9 +346,9 @@ pub fn process_swap_token(
     let yos_cashback_percentage = program_state.yos_cashback_percentage as u64;
     let yos_cashback_amount = amount_in
         .checked_mul(yos_cashback_percentage)
-        .ok_or(ProgramError::ArithmeticOverflow)?
+        .ok_or(ProgramError::InvalidArgument)?
         .checked_div(100)
-        .ok_or(ProgramError::ArithmeticOverflow)?;
+        .ok_or(ProgramError::InvalidArgument)?;
     msg!("{}% YOS cashback: {}", yos_cashback_percentage, yos_cashback_amount);
 
     // ===== EXECUTE TOKEN TRANSFERS =====
