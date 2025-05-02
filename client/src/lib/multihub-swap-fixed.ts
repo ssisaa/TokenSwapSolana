@@ -66,14 +66,14 @@ export async function executeFixedMultiHubSwap(
     // Try to find the program state account
     const [programStateAddress] = await PublicKey.findProgramAddress(
       [Buffer.from("state")],
-      MULTIHUB_SWAP_PROGRAM_ID
+      new PublicKey(MULTIHUB_SWAP_PROGRAM_ID)
     );
     console.log("Program state address:", programStateAddress.toString());
     
     // Try to find the pool account
     const [poolAddress] = await PublicKey.findProgramAddress(
       [Buffer.from("pool")],
-      MULTIHUB_SWAP_PROGRAM_ID
+      new PublicKey(MULTIHUB_SWAP_PROGRAM_ID)
     );
     console.log("Pool address:", poolAddress.toString());
     

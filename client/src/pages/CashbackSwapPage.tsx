@@ -138,9 +138,10 @@ export default function CashbackSwapPage() {
       console.log(`Input token mint: ${fromTokenInfo.mint.toString()}`);
       console.log(`Output token mint: ${toTokenInfo.mint.toString()}`);
       
-      // Execute the swap using the multihub contract with all accounts properly set up
+      // Execute the swap using our new fixed implementation that properly handles transaction errors
       try {
-        const result = await executeMultiHubSwap(
+        console.log("Using fixed implementation for swap transaction");
+        const result = await executeFixedMultiHubSwap(
           wallet, // Use the wallet from context
           fromTokenInfo,
           toTokenInfo,
