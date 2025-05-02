@@ -7,6 +7,7 @@ pub fn process_swap_token(
     msg!("⭐ MULTIHUB SWAP: Starting swap operation");
     msg!("Amount in: {}, Minimum amount out: {}", amount_in, minimum_amount_out);
     msg!("Number of accounts provided: {}", accounts.len());
+    msg!("CUSTOM ERROR CODE 11 = InvalidMint in the SPL token program - check if token accounts match expected mints");
 
     // ===== ACCOUNT VALIDATION =====
     if accounts.len() != 8 {

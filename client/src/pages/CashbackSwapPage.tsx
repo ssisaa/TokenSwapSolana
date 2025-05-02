@@ -125,6 +125,28 @@ export default function CashbackSwapPage() {
           wallet.publicKey
         );
         console.log("YOS token account for cashback:", yosTokenAccount.toString());
+        
+        // Make sure all accounts exist (this is critical for fixing InvalidMint errors)
+        console.log("Checking if YOS token account exists in the blockchain...");
+        const yosAccountInfo = await connection.getAccountInfo(yosTokenAccount);
+        console.log("YOS token account exists:", !!yosAccountInfo);
+        
+        if (!yosAccountInfo) {
+          console.log("⚠️ YOS token account doesn't exist yet. This will cause InvalidMint errors.");
+          console.log("The token account should be created automatically in the transaction.");
+          
+          // You could optionally create it explicitly here as well:
+          /*
+          const { createAssociatedTokenAccountInstruction } = await import('@solana/spl-token');
+          const createYosAccountIx = createAssociatedTokenAccountInstruction(
+            wallet.publicKey,
+            yosTokenAccount,
+            wallet.publicKey,
+            YOS_TOKEN_MINT
+          );
+          // Then include this instruction in your transaction
+          */
+        }
       } catch (error) {
         console.error("Error checking YOS token account:", error);
         // We'll let the transaction handler create the account if needed
@@ -149,15 +171,11 @@ export default function CashbackSwapPage() {
           variant: "default"
         });
         
-        // Convert from token info to PublicKey
-        const fromAddress = fromTokenInfo.address === 'native' 
-          ? { toString: () => 'native' } // Handle special native SOL case
-          : new PublicKey(fromTokenInfo.address);
+        // Convert from token info to actual PublicKey instances
+        const fromAddress = fromTokenInfo.mint; // Use the mint field which is already a PublicKey
           
         // Convert to token info to PublicKey  
-        const toAddress = toTokenInfo.address === 'native'
-          ? { toString: () => 'native' } // Handle special native SOL case
-          : new PublicKey(toTokenInfo.address);
+        const toAddress = toTokenInfo.mint; // Use the mint field which is already a PublicKey
           
         console.log(`Swapping from ${fromTokenInfo.symbol} (${fromAddress.toString()}) to ${toTokenInfo.symbol} (${toAddress.toString()})`);
         
