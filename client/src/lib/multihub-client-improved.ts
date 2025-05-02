@@ -129,8 +129,178 @@ export async function ensureYosTokenAccountExists(
 }
 
 /**
+ * Initialize the MultiHub Swap program
+ * This should be called once before using the swap functionality
+ */
+export async function initializeMultiHubSwapProgram(wallet: any): Promise<string> {
+  console.log("Initializing MultiHub Swap Program...");
+  const connection = new Connection(ENDPOINT, 'confirmed');
+
+  if (!wallet.publicKey) {
+    throw new Error("Wallet not connected");
+  }
+
+  // Verify the wallet is the admin
+  const adminPublicKey = new PublicKey('AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ');
+  if (!wallet.publicKey.equals(adminPublicKey)) {
+    throw new Error("Only the admin can initialize the program");
+  }
+
+  // Use "state" for PDA seed (matching the Rust contract)
+  const [programStateAddress, _] = findProgramStateAddress(MULTIHUB_SWAP_PROGRAM_ID);
+  const [authorityAddress, authorityBump] = findAuthorityAddress(MULTIHUB_SWAP_PROGRAM_ID);
+  
+  console.log("Program state PDA:", programStateAddress.toString());
+  console.log("Authority PDA:", authorityAddress.toString());
+  
+  // Check if already initialized
+  const programState = await connection.getAccountInfo(programStateAddress);
+  if (programState) {
+    console.log("Program already initialized with size:", programState.data.length);
+    // Program exists, check if it has data
+    if (programState.data.length > 0) {
+      return "Program already initialized";
+    }
+  }
+  
+  // Create initialization transaction
+  const transaction = new Transaction();
+  
+  // Instruction data for Initialize with these parameters:
+  // - admin (Pubkey)
+  // - yot_mint (Pubkey)
+  // - yos_mint (Pubkey)
+  // - lp_contribution_rate (u64) = 2000 (20%)
+  // - admin_fee_rate (u64) = 10 (0.1%)
+  // - yos_cashback_rate (u64) = 500 (5%)
+  // - swap_fee_rate (u64) = 30 (0.3%) 
+  // - referral_rate (u64) = 50 (0.5%)
+  
+  // Create initialization data
+  const YOT_MINT = new PublicKey('2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF');
+  const YOS_MINT = new PublicKey('GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n');
+  
+  // Initialize instruction discriminant is 0
+  const INITIALIZE_INSTRUCTION = 0;
+  
+  // Prepare data buffer
+  // Layout: [1 byte discriminant][32 bytes admin][32 bytes yot_mint][32 bytes yos_mint][8 bytes lp_contribution_rate][8 bytes admin_fee_rate][8 bytes yos_cashback_rate][8 bytes swap_fee_rate][8 bytes referral_rate]
+  const data = Buffer.alloc(1 + 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8);
+  let offset = 0;
+  
+  // Write discriminant
+  data.writeUInt8(INITIALIZE_INSTRUCTION, offset);
+  offset += 1;
+  
+  // Write admin pubkey
+  adminPublicKey.toBuffer().copy(data, offset);
+  offset += 32;
+  
+  // Write YOT mint
+  YOT_MINT.toBuffer().copy(data, offset);
+  offset += 32;
+  
+  // Write YOS mint
+  YOS_MINT.toBuffer().copy(data, offset);
+  offset += 32;
+  
+  // Write rates (all as u64, little-endian)
+  const lpContribution = Buffer.alloc(8);
+  lpContribution.writeBigUInt64LE(BigInt(2000)); // 20%
+  lpContribution.copy(data, offset);
+  offset += 8;
+  
+  const adminFee = Buffer.alloc(8);
+  adminFee.writeBigUInt64LE(BigInt(10)); // 0.1%
+  adminFee.copy(data, offset);
+  offset += 8;
+  
+  const yosCashback = Buffer.alloc(8);
+  yosCashback.writeBigUInt64LE(BigInt(500)); // 5%
+  yosCashback.copy(data, offset);
+  offset += 8;
+  
+  const swapFee = Buffer.alloc(8);
+  swapFee.writeBigUInt64LE(BigInt(30)); // 0.3%
+  swapFee.copy(data, offset);
+  offset += 8;
+  
+  const referralRate = Buffer.alloc(8);
+  referralRate.writeBigUInt64LE(BigInt(50)); // 0.5%
+  referralRate.copy(data, offset);
+  
+  // Create initialization instruction with all required accounts
+  const initInstruction = new TransactionInstruction({
+    keys: [
+      { pubkey: wallet.publicKey, isSigner: true, isWritable: true },              // Payer/admin
+      { pubkey: programStateAddress, isSigner: false, isWritable: true },          // Program state PDA
+      { pubkey: authorityAddress, isSigner: false, isWritable: false },            // Authority PDA
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },     // System program 
+      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },          // Rent sysvar
+    ],
+    programId: MULTIHUB_SWAP_PROGRAM_ID,
+    data: data
+  });
+  
+  transaction.add(initInstruction);
+  
+  // Send and confirm transaction
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+  transaction.recentBlockhash = blockhash;
+  transaction.lastValidBlockHeight = lastValidBlockHeight;
+  transaction.feePayer = wallet.publicKey;
+  
+  // Simulate first
+  console.log("Simulating initialization transaction...");
+  const simulation = await connection.simulateTransaction(transaction);
+  
+  if (simulation.value.err) {
+    console.error("Initialization simulation failed:", simulation.value.err);
+    throw new Error(`Initialization simulation failed: ${JSON.stringify(simulation.value.err)}`);
+  }
+  
+  console.log("Initialization simulation logs:", simulation.value.logs);
+  
+  // Send transaction
+  console.log("Sending initialization transaction...");
+  const signature = await wallet.sendTransaction(transaction, connection);
+  console.log("Initialization transaction sent:", signature);
+  
+  // Confirm transaction
+  const confirmation = await connection.confirmTransaction({
+    signature,
+    blockhash,
+    lastValidBlockHeight
+  }, 'confirmed');
+  
+  if (confirmation.value.err) {
+    throw new Error(`Initialization failed: ${JSON.stringify(confirmation.value.err)}`);
+  }
+  
+  console.log("Program initialized successfully!");
+  return signature;
+}
+
+/**
+ * Check if the MultiHub Swap program is initialized
+ */
+export async function isMultiHubSwapProgramInitialized(): Promise<boolean> {
+  const connection = new Connection(ENDPOINT, 'confirmed');
+  const [programStateAddress] = findProgramStateAddress(MULTIHUB_SWAP_PROGRAM_ID);
+  
+  try {
+    const programState = await connection.getAccountInfo(programStateAddress);
+    return programState !== null && programState.data.length > 0;
+  } catch (error) {
+    console.error("Error checking program initialization:", error);
+    return false;
+  }
+}
+
+/**
  * Execute token swap with safer implementation
  * This improved version ensures YOS token account exists before proceeding
+ * and checks if the program is initialized
  */
 export async function executeMultiHubSwapImproved(
   wallet: any,
@@ -144,6 +314,13 @@ export async function executeMultiHubSwapImproved(
 
   if (!wallet.publicKey) {
     throw new Error("Wallet not connected");
+  }
+  
+  // Check if program is initialized
+  const isInitialized = await isMultiHubSwapProgramInitialized();
+  if (!isInitialized) {
+    console.error("MultiHub Swap program is not initialized");
+    throw new Error("Program not initialized. Admin must initialize the program first.");
   }
 
   // CRITICAL IMPROVEMENT: First ensure YOS token account exists as a separate transaction
@@ -345,12 +522,47 @@ export async function executeMultiHubSwapImproved(
   console.log("Sending swap transaction...");
 
   try {
-    // Simulate transaction first
-    console.log("Simulating transaction...");
+    // Dump detailed instruction data for debugging
+    console.log("DEBUGGING SWAP TRANSACTION");
+    console.log("==========================");
+    console.log("Program ID:", MULTIHUB_SWAP_PROGRAM_ID.toString());
+    console.log("State PDA:", programStateAddress.toString());
+    console.log("Authority PDA:", authorityAddress.toString());
+    
+    // Log instruction details from the transaction
+    transaction.instructions.forEach((ix, index) => {
+      console.log(`Instruction ${index}:`);
+      console.log(`  Program: ${ix.programId.toString()}`);
+      console.log(`  Data: ${Buffer.from(ix.data).toString('hex')}`);
+      console.log(`  Accounts (${ix.keys.length}):`);
+      ix.keys.forEach((key, i) => {
+        console.log(`    [${i}] ${key.pubkey.toString()} (Signer: ${key.isSigner}, Writable: ${key.isWritable})`);
+      });
+    });
+    
+    console.log("Simulating transaction with detailed logs...");
+    const simOptions = {
+      commitment: 'confirmed',
+      sigVerify: false,
+      replaceRecentBlockhash: true,
+      accounts: {
+        encoding: 'base64',
+        addresses: [programStateAddress.toString()]
+      },
+    };
+    
+    // Simulate transaction without extra options that cause type errors
     const simulation = await connection.simulateTransaction(transaction);
     
     if (simulation.value.logs) {
       console.log("Simulation logs:", simulation.value.logs);
+      
+      // Look for specific error patterns in logs
+      const logs = simulation.value.logs.join('\n');
+      if (logs.includes("UninitializedAccount")) {
+        console.error("CRITICAL: Program not initialized! You need to call initializeProgram first.");
+        throw new Error("MultiHub swap program not initialized. Please initialize the program first.");
+      }
     }
     
     if (simulation.value.err) {
@@ -362,7 +574,7 @@ export async function executeMultiHubSwapImproved(
     // Sign and send transaction
     console.log("Sending transaction for signing...");
     const signature = await wallet.sendTransaction(transaction, connection, {
-      skipPreflight: true, // Skip as we've already simulated
+      skipPreflight: false, // Enable preflight for better error reporting
     });
     console.log("Transaction sent:", signature);
 

@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useWallet } from "@/hooks/useSolanaWallet";
 import { useSwap } from "@/hooks/useSwap";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, AlertTriangle, ArrowRightLeft, Percent, Route, Wrench } from "lucide-react";
+import { AlertCircle, AlertTriangle, ArrowRightLeft, Key, Percent, Route, Settings, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -16,11 +16,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from "@/lib/utils";
-import { SOL_SYMBOL, YOT_SYMBOL } from "@/lib/constants";
+import { ADMIN_WALLET_ADDRESS, SOL_SYMBOL, YOT_SYMBOL } from "@/lib/constants";
 import { PublicKey } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { useLocation } from "wouter";
+import { initializeMultiHubSwapProgram, isMultiHubSwapProgramInitialized } from "@/lib/multihub-client-improved";
 
 export default function CashbackSwapPage() {
   const { connected, connect, wallet } = useWallet();
@@ -32,6 +33,9 @@ export default function CashbackSwapPage() {
   const [isCashbackTooltipOpen, setIsCashbackTooltipOpen] = useState(false);
   const [swapSuccess, setSwapSuccess] = useState(false);
   const [cashbackAmount, setCashbackAmount] = useState("0");
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isProgramInitialized, setIsProgramInitialized] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
   
   // Calculate cashback amount (5% of transaction)
   useEffect(() => {
@@ -42,6 +46,94 @@ export default function CashbackSwapPage() {
       setCashbackAmount("0");
     }
   }, [swap.toAmount]);
+  
+  // Check if the connected wallet is the admin
+  useEffect(() => {
+    if (wallet && wallet.publicKey) {
+      const adminPubkey = new PublicKey(ADMIN_WALLET_ADDRESS);
+      setIsAdmin(wallet.publicKey.toString() === adminPubkey.toString());
+      
+      // Check if program is initialized
+      const checkInitialization = async () => {
+        try {
+          const isInitialized = await isMultiHubSwapProgramInitialized();
+          setIsProgramInitialized(isInitialized);
+        } catch (error) {
+          console.error("Error checking program initialization:", error);
+          setIsProgramInitialized(false);
+        }
+      };
+      
+      checkInitialization();
+    } else {
+      setIsAdmin(false);
+    }
+  }, [wallet]);
+  
+  // Handle program initialization
+  const handleInitializeProgram = async () => {
+    if (!wallet || !wallet.publicKey) {
+      toast({
+        title: "Wallet not connected",
+        description: "Please connect your wallet to initialize the program.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Check if wallet is admin
+    const adminPubkey = new PublicKey(ADMIN_WALLET_ADDRESS);
+    if (wallet.publicKey.toString() !== adminPubkey.toString()) {
+      toast({
+        title: "Permission Denied",
+        description: "Only the admin wallet can initialize the program.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsInitializing(true);
+    
+    try {
+      toast({
+        title: "Initializing Program",
+        description: "Please approve the transaction to initialize the MultiHub Swap program.",
+      });
+      
+      const signature = await initializeMultiHubSwapProgram(wallet);
+      
+      toast({
+        title: "Program Initialized Successfully",
+        description: (
+          <div>
+            <p>The MultiHub Swap program has been initialized.</p>
+            <a 
+              href={`https://explorer.solana.com/tx/${signature}?cluster=devnet`} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline break-all"
+            >
+              View on Solana Explorer
+            </a>
+          </div>
+        ),
+        variant: "default"
+      });
+      
+      setIsProgramInitialized(true);
+    } catch (error) {
+      console.error("Error initializing program:", error);
+      toast({
+        title: "Initialization Failed",
+        description: String(error).includes("Program already initialized") 
+          ? "Program is already initialized." 
+          : `Failed to initialize the program: ${String(error)}`,
+        variant: "destructive"
+      });
+    } finally {
+      setIsInitializing(false);
+    }
+  };
   
   const [swapError, setSwapError] = useState<Error | null>(null);
 
