@@ -15,19 +15,11 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { useMultiWallet } from '@/context/MultiWalletContext';
 import { useState } from 'react';
 
 export default function Sidebar() {
   const [location] = useLocation();
-  const { connected: walletConnected, connect } = useMultiWallet();
   const [collapsed, setCollapsed] = useState(false);
-  
-  const handleConnectWallet = () => {
-    if (typeof connect === 'function') {
-      connect();
-    }
-  };
   
   const menuItems = [
     { href: '/', icon: Home, label: 'Dashboard' },
@@ -89,28 +81,9 @@ export default function Sidebar() {
         </ul>
       </nav>
       
-      {/* Wallet Connect Button */}
+      {/* Extra Space (removed wallet button) */}
       <div className="p-4 border-t border-[#1e2a45]">
-        {!walletConnected ? (
-          <Button 
-            className={cn(
-              "w-full bg-gradient-to-r from-primary to-[#7043f9] text-white",
-              collapsed && "p-2"
-            )}
-            onClick={handleConnectWallet}
-          >
-            <Wallet className="h-4 w-4 mr-2" />
-            {!collapsed && <span>Connect Wallet</span>}
-          </Button>
-        ) : (
-          <div className={cn(
-            "flex items-center text-[#a3accd] py-2 px-3 rounded-md bg-[#1e2a45]",
-            collapsed && "justify-center"
-          )}>
-            <Wallet className="h-4 w-4 shrink-0" />
-            {!collapsed && <span className="ml-2 text-sm">Connected</span>}
-          </div>
-        )}
+        {/* Empty space where wallet button used to be */}
       </div>
     </div>
   );
