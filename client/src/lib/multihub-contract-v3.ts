@@ -6,11 +6,21 @@
  */
 
 import { Connection, PublicKey, Transaction } from '@solana/web3.js';
-import { BorshCoder } from '@project-serum/anchor';
 import {
   getAssociatedTokenAddress,
   createAssociatedTokenAccountInstruction
 } from '@solana/spl-token';
+
+/**
+ * Helper function to write a BigInt as a little-endian 64-bit value
+ * This is needed because the DataView API doesn't have built-in BigInt support in some environments
+ */
+function writeBigUInt64LE(dataView: DataView, byteOffset: number, value: bigint) {
+  const lsb = Number(value & BigInt(0xFFFFFFFF));
+  const msb = Number(value >> BigInt(32));
+  dataView.setUint32(byteOffset, lsb, true);
+  dataView.setUint32(byteOffset + 4, msb, true);
+}
 
 // Program ID for the multihub swap V3 contract
 export const MULTIHUB_SWAP_PROGRAM_ID = 'Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L';
@@ -59,21 +69,33 @@ export async function initializeProgram(
   const [programStateAddress, _] = findProgramStateAddress();
   const [programAuthorityAddress, __] = findProgramAuthorityAddress();
   
-  // Create the initialize instruction
-  const borshCoder = new BorshCoder({});
-  const initializeData = borshCoder.instruction.encode(
-    'initialize',
-    {
-      admin: wallet.publicKey,
-      yot_mint: new PublicKey(YOT_TOKEN_MINT),
-      yos_mint: new PublicKey(YOS_TOKEN_MINT),
-      lp_contribution_rate: LP_CONTRIBUTION_RATE,
-      admin_fee_rate: ADMIN_FEE_RATE,
-      yos_cashback_rate: YOS_CASHBACK_RATE,
-      swap_fee_rate: SWAP_FEE_RATE,
-      referral_rate: REFERRAL_RATE
-    }
-  );
+  // Create the initialize instruction using a simple Buffer
+  // This is a safer approach than using BorshCoder with an empty IDL
+  const INSTRUCTION_INITIALIZE = 0; // Initialize instruction is index 0
+  
+  // Create a buffer for the instruction data
+  const dataLayout = Buffer.alloc(1 + 32 + 32 + 2 + 2 + 2 + 2 + 2);
+  
+  // Instruction index
+  dataLayout.writeUInt8(INSTRUCTION_INITIALIZE, 0);
+  
+  // Admin pubkey
+  wallet.publicKey.toBuffer().copy(dataLayout, 1);
+  
+  // YOT mint
+  new PublicKey(YOT_TOKEN_MINT).toBuffer().copy(dataLayout, 33);
+  
+  // YOS mint
+  new PublicKey(YOS_TOKEN_MINT).toBuffer().copy(dataLayout, 65);
+  
+  // Rates as little-endian u16 values
+  dataLayout.writeUInt16LE(LP_CONTRIBUTION_RATE, 97);
+  dataLayout.writeUInt16LE(ADMIN_FEE_RATE, 99);
+  dataLayout.writeUInt16LE(YOS_CASHBACK_RATE, 101);
+  dataLayout.writeUInt16LE(SWAP_FEE_RATE, 103);
+  dataLayout.writeUInt16LE(REFERRAL_RATE, 105);
+  
+  const initializeData = dataLayout;
   
   // Add the initialize instruction to the transaction
   transaction.add({
@@ -172,15 +194,27 @@ export async function performSwap(
   const [programStateAddress, _] = findProgramStateAddress();
   const [programAuthorityAddress, __] = findProgramAuthorityAddress();
   
-  // Create the swap instruction
-  const borshCoder = new BorshCoder({});
-  const swapData = borshCoder.instruction.encode(
-    'swap',
-    {
-      amount_in: amountIn,
-      min_amount_out: minAmountOut
-    }
-  );
+  // Create the swap instruction using a simple Buffer
+  // This is a safer approach than using BorshCoder with an empty IDL
+  const INSTRUCTION_SWAP = 1; // Swap instruction is index 1
+  
+  // Create a buffer for the instruction data
+  const dataLayout = Buffer.alloc(1 + 8 + 8);
+  
+  // Instruction index
+  dataLayout.writeUInt8(INSTRUCTION_SWAP, 0);
+  
+  // Amount in (u64 / 8 bytes)
+  const amountInBigInt = BigInt(amountIn);
+  let bufferView = new DataView(dataLayout.buffer, dataLayout.byteOffset + 1, 8);
+  writeBigUInt64LE(bufferView, 0, amountInBigInt);
+  
+  // Min amount out (u64 / 8 bytes)
+  const minAmountOutBigInt = BigInt(minAmountOut);
+  bufferView = new DataView(dataLayout.buffer, dataLayout.byteOffset + 9, 8);
+  writeBigUInt64LE(bufferView, 0, minAmountOutBigInt);
+  
+  const swapData = dataLayout;
   
   // Add the swap instruction to the transaction
   transaction.add({
@@ -221,12 +255,17 @@ export async function closeProgram(
   // Get program state address
   const [programStateAddress, _] = findProgramStateAddress();
   
-  // Create the close program instruction
-  const borshCoder = new BorshCoder({});
-  const closeProgramData = borshCoder.instruction.encode(
-    'close_program',
-    {}
-  );
+  // Create the close program instruction using a simple Buffer
+  // This is a safer approach than using BorshCoder with an empty IDL
+  const INSTRUCTION_CLOSE_PROGRAM = 2; // Close program instruction is index 2
+  
+  // Create a buffer for the instruction data (just the instruction index)
+  const dataLayout = Buffer.alloc(1);
+  
+  // Instruction index
+  dataLayout.writeUInt8(INSTRUCTION_CLOSE_PROGRAM, 0);
+  
+  const closeProgramData = dataLayout;
   
   // Add the close program instruction to the transaction
   transaction.add({
