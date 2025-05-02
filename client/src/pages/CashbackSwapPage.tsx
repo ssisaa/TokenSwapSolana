@@ -50,8 +50,8 @@ export default function CashbackSwapPage() {
       setSwapSuccess(false);
       setSwapError(null);
       
-      // Import our fixed, improved swap implementation that resolves transaction issues
-      const { executeFixedMultiHubSwap } = await import('@/lib/multihub-swap-fixed');
+      // Import our corrected, improved swap implementation that resolves transaction issues
+      const { executeMultiHubSwap } = await import('@/lib/multihub-client-final');
       const { validateProgramInitialization } = await import('@/lib/multihub-contract');
       const { Connection, PublicKey } = await import('@solana/web3.js');
       const { ENDPOINT } = await import('@/lib/constants');
@@ -138,9 +138,9 @@ export default function CashbackSwapPage() {
       console.log(`Input token mint: ${fromTokenInfo.mint.toString()}`);
       console.log(`Output token mint: ${toTokenInfo.mint.toString()}`);
       
-      // Execute the swap using our new fixed implementation that properly handles transaction errors
+      // Execute the swap using our corrected final implementation that properly handles transaction errors
       try {
-        console.log("Using fixed implementation for swap transaction");
+        console.log("Using corrected final implementation for swap transaction");
         
         // Display processing state on UI
         toast({
@@ -149,13 +149,27 @@ export default function CashbackSwapPage() {
           variant: "default"
         });
         
-        const result = await executeFixedMultiHubSwap(
+        // Convert from token info to PublicKey
+        const fromAddress = fromTokenInfo.address === 'native' 
+          ? { toString: () => 'native' } // Handle special native SOL case
+          : new PublicKey(fromTokenInfo.address);
+          
+        // Convert to token info to PublicKey  
+        const toAddress = toTokenInfo.address === 'native'
+          ? { toString: () => 'native' } // Handle special native SOL case
+          : new PublicKey(toTokenInfo.address);
+          
+        console.log(`Swapping from ${fromTokenInfo.symbol} (${fromAddress.toString()}) to ${toTokenInfo.symbol} (${toAddress.toString()})`);
+        
+        const signature = await executeMultiHubSwap(
           wallet, // Use the wallet from context
-          fromTokenInfo,
-          toTokenInfo,
-          amount,
-          minAmountOut
+          fromAddress, 
+          toAddress,
+          parseFloat(amount.toString()),
+          parseFloat(minAmountOut.toString())
         );
+        
+        const result = { signature, success: true };
         
         console.log("Swap completed with transaction signature:", result.signature);
         
