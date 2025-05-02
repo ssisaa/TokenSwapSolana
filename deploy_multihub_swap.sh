@@ -102,13 +102,15 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
   solana program deploy \
     --program-id ../$KEYPAIR_FILE \
     target/deploy/multihub_swap_fixed_new.so \
-    --upgrade
+    --upgrade \
+    --force
 else
   echo -e "${BLUE}Deploying standard implementation...${NC}"
   solana program deploy \
     --program-id ../$KEYPAIR_FILE \
     target/deploy/multihub_swap.so \
-    --upgrade
+    --upgrade \
+    --force
 fi
 
 # Verify deployment
