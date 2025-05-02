@@ -63,81 +63,82 @@ export async function initializeProgram(
   connection: Connection,
   wallet: any
 ): Promise<string> {
-  const transaction = new Transaction();
-  
-  // Get program state address
-  const [programStateAddress, _] = findProgramStateAddress();
-  const [programAuthorityAddress, __] = findProgramAuthorityAddress();
-  
-  // Create the initialize instruction using a simple Buffer
-  // This is a safer approach than using BorshCoder with an empty IDL
-  const INSTRUCTION_INITIALIZE = 0; // Initialize instruction is index 0
-  
-  // Create a buffer for the instruction data
-  const dataLayout = Buffer.alloc(107); // 1 + 32 + 32 + 32 + 2 + 2 + 2 + 2 + 2
-  
-  // Instruction index
-  dataLayout.writeUInt8(INSTRUCTION_INITIALIZE, 0);
-  
-  // Admin pubkey
-  wallet.publicKey.toBuffer().copy(dataLayout, 1);
-  
-  // YOT mint
-  new PublicKey(YOT_TOKEN_MINT).toBuffer().copy(dataLayout, 33);
-  
-  // YOS mint
-  new PublicKey(YOS_TOKEN_MINT).toBuffer().copy(dataLayout, 65);
-  
-  // Rates as little-endian u16 values
-  dataLayout.writeUInt16LE(LP_CONTRIBUTION_RATE, 97);
-  dataLayout.writeUInt16LE(ADMIN_FEE_RATE, 99);
-  dataLayout.writeUInt16LE(YOS_CASHBACK_RATE, 101);
-  dataLayout.writeUInt16LE(SWAP_FEE_RATE, 103);
-  dataLayout.writeUInt16LE(REFERRAL_RATE, 105);
-  
-  const initializeData = dataLayout;
-  
-  // Add the initialize instruction to the transaction
-  transaction.add({
-    keys: [
-      { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
-      { pubkey: programStateAddress, isSigner: false, isWritable: true },
-      { pubkey: programAuthorityAddress, isSigner: false, isWritable: false },
-      { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false },
-      { pubkey: new PublicKey('SysvarRent111111111111111111111111111111111'), isSigner: false, isWritable: false }
-    ],
-    programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID),
-    data: Buffer.from(initializeData)
-  });
-  
-  // Set fee payer
-  transaction.feePayer = wallet.publicKey;
-  
-  // Add a recent blockhash
-  const { blockhash } = await connection.getLatestBlockhash();
-  transaction.recentBlockhash = blockhash;
-  
-  // Simulate the transaction first to check for errors
   try {
+    // Create a new transaction
+    const transaction = new Transaction();
+    
+    // Set fee payer immediately
+    transaction.feePayer = wallet.publicKey;
+    
+    // Add a recent blockhash immediately
+    const { blockhash } = await connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    
+    // Get program state address
+    const [programStateAddress, _] = findProgramStateAddress();
+    const [programAuthorityAddress, __] = findProgramAuthorityAddress();
+    
+    // Create the initialize instruction using a simple Buffer
+    // This is a safer approach than using BorshCoder with an empty IDL
+    const INSTRUCTION_INITIALIZE = 0; // Initialize instruction is index 0
+    
+    // Create a buffer for the instruction data
+    const dataLayout = Buffer.alloc(107); // 1 + 32 + 32 + 32 + 2 + 2 + 2 + 2 + 2
+    
+    // Instruction index
+    dataLayout.writeUInt8(INSTRUCTION_INITIALIZE, 0);
+    
+    // Admin pubkey
+    wallet.publicKey.toBuffer().copy(dataLayout, 1);
+    
+    // YOT mint
+    new PublicKey(YOT_TOKEN_MINT).toBuffer().copy(dataLayout, 33);
+    
+    // YOS mint
+    new PublicKey(YOS_TOKEN_MINT).toBuffer().copy(dataLayout, 65);
+    
+    // Rates as little-endian u16 values
+    dataLayout.writeUInt16LE(LP_CONTRIBUTION_RATE, 97);
+    dataLayout.writeUInt16LE(ADMIN_FEE_RATE, 99);
+    dataLayout.writeUInt16LE(YOS_CASHBACK_RATE, 101);
+    dataLayout.writeUInt16LE(SWAP_FEE_RATE, 103);
+    dataLayout.writeUInt16LE(REFERRAL_RATE, 105);
+    
+    const initializeData = dataLayout;
+    
+    // Add the initialize instruction to the transaction
+    transaction.add({
+      keys: [
+        { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
+        { pubkey: programStateAddress, isSigner: false, isWritable: true },
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false },
+        { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false },
+        { pubkey: new PublicKey('SysvarRent111111111111111111111111111111111'), isSigner: false, isWritable: false }
+      ],
+      programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID),
+      data: Buffer.from(initializeData)
+    });
+    
+    // Simulate the transaction to check for errors
     console.log('Simulating initialize program transaction...');
     const simulation = await connection.simulateTransaction(transaction);
     if (simulation.value.err) {
       console.error('Initialization simulation failed:', simulation.value.err);
       throw new Error(`Simulation failed: ${JSON.stringify(simulation.value.err)}`);
     }
+    
+    // Send the transaction
+    const signature = await wallet.sendTransaction(transaction, connection);
+    console.log('Program initialization transaction sent:', signature);
+    
+    // Wait for confirmation
+    await connection.confirmTransaction(signature, 'confirmed');
+    
+    return signature;
   } catch (error) {
-    console.error('Initialization simulation error:', error);
+    console.error('Error in initialize program function:', error);
     throw error;
   }
-  
-  // Send the transaction
-  const signature = await wallet.sendTransaction(transaction, connection);
-  console.log('Program initialization transaction sent:', signature);
-  
-  // Wait for confirmation
-  await connection.confirmTransaction(signature, 'confirmed');
-  
-  return signature;
 }
 
 /**
@@ -184,82 +185,102 @@ export async function performSwap(
   amountIn: number,
   minAmountOut: number
 ): Promise<string> {
-  // Create a new transaction
-  const transaction = new Transaction();
-  
-  // Ensure token accounts exist
-  const tokenFromAccount = await ensureTokenAccount(
-    connection, 
-    wallet, 
-    tokenFromMint, 
-    transaction
-  );
-  
-  const tokenToAccount = await ensureTokenAccount(
-    connection, 
-    wallet, 
-    tokenToMint, 
-    transaction
-  );
-  
-  // Ensure YOS token account exists
-  const yosTokenAccount = await ensureTokenAccount(
-    connection,
-    wallet,
-    new PublicKey(YOS_TOKEN_MINT),
-    transaction
-  );
-  
-  // Get program addresses
-  const [programStateAddress, _] = findProgramStateAddress();
-  const [programAuthorityAddress, __] = findProgramAuthorityAddress();
-  
-  // Create the swap instruction using a simple Buffer
-  // This is a safer approach than using BorshCoder with an empty IDL
-  const INSTRUCTION_SWAP = 1; // Swap instruction is index 1
-  
-  // Create a buffer for the instruction data
-  const dataLayout = Buffer.alloc(1 + 8 + 8);
-  
-  // Instruction index
-  dataLayout.writeUInt8(INSTRUCTION_SWAP, 0);
-  
-  // Amount in (u64 / 8 bytes)
-  const amountInBigInt = BigInt(amountIn);
-  let bufferView = new DataView(dataLayout.buffer, dataLayout.byteOffset + 1, 8);
-  writeBigUInt64LE(bufferView, 0, amountInBigInt);
-  
-  // Min amount out (u64 / 8 bytes)
-  const minAmountOutBigInt = BigInt(minAmountOut);
-  bufferView = new DataView(dataLayout.buffer, dataLayout.byteOffset + 9, 8);
-  writeBigUInt64LE(bufferView, 0, minAmountOutBigInt);
-  
-  const swapData = dataLayout;
-  
-  // Add the swap instruction to the transaction
-  transaction.add({
-    keys: [
-      { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
-      { pubkey: programStateAddress, isSigner: false, isWritable: false },
-      { pubkey: programAuthorityAddress, isSigner: false, isWritable: false },
-      { pubkey: tokenFromAccount, isSigner: false, isWritable: true },
-      { pubkey: tokenToAccount, isSigner: false, isWritable: true },
-      { pubkey: yosTokenAccount, isSigner: false, isWritable: true },
-      { pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), isSigner: false, isWritable: false }
-    ],
-    programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID),
-    data: Buffer.from(swapData)
-  });
-  
-  // Send the transaction
-  console.log('Sending swap transaction...');
-  const signature = await wallet.sendTransaction(transaction, connection);
-  console.log('Swap transaction sent:', signature);
-  
-  // Wait for confirmation
-  await connection.confirmTransaction(signature, 'confirmed');
-  
-  return signature;
+  try {
+    // Create a new transaction
+    const transaction = new Transaction();
+    
+    // Set fee payer immediately
+    transaction.feePayer = wallet.publicKey;
+    
+    // Add a recent blockhash immediately
+    const { blockhash } = await connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    
+    // Ensure token accounts exist
+    const tokenFromAccount = await ensureTokenAccount(
+      connection, 
+      wallet, 
+      tokenFromMint, 
+      transaction
+    );
+    
+    const tokenToAccount = await ensureTokenAccount(
+      connection, 
+      wallet, 
+      tokenToMint, 
+      transaction
+    );
+    
+    // Ensure YOS token account exists
+    const yosTokenAccount = await ensureTokenAccount(
+      connection,
+      wallet,
+      new PublicKey(YOS_TOKEN_MINT),
+      transaction
+    );
+    
+    // Get program addresses
+    const [programStateAddress, _] = findProgramStateAddress();
+    const [programAuthorityAddress, __] = findProgramAuthorityAddress();
+    
+    // Create the swap instruction using a simple Buffer
+    // This is a safer approach than using BorshCoder with an empty IDL
+    const INSTRUCTION_SWAP = 1; // Swap instruction is index 1
+    
+    // Create a buffer for the instruction data
+    const dataLayout = Buffer.alloc(1 + 8 + 8);
+    
+    // Instruction index
+    dataLayout.writeUInt8(INSTRUCTION_SWAP, 0);
+    
+    // Amount in (u64 / 8 bytes)
+    const amountInBigInt = BigInt(amountIn);
+    let bufferView = new DataView(dataLayout.buffer, dataLayout.byteOffset + 1, 8);
+    writeBigUInt64LE(bufferView, 0, amountInBigInt);
+    
+    // Min amount out (u64 / 8 bytes)
+    const minAmountOutBigInt = BigInt(minAmountOut);
+    bufferView = new DataView(dataLayout.buffer, dataLayout.byteOffset + 9, 8);
+    writeBigUInt64LE(bufferView, 0, minAmountOutBigInt);
+    
+    const swapData = dataLayout;
+    
+    // Add the swap instruction to the transaction
+    transaction.add({
+      keys: [
+        { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
+        { pubkey: programStateAddress, isSigner: false, isWritable: false },
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false },
+        { pubkey: tokenFromAccount, isSigner: false, isWritable: true },
+        { pubkey: tokenToAccount, isSigner: false, isWritable: true },
+        { pubkey: yosTokenAccount, isSigner: false, isWritable: true },
+        { pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), isSigner: false, isWritable: false }
+      ],
+      programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID),
+      data: Buffer.from(swapData)
+    });
+    
+    // Simulate the transaction to check for errors
+    console.log('Simulating swap transaction...');
+    const simulation = await connection.simulateTransaction(transaction);
+    if (simulation.value.err) {
+      console.error('Swap simulation failed:', simulation.value.err);
+      throw new Error(`Simulation failed: ${JSON.stringify(simulation.value.err)}`);
+    }
+    
+    // Send the transaction
+    console.log('Sending swap transaction...');
+    const signature = await wallet.sendTransaction(transaction, connection);
+    console.log('Swap transaction sent:', signature);
+    
+    // Wait for confirmation
+    await connection.confirmTransaction(signature, 'confirmed');
+    
+    return signature;
+  } catch (error) {
+    console.error('Error in swap function:', error);
+    throw error;
+  }
 }
 
 /**
@@ -269,67 +290,67 @@ export async function closeProgram(
   connection: Connection,
   wallet: any
 ): Promise<string> {
-  // Create a new transaction
-  const transaction = new Transaction();
-  
-  // Get program state and authority addresses
-  const [programStateAddress, _] = findProgramStateAddress();
-  const [programAuthorityAddress, __] = findProgramAuthorityAddress();
-  
-  // Create the close program instruction using a simple Buffer
-  // This is a safer approach than using BorshCoder with an empty IDL
-  const INSTRUCTION_CLOSE_PROGRAM = 2; // Close program instruction is index 2
-  
-  // Create a buffer for the instruction data (just the instruction index)
-  const dataLayout = Buffer.alloc(1);
-  
-  // Instruction index
-  dataLayout.writeUInt8(INSTRUCTION_CLOSE_PROGRAM, 0);
-  
-  const closeProgramData = dataLayout;
-  
-  // Add the close program instruction to the transaction
-  // Include all required accounts similar to initialize
-  transaction.add({
-    keys: [
-      { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
-      { pubkey: programStateAddress, isSigner: false, isWritable: true },
-      { pubkey: programAuthorityAddress, isSigner: false, isWritable: false },
-      { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false }, // System program
-      { pubkey: wallet.publicKey, isSigner: false, isWritable: true } // Rent receiver
-    ],
-    programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID),
-    data: Buffer.from(closeProgramData)
-  });
-  
-  // Set fee payer
-  transaction.feePayer = wallet.publicKey;
-  
-  // Add a recent blockhash
-  const { blockhash } = await connection.getLatestBlockhash();
-  transaction.recentBlockhash = blockhash;
-  
-  // Simulate the transaction first to check for errors
   try {
+    // Create a new transaction
+    const transaction = new Transaction();
+    
+    // Set fee payer immediately
+    transaction.feePayer = wallet.publicKey;
+    
+    // Add a recent blockhash immediately
+    const { blockhash } = await connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    
+    // Get program state and authority addresses
+    const [programStateAddress, _] = findProgramStateAddress();
+    const [programAuthorityAddress, __] = findProgramAuthorityAddress();
+    
+    // Create the close program instruction using a simple Buffer
+    // This is a safer approach than using BorshCoder with an empty IDL
+    const INSTRUCTION_CLOSE_PROGRAM = 2; // Close program instruction is index 2
+    
+    // Create a buffer for the instruction data (just the instruction index)
+    const dataLayout = Buffer.alloc(1);
+    
+    // Instruction index
+    dataLayout.writeUInt8(INSTRUCTION_CLOSE_PROGRAM, 0);
+    
+    const closeProgramData = dataLayout;
+    
+    // Add the close program instruction to the transaction
+    // Include all required accounts similar to initialize
+    transaction.add({
+      keys: [
+        { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
+        { pubkey: programStateAddress, isSigner: false, isWritable: true },
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false },
+        { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false }, // System program
+        { pubkey: wallet.publicKey, isSigner: false, isWritable: true } // Rent receiver
+      ],
+      programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID),
+      data: Buffer.from(closeProgramData)
+    });
+    
+    // Simulate the transaction to check for errors
     console.log('Simulating close program transaction...');
     const simulation = await connection.simulateTransaction(transaction);
     if (simulation.value.err) {
       console.error('Transaction simulation failed:', simulation.value.err);
       throw new Error(`Simulation failed: ${JSON.stringify(simulation.value.err)}`);
     }
+    
+    // Send the transaction
+    const signature = await wallet.sendTransaction(transaction, connection);
+    console.log('Program close transaction sent:', signature);
+    
+    // Wait for confirmation
+    await connection.confirmTransaction(signature, 'confirmed');
+    
+    return signature;
   } catch (error) {
-    console.error('Simulation error:', error);
+    console.error('Error in close program function:', error);
     throw error;
   }
-  
-  // Send the transaction
-  const signature = await wallet.sendTransaction(transaction, connection);
-  console.log('Program close transaction sent:', signature);
-  
-  // Wait for confirmation
-  await connection.confirmTransaction(signature, 'confirmed');
-  
-  return signature;
 }
 
 export default {
