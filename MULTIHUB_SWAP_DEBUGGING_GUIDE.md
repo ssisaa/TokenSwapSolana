@@ -52,18 +52,32 @@ When trying to redeploy the program, we encounter "invalid account data for inst
 
 1. The program has already been deployed and initialized
 2. The account structure is locked in place
-3. Even with the `--force` flag, Solana Playground doesn't support overwriting existing programs
+3. Even with the `--force` flag, Solana won't allow redeploying with account structure changes
 
-### Workarounds
+### Attempted Solutions
 
-1. **Client-side fixes**: Focus on improving the client-side code to handle the limitations of the existing deployed program.
+We've tried multiple deployment methods, all of which result in the same error:
 
-2. **Command line deployment**: If absolutely necessary, a local environment could be set up to deploy with the `--force` flag:
+1. **Solana Playground deployment**: Failed with "Transaction simulation failed: Error processing Instruction 1: invalid account data for instruction"
+
+2. **Command line deployment with `--force` flag**: Failed with the same error, even when using:
    ```bash
    solana program deploy --program-id 3cXKNjtRv8b1HVYU6vRDvmoSMHfXrWATCLFY2Y5wTsps --keypair path/to/keypair.json target/deploy/multihub_swap.so --force
    ```
 
-3. **New program ID**: As a last resort, a completely new program ID could be created and the code could be deployed afresh, but this would require updating all client code references.
+3. **New program ID approach**: Generated a new keypair (J66SY1YNFyXt6jat8Ek8uAUshxBY2mLrubsMRN4wggt3) and attempted deployment, but encountered the same error.
+
+### Recommended Solution: Client-Side Improvements
+
+Given the deployment challenges, the most reliable approach is to focus on client-side improvements:
+
+1. **Token Account Validation**: Implement robust token account validation to ensure all required accounts exist before sending transactions.
+
+2. **YOS Token Account Creation**: Explicitly check for and create YOS token accounts before executing swap operations.
+
+3. **Integration Layer**: Use the multihub-integration.ts module to support the existing program while adding needed validation.
+
+This approach allows us to fix the core issue (missing YOS token accounts) without requiring a successful program redeployment.
 
 ## Best Practices for Future Development
 
