@@ -473,6 +473,22 @@ export default function CashbackSwapPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {/* Transaction Error Alert */}
+            {swapError && (
+              <Alert className="mb-4 border-destructive bg-destructive/10 text-destructive">
+                <AlertCircle className="h-5 w-5" />
+                <AlertTitle className="font-semibold">
+                  {swapError.message.includes("rejected") 
+                    ? "Transaction Rejected" 
+                    : "Transaction Failed"}
+                </AlertTitle>
+                <AlertDescription>
+                  {swapError.message.includes("rejected") 
+                    ? "You rejected the transaction in your wallet. Please approve the transaction to complete the swap."
+                    : swapError.message}
+                </AlertDescription>
+              </Alert>
+            )}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="space-y-1">
                 <Label htmlFor="implementation-toggle" className="font-medium">
@@ -622,6 +638,25 @@ export default function CashbackSwapPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Transaction Rejection Alert - Shows prominently when user rejects transaction */}
+          {swapError && swapError.message.includes("rejected") && (
+            <Alert className="mb-6 bg-red-500/10 border-red-500 text-red-600">
+              <AlertCircle className="h-5 w-5" />
+              <AlertTitle className="font-semibold">Transaction Rejected</AlertTitle>
+              <AlertDescription>
+                <p>You rejected the transaction in your wallet.</p>
+                <p className="mt-2">Please approve the transaction when your wallet prompts you to complete the swap.</p>
+                <Button 
+                  variant="outline" 
+                  className="mt-3 border-red-500 text-red-600 hover:bg-red-500/10"
+                  onClick={handleExecuteSwap}
+                >
+                  Try Again
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {!connected ? (
             <div className="flex flex-col items-center justify-center p-8">
               <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
