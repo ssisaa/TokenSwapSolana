@@ -84,19 +84,16 @@ export async function initializeProgram(
     const yotMintPubkey = new PublicKey(YOT_TOKEN_MINT).toBuffer();
     const yosMintPubkey = new PublicKey(YOS_TOKEN_MINT).toBuffer();
     
-    // Create a buffer for each of the u64 rates
-    const lpContributionBuffer = Buffer.alloc(8);
-    const adminFeeBuffer = Buffer.alloc(8);
-    const yosCashbackBuffer = Buffer.alloc(8);
-    const swapFeeBuffer = Buffer.alloc(8);
-    const referralBuffer = Buffer.alloc(8);
+    // Create a buffer for all the rates at once
+    const ratesBuffer = new ArrayBuffer(8 * 5); // 5 rates, 8 bytes each
+    const ratesView = new DataView(ratesBuffer);
     
-    // Write the u64 values in little-endian format
-    lpContributionBuffer.writeBigUInt64LE(BigInt(LP_CONTRIBUTION_RATE), 0);
-    adminFeeBuffer.writeBigUInt64LE(BigInt(ADMIN_FEE_RATE), 0);
-    yosCashbackBuffer.writeBigUInt64LE(BigInt(YOS_CASHBACK_RATE), 0);
-    swapFeeBuffer.writeBigUInt64LE(BigInt(SWAP_FEE_RATE), 0);
-    referralBuffer.writeBigUInt64LE(BigInt(REFERRAL_RATE), 0);
+    // Write the u64 values in little-endian format using our helper function
+    writeBigUInt64LE(ratesView, 0, BigInt(LP_CONTRIBUTION_RATE));
+    writeBigUInt64LE(ratesView, 8, BigInt(ADMIN_FEE_RATE));
+    writeBigUInt64LE(ratesView, 16, BigInt(YOS_CASHBACK_RATE));
+    writeBigUInt64LE(ratesView, 24, BigInt(SWAP_FEE_RATE));
+    writeBigUInt64LE(ratesView, 32, BigInt(REFERRAL_RATE));
     
     // Combine all buffers in the exact order expected by the SwapInstruction::Initialize variant
     const instructionData = Buffer.concat([
@@ -104,11 +101,7 @@ export async function initializeProgram(
       adminPubkey,      // admin: Pubkey (32 bytes)
       yotMintPubkey,    // yot_mint: Pubkey (32 bytes)
       yosMintPubkey,    // yos_mint: Pubkey (32 bytes)
-      lpContributionBuffer, // lp_contribution_rate: u64 (8 bytes)
-      adminFeeBuffer,       // admin_fee_rate: u64 (8 bytes)
-      yosCashbackBuffer,    // yos_cashback_rate: u64 (8 bytes)
-      swapFeeBuffer,        // swap_fee_rate: u64 (8 bytes)
-      referralBuffer        // referral_rate: u64 (8 bytes)
+      Buffer.from(new Uint8Array(ratesBuffer)) // All rates in one buffer (40 bytes total)
     ]);
     
     // Output debugging info
