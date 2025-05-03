@@ -109,7 +109,7 @@ export async function performMultiHubSwap(
   tokenTo: TokenInfo,
   amountIn: number,
   swapEstimate: SwapEstimate,
-  provider: SwapProvider = 'multihub'
+  provider: SwapProvider = SwapProvider.Contract
 ): Promise<string> {
   console.log(`Preparing Multi-Hub Swap V3: ${tokenFrom.symbol} → ${tokenTo.symbol}`);
   console.log(`Amount: ${amountIn}, Estimated output: ${swapEstimate.outAmount}`);

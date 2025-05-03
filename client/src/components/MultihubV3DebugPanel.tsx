@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { PublicKey } from '@solana/web3.js';
+import { Connection, PublicKey } from '@solana/web3.js';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Loader2 } from 'lucide-react';
 import { findProgramStateAddress, findProgramAuthorityAddress, MULTIHUB_SWAP_PROGRAM_ID, YOT_TOKEN_MINT, YOS_TOKEN_MINT } from '../lib/multihub-contract-v3';
+import { useMultiWallet } from '@/context/MultiWalletContext';
+import { DEVNET_ENDPOINT } from '@/lib/multihub-integration-v3';
 
 export default function MultihubV3DebugPanel() {
-  const { connection } = useConnection();
-  const wallet = useWallet();
+  const { wallet, connected } = useMultiWallet();
+  const connection = new Connection(DEVNET_ENDPOINT);
   const [loading, setLoading] = useState(false);
   const [pdaInfo, setPdaInfo] = useState<any>(null);
   const [programInfo, setProgramInfo] = useState<any>(null);
@@ -65,10 +66,10 @@ export default function MultihubV3DebugPanel() {
   };
   
   useEffect(() => {
-    if (wallet.connected) {
+    if (connected) {
       checkProgramSetup();
     }
-  }, [wallet.connected, connection]);
+  }, [connected]);
   
   // Format bytes as a readable size
   const formatBytes = (bytes: number): string => {
@@ -85,13 +86,13 @@ export default function MultihubV3DebugPanel() {
         <CardDescription>Program and PDA information for debugging</CardDescription>
       </CardHeader>
       <CardContent>
-        {!wallet.connected && (
+        {!connected && (
           <div className="text-center py-4">
             Connect your wallet to view program information
           </div>
         )}
         
-        {wallet.connected && (
+        {connected && (
           <>
             <Button 
               onClick={checkProgramSetup} 

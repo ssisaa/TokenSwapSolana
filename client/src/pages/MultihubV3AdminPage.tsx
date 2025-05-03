@@ -4,6 +4,7 @@ import { useMultiWallet } from '@/context/MultiWalletContext';
 import PageHeader from '@/components/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import MultihubV3AdminActions from '@/components/MultihubV3AdminActions';
+import MultihubV3DebugPanel from '@/components/MultihubV3DebugPanel';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle } from 'lucide-react';
 
