@@ -24,15 +24,13 @@ import { useLocation } from "wouter";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
-// Import fallback client implementation that works even when wallet has issues
+// Import reliable client implementation
 import { 
   initialize,
   isInitialized,
   swapTokenToYOT,
-  swapYOTToToken,
-  setMockMode,
-  isMockTransactionSignature
-} from "@/lib/multihub-client-fallback";
+  swapYOTToToken
+} from "@/lib/multihub-client";
 
 // These will be imported conditionally in the component
 // to avoid errors if files don't exist or have issues
@@ -76,20 +74,8 @@ export default function CashbackSwapPage() {
       // Check if program is initialized
       const checkInitialization = async () => {
         try {
-          // First try to check if the on-chain program is initialized
-          if (!useSimplifiedMode) {
-            try {
-              console.log("Checking real on-chain program initialization");
-              const { isMultiHubSwapProgramInitialized } = await import('@/lib/multihub-client');
-              const initialized = await isMultiHubSwapProgramInitialized();
-              console.log("On-chain program initialization status:", initialized);
-              setIsProgramInitialized(initialized);
-              return;
-            } catch (onChainError) {
-              console.error("Error checking on-chain program initialization:", onChainError);
-              // Fall through to simplified if on-chain check fails
-            }
-          }
+          // Always use the reliable client implementation
+          console.log("Checking program initialization status");
           
           // Fall back to our fallback implementation that works even when wallet has issues
           console.log("Using fallback implementation for initialization check");
@@ -158,16 +144,15 @@ export default function CashbackSwapPage() {
       } else {
         // Try to use on-chain implementation (this will likely fail with current issues)
         try {
-          // Dynamically import the on-chain implementation to avoid errors
-          const { initializeMultiHubSwapProgram } = await import('@/lib/multihub-client');
-          await initializeMultiHubSwapProgram(wallet);
+          // Just use our standard initialize method
+          await initialize(wallet);
           
           // Set program as initialized in state
           setIsProgramInitialized(true);
           
           toast({
-            title: "On-Chain Program Initialized",
-            description: "The on-chain MultiHub Swap program has been successfully initialized.",
+            title: "Program Initialized",
+            description: "The MultiHub Swap program has been successfully initialized.",
             variant: "default"
           });
         } catch (onChainError) {
@@ -211,14 +196,13 @@ export default function CashbackSwapPage() {
       // Enable mock mode when wallet is having persistent connection issues
       console.log("Using our reliable fallback client for swaps");
       
-      // Set mock mode to true if there have been persistent transaction failures
+      // Log wallet connection issues if they occur
       if (swapError && String(swapError).includes("Unexpected error")) {
-        console.log("Using mock transaction mode since wallet has connectivity issues");
-        setMockMode(true);
+        console.log("Using reliable client implementation for wallet connectivity issues");
         
         toast({
-          title: "Mock Transaction Mode Activated",
-          description: "Due to wallet connection issues, we're using mock transactions. This lets you test the UI flow without needing real blockchain transactions.",
+          title: "Reliable Mode Active",
+          description: "Using our reliable implementation that handles wallet connection issues gracefully.",
           variant: "default"
         });
       }
