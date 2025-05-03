@@ -233,9 +233,19 @@ export async function performSwap(
     const amountInBuffer = Buffer.alloc(8);
     const minAmountOutBuffer = Buffer.alloc(8);
     
-    // Write the values in little-endian format
-    amountInBuffer.writeBigUInt64LE(BigInt(amountIn), 0);
-    minAmountOutBuffer.writeBigUInt64LE(BigInt(minAmountOut), 0);
+    // Convert floating-point amounts to integer lamports before converting to BigInt
+    // For SOL, 1 SOL = 1,000,000,000 lamports (9 decimals)
+    // For most SPL tokens including YOT and YOS, they also use 9 decimals
+    const DECIMALS = 9; // Most tokens use 9 decimals on Solana
+    const amountInLamports = Math.floor(amountIn * (10 ** DECIMALS));
+    const minAmountOutLamports = Math.floor(minAmountOut * (10 ** DECIMALS));
+    
+    console.log(`Converting ${amountIn} tokens to ${amountInLamports} lamports`);
+    console.log(`Converting ${minAmountOut} min output to ${minAmountOutLamports} lamports`);
+    
+    // Write the values in little-endian format using the lamport (raw) amounts
+    amountInBuffer.writeBigUInt64LE(BigInt(amountInLamports), 0);
+    minAmountOutBuffer.writeBigUInt64LE(BigInt(minAmountOutLamports), 0);
     
     // Combine the buffers in the exact order expected by the Swap variant
     // Try different variant index to match the contract's expectations

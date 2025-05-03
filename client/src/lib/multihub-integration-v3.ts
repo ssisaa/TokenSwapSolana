@@ -139,6 +139,12 @@ export async function performMultiHubSwap(
     console.log('Token account setup confirmed');
   }
   
+  // Make sure decimals are considered for token calculations
+  const tokenFromDecimals = tokenFrom.decimals || 9;
+  const tokenToDecimals = tokenTo.decimals || 9;
+  
+  console.log(`Using token decimals - From: ${tokenFromDecimals}, To: ${tokenToDecimals}`);
+  
   // Now perform the actual swap
   return MultihubSwapV3.performSwap(
     connection,
