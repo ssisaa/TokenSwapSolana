@@ -176,86 +176,112 @@ export async function initializeMultiHubSwapProgram(wallet: any): Promise<string
   // - swap_fee_rate (u64) = 30 (0.3%) 
   // - referral_rate (u64) = 50 (0.5%)
   
-  // Create initialization data
-  const YOT_MINT = new PublicKey('2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF');
-  const YOS_MINT = new PublicKey('GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n');
-  
-  // For Borsh serialization, we need to match EXACTLY the Rust enum format
-  console.log("Creating initialization instruction using Borsh serialization format...");
-  
-  // First, construct the data matching how Borsh serializes enums
-  // First byte is the enum variant (0 for Initialize)
-  const instructionVariant = Buffer.from([0]); // 0 = Initialize
-  
-  // Then include all the struct fields in order
-  // Admin pubkey (32 bytes)
-  const adminBuffer = adminPublicKey.toBuffer();
-  
-  // YOT mint (32 bytes)
-  const yotMintBuffer = YOT_MINT.toBuffer();
-  
-  // YOS mint (32 bytes)
-  const yosMintBuffer = YOS_MINT.toBuffer();
-  
-  // Rates as little-endian u64 values (8 bytes each)
-  const lpContributionBuffer = Buffer.alloc(8);
-  lpContributionBuffer.writeBigUInt64LE(BigInt(2000)); // 20%
-  
-  const adminFeeBuffer = Buffer.alloc(8);
-  adminFeeBuffer.writeBigUInt64LE(BigInt(10)); // 0.1%
-  
-  const yosCashbackBuffer = Buffer.alloc(8);
-  yosCashbackBuffer.writeBigUInt64LE(BigInt(500)); // 5%
-  
-  const swapFeeBuffer = Buffer.alloc(8);
-  swapFeeBuffer.writeBigUInt64LE(BigInt(30)); // 0.3%
-  
-  const referralRateBuffer = Buffer.alloc(8);
-  referralRateBuffer.writeBigUInt64LE(BigInt(50)); // 0.5%
-  
-  // Combine all buffers
-  const data = Buffer.concat([
-    instructionVariant,
-    adminBuffer,
-    yotMintBuffer,
-    yosMintBuffer,
-    lpContributionBuffer,
-    adminFeeBuffer,
-    yosCashbackBuffer,
-    swapFeeBuffer,
-    referralRateBuffer
-  ]);
-  
-  console.log(`Instruction data (${data.length} bytes):`, data.toString('hex'));
-  
-  // Log the buffer segments for debugging
-  console.log("Variant:", instructionVariant.toString('hex'));
-  console.log("Admin:", adminBuffer.toString('hex'));
-  console.log("YOT mint:", yotMintBuffer.toString('hex'));
-  console.log("YOS mint:", yosMintBuffer.toString('hex'));
-  console.log("LP contribution:", lpContributionBuffer.toString('hex'));
-  console.log("Admin fee:", adminFeeBuffer.toString('hex'));
-  console.log("YOS cashback:", yosCashbackBuffer.toString('hex'));
-  console.log("Swap fee:", swapFeeBuffer.toString('hex'));
-  console.log("Referral rate:", referralRateBuffer.toString('hex'));
-  
-  // Create initialization instruction with all required accounts
-  const initInstruction = new TransactionInstruction({
-    keys: [
-      { pubkey: wallet.publicKey, isSigner: true, isWritable: true },              // Payer/admin
-      { pubkey: programStateAddress, isSigner: false, isWritable: true },          // Program state PDA
-      { pubkey: authorityAddress, isSigner: false, isWritable: false },            // Authority PDA
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },     // System program 
-      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },          // Rent sysvar
-    ],
-    programId: MULTIHUB_SWAP_PROGRAM_ID,
-    data: data
-  });
-  
-  transaction.add(initInstruction);
+  console.log("Preparing new initialization approach with precise byte layout...");
   
   try {
-    // Send and confirm transaction
+    // Let's use the exact layout based on the Contract analysis
+    // First, we'll define our constants
+    const YOT_MINT = new PublicKey('2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF');
+    const YOS_MINT = new PublicKey('GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n');
+    
+    // The variant index for Initialize instruction is 0
+    const INITIALIZE_VARIANT = 0;
+    
+    // These parameters should match contract's expected values
+    // All percentages are expressed in basis points (1/100 of 1%)
+    // 2000 basis points = 20%
+    const LP_CONTRIBUTION_RATE = BigInt(2000); 
+    const ADMIN_FEE_RATE = BigInt(10);         // 0.1%
+    const YOS_CASHBACK_RATE = BigInt(500);     // 5%
+    const SWAP_FEE_RATE = BigInt(30);          // 0.3%
+    const REFERRAL_RATE = BigInt(50);          // 0.5%
+    
+    console.log(`Using admin: ${adminPublicKey.toString()}`);
+    console.log(`Using YOT mint: ${YOT_MINT.toString()}`);
+    console.log(`Using YOS mint: ${YOS_MINT.toString()}`);
+    console.log("Using rates (in basis points):");
+    console.log(`  LP contribution: ${LP_CONTRIBUTION_RATE} (20%)`);
+    console.log(`  Admin fee: ${ADMIN_FEE_RATE} (0.1%)`);
+    console.log(`  YOS cashback: ${YOS_CASHBACK_RATE} (5%)`);
+    console.log(`  Swap fee: ${SWAP_FEE_RATE} (0.3%)`);
+    console.log(`  Referral: ${REFERRAL_RATE} (0.5%)`);
+    
+    // Now construct the instruction data byte-by-byte to ensure exact layout
+    // Layout:
+    // - 1 byte: variant index (0 = Initialize)
+    // - 32 bytes: admin pubkey
+    // - 32 bytes: YOT mint pubkey
+    // - 32 bytes: YOS mint pubkey
+    // - 8 bytes: LP contribution rate (u64)
+    // - 8 bytes: admin fee rate (u64)
+    // - 8 bytes: YOS cashback rate (u64)
+    // - 8 bytes: swap fee rate (u64)
+    // - 8 bytes: referral rate (u64)
+    // Total: 137 bytes
+    
+    const instructionData = Buffer.alloc(1 + 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8);
+    let offset = 0;
+    
+    // Write variant index
+    instructionData.writeUInt8(INITIALIZE_VARIANT, offset);
+    offset += 1;
+    
+    // Write admin pubkey
+    const adminBuffer = adminPublicKey.toBuffer();
+    adminBuffer.copy(instructionData, offset);
+    offset += 32;
+    
+    // Write YOT mint pubkey
+    const yotMintBuffer = YOT_MINT.toBuffer();
+    yotMintBuffer.copy(instructionData, offset);
+    offset += 32;
+    
+    // Write YOS mint pubkey
+    const yosMintBuffer = YOS_MINT.toBuffer();
+    yosMintBuffer.copy(instructionData, offset);
+    offset += 32;
+    
+    // Write all rates as little-endian u64 values
+    instructionData.writeBigUInt64LE(LP_CONTRIBUTION_RATE, offset);
+    offset += 8;
+    
+    instructionData.writeBigUInt64LE(ADMIN_FEE_RATE, offset);
+    offset += 8;
+    
+    instructionData.writeBigUInt64LE(YOS_CASHBACK_RATE, offset);
+    offset += 8;
+    
+    instructionData.writeBigUInt64LE(SWAP_FEE_RATE, offset);
+    offset += 8;
+    
+    instructionData.writeBigUInt64LE(REFERRAL_RATE, offset);
+    
+    // Log the full instruction data for debugging
+    console.log(`Initialization data created: ${instructionData.length} bytes`);
+    console.log("Data hex:", instructionData.toString('hex'));
+    
+    // Create the instruction with required accounts
+    const initInstruction = new TransactionInstruction({
+      keys: [
+        { pubkey: wallet.publicKey, isSigner: true, isWritable: true },              // Payer/admin
+        { pubkey: programStateAddress, isSigner: false, isWritable: true },          // Program state PDA
+        { pubkey: authorityAddress, isSigner: false, isWritable: false },            // Authority PDA
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },     // System program 
+        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },          // Rent sysvar
+      ],
+      programId: MULTIHUB_SWAP_PROGRAM_ID,
+      data: instructionData
+    });
+    
+    // Add the instruction to the transaction
+    transaction.add(initInstruction);
+  } catch (error: any) {
+    console.error("Error creating initialization instruction:", error);
+    throw new Error(`Failed to create initialization instruction: ${error.message || error}`);
+  }
+  
+  // Send and confirm the transaction
+  try {
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
     transaction.lastValidBlockHeight = lastValidBlockHeight;
