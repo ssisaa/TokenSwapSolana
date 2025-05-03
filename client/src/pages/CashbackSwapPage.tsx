@@ -204,6 +204,8 @@ export default function CashbackSwapPage() {
       setSwapSuccess(false);
       setSwapError(null);
       
+      // Clear any existing error messages displayed in the UI
+      
       // Import the appropriate implementation based on toggle setting
       let swapTokenToYOT, swapYOTToToken;
       

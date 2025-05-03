@@ -167,6 +167,14 @@ export async function swapTokenToYOT(
       return signature;
     } catch (signError) {
       console.error("Error sending transaction:", signError);
+      
+      // Special case for user rejection
+      if (String(signError).includes("User rejected the request")) {
+        console.log("User rejected the transaction request in their wallet");
+        // Create a specific error type for user rejection that the UI can handle
+        throw new Error("User rejected the transaction in the wallet. Please approve the transaction to complete the swap.");
+      }
+      
       throw new Error("Failed to send transaction: " + String(signError));
     }
   } catch (error) {
@@ -251,15 +259,46 @@ export async function swapYOTToToken(
       - YOS cashback: ${cashbackAmount} YOS
     `);
     
-    // In a simplified implementation, we'll just send the tokens directly
-    // This implementation focuses on the UI flow and doesn't perform
-    // actual token transactions to avoid errors with the on-chain program
+    // Import the needed Token functions from @solana/spl-token
+    const { createTransferInstruction } = await import('@solana/spl-token');
     
-    // Return a mock transaction signature
-    const mockSignature = "SimulatedSwapTransaction" + Date.now().toString();
-    console.log("Simplified swap completed with mock signature:", mockSignature);
+    // Convert amounts to raw token amounts with appropriate decimals
+    const rawAmount = BigInt(Math.floor(amount * (10 ** decimals)));
+    const rawLiquidityContribution = BigInt(Math.floor(liquidityContribution * (10 ** decimals)));
     
-    return mockSignature;
+    // Add a transfer instruction from user's YOT account to admin YOT account
+    // representing the swap transaction
+    transaction.add(
+      createTransferInstruction(
+        fromTokenAccount.address, // from (user's YOT account)
+        adminYotTokenAccount, // to (admin's YOT account)
+        wallet.publicKey, // authority (user)
+        Number(rawAmount) // amount of YOT
+      )
+    );
+    
+    // Add recent blockhash
+    transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+    transaction.feePayer = wallet.publicKey;
+    
+    // For this demo, we'll request wallet signature
+    try {
+      // Sign and send transaction
+      const signature = await wallet.sendTransaction(transaction, connection);
+      console.log("Transaction sent with signature:", signature);
+      return signature;
+    } catch (signError) {
+      console.error("Error sending transaction:", signError);
+      
+      // Special case for user rejection
+      if (String(signError).includes("User rejected the request")) {
+        console.log("User rejected the transaction request in their wallet");
+        // Create a specific error type for user rejection that the UI can handle
+        throw new Error("User rejected the transaction in the wallet. Please approve the transaction to complete the swap.");
+      }
+      
+      throw new Error("Failed to send transaction: " + String(signError));
+    }
   } catch (error) {
     console.error("Error in simplified swapYOTToToken:", error);
     throw error;
