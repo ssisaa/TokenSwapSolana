@@ -10,7 +10,7 @@ import {
   getAssociatedTokenAddress,
   createAssociatedTokenAccountInstruction
 } from '@solana/spl-token';
-import * as borsh from 'borsh';
+import { serialize } from 'borsh';
 
 /**
  * Borsh compatible class for InitializeInstruction
@@ -55,9 +55,9 @@ class SwapInstruction {
   amount_in: number;
   min_amount_out: number;
 
-  constructor(amount_in: number, min_amount_out: number) {
-    this.amount_in = amount_in;
-    this.min_amount_out = min_amount_out;
+  constructor(fields: { amount_in: number, min_amount_out: number }) {
+    this.amount_in = fields.amount_in;
+    this.min_amount_out = fields.min_amount_out;
   }
 }
 
@@ -200,7 +200,7 @@ export async function initializeProgram(
     // Create the instruction data using the example approach
     const instructionData = Buffer.concat([
       Buffer.from([0]), // discriminator for Initialize variant
-      borsh.serialize(
+      serialize(
         InitializeInstructionSchema,
         new InitializeInstruction({
           admin: wallet.publicKey.toBytes(),
@@ -357,26 +357,17 @@ export async function performSwap(
     // Create the swap instruction data using Borsh serialization
     // This will exactly match what the contract expects
     
-    // Create the swap instruction object
-    const swapInstructionObj = new SwapInstruction(
-      amountInLamports,
-      minAmountOutLamports
-    );
-    
-    // Serialize the instruction data using Borsh
-    const serializedData = borsh.serialize(
-      SwapInstructionSchema,
-      swapInstructionObj
-    );
-    
-    // Create the final instruction buffer with the variant index at the beginning
-    const instructionData = Buffer.alloc(1 + serializedData.length);
-    instructionData.writeUInt8(InstructionVariant.Swap, 0); // Write the variant index
-    
-    // Copy the serialized data after the variant
-    for (let i = 0; i < serializedData.length; i++) {
-      instructionData[i + 1] = serializedData[i];
-    }
+    // Create the instruction data using buffer concatenation
+    const instructionData = Buffer.concat([
+      Buffer.from([1]), // discriminator for Swap variant
+      serialize(
+        SwapInstructionSchema,
+        new SwapInstruction({
+          amount_in: amountInLamports,
+          min_amount_out: minAmountOutLamports
+        })
+      )
+    ]);
     
     console.log('Using direct buffer encoding for Swap instruction');
     console.log('Swap instruction data length:', instructionData.length);
@@ -552,25 +543,14 @@ export async function closeProgram(
     // Create the close program instruction data using Borsh serialization
     // This will exactly match what the contract expects
     
-    // Create the close program instruction object
-    const closeProgramInstructionObj = new CloseProgramInstruction();
-    
-    // Serialize the instruction data using Borsh
-    const serializedData = borsh.serialize(
-      CloseProgramInstructionSchema,
-      closeProgramInstructionObj
-    );
-    
-    // Create the final instruction buffer with the variant index at the beginning
-    const instructionData = Buffer.alloc(1 + serializedData.length);
-    instructionData.writeUInt8(InstructionVariant.CloseProgram, 0); // Write the variant index
-    
-    // Copy the serialized data after the variant
-    if (serializedData.length > 0) {
-      for (let i = 0; i < serializedData.length; i++) {
-        instructionData[i + 1] = serializedData[i];
-      }
-    }
+    // Create the close program instruction data using buffer concatenation
+    const instructionData = Buffer.concat([
+      Buffer.from([2]), // discriminator for CloseProgram variant
+      serialize(
+        CloseProgramInstructionSchema,
+        new CloseProgramInstruction()
+      )
+    ]);
     
     console.log('Using direct buffer encoding for CloseProgram instruction');
     console.log('CloseProgram instruction data length:', instructionData.length);
