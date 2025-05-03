@@ -14,6 +14,7 @@ export interface TokenInfo {
   logoURI?: string;
   coingeckoId?: string;
   tags?: string[];
+  chainId?: number; // Optional chainId field for network support
 }
 
 // Common token list with well-known Solana tokens

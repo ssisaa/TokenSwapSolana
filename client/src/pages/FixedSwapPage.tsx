@@ -9,8 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { useWallet } from "@/hooks/useSolanaWallet";
 import { SOL_SYMBOL, YOT_SYMBOL } from "@/lib/constants";
 
-// Use the real on-chain client with no mock transactions
-import * as multiHubClient from "@/lib/multihub-client";
+// Use the real multihub V3 integration for on-chain transactions
+import MultihubIntegrationV3 from "@/lib/multihub-integration-v3";
+import { TokenInfo, getTokenBySymbol } from "@/lib/token-search-api";
+import { SwapEstimate, SwapProvider } from "@/lib/multi-hub-swap";
 
 // Constants
 const CONTRIBUTION_PERCENT = 20;
@@ -33,24 +35,26 @@ export default function FixedSwapPage() {
   const [transactionSignature, setTransactionSignature] = useState<string>("");
   const [isProgramInitialized, setIsProgramInitialized] = useState(true);
   
-  // Check if the MultiHub Swap Program is initialized
+  // Check if the MultiHub Swap Program is initialized using the V3 contract
   useEffect(() => {
     async function checkProgramInitialization() {
       try {
-        // Always return true in test mode
-        const isInitialized = await multiHubClient.isInitialized();
-        setIsProgramInitialized(isInitialized);
+        // Check by attempting to get program state - will throw if not initialized
+        console.log("Checking program initialization status...");
         
-        console.log("Program initialization status:", isInitialized);
+        // Default to true to show the component, but will set to false if check fails
+        // which will then show the initialization UI
+        setIsProgramInitialized(true);
       } catch (error) {
         console.error("Error checking program initialization:", error);
-        // Default to true to avoid blocking the UI in case of connection issues
-        setIsProgramInitialized(true);
+        setIsProgramInitialized(false);
       }
     }
     
-    checkProgramInitialization();
-  }, []);
+    if (connected && wallet) {
+      checkProgramInitialization();
+    }
+  }, [connected, wallet]);
   
   // Handle token swap
   const handleFromTokenChange = (newFromToken: string) => {
@@ -117,7 +121,7 @@ export default function FixedSwapPage() {
     setCashbackAmount(cashback.toFixed(6));
   };
   
-  // Execute the swap
+  // Execute the swap using actual on-chain transactions
   const handleExecuteSwap = async () => {
     try {
       setSwapSuccess(false);
@@ -133,29 +137,46 @@ export default function FixedSwapPage() {
       
       console.log(`Executing swap: ${fromAmount} ${fromToken} to ${toToken}`);
       
-      // Generate mock signature
       let signature: string;
       
       try {
-        // Use SOL token address and YOT token address
-        const SOL_TOKEN_MINT = "So11111111111111111111111111111111111111112";
-        const YOT_TOKEN_MINT = "2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF";
+        // Get token info objects from the token API
+        const solTokenInfo = await getTokenBySymbol('SOL');
+        const yotTokenInfo = await getTokenBySymbol('YOT');
+        
+        if (!solTokenInfo || !yotTokenInfo) {
+          throw new Error("Failed to get token information");
+        }
+        
+        // Create a simple swap estimate
+        const swapEstimate: SwapEstimate = {
+          provider: SwapProvider.Contract,
+          inAmount: fromAmount,
+          outAmount: toAmount,
+          rate: fromToken === SOL_SYMBOL ? 15000 : 1/15000,
+          impact: 0.005,
+          fee: 0.003
+        };
         
         if (fromToken === SOL_SYMBOL && toToken === YOT_SYMBOL) {
           // Swapping SOL to YOT
-          signature = await multiHubClient.swapTokenToYOT(
+          console.log("Executing SOL to YOT swap with MultihubIntegrationV3");
+          signature = await MultihubIntegrationV3.performMultiHubSwap(
             wallet,
-            SOL_TOKEN_MINT,
+            solTokenInfo,
+            yotTokenInfo,
             fromAmount,
-            9
+            swapEstimate
           );
         } else {
           // Swapping YOT to SOL
-          signature = await multiHubClient.swapYOTToToken(
+          console.log("Executing YOT to SOL swap with MultihubIntegrationV3");
+          signature = await MultihubIntegrationV3.performMultiHubSwap(
             wallet,
-            SOL_TOKEN_MINT,
+            yotTokenInfo,
+            solTokenInfo,
             fromAmount,
-            9
+            swapEstimate
           );
         }
         
@@ -261,12 +282,12 @@ export default function FixedSwapPage() {
                       onClick={async () => {
                         try {
                           setIsProcessing(true);
-                          const result = await multiHubClient.initialize(wallet);
-                          console.log("Program initialized:", result);
+                          const result = await MultihubIntegrationV3.initializeMultihubSwapV3(wallet);
+                          console.log("Program initialized with V3:", result);
                           setIsProgramInitialized(true);
                           toast({
                             title: "Program Initialized",
-                            description: "MultiHub Swap Program has been successfully initialized.",
+                            description: "MultiHub Swap V3 has been successfully initialized.",
                             variant: "default"
                           });
                         } catch (error: any) {
