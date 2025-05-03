@@ -1,7 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
-    clock::Clock,
     entrypoint,
     entrypoint::ProgramResult,
     msg,
@@ -14,7 +13,6 @@ use solana_program::{
     sysvar::Sysvar,
 };
 use spl_token::{instruction as token_instruction, state::Account as TokenAccount};
-use std::convert::TryInto;
 
 // Define the program ID here (will be replaced during deployment)
 solana_program::declare_id!("Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L");
@@ -183,7 +181,7 @@ fn process_initialize(
     let program_state_account = next_account_info(account_info_iter)?;
     let program_authority_account = next_account_info(account_info_iter)?;
     let system_program_account = next_account_info(account_info_iter)?;
-    let rent_sysvar_account = next_account_info(account_info_iter)?;
+    let _rent_sysvar_account = next_account_info(account_info_iter)?; // Prefixed with underscore to avoid unused var warning
 
     // Validate accounts
     if !payer_account.is_signer {
