@@ -21,7 +21,7 @@ import { PublicKey } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { useLocation } from "wouter";
-import { initializeMultiHubSwapProgram, isMultiHubSwapProgramInitialized } from "@/lib/multihub-client-improved";
+import { initializeMultiHubSwapProgram, isMultiHubSwapProgramInitialized } from "@/lib/multihub-client-simplified";
 
 export default function CashbackSwapPage() {
   const { connected, connect, wallet } = useWallet();
