@@ -74,8 +74,26 @@ export default function CashbackSwapPage() {
       // Check if program is initialized
       const checkInitialization = async () => {
         try {
-          const isInitialized = await isInitializedSimplified();
-          setIsProgramInitialized(isInitialized);
+          // First try to check if the on-chain program is initialized
+          if (!useSimplifiedMode) {
+            try {
+              console.log("Checking real on-chain program initialization");
+              const { isMultiHubSwapProgramInitialized } = await import('@/lib/multihub-client');
+              const initialized = await isMultiHubSwapProgramInitialized();
+              console.log("On-chain program initialization status:", initialized);
+              setIsProgramInitialized(initialized);
+              return;
+            } catch (onChainError) {
+              console.error("Error checking on-chain program initialization:", onChainError);
+              // Fall through to simplified if on-chain check fails
+            }
+          }
+          
+          // Fall back to simplified implementation
+          console.log("Using simplified implementation for initialization check");
+          const initialized = await isInitializedSimplified();
+          console.log("Simplified implementation initialization status:", initialized);
+          setIsProgramInitialized(initialized);
         } catch (error) {
           console.error("Error checking program initialization:", error);
           setIsProgramInitialized(false);
@@ -86,7 +104,7 @@ export default function CashbackSwapPage() {
     } else {
       setIsAdmin(false);
     }
-  }, [wallet]);
+  }, [wallet, useSimplifiedMode]);
   
   // Handle program initialization
   const handleInitializeProgram = async () => {

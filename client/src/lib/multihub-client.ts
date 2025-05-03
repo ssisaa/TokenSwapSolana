@@ -54,7 +54,7 @@ class InitializeInstruction {
     this.yosCashbackBps = params.yosCashbackBps;
   }
 
-  static schema = new Map([
+  static schema: Map<any, any> = new Map([
     [
       InitializeInstruction,
       {
@@ -81,7 +81,7 @@ class SwapInstruction {
     this.amount = params.amount;
   }
 
-  static schema = new Map([
+  static schema: Map<any, any> = new Map([
     [
       SwapInstruction,
       {
@@ -104,7 +104,7 @@ class SwapYotInstruction {
     this.amount = params.amount;
   }
 
-  static schema = new Map([
+  static schema: Map<any, any> = new Map([
     [
       SwapYotInstruction,
       {
