@@ -28,9 +28,9 @@ import { Label } from "@/components/ui/label";
 import { 
   initializeSimplified, 
   isInitializedSimplified,
-  swapTokenToYOT as swapTokenToYOTSimplified,
-  swapYOTToToken as swapYOTToTokenSimplified
-} from "@/lib/multihub-client-simplified";
+  swapTokenToYOT,
+  swapYOTToToken
+} from "@/lib/multihub-client-simplified-fixed";
 
 // These will be imported conditionally in the component
 // to avoid errors if files don't exist or have issues
@@ -187,8 +187,8 @@ export default function CashbackSwapPage() {
       
       if (useSimplifiedMode) {
         console.log("Using simplified implementation for swap");
-        // Use the simplified implementation
-        ({ swapTokenToYOT, swapYOTToToken } = await import('@/lib/multihub-client-simplified'));
+        // Use the simplified implementation from our fixed module
+        ({ swapTokenToYOT, swapYOTToToken } = await import('@/lib/multihub-client-simplified-fixed'));
       } else {
         console.log("Attempting to use on-chain implementation for swap");
         try {
@@ -202,7 +202,7 @@ export default function CashbackSwapPage() {
             variant: "destructive"
           });
           // Fall back to simplified implementation
-          ({ swapTokenToYOT, swapYOTToToken } = await import('@/lib/multihub-client-simplified'));
+          ({ swapTokenToYOT, swapYOTToToken } = await import('@/lib/multihub-client-simplified-fixed'));
         }
       }
       
