@@ -29,6 +29,14 @@ export const MULTIHUB_SWAP_PROGRAM_ID = 'Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpP
 export const YOT_TOKEN_MINT = '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF';
 export const YOS_TOKEN_MINT = 'GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n';
 
+// ====== Instruction types matching the Rust contract definitions =======
+// Instruction variants for the V3 contract - must match the contract's enum definition
+enum MultihubInstruction {
+  Initialize = 0,
+  Swap = 1,
+  CloseProgram = 2
+}
+
 // Constants for the program
 export const LP_CONTRIBUTION_RATE = 2000; // 20%
 export const ADMIN_FEE_RATE = 10; // 0.1%
@@ -248,10 +256,9 @@ export async function performSwap(
     minAmountOutBuffer.writeBigUInt64LE(BigInt(minAmountOutLamports), 0);
     
     // Combine the buffers in the exact order expected by the Swap variant
-    // Try different variant index to match the contract's expectations
-    // Original used index 1, now trying index 2 (which could match Instruction::Swap in a unified enum)
+    // Use the correct instruction enum index from MultihubInstruction.Swap
     const instructionData = Buffer.concat([
-      Buffer.from([2]), // Variant index for Swap (using index 2 instead of 1)
+      Buffer.from([MultihubInstruction.Swap]), // Variant index for Swap (should be 1 based on our enum)
       amountInBuffer,    // amount_in: u64 (8 bytes)
       minAmountOutBuffer // min_amount_out: u64 (8 bytes)
     ]);
