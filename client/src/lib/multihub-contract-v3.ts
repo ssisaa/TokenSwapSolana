@@ -46,8 +46,10 @@ export const REFERRAL_RATE = 50; // 0.5%
 
 /**
  * Find the program's authority PDA
+ * From multihub_swap.rs: let (authority_pubkey, authority_bump_seed) = Pubkey::find_program_address(&[b"authority"], program_id);
  */
 export function findProgramAuthorityAddress(): [PublicKey, number] {
+  // Must match EXACTLY what the program uses for the seed
   return PublicKey.findProgramAddressSync(
     [Buffer.from('authority')],
     new PublicKey(MULTIHUB_SWAP_PROGRAM_ID)
@@ -56,10 +58,12 @@ export function findProgramAuthorityAddress(): [PublicKey, number] {
 
 /**
  * Find the program's state PDA
+ * From multihub_swap.rs: let seeds = &[b"program_state".as_ref()];
  */
 export function findProgramStateAddress(): [PublicKey, number] {
+  // Must match EXACTLY what the program uses for the seed
   return PublicKey.findProgramAddressSync(
-    [Buffer.from('state')],
+    [Buffer.from('program_state')],
     new PublicKey(MULTIHUB_SWAP_PROGRAM_ID)
   );
 }
@@ -83,8 +87,8 @@ export async function initializeProgram(
     transaction.recentBlockhash = blockhash;
     
     // Get program state address
-    const [programStateAddress, _] = findProgramStateAddress();
-    const [programAuthorityAddress, __] = findProgramAuthorityAddress();
+    const [programStateAddress, stateBump] = findProgramStateAddress();
+    const [programAuthorityAddress, authorityBump] = findProgramAuthorityAddress();
     
     // Create a conforming Borsh serialization for the Rust-side SwapInstruction enum
     // Initialize has fields for admin, mints, and rates
@@ -103,20 +107,21 @@ export async function initializeProgram(
     writeBigUInt64LE(ratesView, 24, BigInt(SWAP_FEE_RATE));
     writeBigUInt64LE(ratesView, 32, BigInt(REFERRAL_RATE));
     
-    // Based on the program's instruction data handling, we need to simplify this
-    // From multihub_swap.rs: match instruction_type -> 0 => process_initialize(...)
-    // Where the program just expects a single byte for authority_bump
+    // Based on the program's instruction data handling in multihub_swap.rs:
+    // - instruction_type = instruction_data[0]; (0 for Initialize)
+    // - authority_bump = instruction_data[1];
     
-    // Create the initialization data with the minimal format
+    // Create the initialization data with the minimal format the program expects
     const instructionData = Buffer.alloc(2); // 1 byte for instruction type + 1 byte for bump
     
     // Write instruction type (0 = Initialize)
     instructionData[0] = 0;
     
-    // Write the authority bump
-    instructionData[1] = __;
+    // Write the authority bump seed - use the one already retrieved
+    instructionData[1] = authorityBump;
     
-    console.log('Using simplified initialization format matching the program code');
+    console.log('Using simplified initialization format matching the program code')
+    console.log('Initialize instruction data:', Array.from(instructionData));
     
     // Output debugging info
     console.log('Initialize program instruction data length:', instructionData.length);
@@ -237,8 +242,8 @@ export async function performSwap(
     );
     
     // Get program addresses
-    const [programStateAddress, _] = findProgramStateAddress();
-    const [programAuthorityAddress, __] = findProgramAuthorityAddress();
+    const [programStateAddress, swapStateBump] = findProgramStateAddress();
+    const [programAuthorityAddress, swapAuthorityBump] = findProgramAuthorityAddress();
     
     // Create a conforming Borsh serialization for the Rust-side SwapInstruction enum
     // The Swap variant has amount_in and min_amount_out fields
@@ -453,13 +458,15 @@ export async function closeProgram(
     transaction.recentBlockhash = blockhash;
     
     // Get program state and authority addresses
-    const [programStateAddress, _] = findProgramStateAddress();
-    const [programAuthorityAddress, __] = findProgramAuthorityAddress();
+    const [programStateAddress, closeProgramStateBump] = findProgramStateAddress();
+    const [programAuthorityAddress, closeProgramAuthorityBump] = findProgramAuthorityAddress();
     
     // Create a binary instruction with the index matching the program's instruction type
-    // Based on multihub_swap.rs, instruction type 2 is likely CloseProgram
-    // This matches the manual byte parsing approach in the program
+    // The program expects just a single byte for instruction type
+    // Looking at multihub_swap.rs file, we saw that the CloseProgram instruction is likely instruction index 2
     const instructionData = Buffer.from([2]); // Hardcoded as 2 for CloseProgram
+    
+    console.log('CloseProgram instruction data:', Array.from(instructionData));
     
     // Output debugging info
     console.log('Close program instruction data (simple format):', 
