@@ -71,39 +71,67 @@ class CloseProgramInstruction {
   }
 }
 
-// Define the schema for Borsh serialization
-const initializeInstructionSchema = {
-  InitializeInstruction: {
-    kind: 'struct',
-    fields: [
-      ['admin', [32]], // Pubkey is 32 bytes
-      ['yot_mint', [32]],
-      ['yos_mint', [32]],
-      ['lp_contribution_rate', 'u64'],
-      ['admin_fee_rate', 'u64'],
-      ['yos_cashback_rate', 'u64'],
-      ['swap_fee_rate', 'u64'],
-      ['referral_rate', 'u64'],
-    ],
+// Define the schema for Borsh serialization - must be formatted properly for borsh.js
+class InitializeInstructionSchema {
+  constructor(properties) {
+    Object.assign(this, properties);
   }
-};
+}
 
-const swapInstructionSchema = {
-  SwapInstruction: {
-    kind: 'struct',
-    fields: [
-      ['amount_in', 'u64'],
-      ['min_amount_out', 'u64'],
-    ],
+class SwapInstructionSchema {
+  constructor(properties) {
+    Object.assign(this, properties);
   }
-};
+}
 
-const closeProgramInstructionSchema = {
-  CloseProgramInstruction: {
-    kind: 'struct',
-    fields: [], // No fields
+class CloseProgramInstructionSchema {
+  constructor(properties) {
+    Object.assign(this, properties);
   }
-};
+}
+
+// Create schema format that works with borsh.js
+const initializeInstructionSchema = new Map([
+  [
+    InitializeInstruction,
+    {
+      kind: 'struct',
+      fields: [
+        ['admin', [32]], // Pubkey is 32 bytes
+        ['yot_mint', [32]],
+        ['yos_mint', [32]],
+        ['lp_contribution_rate', 'u64'],
+        ['admin_fee_rate', 'u64'],
+        ['yos_cashback_rate', 'u64'],
+        ['swap_fee_rate', 'u64'],
+        ['referral_rate', 'u64'],
+      ],
+    },
+  ],
+]);
+
+const swapInstructionSchema = new Map([
+  [
+    SwapInstruction,
+    {
+      kind: 'struct',
+      fields: [
+        ['amount_in', 'u64'],
+        ['min_amount_out', 'u64'],
+      ],
+    },
+  ],
+]);
+
+const closeProgramInstructionSchema = new Map([
+  [
+    CloseProgramInstruction,
+    {
+      kind: 'struct',
+      fields: [], // No fields
+    },
+  ],
+]);
 
 // Program ID for the multihub swap V3 contract
 export const MULTIHUB_SWAP_PROGRAM_ID = 'Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L';
@@ -210,7 +238,11 @@ export async function initializeProgram(
     // Create the final instruction buffer with the variant index at the beginning
     const instructionData = Buffer.alloc(1 + serializedData.length);
     instructionData.writeUInt8(InstructionVariant.Initialize, 0); // Write the variant index
-    serializedData.copy(instructionData, 1); // Copy the serialized data after the variant
+    
+    // Copy the serialized data after the variant
+    for (let i = 0; i < serializedData.length; i++) {
+      instructionData[i + 1] = serializedData[i];
+    }
     
     console.log('Using direct buffer encoding for Initialize instruction');
     console.log('Initialize instruction data length:', instructionData.length);
@@ -369,7 +401,11 @@ export async function performSwap(
     // Create the final instruction buffer with the variant index at the beginning
     const instructionData = Buffer.alloc(1 + serializedData.length);
     instructionData.writeUInt8(InstructionVariant.Swap, 0); // Write the variant index
-    serializedData.copy(instructionData, 1); // Copy the serialized data after the variant
+    
+    // Copy the serialized data after the variant
+    for (let i = 0; i < serializedData.length; i++) {
+      instructionData[i + 1] = serializedData[i];
+    }
     
     console.log('Using direct buffer encoding for Swap instruction');
     console.log('Swap instruction data length:', instructionData.length);
@@ -557,8 +593,12 @@ export async function closeProgram(
     // Create the final instruction buffer with the variant index at the beginning
     const instructionData = Buffer.alloc(1 + serializedData.length);
     instructionData.writeUInt8(InstructionVariant.CloseProgram, 0); // Write the variant index
+    
+    // Copy the serialized data after the variant
     if (serializedData.length > 0) {
-      serializedData.copy(instructionData, 1); // Copy the serialized data after the variant
+      for (let i = 0; i < serializedData.length; i++) {
+        instructionData[i + 1] = serializedData[i];
+      }
     }
     
     console.log('Using direct buffer encoding for CloseProgram instruction');
