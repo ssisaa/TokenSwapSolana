@@ -3,7 +3,13 @@
  * when actual Solana blockchain transactions can't be processed due to wallet or network issues
  */
 
-import { randomBytes } from 'crypto';
+// Browser-safe random ID generation instead of using Node.js crypto module
+function generateRandomId(length: number = 16): string {
+  return Array.from(
+    { length },
+    () => Math.floor(Math.random() * 16).toString(16)
+  ).join('');
+}
 
 // Constants for the mock transaction system
 const MOCK_TX_PREFIX = 'MOCK_TX_';
@@ -49,7 +55,7 @@ export async function mockTransaction(options: {
   }
   
   // Generate a random transaction signature
-  const mockSignature = MOCK_TX_PREFIX + randomBytes(8).toString('hex');
+  const mockSignature = MOCK_TX_PREFIX + generateRandomId(16);
   
   // Simulate transaction confirmation
   console.log(`[MOCK] Transaction successful with signature: ${mockSignature}`);

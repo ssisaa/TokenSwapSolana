@@ -43,6 +43,7 @@ import AffiliatePage from "@/pages/AffiliatePage";
 import LandingPage from "@/pages/LandingPage";
 import MockSwapPage from "@/pages/MockSwapPage"; // Our new reliable mock swap page
 import SimpleSwapPage from "@/pages/SimpleSwapPage"; // Pure demo swap page with no Solana dependencies
+import FixedSwapPage from "@/pages/FixedSwapPage"; // Our optimized swap page that handles crypto module issues
 import Home from "@/pages/Home"; // Keep for compatibility with existing routes
 
 // Routes that should use the dashboard layout
@@ -173,7 +174,7 @@ function Router() {
 
         <Route path="/fixed-swap">
           <DashboardLayout>
-            <FixedSwapTestPage />
+            <FixedSwapPage />
           </DashboardLayout>
         </Route>
 
@@ -186,6 +187,12 @@ function Router() {
         <Route path="/mock-swap">
           <DashboardLayout>
             <MockSwapPage />
+          </DashboardLayout>
+        </Route>
+        
+        <Route path="/simple-swap">
+          <DashboardLayout>
+            <SimpleSwapPage />
           </DashboardLayout>
         </Route>
         

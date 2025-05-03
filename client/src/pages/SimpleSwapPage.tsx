@@ -98,12 +98,9 @@ export default function SimpleSwapPage() {
   
   // Generate mock transaction signature
   const generateMockSignature = () => {
-    const randomHex = Array.from(
-      { length: 32 },
-      () => Math.floor(Math.random() * 16).toString(16)
-    ).join('');
-    
-    return randomHex;
+    // Very simple mock signature without using crypto
+    const timestamp = Date.now();
+    return `mock_tx_${timestamp}_${Math.floor(Math.random() * 10000)}`;
   };
   
   // Execute mock swap
