@@ -166,137 +166,91 @@ export async function initializeMultiHubSwapProgram(wallet: any): Promise<string
   // Create initialization transaction
   const transaction = new Transaction();
   
-  // Instruction data for Initialize with these parameters:
-  // - admin (Pubkey)
-  // - yot_mint (Pubkey)
-  // - yos_mint (Pubkey)
-  // - lp_contribution_rate (u64) = 200000 (20%)
-  // - admin_fee_rate (u64) = 1000 (0.1%)
-  // - yos_cashback_rate (u64) = 30000 (3%)
-  // - swap_fee_rate (u64) = 3000 (0.3%) 
-  // - referral_rate (u64) = 5000 (0.5%)
+  // Define our constants
+  const YOT_MINT = new PublicKey('2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF');
+  const YOS_MINT = new PublicKey('GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n');
   
-  console.log("Using Borsh serialization for program initialization...");
+  // These parameters should match contract's expected values
+  // All percentages are expressed in basis points (1/100 of 1%)
+  // 200000 = 20%
+  const LP_CONTRIBUTION_RATE = 200000;  // 20%
+  const ADMIN_FEE_RATE = 1000;          // 0.1%
+  const YOS_CASHBACK_RATE = 30000;      // 3%
+  const SWAP_FEE_RATE = 3000;           // 0.3%
+  const REFERRAL_RATE = 5000;           // 0.5%
+  
+  console.log(`Using admin: ${adminPublicKey.toString()}`);
+  console.log(`Using YOT mint: ${YOT_MINT.toString()}`);
+  console.log(`Using YOS mint: ${YOS_MINT.toString()}`);
+  console.log("Using rates (in basis points):");
+  console.log(`  LP contribution: ${LP_CONTRIBUTION_RATE} (20%)`);
+  console.log(`  Admin fee: ${ADMIN_FEE_RATE} (0.1%)`);
+  console.log(`  YOS cashback: ${YOS_CASHBACK_RATE} (3%)`);
+  console.log(`  Swap fee: ${SWAP_FEE_RATE} (0.3%)`);
+  console.log(`  Referral: ${REFERRAL_RATE} (0.5%)`);
   
   try {
-    // Define our constants
-    const YOT_MINT = new PublicKey('2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF');
-    const YOS_MINT = new PublicKey('GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n');
+    // Create and serialize the initialization instruction
+    const { Initialize, serializeInitializeInstruction } = await import('./swap-instruction-borsh');
     
-    // These parameters should match contract's expected values
-    // All percentages are expressed in basis points (1/100 of 1%)
-    // 200000 = 20%
-    const LP_CONTRIBUTION_RATE = 200000;  // 20%
-    const ADMIN_FEE_RATE = 1000;          // 0.1%
-    const YOS_CASHBACK_RATE = 30000;      // 3%
-    const SWAP_FEE_RATE = 3000;           // 0.3%
-    const REFERRAL_RATE = 5000;           // 0.5%
+    // Create the Initialize object with all parameters
+    const initData = new Initialize(
+      adminPublicKey,
+      YOT_MINT,
+      YOS_MINT,
+      LP_CONTRIBUTION_RATE,
+      ADMIN_FEE_RATE,
+      YOS_CASHBACK_RATE,
+      SWAP_FEE_RATE,
+      REFERRAL_RATE
+    );
     
-    console.log(`Using admin: ${adminPublicKey.toString()}`);
-    console.log(`Using YOT mint: ${YOT_MINT.toString()}`);
-    console.log(`Using YOS mint: ${YOS_MINT.toString()}`);
-    console.log("Using rates (in basis points):");
-    console.log(`  LP contribution: ${LP_CONTRIBUTION_RATE} (20%)`);
-    console.log(`  Admin fee: ${ADMIN_FEE_RATE} (0.1%)`);
-    console.log(`  YOS cashback: ${YOS_CASHBACK_RATE} (3%)`);
-    console.log(`  Swap fee: ${SWAP_FEE_RATE} (0.3%)`);
-    console.log(`  Referral: ${REFERRAL_RATE} (0.5%)`);
+    // Serialize the data using our Borsh serializer
+    const instructionData = serializeInitializeInstruction(initData);
     
-    // Create and serialize the initialization instruction manually
-    // Layout:
-    // - 1 byte: variant index (0 = Initialize)
-    // - 32 bytes: admin pubkey
-    // - 32 bytes: YOT mint pubkey
-    // - 32 bytes: YOS mint pubkey
-    // - 8 bytes: LP contribution rate (u64)
-    // - 8 bytes: admin fee rate (u64)
-    // - 8 bytes: YOS cashback rate (u64)
-    // - 8 bytes: swap fee rate (u64)
-    // - 8 bytes: referral rate (u64)
-    // Total: 137 bytes
+    // Log the data for debugging
+    console.log(`Initialization data (${instructionData.length} bytes):`, 
+                instructionData.toString('hex'));
     
-    const instructionData = Buffer.alloc(1 + 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8);
-    let offset = 0;
-    
-    // Write variant index
-    instructionData.writeUInt8(0, offset);
-    offset += 1;
-    
-    // Write admin pubkey
-    adminPublicKey.toBuffer().copy(instructionData, offset);
-    offset += 32;
-    
-    // Write YOT mint pubkey
-    YOT_MINT.toBuffer().copy(instructionData, offset);
-    offset += 32;
-    
-    // Write YOS mint pubkey
-    YOS_MINT.toBuffer().copy(instructionData, offset);
-    offset += 32;
-    
-    // Write all rates as little-endian u64 values
-    instructionData.writeBigUInt64LE(BigInt(LP_CONTRIBUTION_RATE), offset);
-    offset += 8;
-    
-    instructionData.writeBigUInt64LE(BigInt(ADMIN_FEE_RATE), offset);
-    offset += 8;
-    
-    instructionData.writeBigUInt64LE(BigInt(YOS_CASHBACK_RATE), offset);
-    offset += 8;
-    
-    instructionData.writeBigUInt64LE(BigInt(SWAP_FEE_RATE), offset);
-    offset += 8;
-    
-    instructionData.writeBigUInt64LE(BigInt(REFERRAL_RATE), offset);
-    
-    // Log the full instruction data for debugging
-    console.log(`Initialization data created: ${instructionData.length} bytes`);
-    console.log("Data hex:", instructionData.toString('hex'));
-    
-    // Create the instruction with required accounts
-    const initInstruction = new TransactionInstruction({
+    // Create the transaction instruction
+    const instruction = new TransactionInstruction({
       keys: [
-        { pubkey: wallet.publicKey, isSigner: true, isWritable: true },              // Payer/admin
-        { pubkey: programStateAddress, isSigner: false, isWritable: true },          // Program state PDA
-        { pubkey: authorityAddress, isSigner: false, isWritable: false },            // Authority PDA
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },     // System program 
-        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },          // Rent sysvar
+        { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
+        { pubkey: programStateAddress, isSigner: false, isWritable: true },
+        { pubkey: authorityAddress, isSigner: false, isWritable: false },
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
       ],
       programId: MULTIHUB_SWAP_PROGRAM_ID,
       data: instructionData
     });
     
-    // Add the instruction to the transaction
-    transaction.add(initInstruction);
-  } catch (error: any) {
-    console.error("Error creating initialization instruction:", error);
-    throw new Error(`Failed to create initialization instruction: ${error.message || error}`);
-  }
-  
-  // Send and confirm the transaction
-  try {
+    // Add instruction to transaction
+    transaction.add(instruction);
+    
+    // Get recent blockhash for transaction
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
     transaction.lastValidBlockHeight = lastValidBlockHeight;
     transaction.feePayer = wallet.publicKey;
     
-    // Simulate first
+    // Simulate transaction first
     console.log("Simulating initialization transaction...");
     const simulation = await connection.simulateTransaction(transaction);
     
     if (simulation.value.err) {
-      console.error("Initialization simulation failed:", simulation.value.err);
+      console.error("Simulation failed:", simulation.value.err);
       throw new Error(`Initialization simulation failed: ${JSON.stringify(simulation.value.err)}`);
     }
     
-    console.log("Initialization simulation logs:", simulation.value.logs);
+    console.log("Simulation successful, logs:", simulation.value.logs);
     
-    // Send transaction
+    // Send the transaction
     console.log("Sending initialization transaction...");
     const signature = await wallet.sendTransaction(transaction, connection);
-    console.log("Initialization transaction sent:", signature);
+    console.log("Transaction sent:", signature);
     
-    // Confirm transaction
+    // Confirm the transaction
     const confirmation = await connection.confirmTransaction({
       signature,
       blockhash,
@@ -304,7 +258,7 @@ export async function initializeMultiHubSwapProgram(wallet: any): Promise<string
     }, 'confirmed');
     
     if (confirmation.value.err) {
-      throw new Error(`Initialization failed: ${JSON.stringify(confirmation.value.err)}`);
+      throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
     }
     
     console.log("Program initialized successfully!");
