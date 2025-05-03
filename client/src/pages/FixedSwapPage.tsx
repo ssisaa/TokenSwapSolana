@@ -9,10 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { useWallet } from "@/hooks/useSolanaWallet";
 import { SOL_SYMBOL, YOT_SYMBOL } from "@/lib/constants";
 
-// Import our fallback client implementation for better reliability
-import * as multiHubClient from "@/lib/multihub-client-fallback";
-// Enable test mode for instant swaps without wallet prompts
-multiHubClient.setMockMode(true);
+// Use the real on-chain client with no mock transactions
+import * as multiHubClient from "@/lib/multihub-client";
 
 // Constants
 const CONTRIBUTION_PERCENT = 20;
