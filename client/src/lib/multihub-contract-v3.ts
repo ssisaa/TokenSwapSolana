@@ -22,6 +22,25 @@ function writeBigUInt64LE(dataView: DataView, byteOffset: number, value: bigint)
   dataView.setUint32(byteOffset + 4, msb, true);
 }
 
+/**
+ * Helper function to write u64 values safely to a buffer
+ * @param buffer Buffer to write to
+ * @param value Number to write as u64
+ * @param offset Offset in the buffer
+ * @returns The new offset after writing
+ */
+function writeUInt64LEToBuffer(buffer: Buffer, value: number, offset: number): number {
+  const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+  const bigIntValue = BigInt(value);
+  
+  // Write low 32 bits
+  view.setUint32(offset, Number(bigIntValue & BigInt(0xFFFFFFFF)), true);
+  // Write high 32 bits
+  view.setUint32(offset + 4, Number(bigIntValue >> BigInt(32)), true);
+  
+  return offset + 8;
+}
+
 // Program ID for the multihub swap V3 contract
 export const MULTIHUB_SWAP_PROGRAM_ID = 'Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L';
 
@@ -93,25 +112,58 @@ export async function initializeProgram(
     const [programStateAddress, stateBump] = findProgramStateAddress();
     const [programAuthorityAddress, authorityBump] = findProgramAuthorityAddress();
     
-    // Create instruction data using Borsh serialization
-    // Create an instance of InitializeInstruction with our parameters
-    const instruction = new InitializeInstruction(
-      wallet.publicKey,
-      new PublicKey(YOT_TOKEN_MINT),
-      new PublicKey(YOS_TOKEN_MINT),
-      LP_CONTRIBUTION_RATE,
-      ADMIN_FEE_RATE,
-      YOS_CASHBACK_RATE,
-      SWAP_FEE_RATE,
-      REFERRAL_RATE
-    );
+    // Create a buffer for the instruction data
+    // Format:
+    // - Variant index (u8): 0 for Initialize
+    // - admin: Pubkey (32 bytes)
+    // - yot_mint: Pubkey (32 bytes)
+    // - yos_mint: Pubkey (32 bytes)
+    // - lp_contribution_rate: u64 (8 bytes)
+    // - admin_fee_rate: u64 (8 bytes)
+    // - yos_cashback_rate: u64 (8 bytes)
+    // - swap_fee_rate: u64 (8 bytes)
+    // - referral_rate: u64 (8 bytes)
+    const BUFFER_SIZE = 1 + (32 * 3) + (8 * 5); // 1 byte for variant + 3 pubkeys + 5 u64 rates
+    const instructionData = Buffer.alloc(BUFFER_SIZE);
+    let offset = 0;
     
-    // Serialize the instruction using Borsh
-    const instructionData = Buffer.from(borsh.serialize(instructionSchema, instruction));
+    // Write variant index: 0 for Initialize
+    instructionData.writeUInt8(InstructionVariant.Initialize, offset);
+    offset += 1;
     
-    console.log('Using Borsh serialization for Initialize instruction');
+    // Write admin pubkey (wallet.publicKey)
+    const adminPubkey = wallet.publicKey.toBuffer();
+    adminPubkey.copy(instructionData, offset);
+    offset += 32;
+    
+    // Write yot_mint pubkey
+    const yotMintPubkey = new PublicKey(YOT_TOKEN_MINT).toBuffer();
+    yotMintPubkey.copy(instructionData, offset);
+    offset += 32;
+    
+    // Write yos_mint pubkey
+    const yosMintPubkey = new PublicKey(YOS_TOKEN_MINT).toBuffer();
+    yosMintPubkey.copy(instructionData, offset);
+    offset += 32;
+    
+    // Write lp_contribution_rate
+    offset = writeUInt64LEToBuffer(instructionData, LP_CONTRIBUTION_RATE, offset);
+    
+    // Write admin_fee_rate
+    offset = writeUInt64LEToBuffer(instructionData, ADMIN_FEE_RATE, offset);
+    
+    // Write yos_cashback_rate
+    offset = writeUInt64LEToBuffer(instructionData, YOS_CASHBACK_RATE, offset);
+    
+    // Write swap_fee_rate
+    offset = writeUInt64LEToBuffer(instructionData, SWAP_FEE_RATE, offset);
+    
+    // Write referral_rate
+    writeUInt64LEToBuffer(instructionData, REFERRAL_RATE, offset);
+    
+    console.log('Using direct buffer encoding for Initialize instruction');
     console.log('Initialize instruction data length:', instructionData.length);
-    console.log('Detailed instruction structure:', instruction);
+    console.log('Instruction data in bytes:', Array.from(new Uint8Array(instructionData)));
     
     // Add the initialize instruction to the transaction with EXACT accounts
     // as expected by the program (see process_initialize function)
@@ -237,7 +289,7 @@ export async function performSwap(
     const [programStateAddress, swapStateBump] = findProgramStateAddress();
     const [programAuthorityAddress, swapAuthorityBump] = findProgramAuthorityAddress();
     
-    // Create a conforming Borsh serialization for the Rust-side SwapInstruction enum
+    // Create a direct buffer encoding for the Rust-side SwapInstruction enum
     // The Swap variant has amount_in and min_amount_out fields
     
     // Convert floating-point amounts to integer lamports
@@ -248,32 +300,27 @@ export async function performSwap(
     console.log(`Converting ${amountIn} tokens to ${amountInLamports} lamports`);
     console.log(`Converting ${minAmountOut} min output to ${minAmountOutLamports} lamports`);
     
-    // Create a proper Borsh serialization for the SwapInstruction::Swap variant
-    // This must match the Rust enum definition:
+    // Create instruction data buffer
+    // This must match the Rust enum definition: 
     // Swap { amount_in: u64, min_amount_out: u64 }
     
-    // Format:
-    // - Variant index (u8): 1 for Swap
-    // - amount_in: u64 (8 bytes)
-    // - min_amount_out: u64 (8 bytes)
-    const instructionData = Buffer.alloc(1 + 8 + 8);
+    const BUFFER_SIZE = 1 + 8 + 8; // 1 byte for variant + 8 bytes for each u64
+    const instructionData = Buffer.alloc(BUFFER_SIZE);
     let offset = 0;
     
-    // Variant index: 1 for Swap
-    instructionData.writeUInt8(1, offset);
+    // Write variant index: 1 for Swap
+    instructionData.writeUInt8(InstructionVariant.Swap, offset);
     offset += 1;
     
-    // amount_in (u64)
-    instructionData.writeBigUInt64LE(BigInt(amountInLamports), offset);
-    offset += 8;
+    // Write amount_in (u64)
+    offset = writeUInt64LEToBuffer(instructionData, amountInLamports, offset);
     
-    // min_amount_out (u64)
-    instructionData.writeBigUInt64LE(BigInt(minAmountOutLamports), offset);
+    // Write min_amount_out (u64)
+    writeUInt64LEToBuffer(instructionData, minAmountOutLamports, offset);
     
-    console.log('Using proper Borsh-serialized format for Swap instruction');
+    console.log('Using direct buffer encoding for Swap instruction');
     console.log('Swap instruction data length:', instructionData.length);
-    console.log('Swap instruction data:', Buffer.isBuffer(instructionData) ? 
-      Array.from(new Uint8Array(instructionData)) : instructionData);
+    console.log('Swap instruction data bytes:', Array.from(new Uint8Array(instructionData)));
     
     const swapData = instructionData;
     
@@ -442,21 +489,20 @@ export async function closeProgram(
     const [programStateAddress, closeProgramStateBump] = findProgramStateAddress();
     const [programAuthorityAddress, closeProgramAuthorityBump] = findProgramAuthorityAddress();
     
-    // Create a proper Borsh serialization for the SwapInstruction::CloseProgram variant
+    // Create instruction data for CloseProgram
     // This must match the Rust enum definition:
     // CloseProgram {}
     
     // Format:
-    // - Variant index (u8): 2 for CloseProgram
-    // No additional data needed for CloseProgram
+    // - Variant index (u8): 2 for CloseProgram (no additional data needed)
     const instructionData = Buffer.alloc(1);
     
-    // Variant index: 2 for CloseProgram
-    instructionData.writeUInt8(2, 0);
+    // Write variant index: 2 for CloseProgram
+    instructionData.writeUInt8(InstructionVariant.CloseProgram, 0);
     
-    console.log('Using proper Borsh-serialized format for CloseProgram instruction');
+    console.log('Using direct buffer encoding for CloseProgram instruction');
     console.log('CloseProgram instruction data length:', instructionData.length);
-    console.log('CloseProgram instruction data:', Array.from(instructionData));
+    console.log('CloseProgram instruction data bytes:', Array.from(new Uint8Array(instructionData)));
     
     const closeProgramData = instructionData;
     
