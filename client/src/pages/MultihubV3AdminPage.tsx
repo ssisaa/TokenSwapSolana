@@ -69,11 +69,14 @@ export function MultihubV3AdminPage() {
         </TabsContent>
         
         <TabsContent value="monitoring">
-          <div className="rounded-lg border bg-card p-6">
-            <h3 className="text-lg font-semibold mb-4">Program Monitoring</h3>
-            <p className="text-muted-foreground">
-              This section will be implemented soon. It will display program state and statistics.
-            </p>
+          <div className="space-y-6">
+            <div className="rounded-lg border bg-card p-6">
+              <h3 className="text-lg font-semibold mb-4">Program State & PDAs</h3>
+              <p className="text-muted-foreground mb-4">
+                View detailed information about the program state and PDAs to help with debugging.
+              </p>
+              <MultihubV3DebugPanel />
+            </div>
           </div>
         </TabsContent>
       </Tabs>

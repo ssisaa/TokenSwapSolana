@@ -5,6 +5,7 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { MultihubIntegrationV3 } from '@/lib/multihub-integration-v3';
 import { Loader2 } from 'lucide-react';
+import MultihubV3DebugPanel from './MultihubV3DebugPanel';
 
 interface MultihubV3AdminActionsProps {
   wallet: any;
@@ -155,6 +156,13 @@ export function MultihubV3AdminActions({ wallet }: MultihubV3AdminActionsProps) 
         <p className="text-sm mb-4">
           Program ID: <code className="bg-muted p-1 rounded">{MultihubIntegrationV3.PROGRAM_ID_V3}</code>
         </p>
+        
+        {/* Debug Panel - shows program state and PDA information */}
+        <div className="mb-6">
+          <MultihubV3DebugPanel />
+        </div>
+        
+        <Separator className="my-6" />
         
         <div className="space-y-4">
           <div>
