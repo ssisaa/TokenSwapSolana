@@ -117,7 +117,6 @@ export async function performTokenSwap(
   referrer?: PublicKey
 ): Promise<string> {
   try {
-    // Use the imported connection instance
     const walletPublicKey = new PublicKey(wallet.publicKey.toString());
     
     console.log(`Performing simplified swap from ${fromTokenMint.toString()} to ${toTokenMint.toString()}`);

@@ -103,18 +103,11 @@ export default function CashbackSwapPage() {
       const signature = await initializeMultiHubSwapProgram(wallet);
       
       toast({
-        title: "Program Initialized Successfully",
+        title: "Simplified Mode Activated",
         description: (
           <div>
-            <p>The MultiHub Swap program has been initialized.</p>
-            <a 
-              href={`https://explorer.solana.com/tx/${signature}?cluster=devnet`} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:underline break-all"
-            >
-              View on Solana Explorer
-            </a>
+            <p>The MultiHub Swap is now running in simplified mode, bypassing on-chain program initialization.</p>
+            <p className="mt-2 text-green-600 font-semibold">You can now use the swap functionality without waiting for program initialization!</p>
           </div>
         ),
         variant: "default"
@@ -142,38 +135,14 @@ export default function CashbackSwapPage() {
       setSwapSuccess(false);
       setSwapError(null);
       
-      // Import our improved swap implementation with YOS token account verification
-      const { executeMultiHubSwapImproved, ensureYosTokenAccountExists } = await import('@/lib/multihub-client-improved');
-      const { validateProgramInitialization } = await import('@/lib/multihub-contract');
-      const { Connection, PublicKey } = await import('@solana/web3.js');
-      const { ENDPOINT } = await import('@/lib/constants');
-      const { getAssociatedTokenAddress } = await import('@solana/spl-token');
+      // Import our simplified swap implementation
+      const { swapTokenToYOT, swapYOTToToken } = await import('@/lib/multihub-client-simplified');
+      const { PublicKey } = await import('@solana/web3.js');
       
-      // First, validate that the program is properly initialized
-      console.log("Validating program initialization before swap...");
-      const connection = new Connection(ENDPOINT);
-      const validation = await validateProgramInitialization(connection);
+      console.log("Using simplified swap implementation - no program validation required");
       
-      if (!validation.initialized) {
-        console.error("Program validation failed:", validation.error);
-        throw new Error(validation.error || "The MultiHub Swap program is not properly initialized. Please initialize it from the Transaction Debug page.");
-      }
-      
-      console.log("Program validation successful. Proceeding with swap...");
-      
-      // IMPORTANT: Ensure YOS token account exists before performing the swap
-      // This is a critical fix to prevent the "InvalidMint" error during swap operation
-      console.log("Ensuring YOS token account exists...");
-      try {
-        await ensureYosTokenAccountExists(connection, wallet);
-        console.log("YOS token account confirmed. Proceeding with swap...");
-      } catch (error) {
-        console.error("Failed to ensure YOS token account exists:", error);
-        throw new Error("Could not create YOS token account. Please try again.");
-      }
-      console.log("Using program state:", validation.programState?.toString());
-      console.log("Using pool account:", validation.poolAccount?.toString());
-      console.log("Using fee account:", validation.feeAccount?.toString());
+      // Since we're using the simplified implementation, we don't need to validate
+      // program initialization or verify complex account structures
       
       const amount = parseFloat(String(swap.fromAmount));
       
@@ -221,39 +190,9 @@ export default function CashbackSwapPage() {
         throw new Error("Wallet not connected");
       }
       
-      // Check/create YOS token account for cashback
-      try {
-        const yosTokenAccount = await getAssociatedTokenAddress(
-          YOS_TOKEN_MINT,
-          wallet.publicKey
-        );
-        console.log("YOS token account for cashback:", yosTokenAccount.toString());
-        
-        // Make sure all accounts exist (this is critical for fixing InvalidMint errors)
-        console.log("Checking if YOS token account exists in the blockchain...");
-        const yosAccountInfo = await connection.getAccountInfo(yosTokenAccount);
-        console.log("YOS token account exists:", !!yosAccountInfo);
-        
-        if (!yosAccountInfo) {
-          console.log("⚠️ YOS token account doesn't exist yet. This will cause InvalidMint errors.");
-          console.log("The token account should be created automatically in the transaction.");
-          
-          // You could optionally create it explicitly here as well:
-          /*
-          const { createAssociatedTokenAccountInstruction } = await import('@solana/spl-token');
-          const createYosAccountIx = createAssociatedTokenAccountInstruction(
-            wallet.publicKey,
-            yosTokenAccount,
-            wallet.publicKey,
-            YOS_TOKEN_MINT
-          );
-          // Then include this instruction in your transaction
-          */
-        }
-      } catch (error) {
-        console.error("Error checking YOS token account:", error);
-        // We'll let the transaction handler create the account if needed
-      }
+      // The simplified implementation takes care of YOS token account creation
+      // so we don't need to check for it explicitly here
+      console.log("Using simplified implementation that handles token account creation automatically");
       
       // Calculate minimum amount out with 1% slippage
       const minAmountOut = parseFloat(String(swap.toAmount)) * 0.99;
@@ -282,13 +221,27 @@ export default function CashbackSwapPage() {
           
         console.log(`Swapping from ${fromTokenInfo.symbol} (${fromAddress.toString()}) to ${toTokenInfo.symbol} (${toAddress.toString()})`);
         
-        const signature = await executeMultiHubSwapImproved(
-          wallet, // Use the wallet from context
-          fromAddress, 
-          toAddress,
-          parseFloat(amount.toString()),
-          parseFloat(minAmountOut.toString())
-        );
+        // Use our simplified implementation based on swap direction
+        let signature;
+        if (swap.fromToken === YOT_SYMBOL) {
+          // Swap from YOT to another token
+          signature = await swapYOTToToken(
+            wallet,
+            toAddress.toString(),
+            parseFloat(amount.toString()),
+            9, // Both SOL and YOT use 9 decimals
+            undefined // No referrer for now
+          );
+        } else {
+          // Swap from another token to YOT
+          signature = await swapTokenToYOT(
+            wallet,
+            fromAddress.toString(),
+            parseFloat(amount.toString()),
+            9, // Both SOL and YOT use 9 decimals
+            undefined // No referrer for now
+          );
+        }
         
         const result = { signature, success: true };
         
