@@ -255,13 +255,23 @@ export async function performSwap(
     amountInBuffer.writeBigUInt64LE(BigInt(amountInLamports), 0);
     minAmountOutBuffer.writeBigUInt64LE(BigInt(minAmountOutLamports), 0);
     
-    // Combine the buffers in the exact order expected by the Swap variant
-    // Use the correct instruction enum index from MultihubInstruction.Swap
-    const instructionData = Buffer.concat([
-      Buffer.from([MultihubInstruction.Swap]), // Variant index for Swap (should be 1 based on our enum)
-      amountInBuffer,    // amount_in: u64 (8 bytes)
-      minAmountOutBuffer // min_amount_out: u64 (8 bytes)
-    ]);
+    // Following the Borsh serialization format expected by the Rust program
+    // In Rust: the SwapTokenInstruction struct has { amount_in: u64, minimum_amount_out: u64 }
+    // And the Instruction enum has Swap(SwapTokenInstruction) as variant 1
+    
+    // Create a properly formatted instruction buffer
+    const instructionBuffer = Buffer.alloc(1 + 8 + 8); // 1 byte for variant + 8 bytes for each u64
+    
+    // Write the instruction variant index at position 0
+    instructionBuffer[0] = MultihubInstruction.Swap;
+    
+    // Write the amount_in at position 1 (little-endian)
+    amountInBuffer.copy(instructionBuffer, 1);
+    
+    // Write the minimum_amount_out at position 9 (1 + 8) (little-endian)
+    minAmountOutBuffer.copy(instructionBuffer, 9);
+    
+    const instructionData = instructionBuffer;
     
     // Output debugging info
     console.log('Swap instruction data length:', instructionData.length);
@@ -435,10 +445,9 @@ export async function closeProgram(
     const [programStateAddress, _] = findProgramStateAddress();
     const [programAuthorityAddress, __] = findProgramAuthorityAddress();
     
-    // Create a SIMPLE binary instruction - just a single byte for the instruction type
-    // Contract could be using an enum index of 3 or 4 for close
-    // Let's try index 3 first (follows same scheme as our initialize fix)
-    const instructionData = Buffer.from([3]);
+    // Create a binary instruction with the correct MultihubInstruction enum value
+    // The CloseProgram variant doesn't have any additional data fields
+    const instructionData = Buffer.from([MultihubInstruction.CloseProgram]);
     
     // Output debugging info
     console.log('Close program instruction data (simple format):', 
