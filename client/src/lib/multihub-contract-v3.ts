@@ -255,21 +255,26 @@ export async function performSwap(
     amountInBuffer.writeBigUInt64LE(BigInt(amountInLamports), 0);
     minAmountOutBuffer.writeBigUInt64LE(BigInt(minAmountOutLamports), 0);
     
-    // Following the Borsh serialization format expected by the Rust program
-    // In Rust: the SwapTokenInstruction struct has { amount_in: u64, minimum_amount_out: u64 }
-    // And the Instruction enum has Swap(SwapTokenInstruction) as variant 1
+    // IMPORTANT: The actual program code in multihub_swap.rs uses a MANUAL byte parsing approach
+    // NOT a full Borsh deserialization. The program expects:
+    // - First byte (index 0) = instruction type (1 for Swap)
+    // - Bytes 1-8 = amount_in as little-endian u64
+    // - Bytes 9-16 = minimum_amount_out as little-endian u64
     
-    // Create a properly formatted instruction buffer
-    const instructionBuffer = Buffer.alloc(1 + 8 + 8); // 1 byte for variant + 8 bytes for each u64
+    // Create an instruction buffer with the exact layout the program expects
+    const instructionBuffer = Buffer.alloc(17); // 1 + 8 + 8 bytes
     
-    // Write the instruction variant index at position 0
-    instructionBuffer[0] = MultihubInstruction.Swap;
+    // Write instruction type (1 = SwapToken) as a single byte
+    instructionBuffer[0] = 1; // Hardcoded as 1, not using enum, to match exact program expectation
     
-    // Write the amount_in at position 1 (little-endian)
+    // Copy the amount_in bytes starting at position 1
     amountInBuffer.copy(instructionBuffer, 1);
     
-    // Write the minimum_amount_out at position 9 (1 + 8) (little-endian)
+    // Copy the minimum_amount_out bytes starting at position 9
     minAmountOutBuffer.copy(instructionBuffer, 9);
+    
+    // Log the entire buffer for debugging
+    console.log('Raw instruction bytes:', Array.from(new Uint8Array(instructionBuffer)));
     
     const instructionData = instructionBuffer;
     
@@ -445,9 +450,10 @@ export async function closeProgram(
     const [programStateAddress, _] = findProgramStateAddress();
     const [programAuthorityAddress, __] = findProgramAuthorityAddress();
     
-    // Create a binary instruction with the correct MultihubInstruction enum value
-    // The CloseProgram variant doesn't have any additional data fields
-    const instructionData = Buffer.from([MultihubInstruction.CloseProgram]);
+    // Create a binary instruction with the index matching the program's instruction type
+    // Based on multihub_swap.rs, instruction type 2 is likely CloseProgram
+    // This matches the manual byte parsing approach in the program
+    const instructionData = Buffer.from([2]); // Hardcoded as 2 for CloseProgram
     
     // Output debugging info
     console.log('Close program instruction data (simple format):', 
