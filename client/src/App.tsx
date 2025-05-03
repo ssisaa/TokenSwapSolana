@@ -185,6 +185,12 @@ function Router() {
           </DashboardLayout>
         </Route>
         
+        <Route path="/multihub-admin">
+          <DashboardLayout>
+            <MultihubAdminPage />
+          </DashboardLayout>
+        </Route>
+        
         <Route path="/mock-swap">
           <DashboardLayout>
             <MockSwapPage />

@@ -1,20 +1,25 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import PageTitle from '@/components/PageTitle';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
-import MultihubAdminPanel from '@/components/MultihubAdminPanel';
 import { Button } from '@/components/ui/button';
 import { LockKeyhole } from 'lucide-react';
+import MultihubAdminPanel from '@/components/MultihubAdminPanel';
 
 export default function MultihubAdminPage() {
   const { isAdmin, login } = useAdminAuth();
   
   return (
     <div className="container max-w-5xl py-8">
-      <PageTitle 
-        title="MultiHub Swap Admin"
-        description="Manage and configure the MultiHub Swap system"
-      />
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-300">
+            MultiHub Admin
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Manage and configure the MultiHub Swap protocol
+          </p>
+        </div>
+      </div>
       
       {/* Admin Authentication */}
       {!isAdmin && (
