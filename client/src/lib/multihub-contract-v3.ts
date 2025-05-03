@@ -187,9 +187,6 @@ export async function initializeProgram(
     const [programStateAddress, stateBump] = findProgramStateAddress();
     const [programAuthorityAddress, authorityBump] = findProgramAuthorityAddress();
     
-    // Create the initialize instruction data using Borsh serialization
-    // This will exactly match what the contract expects
-    
     console.log('Creating initialize instruction with:');
     console.log('Admin:', wallet.publicKey.toBase58());
     console.log('YOT Mint:', YOT_TOKEN_MINT);
@@ -200,34 +197,25 @@ export async function initializeProgram(
     console.log('Swap Fee Rate:', SWAP_FEE_RATE);
     console.log('Referral Rate:', REFERRAL_RATE);
     
-    // Create the instruction object
-    const initializeInstructionObj = new InitializeInstruction(
-      wallet.publicKey.toBuffer(),
-      new PublicKey(YOT_TOKEN_MINT).toBuffer(),
-      new PublicKey(YOS_TOKEN_MINT).toBuffer(),
-      LP_CONTRIBUTION_RATE,
-      ADMIN_FEE_RATE,
-      YOS_CASHBACK_RATE,
-      SWAP_FEE_RATE,
-      REFERRAL_RATE
-    );
+    // Create the instruction data using the example approach
+    const instructionData = Buffer.concat([
+      Buffer.from([0]), // discriminator for Initialize variant
+      borsh.serialize(
+        InitializeInstructionSchema,
+        new InitializeInstruction({
+          admin: wallet.publicKey.toBytes(),
+          yot_mint: new PublicKey(YOT_TOKEN_MINT).toBytes(),
+          yos_mint: new PublicKey(YOS_TOKEN_MINT).toBytes(),
+          lp_contribution_rate: BigInt(LP_CONTRIBUTION_RATE),
+          admin_fee_rate: BigInt(ADMIN_FEE_RATE),
+          yos_cashback_rate: BigInt(YOS_CASHBACK_RATE),
+          swap_fee_rate: BigInt(SWAP_FEE_RATE),
+          referral_rate: BigInt(REFERRAL_RATE),
+        })
+      )
+    ]);
     
-    // Serialize the instruction data using Borsh
-    const serializedData = borsh.serialize(
-      initializeInstructionSchema,
-      initializeInstructionObj
-    );
-    
-    // Create the final instruction buffer with the variant index at the beginning
-    const instructionData = Buffer.alloc(1 + serializedData.length);
-    instructionData.writeUInt8(InstructionVariant.Initialize, 0); // Write the variant index
-    
-    // Copy the serialized data after the variant
-    for (let i = 0; i < serializedData.length; i++) {
-      instructionData[i + 1] = serializedData[i];
-    }
-    
-    console.log('Using direct buffer encoding for Initialize instruction');
+    console.log('Using buffer concat for Initialize instruction');
     console.log('Initialize instruction data length:', instructionData.length);
     console.log('Instruction data in bytes:', Array.from(new Uint8Array(instructionData)));
     
@@ -377,7 +365,7 @@ export async function performSwap(
     
     // Serialize the instruction data using Borsh
     const serializedData = borsh.serialize(
-      swapInstructionSchema,
+      SwapInstructionSchema,
       swapInstructionObj
     );
     
@@ -569,7 +557,7 @@ export async function closeProgram(
     
     // Serialize the instruction data using Borsh
     const serializedData = borsh.serialize(
-      closeProgramInstructionSchema,
+      CloseProgramInstructionSchema,
       closeProgramInstructionObj
     );
     
