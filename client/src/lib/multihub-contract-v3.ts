@@ -112,7 +112,7 @@ export async function initializeProgram(
     const [programStateAddress, stateBump] = findProgramStateAddress();
     const [programAuthorityAddress, authorityBump] = findProgramAuthorityAddress();
     
-    // Create a buffer for the instruction data
+    // Create a buffer for the instruction data with EXACT format matching the V4 contract
     // Format:
     // - Variant index (u8): 0 for Initialize
     // - admin: Pubkey (32 bytes)
@@ -146,20 +146,21 @@ export async function initializeProgram(
     yosMintPubkey.copy(instructionData, offset);
     offset += 32;
     
-    // Write lp_contribution_rate
-    offset = writeUInt64LEToBuffer(instructionData, LP_CONTRIBUTION_RATE, offset);
+    // SPECIAL FORMAT ATTENTION: Write u64 values using DataView for maximum compatibility
+    const view = new DataView(instructionData.buffer, instructionData.byteOffset, instructionData.byteLength);
+    view.setBigUint64(offset, BigInt(LP_CONTRIBUTION_RATE), true); // little-endian
+    offset += 8;
     
-    // Write admin_fee_rate
-    offset = writeUInt64LEToBuffer(instructionData, ADMIN_FEE_RATE, offset);
+    view.setBigUint64(offset, BigInt(ADMIN_FEE_RATE), true);
+    offset += 8;
     
-    // Write yos_cashback_rate
-    offset = writeUInt64LEToBuffer(instructionData, YOS_CASHBACK_RATE, offset);
+    view.setBigUint64(offset, BigInt(YOS_CASHBACK_RATE), true);
+    offset += 8;
     
-    // Write swap_fee_rate
-    offset = writeUInt64LEToBuffer(instructionData, SWAP_FEE_RATE, offset);
+    view.setBigUint64(offset, BigInt(SWAP_FEE_RATE), true);
+    offset += 8;
     
-    // Write referral_rate
-    writeUInt64LEToBuffer(instructionData, REFERRAL_RATE, offset);
+    view.setBigUint64(offset, BigInt(REFERRAL_RATE), true);
     
     console.log('Using direct buffer encoding for Initialize instruction');
     console.log('Initialize instruction data length:', instructionData.length);
@@ -300,7 +301,7 @@ export async function performSwap(
     console.log(`Converting ${amountIn} tokens to ${amountInLamports} lamports`);
     console.log(`Converting ${minAmountOut} min output to ${minAmountOutLamports} lamports`);
     
-    // Create instruction data buffer
+    // Create instruction data buffer with EXACT format matching the V4 contract
     // This must match the Rust enum definition: 
     // Swap { amount_in: u64, min_amount_out: u64 }
     
@@ -312,11 +313,12 @@ export async function performSwap(
     instructionData.writeUInt8(InstructionVariant.Swap, offset);
     offset += 1;
     
-    // Write amount_in (u64)
-    offset = writeUInt64LEToBuffer(instructionData, amountInLamports, offset);
+    // SPECIAL FORMAT ATTENTION: Write u64 values using DataView for maximum compatibility
+    const view = new DataView(instructionData.buffer, instructionData.byteOffset, instructionData.byteLength);
+    view.setBigUint64(offset, BigInt(amountInLamports), true); // little-endian
+    offset += 8;
     
-    // Write min_amount_out (u64)
-    writeUInt64LEToBuffer(instructionData, minAmountOutLamports, offset);
+    view.setBigUint64(offset, BigInt(minAmountOutLamports), true);
     
     console.log('Using direct buffer encoding for Swap instruction');
     console.log('Swap instruction data length:', instructionData.length);
