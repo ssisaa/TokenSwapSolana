@@ -16,8 +16,31 @@ const SOL_TOKEN = 'So11111111111111111111111111111111111111112';
 const YOT_TOKEN = '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF';
 const YOS_TOKEN = 'GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n';
 
+// MultiHub Program ID
+const MULTIHUB_PROGRAM_ID = 'Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L';
+
+// Flag to track if we're in test mode (no wallet operations)
+let testMode = false;
+
+// Flag to track if the program has been initialized
+let programInitialized = true; // Default to true to avoid blocking the UI
+
 // Maximum retry attempts for transactions
 const MAX_RETRIES = 1;
+
+/**
+ * Enable test mode with simulated transactions
+ */
+export function enableTestMode(enabled = true): void {
+  testMode = enabled;
+  setMockMode(enabled);
+  console.log(`Test mode ${enabled ? 'enabled' : 'disabled'}`);
+  
+  // In test mode, we always say the program is initialized
+  if (enabled) {
+    programInitialized = true;
+  }
+}
 
 // Configuration flags
 let useMockMode = false;
@@ -49,12 +72,13 @@ export async function initialize(wallet: any): Promise<string> {
   
   // When in mock mode, just return a mock transaction
   if (useMockMode) {
-    const result = await mockTransaction({
-      fromToken: "ADMIN",
-      toToken: "PROGRAM",
-      amount: 0,
-    });
-    return result.signature;
+    const signature = mockTransaction(
+      "ADMIN", // fromTokenMint
+      "PROGRAM", // toTokenMint
+      0, // amount
+      9 // decimals
+    );
+    return signature;
   }
   
   // Otherwise, return a simulated signature
@@ -81,17 +105,14 @@ export async function swapTokenToYOT(
   // If mock mode is explicitly enabled, skip real transaction attempt
   if (useMockMode) {
     console.log("Using mock transaction mode");
-    const result = await mockTransaction({
-      fromToken: fromTokenMint === SOL_TOKEN ? "SOL" : "OTHER",
-      toToken: "YOT",
-      amount: amount
-    });
+    const signature = mockTransaction(
+      fromTokenMint,
+      YOT_TOKEN,
+      amount,
+      decimals
+    );
     
-    if (!result.success) {
-      throw new Error(result.errorMessage || "Mock transaction failed");
-    }
-    
-    return result.signature;
+    return signature;
   }
   
   // Otherwise try a real transaction first, with fallback to mock
