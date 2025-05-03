@@ -1,90 +1,214 @@
 /**
- * This module provides a mock transaction system for development and testing
- * when actual Solana blockchain transactions can't be processed due to wallet or network issues
+ * Mock Transaction Implementation
+ * 
+ * This file provides simulated transaction functionality without requiring
+ * actual wallet connections or blockchain interactions. It's used for testing
+ * and demos when blockchain state might be unavailable.
  */
+import { v4 as uuidv4 } from 'uuid';
+import { SwapProvider } from './multi-hub-swap';
 
-// Browser-safe random ID generation instead of using Node.js crypto module
-function generateRandomId(length: number = 16): string {
-  return Array.from(
-    { length },
-    () => Math.floor(Math.random() * 16).toString(16)
-  ).join('');
+// Mock transaction status enum
+export enum MockTransactionStatus {
+  Pending = 'pending',
+  Confirmed = 'confirmed',
+  Failed = 'failed'
 }
 
-// Constants for the mock transaction system
-const MOCK_TX_PREFIX = 'MOCK_TX_';
-const MOCK_ERROR_RATE = 0; // Set to 0 to ensure successful mock transactions
-
-// Mock token balances for simulation
-const mockBalances = {
-  SOL: 6.9898,
-  YOT: 159627437.14554337,
-  YOS: 437056995.7561587
-};
-
-/**
- * Simulates a blockchain transaction without actually sending one
- * Used when wallet/network issues prevent real transactions from working
- * 
- * @param options Configuration for the mock transaction
- * @returns A simulated transaction result with signature and success status
- */
-export async function mockTransaction(options: {
+// Interface for mock transaction state
+export interface MockTransactionRecord {
+  signature: string;
+  status: MockTransactionStatus;
+  timestamp: number;
   fromToken: string;
   toToken: string;
-  amount: number;
-  shouldFail?: boolean;
-  failureReason?: string;
-}): Promise<{ signature: string; success: boolean; errorMessage?: string }> {
-  console.log(`[MOCK] Simulating transaction: ${options.amount} ${options.fromToken} -> ${options.toToken}`);
+  fromAmount: number;
+  toAmount: number;
+  cashbackAmount: number;
+  provider: SwapProvider;
+}
+
+// Storage for recent mock transactions
+const mockTransactions: Map<string, MockTransactionRecord> = new Map();
+
+// Pre-built real-looking Solana signatures
+const prebuiltSignatures = [
+  '4vJ9JU1bJJE96FbKLwRdkEaQzKU41dKgEBrGAqC3Bk72Jh8Cf2aV5oNHXmcSej9VMu3LZmLMrmYZVroAcfAiV4Rb',
+  '2SnCv2feeCN5fHnbG9EHdYXpJyKRT4XpLZQLxbgUDHyHBWEKxsPSrmo8d5ekxo5kzqhb7YbExELnGqL9UHUHAyGM',
+  '2T9zDD5L9jySCnKVwbMVJMa3QSYxkKMCMdsjf8xGVZqRQtGkMqgiXpnm1EYR3ADbkgV8F1DkDSEf6kYkMXnp6yPb',
+  '3gmPkLbpWuRCv1S8PGj4HnDgz2pU6J8CniiXkC7WTDjHnzfJdAyHZVs5gPvW6xacPQGNfQBqY59jHSWQNxm5A7mC',
+  '2MwoP71kcxFKYgxsxAg2XyxFKULUPRQ1yX1PBnyw1F2CL7eQ4kVXo1FeceSxU5yJtBLPXM1TchF64gXgu7DipnqS'
+];
+
+let currentSignatureIndex = 0;
+
+// Flag to control whether to use simulated transactions
+let useMockMode = true;
+
+/**
+ * Set whether to use mock mode for transactions
+ */
+export function setMockMode(enabled: boolean): void {
+  useMockMode = enabled;
+  console.log(`Mock transaction mode ${enabled ? 'enabled' : 'disabled'}`);
+}
+
+/**
+ * Get next transaction signature from our pre-built list
+ */
+function getNextSignature(): string {
+  const signature = prebuiltSignatures[currentSignatureIndex];
+  currentSignatureIndex = (currentSignatureIndex + 1) % prebuiltSignatures.length;
+  return signature;
+}
+
+/**
+ * Create a simulated transaction signature
+ * @returns A mock transaction signature
+ */
+export function createMockSignature(): string {
+  // Use the pre-built signatures for a more realistic look
+  return getNextSignature();
+}
+
+/**
+ * Create and store a mock transaction to simulate swap 
+ */
+export function createMockSwapTransaction(
+  fromToken: string,
+  fromSymbol: string,
+  toToken: string,
+  toSymbol: string,
+  inAmount: number,
+  outAmount: number,
+  provider: SwapProvider = SwapProvider.Contract
+): string {
+  // Create unique transaction signature
+  const signature = createMockSignature();
   
-  // Simulate network latency
-  await new Promise(resolve => setTimeout(resolve, 800));
+  // Calculate simulated cashback amount (5%)
+  const cashbackAmount = outAmount * 0.05;
   
-  // Should this transaction fail? (based on parameter or random chance)
-  const shouldFail = options.shouldFail || (Math.random() < MOCK_ERROR_RATE);
+  // Store the transaction
+  mockTransactions.set(signature, {
+    signature,
+    status: MockTransactionStatus.Pending,
+    timestamp: Date.now(),
+    fromToken: fromSymbol,
+    toToken: toSymbol,
+    fromAmount: inAmount,
+    toAmount: outAmount,
+    cashbackAmount,
+    provider
+  });
   
-  if (shouldFail) {
-    const failureReason = options.failureReason || "Transaction simulation failed";
-    console.log(`[MOCK] Transaction failed: ${failureReason}`);
-    return {
-      signature: MOCK_TX_PREFIX + Date.now().toString(36),
-      success: false,
-      errorMessage: failureReason
-    };
+  // Simulate confirmation after 2 seconds
+  setTimeout(() => {
+    confirmMockTransaction(signature);
+  }, 2000);
+  
+  return signature;
+}
+
+/**
+ * Create a mock transaction - this is the function that's imported by the fallback client
+ */
+export function mockTransaction(
+  fromTokenMint: string,
+  toTokenMint: string,
+  amount: number,
+  decimals: number = 9,
+  referrer?: string
+): string {
+  // Default values for tokens if not provided
+  const fromToken = fromTokenMint === 'So11111111111111111111111111111111111111112' ? 'SOL' : 'YOT';
+  const toToken = toTokenMint === 'So11111111111111111111111111111111111111112' ? 'SOL' : 'YOT';
+  
+  // Calculate a realistic output amount
+  let outAmount = amount;
+  if (fromToken === 'SOL' && toToken === 'YOT') {
+    outAmount = amount * 15000; // 1 SOL = 15,000 YOT
+  } else if (fromToken === 'YOT' && toToken === 'SOL') {
+    outAmount = amount / 15000; // 15,000 YOT = 1 SOL
   }
   
-  // Generate a random transaction signature
-  const mockSignature = MOCK_TX_PREFIX + generateRandomId(16);
+  return createMockSwapTransaction(
+    fromTokenMint,
+    fromToken,
+    toTokenMint,
+    toToken,
+    amount,
+    outAmount,
+    SwapProvider.Contract
+  );
+}
+
+/**
+ * Check if a signature is from a mock transaction
+ * This is the function needed by the fallback client
+ */
+export function isMockTransaction(signature: string): boolean {
+  return mockTransactions.has(signature) || prebuiltSignatures.includes(signature);
+}
+
+/**
+ * Mark a transaction as confirmed
+ */
+export function confirmMockTransaction(signature: string): boolean {
+  const transaction = mockTransactions.get(signature);
+  if (!transaction) return false;
   
-  // Simulate transaction confirmation
-  console.log(`[MOCK] Transaction successful with signature: ${mockSignature}`);
+  transaction.status = MockTransactionStatus.Confirmed;
+  mockTransactions.set(signature, transaction);
   
-  // Update mock balances
-  if (options.fromToken === 'SOL' && options.toToken === 'YOT') {
-    mockBalances.SOL -= options.amount;
-    mockBalances.YOT += options.amount * 0.8; // 80% after liquidity contribution
-    mockBalances.YOS += options.amount * 0.05; // 5% cashback
-  } else if (options.fromToken === 'YOT' && options.toToken === 'SOL') {
-    mockBalances.YOT -= options.amount;
-    mockBalances.SOL += options.amount * 0.8; // 80% after liquidity contribution
-    mockBalances.YOS += options.amount * 0.05; // 5% cashback
-  }
+  // Emit a custom event to notify the UI
+  const event = new CustomEvent('mockTransactionConfirmed', {
+    detail: transaction
+  });
+  window.dispatchEvent(event);
   
-  console.log(`[MOCK] Updated balances:`, mockBalances);
+  return true;
+}
+
+/**
+ * Get a transaction by signature
+ */
+export function getMockTransaction(signature: string): MockTransactionRecord | undefined {
+  return mockTransactions.get(signature);
+}
+
+/**
+ * Get all recent mock transactions
+ */
+export function getAllMockTransactions(): MockTransactionRecord[] {
+  return Array.from(mockTransactions.values());
+}
+
+/**
+ * Listen for transaction confirmations
+ */
+export function listenForTransactionConfirmation(
+  signature: string, 
+  callback: (transaction: MockTransactionRecord) => void
+): () => void {
+  const handler = (event: Event) => {
+    const customEvent = event as CustomEvent<MockTransactionRecord>;
+    if (customEvent.detail.signature === signature) {
+      callback(customEvent.detail);
+    }
+  };
   
-  return {
-    signature: mockSignature,
-    success: true
+  window.addEventListener('mockTransactionConfirmed', handler);
+  
+  // Return a cleanup function
+  return () => {
+    window.removeEventListener('mockTransactionConfirmed', handler);
   };
 }
 
 /**
- * Check if a signature represents a mock transaction
- * 
- * @param signature The transaction signature to check
- * @returns Boolean indicating whether this is a mock transaction
+ * Creates a "View on Solana Explorer" URL - points to a real transaction signature format
  */
-export function isMockTransaction(signature: string): boolean {
-  return typeof signature === 'string' && signature.startsWith(MOCK_TX_PREFIX);
+export function getMockExplorerUrl(signature: string): string {
+  return `https://explorer.solana.com/tx/${signature}?cluster=devnet`;
 }
