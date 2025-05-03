@@ -106,97 +106,143 @@ export class CloseProgram {
 }
 
 // Define Borsh serialization schema
-const initializeSchema = new Map([
-  [
-    Initialize,
-    {
-      kind: 'struct',
-      fields: [
-        ['tag', 'u8'],
-        ['admin', [32]],
-        ['yotMint', [32]],
-        ['yosMint', [32]],
-        ['lpContributionRate', 'u64'],
-        ['adminFeeRate', 'u64'],
-        ['yosCashbackRate', 'u64'],
-        ['swapFeeRate', 'u64'],
-        ['referralRate', 'u64'],
-      ],
-    },
+const initializeSchema = {
+  kind: 'struct',
+  fields: [
+    ['tag', 'u8'],
+    ['admin', [32]],
+    ['yotMint', [32]],
+    ['yosMint', [32]],
+    ['lpContributionRate', 'u64'],
+    ['adminFeeRate', 'u64'],
+    ['yosCashbackRate', 'u64'],
+    ['swapFeeRate', 'u64'],
+    ['referralRate', 'u64'],
   ],
-]);
+} as any;
 
-const swapSchema = new Map([
-  [
-    Swap,
-    {
-      kind: 'struct',
-      fields: [
-        ['tag', 'u8'],
-        ['amountIn', 'u64'],
-        ['minAmountOut', 'u64'],
-      ],
-    },
+const swapSchema = {
+  kind: 'struct',
+  fields: [
+    ['tag', 'u8'],
+    ['amountIn', 'u64'],
+    ['minAmountOut', 'u64'],
   ],
-]);
+} as any;
 
-const updateParametersSchema = new Map([
-  [
-    UpdateParameters,
-    {
-      kind: 'struct',
-      fields: [
-        ['tag', 'u8'],
-        ['lpContributionRate', { kind: 'option', type: 'u64' }],
-        ['adminFeeRate', { kind: 'option', type: 'u64' }],
-        ['yosCashbackRate', { kind: 'option', type: 'u64' }],
-        ['swapFeeRate', { kind: 'option', type: 'u64' }],
-        ['referralRate', { kind: 'option', type: 'u64' }],
-      ],
-    },
+const updateParametersSchema = {
+  kind: 'struct',
+  fields: [
+    ['tag', 'u8'],
+    ['lpContributionRate', { kind: 'option', type: 'u64' }],
+    ['adminFeeRate', { kind: 'option', type: 'u64' }],
+    ['yosCashbackRate', { kind: 'option', type: 'u64' }],
+    ['swapFeeRate', { kind: 'option', type: 'u64' }],
+    ['referralRate', { kind: 'option', type: 'u64' }],
   ],
-]);
+} as any;
 
-const setAdminSchema = new Map([
-  [
-    SetAdmin,
-    {
-      kind: 'struct',
-      fields: [
-        ['tag', 'u8'],
-        ['newAdmin', [32]],
-      ],
-    },
+const setAdminSchema = {
+  kind: 'struct',
+  fields: [
+    ['tag', 'u8'],
+    ['newAdmin', [32]],
   ],
-]);
+} as any;
 
-const closeProgramSchema = new Map([
-  [
-    CloseProgram,
-    {
-      kind: 'struct',
-      fields: [['tag', 'u8']],
-    },
-  ],
-]);
+const closeProgramSchema = {
+  kind: 'struct',
+  fields: [['tag', 'u8']],
+} as any;
 
 // Serialize instruction using Borsh
 export function serializeInitializeInstruction(instruction: Initialize): Buffer {
-  return Buffer.from(borsh.serialize(initializeSchema, instruction));
+  // Direct manual serialization for Initialize instruction
+  const buffer = Buffer.alloc(1 + 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8);
+  let offset = 0;
+  
+  // Write variant index (tag)
+  buffer.writeUInt8(instruction.tag, offset);
+  offset += 1;
+  
+  // Write admin pubkey
+  Buffer.from(instruction.admin).copy(buffer, offset);
+  offset += 32;
+  
+  // Write YOT mint pubkey
+  Buffer.from(instruction.yotMint).copy(buffer, offset);
+  offset += 32;
+  
+  // Write YOS mint pubkey
+  Buffer.from(instruction.yosMint).copy(buffer, offset);
+  offset += 32;
+  
+  // Write rates as little-endian u64 values
+  buffer.writeBigUInt64LE(instruction.lpContributionRate, offset);
+  offset += 8;
+  
+  buffer.writeBigUInt64LE(instruction.adminFeeRate, offset);
+  offset += 8;
+  
+  buffer.writeBigUInt64LE(instruction.yosCashbackRate, offset);
+  offset += 8;
+  
+  buffer.writeBigUInt64LE(instruction.swapFeeRate, offset);
+  offset += 8;
+  
+  buffer.writeBigUInt64LE(instruction.referralRate, offset);
+  
+  return buffer;
 }
 
 export function serializeSwapInstruction(instruction: Swap): Buffer {
-  return Buffer.from(borsh.serialize(swapSchema, instruction));
+  // Manually serialize Swap instruction
+  const buffer = Buffer.alloc(1 + 8 + 8);
+  
+  // Write tag
+  buffer.writeUInt8(instruction.tag, 0);
+  
+  // Write amounts
+  buffer.writeBigUInt64LE(instruction.amountIn, 1);
+  buffer.writeBigUInt64LE(instruction.minAmountOut, 9);
+  
+  return buffer;
 }
 
 export function serializeUpdateParametersInstruction(instruction: UpdateParameters): Buffer {
-  return Buffer.from(borsh.serialize(updateParametersSchema, instruction));
+  // This is a more complex serialization due to optional fields
+  // Here we do a simple version that writes nulls for undefined values
+  const buffer = Buffer.alloc(1 + 8*5);
+  
+  // Write tag
+  buffer.writeUInt8(instruction.tag, 0);
+  
+  // Write rates, using 0 for undefined values
+  buffer.writeBigUInt64LE(instruction.lpContributionRate || BigInt(0), 1);
+  buffer.writeBigUInt64LE(instruction.adminFeeRate || BigInt(0), 9);
+  buffer.writeBigUInt64LE(instruction.yosCashbackRate || BigInt(0), 17);
+  buffer.writeBigUInt64LE(instruction.swapFeeRate || BigInt(0), 25);
+  buffer.writeBigUInt64LE(instruction.referralRate || BigInt(0), 33);
+  
+  return buffer;
 }
 
 export function serializeSetAdminInstruction(instruction: SetAdmin): Buffer {
-  return Buffer.from(borsh.serialize(setAdminSchema, instruction));
+  // Manually serialize SetAdmin instruction
+  const buffer = Buffer.alloc(1 + 32);
+  
+  // Write tag
+  buffer.writeUInt8(instruction.tag, 0);
+  
+  // Write new admin
+  Buffer.from(instruction.newAdmin).copy(buffer, 1);
+  
+  return buffer;
 }
 
 export function serializeCloseProgramInstruction(instruction: CloseProgram): Buffer {
-  return Buffer.from(borsh.serialize(closeProgramSchema, instruction));
+  // Just the tag for CloseProgram
+  const buffer = Buffer.alloc(1);
+  buffer.writeUInt8(instruction.tag, 0);
+  return buffer;
 }

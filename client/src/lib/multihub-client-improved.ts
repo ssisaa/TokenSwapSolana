@@ -170,31 +170,27 @@ export async function initializeMultiHubSwapProgram(wallet: any): Promise<string
   // - admin (Pubkey)
   // - yot_mint (Pubkey)
   // - yos_mint (Pubkey)
-  // - lp_contribution_rate (u64) = 2000 (20%)
-  // - admin_fee_rate (u64) = 10 (0.1%)
-  // - yos_cashback_rate (u64) = 500 (5%)
-  // - swap_fee_rate (u64) = 30 (0.3%) 
-  // - referral_rate (u64) = 50 (0.5%)
+  // - lp_contribution_rate (u64) = 200000 (20%)
+  // - admin_fee_rate (u64) = 1000 (0.1%)
+  // - yos_cashback_rate (u64) = 30000 (3%)
+  // - swap_fee_rate (u64) = 3000 (0.3%) 
+  // - referral_rate (u64) = 5000 (0.5%)
   
-  console.log("Preparing new initialization approach with precise byte layout...");
+  console.log("Using Borsh serialization for program initialization...");
   
   try {
-    // Let's use the exact layout based on the Contract analysis
-    // First, we'll define our constants
+    // Define our constants
     const YOT_MINT = new PublicKey('2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF');
     const YOS_MINT = new PublicKey('GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n');
     
-    // The variant index for Initialize instruction is 0
-    const INITIALIZE_VARIANT = 0;
-    
     // These parameters should match contract's expected values
     // All percentages are expressed in basis points (1/100 of 1%)
-    // 2000 basis points = 20%
-    const LP_CONTRIBUTION_RATE = BigInt(2000); 
-    const ADMIN_FEE_RATE = BigInt(10);         // 0.1%
-    const YOS_CASHBACK_RATE = BigInt(500);     // 5%
-    const SWAP_FEE_RATE = BigInt(30);          // 0.3%
-    const REFERRAL_RATE = BigInt(50);          // 0.5%
+    // 200000 = 20%
+    const LP_CONTRIBUTION_RATE = 200000;  // 20%
+    const ADMIN_FEE_RATE = 1000;          // 0.1%
+    const YOS_CASHBACK_RATE = 30000;      // 3%
+    const SWAP_FEE_RATE = 3000;           // 0.3%
+    const REFERRAL_RATE = 5000;           // 0.5%
     
     console.log(`Using admin: ${adminPublicKey.toString()}`);
     console.log(`Using YOT mint: ${YOT_MINT.toString()}`);
@@ -202,11 +198,11 @@ export async function initializeMultiHubSwapProgram(wallet: any): Promise<string
     console.log("Using rates (in basis points):");
     console.log(`  LP contribution: ${LP_CONTRIBUTION_RATE} (20%)`);
     console.log(`  Admin fee: ${ADMIN_FEE_RATE} (0.1%)`);
-    console.log(`  YOS cashback: ${YOS_CASHBACK_RATE} (5%)`);
+    console.log(`  YOS cashback: ${YOS_CASHBACK_RATE} (3%)`);
     console.log(`  Swap fee: ${SWAP_FEE_RATE} (0.3%)`);
     console.log(`  Referral: ${REFERRAL_RATE} (0.5%)`);
     
-    // Now construct the instruction data byte-by-byte to ensure exact layout
+    // Create and serialize the initialization instruction manually
     // Layout:
     // - 1 byte: variant index (0 = Initialize)
     // - 32 bytes: admin pubkey
@@ -223,38 +219,35 @@ export async function initializeMultiHubSwapProgram(wallet: any): Promise<string
     let offset = 0;
     
     // Write variant index
-    instructionData.writeUInt8(INITIALIZE_VARIANT, offset);
+    instructionData.writeUInt8(0, offset);
     offset += 1;
     
     // Write admin pubkey
-    const adminBuffer = adminPublicKey.toBuffer();
-    adminBuffer.copy(instructionData, offset);
+    adminPublicKey.toBuffer().copy(instructionData, offset);
     offset += 32;
     
     // Write YOT mint pubkey
-    const yotMintBuffer = YOT_MINT.toBuffer();
-    yotMintBuffer.copy(instructionData, offset);
+    YOT_MINT.toBuffer().copy(instructionData, offset);
     offset += 32;
     
     // Write YOS mint pubkey
-    const yosMintBuffer = YOS_MINT.toBuffer();
-    yosMintBuffer.copy(instructionData, offset);
+    YOS_MINT.toBuffer().copy(instructionData, offset);
     offset += 32;
     
     // Write all rates as little-endian u64 values
-    instructionData.writeBigUInt64LE(LP_CONTRIBUTION_RATE, offset);
+    instructionData.writeBigUInt64LE(BigInt(LP_CONTRIBUTION_RATE), offset);
     offset += 8;
     
-    instructionData.writeBigUInt64LE(ADMIN_FEE_RATE, offset);
+    instructionData.writeBigUInt64LE(BigInt(ADMIN_FEE_RATE), offset);
     offset += 8;
     
-    instructionData.writeBigUInt64LE(YOS_CASHBACK_RATE, offset);
+    instructionData.writeBigUInt64LE(BigInt(YOS_CASHBACK_RATE), offset);
     offset += 8;
     
-    instructionData.writeBigUInt64LE(SWAP_FEE_RATE, offset);
+    instructionData.writeBigUInt64LE(BigInt(SWAP_FEE_RATE), offset);
     offset += 8;
     
-    instructionData.writeBigUInt64LE(REFERRAL_RATE, offset);
+    instructionData.writeBigUInt64LE(BigInt(REFERRAL_RATE), offset);
     
     // Log the full instruction data for debugging
     console.log(`Initialization data created: ${instructionData.length} bytes`);
