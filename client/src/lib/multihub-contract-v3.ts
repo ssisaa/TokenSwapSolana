@@ -30,8 +30,11 @@ export const YOT_TOKEN_MINT = '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF';
 export const YOS_TOKEN_MINT = 'GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n';
 
 // ====== Instruction types matching the Rust contract definitions =======
-// Instruction variants for the V3 contract - must match the contract's enum definition
-enum MultihubInstruction {
+// Rust-compatible instruction variants for the V3 contract
+// These must match exactly the structure in the Rust program
+
+// Enum variants
+enum InstructionVariant {
   Initialize = 0,
   Swap = 1,
   CloseProgram = 2
@@ -90,71 +93,25 @@ export async function initializeProgram(
     const [programStateAddress, stateBump] = findProgramStateAddress();
     const [programAuthorityAddress, authorityBump] = findProgramAuthorityAddress();
     
-    // Use the EXACT format that the program expects for the Initialize instruction
-    // The Rust program expects:
-    //   SwapInstruction::Initialize {
-    //     admin: Pubkey,
-    //     yot_mint: Pubkey,
-    //     yos_mint: Pubkey,
-    //     lp_contribution_rate: u64,
-    //     admin_fee_rate: u64,
-    //     yos_cashback_rate: u64,
-    //     swap_fee_rate: u64,
-    //     referral_rate: u64,
-    //   }
+    // Create instruction data using Borsh serialization
+    // Create an instance of InitializeInstruction with our parameters
+    const instruction = new InitializeInstruction(
+      wallet.publicKey,
+      new PublicKey(YOT_TOKEN_MINT),
+      new PublicKey(YOS_TOKEN_MINT),
+      LP_CONTRIBUTION_RATE,
+      ADMIN_FEE_RATE,
+      YOS_CASHBACK_RATE,
+      SWAP_FEE_RATE,
+      REFERRAL_RATE
+    );
     
-    // This is the Borsh serialization format:
-    // - Variant index (u8): 0 for Initialize
-    // - admin: Pubkey (32 bytes)
-    // - yot_mint: Pubkey (32 bytes)
-    // - yos_mint: Pubkey (32 bytes)
-    // - lp_contribution_rate: u64 (8 bytes)
-    // - admin_fee_rate: u64 (8 bytes)
-    // - yos_cashback_rate: u64 (8 bytes)
-    // - swap_fee_rate: u64 (8 bytes)
-    // - referral_rate: u64 (8 bytes)
-    const instructionData = Buffer.alloc(1 + 32*3 + 8*5);
-    let offset = 0;
+    // Serialize the instruction using Borsh
+    const instructionData = Buffer.from(borsh.serialize(instructionSchema, instruction));
     
-    // Variant index: 0 for Initialize
-    instructionData.writeUInt8(0, offset);
-    offset += 1;
-    
-    // admin pubkey
-    wallet.publicKey.toBuffer().copy(instructionData, offset);
-    offset += 32;
-    
-    // yot_mint pubkey
-    const yotMintPubkey = new PublicKey(YOT_TOKEN_MINT);
-    yotMintPubkey.toBuffer().copy(instructionData, offset);
-    offset += 32;
-    
-    // yos_mint pubkey
-    const yosMintPubkey = new PublicKey(YOS_TOKEN_MINT);
-    yosMintPubkey.toBuffer().copy(instructionData, offset);
-    offset += 32;
-    
-    // lp_contribution_rate (u64)
-    instructionData.writeBigUInt64LE(BigInt(LP_CONTRIBUTION_RATE), offset);
-    offset += 8;
-    
-    // admin_fee_rate (u64)
-    instructionData.writeBigUInt64LE(BigInt(ADMIN_FEE_RATE), offset);
-    offset += 8;
-    
-    // yos_cashback_rate (u64)
-    instructionData.writeBigUInt64LE(BigInt(YOS_CASHBACK_RATE), offset);
-    offset += 8;
-    
-    // swap_fee_rate (u64)
-    instructionData.writeBigUInt64LE(BigInt(SWAP_FEE_RATE), offset);
-    offset += 8;
-    
-    // referral_rate (u64)
-    instructionData.writeBigUInt64LE(BigInt(REFERRAL_RATE), offset);
-    
-    console.log('Using proper Borsh-serialized format for Initialize instruction');
+    console.log('Using Borsh serialization for Initialize instruction');
     console.log('Initialize instruction data length:', instructionData.length);
+    console.log('Detailed instruction structure:', instruction);
     
     // Add the initialize instruction to the transaction with EXACT accounts
     // as expected by the program (see process_initialize function)
