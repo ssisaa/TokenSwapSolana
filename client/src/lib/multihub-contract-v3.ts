@@ -267,13 +267,7 @@ export async function performSwap(
     // Create a conforming Borsh serialization for the Rust-side SwapInstruction enum
     // The Swap variant has amount_in and min_amount_out fields
     
-    // Create buffers for the u64 values
-    const amountInBuffer = Buffer.alloc(8);
-    const minAmountOutBuffer = Buffer.alloc(8);
-    
-    // Convert floating-point amounts to integer lamports before converting to BigInt
-    // For SOL, 1 SOL = 1,000,000,000 lamports (9 decimals)
-    // For most SPL tokens including YOT and YOS, they also use 9 decimals
+    // Convert floating-point amounts to integer lamports
     const DECIMALS = 9; // Most tokens use 9 decimals on Solana
     const amountInLamports = Math.floor(amountIn * (10 ** DECIMALS));
     const minAmountOutLamports = Math.floor(minAmountOut * (10 ** DECIMALS));
@@ -281,32 +275,33 @@ export async function performSwap(
     console.log(`Converting ${amountIn} tokens to ${amountInLamports} lamports`);
     console.log(`Converting ${minAmountOut} min output to ${minAmountOutLamports} lamports`);
     
-    // Write the values in little-endian format using the lamport (raw) amounts
-    amountInBuffer.writeBigUInt64LE(BigInt(amountInLamports), 0);
-    minAmountOutBuffer.writeBigUInt64LE(BigInt(minAmountOutLamports), 0);
+    // Manually construct the Borsh-serialized Swap instruction data
+    // This needs to match the SwapInstruction::Swap struct in Rust
     
-    // IMPORTANT: The actual program code in multihub_swap.rs uses a MANUAL byte parsing approach
-    // NOT a full Borsh deserialization. The program expects:
-    // - First byte (index 0) = instruction type (1 for Swap)
-    // - Bytes 1-8 = amount_in as little-endian u64
-    // - Bytes 9-16 = minimum_amount_out as little-endian u64
+    // Layout:
+    // - Variant index (u8): 1 for Swap
+    // - amount_in (u64, 8 bytes)
+    // - min_amount_out (u64, 8 bytes)
+    // Total: 1 + 8 + 8 = 17 bytes
     
-    // Create an instruction buffer with the exact layout the program expects
-    const instructionBuffer = Buffer.alloc(17); // 1 + 8 + 8 bytes
+    const instructionData = Buffer.alloc(17);
+    let offset = 0;
     
-    // Write instruction type (1 = SwapToken) as a single byte
-    instructionBuffer[0] = 1; // Hardcoded as 1, not using enum, to match exact program expectation
+    // Write variant index (1 for Swap)
+    instructionData.writeUInt8(1, offset);
+    offset += 1;
     
-    // Copy the amount_in bytes starting at position 1
-    amountInBuffer.copy(instructionBuffer, 1);
+    // Write amount_in as u64
+    instructionData.writeBigUInt64LE(BigInt(amountInLamports), offset);
+    offset += 8;
     
-    // Copy the minimum_amount_out bytes starting at position 9
-    minAmountOutBuffer.copy(instructionBuffer, 9);
+    // Write min_amount_out as u64
+    instructionData.writeBigUInt64LE(BigInt(minAmountOutLamports), offset);
+    // offset += 8; // Not needed for the last field
     
     // Log the entire buffer for debugging
-    console.log('Raw instruction bytes:', Array.from(new Uint8Array(instructionBuffer)));
-    
-    const instructionData = instructionBuffer;
+    console.log('Raw instruction bytes:', Array.from(new Uint8Array(instructionData)));
+    console.log('Swap instruction data length:', instructionData.length);
     
     // Output debugging info
     console.log('Swap instruction data length:', instructionData.length);
@@ -480,16 +475,19 @@ export async function closeProgram(
     const [programStateAddress, closeProgramStateBump] = findProgramStateAddress();
     const [programAuthorityAddress, closeProgramAuthorityBump] = findProgramAuthorityAddress();
     
-    // Create a binary instruction with the index matching the program's instruction type
-    // The program expects just a single byte for instruction type
-    // Looking at multihub_swap.rs file, we saw that the CloseProgram instruction is likely instruction index 2
-    const instructionData = Buffer.from([2]); // Hardcoded as 2 for CloseProgram
+    // Manually construct the Borsh-serialized CloseProgram instruction data
+    // This needs to match the SwapInstruction::CloseProgram struct in Rust
+    
+    // Layout:
+    // - Variant index (u8): 2 for CloseProgram
+    // Total: 1 byte
+    
+    const instructionData = Buffer.alloc(1);
+    
+    // Write variant index (2 for CloseProgram)
+    instructionData.writeUInt8(2, 0);
     
     console.log('CloseProgram instruction data:', Array.from(instructionData));
-    
-    // Output debugging info
-    console.log('Close program instruction data (simple format):', 
-      Array.from(new Uint8Array(instructionData)));
     
     const closeProgramData = instructionData;
     
