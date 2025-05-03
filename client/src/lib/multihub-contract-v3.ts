@@ -103,14 +103,20 @@ export async function initializeProgram(
     writeBigUInt64LE(ratesView, 24, BigInt(SWAP_FEE_RATE));
     writeBigUInt64LE(ratesView, 32, BigInt(REFERRAL_RATE));
     
-    // Combine all buffers in the exact order expected by the SwapInstruction::Initialize variant
-    const instructionData = Buffer.concat([
-      Buffer.from([0]), // Variant index for Initialize (0-indexed)
-      adminPubkey,      // admin: Pubkey (32 bytes)
-      yotMintPubkey,    // yot_mint: Pubkey (32 bytes)
-      yosMintPubkey,    // yos_mint: Pubkey (32 bytes)
-      Buffer.from(new Uint8Array(ratesBuffer)) // All rates in one buffer (40 bytes total)
-    ]);
+    // Based on the program's instruction data handling, we need to simplify this
+    // From multihub_swap.rs: match instruction_type -> 0 => process_initialize(...)
+    // Where the program just expects a single byte for authority_bump
+    
+    // Create the initialization data with the minimal format
+    const instructionData = Buffer.alloc(2); // 1 byte for instruction type + 1 byte for bump
+    
+    // Write instruction type (0 = Initialize)
+    instructionData[0] = 0;
+    
+    // Write the authority bump
+    instructionData[1] = __;
+    
+    console.log('Using simplified initialization format matching the program code');
     
     // Output debugging info
     console.log('Initialize program instruction data length:', instructionData.length);
