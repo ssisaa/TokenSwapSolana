@@ -58,12 +58,12 @@ export function findProgramAuthorityAddress(): [PublicKey, number] {
 
 /**
  * Find the program's state PDA
- * From multihub_swap.rs: let seeds = &[b"program_state".as_ref()];
+ * From multihub_swap_v3.rs: Pubkey::find_program_address(&[b"state"], program_id)
  */
 export function findProgramStateAddress(): [PublicKey, number] {
   // Must match EXACTLY what the program uses for the seed
   return PublicKey.findProgramAddressSync(
-    [Buffer.from('program_state')],
+    [Buffer.from('state')],
     new PublicKey(MULTIHUB_SWAP_PROGRAM_ID)
   );
 }
@@ -90,43 +90,62 @@ export async function initializeProgram(
     const [programStateAddress, stateBump] = findProgramStateAddress();
     const [programAuthorityAddress, authorityBump] = findProgramAuthorityAddress();
     
-    // Create a conforming Borsh serialization for the Rust-side SwapInstruction enum
-    // Initialize has fields for admin, mints, and rates
-    const adminPubkey = wallet.publicKey.toBuffer();
-    const yotMintPubkey = new PublicKey(YOT_TOKEN_MINT).toBuffer();
-    const yosMintPubkey = new PublicKey(YOS_TOKEN_MINT).toBuffer();
+    // Manually construct the Borsh-serialized Initialize instruction data
+    // This needs to match the SwapInstruction::Initialize struct in Rust
     
-    // Create a buffer for all the rates at once
-    const ratesBuffer = new ArrayBuffer(8 * 5); // 5 rates, 8 bytes each
-    const ratesView = new DataView(ratesBuffer);
+    // Layout:
+    // - Variant index (u8): 0 for Initialize
+    // - Admin pubkey (32 bytes)
+    // - YOT mint pubkey (32 bytes)
+    // - YOS mint pubkey (32 bytes)
+    // - LP contribution rate (u64, 8 bytes)
+    // - Admin fee rate (u64, 8 bytes)
+    // - YOS cashback rate (u64, 8 bytes)
+    // - Swap fee rate (u64, 8 bytes)
+    // - Referral rate (u64, 8 bytes)
+    // Total: 1 + 32*3 + 8*5 = 1 + 96 + 40 = 137 bytes
     
-    // Write the u64 values in little-endian format using our helper function
-    writeBigUInt64LE(ratesView, 0, BigInt(LP_CONTRIBUTION_RATE));
-    writeBigUInt64LE(ratesView, 8, BigInt(ADMIN_FEE_RATE));
-    writeBigUInt64LE(ratesView, 16, BigInt(YOS_CASHBACK_RATE));
-    writeBigUInt64LE(ratesView, 24, BigInt(SWAP_FEE_RATE));
-    writeBigUInt64LE(ratesView, 32, BigInt(REFERRAL_RATE));
+    const instructionData = Buffer.alloc(137);
+    let offset = 0;
     
-    // Based on the program's instruction data handling in multihub_swap.rs:
-    // - instruction_type = instruction_data[0]; (0 for Initialize)
-    // - authority_bump = instruction_data[1];
+    // Write variant index (0 for Initialize)
+    instructionData.writeUInt8(0, offset);
+    offset += 1;
     
-    // Create the initialization data with the minimal format the program expects
-    const instructionData = Buffer.alloc(2); // 1 byte for instruction type + 1 byte for bump
+    // Write admin pubkey
+    wallet.publicKey.toBuffer().copy(instructionData, offset);
+    offset += 32;
     
-    // Write instruction type (0 = Initialize)
-    instructionData[0] = 0;
+    // Write YOT mint pubkey
+    new PublicKey(YOT_TOKEN_MINT).toBuffer().copy(instructionData, offset);
+    offset += 32;
     
-    // Write the authority bump seed - use the one already retrieved
-    instructionData[1] = authorityBump;
+    // Write YOS mint pubkey
+    new PublicKey(YOS_TOKEN_MINT).toBuffer().copy(instructionData, offset);
+    offset += 32;
     
-    console.log('Using simplified initialization format matching the program code')
-    console.log('Initialize instruction data:', Array.from(instructionData));
+    // Write LP contribution rate (u64)
+    instructionData.writeBigUInt64LE(BigInt(LP_CONTRIBUTION_RATE), offset);
+    offset += 8;
     
-    // Output debugging info
-    console.log('Initialize program instruction data length:', instructionData.length);
+    // Write admin fee rate (u64)
+    instructionData.writeBigUInt64LE(BigInt(ADMIN_FEE_RATE), offset);
+    offset += 8;
     
-    const initializeData = instructionData;
+    // Write YOS cashback rate (u64)
+    instructionData.writeBigUInt64LE(BigInt(YOS_CASHBACK_RATE), offset);
+    offset += 8;
+    
+    // Write swap fee rate (u64)
+    instructionData.writeBigUInt64LE(BigInt(SWAP_FEE_RATE), offset);
+    offset += 8;
+    
+    // Write referral rate (u64)
+    instructionData.writeBigUInt64LE(BigInt(REFERRAL_RATE), offset);
+    // offset += 8; // Not needed for the last field
+    
+    console.log('Using Borsh serialization format matching the program code');
+    console.log('Initialize instruction data length:', instructionData.length);
     
     // Add the initialize instruction to the transaction
     transaction.add({
@@ -138,7 +157,7 @@ export async function initializeProgram(
         { pubkey: new PublicKey('SysvarRent111111111111111111111111111111111'), isSigner: false, isWritable: false }
       ],
       programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID),
-      data: Buffer.from(initializeData)
+      data: Buffer.from(instructionData)
     });
     
     // Simulate the transaction to check for errors
