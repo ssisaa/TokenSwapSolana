@@ -1,0 +1,173 @@
+import React, { useState, useEffect } from 'react';
+import { useConnection, useWallet } from '@solana/wallet-adapter-react';
+import { PublicKey } from '@solana/web3.js';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { Loader2 } from 'lucide-react';
+import { findProgramStateAddress, findProgramAuthorityAddress, MULTIHUB_SWAP_PROGRAM_ID, YOT_TOKEN_MINT, YOS_TOKEN_MINT } from '../lib/multihub-contract-v3';
+
+export default function MultihubV3DebugPanel() {
+  const { connection } = useConnection();
+  const wallet = useWallet();
+  const [loading, setLoading] = useState(false);
+  const [pdaInfo, setPdaInfo] = useState<any>(null);
+  const [programInfo, setProgramInfo] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Check PDAs and program info when wallet is connected
+  const checkProgramSetup = async () => {
+    if (!wallet.publicKey) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const programId = new PublicKey(MULTIHUB_SWAP_PROGRAM_ID);
+      const [programStateAddress, stateBump] = findProgramStateAddress();
+      const [programAuthorityAddress, authorityBump] = findProgramAuthorityAddress();
+      
+      // Get program account info (to verify if program exists)
+      const programAccountInfo = await connection.getAccountInfo(programId);
+      
+      // Get program state account info (to verify if it's initialized)
+      const programStateInfo = await connection.getAccountInfo(programStateAddress);
+      
+      // Get program authority account info
+      const authorityInfo = await connection.getAccountInfo(programAuthorityAddress);
+      
+      setPdaInfo({
+        programStateAddress: programStateAddress.toBase58(),
+        stateBump,
+        programAuthorityAddress: programAuthorityAddress.toBase58(),
+        authorityBump,
+        programStateExists: !!programStateInfo,
+        programStateSize: programStateInfo?.data.length || 0,
+        authorityExists: !!authorityInfo,
+      });
+      
+      setProgramInfo({
+        programId: programId.toBase58(),
+        programExists: !!programAccountInfo,
+        programSize: programAccountInfo?.data.length || 0,
+        programExecutable: programAccountInfo?.executable || false,
+        programOwner: programAccountInfo?.owner?.toBase58() || 'Unknown',
+        yotMint: YOT_TOKEN_MINT,
+        yosMint: YOS_TOKEN_MINT,
+      });
+      
+    } catch (err: any) {
+      console.error('Error checking program setup:', err);
+      setError(`Error: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  useEffect(() => {
+    if (wallet.connected) {
+      checkProgramSetup();
+    }
+  }, [wallet.connected, connection]);
+  
+  // Format bytes as a readable size
+  const formatBytes = (bytes: number): string => {
+    if (bytes === 0) return '0 B';
+    const sizes = ['B', 'KB', 'MB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
+  };
+  
+  return (
+    <Card className="w-full">
+      <CardHeader>
+        <CardTitle>MultihubSwap V3 Debug Panel</CardTitle>
+        <CardDescription>Program and PDA information for debugging</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {!wallet.connected && (
+          <div className="text-center py-4">
+            Connect your wallet to view program information
+          </div>
+        )}
+        
+        {wallet.connected && (
+          <>
+            <Button 
+              onClick={checkProgramSetup} 
+              disabled={loading}
+              variant="outline"
+              className="mb-4"
+            >
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Refresh Program Info
+            </Button>
+            
+            {error && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                {error}
+              </div>
+            )}
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Program Information */}
+              <div className="space-y-2">
+                <h3 className="text-lg font-medium">Program Info</h3>
+                <Separator />
+                
+                {programInfo && (
+                  <div className="space-y-1 text-sm">
+                    <div><span className="font-medium">Program ID:</span> {programInfo.programId}</div>
+                    <div><span className="font-medium">Program Exists:</span> {programInfo.programExists ? 'Yes' : 'No'}</div>
+                    <div><span className="font-medium">Program Size:</span> {formatBytes(programInfo.programSize)}</div>
+                    <div><span className="font-medium">Executable:</span> {programInfo.programExecutable ? 'Yes' : 'No'}</div>
+                    <div><span className="font-medium">Program Owner:</span> {programInfo.programOwner}</div>
+                    <div><span className="font-medium">YOT Mint:</span> {programInfo.yotMint}</div>
+                    <div><span className="font-medium">YOS Mint:</span> {programInfo.yosMint}</div>
+                  </div>
+                )}
+                
+                {!programInfo && !loading && (
+                  <div className="text-sm text-muted-foreground">
+                    No program information available
+                  </div>
+                )}
+              </div>
+              
+              {/* PDA Information */}
+              <div className="space-y-2">
+                <h3 className="text-lg font-medium">PDA Info</h3>
+                <Separator />
+                
+                {pdaInfo && (
+                  <div className="space-y-1 text-sm">
+                    <div><span className="font-medium">Program State Address:</span> {pdaInfo.programStateAddress}</div>
+                    <div><span className="font-medium">State Bump:</span> {pdaInfo.stateBump}</div>
+                    <div><span className="font-medium">Program Authority Address:</span> {pdaInfo.programAuthorityAddress}</div>
+                    <div><span className="font-medium">Authority Bump:</span> {pdaInfo.authorityBump}</div>
+                    <div><span className="font-medium">State Account Exists:</span> {pdaInfo.programStateExists ? 'Yes' : 'No'}</div>
+                    <div><span className="font-medium">State Account Size:</span> {formatBytes(pdaInfo.programStateSize)}</div>
+                    <div><span className="font-medium">Authority Account Exists:</span> {pdaInfo.authorityExists ? 'Yes' : 'No'}</div>
+                  </div>
+                )}
+                
+                {!pdaInfo && !loading && (
+                  <div className="text-sm text-muted-foreground">
+                    No PDA information available
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {loading && (
+              <div className="flex justify-center items-center py-4">
+                <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+                <span>Loading program information...</span>
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
