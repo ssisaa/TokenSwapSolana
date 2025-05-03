@@ -41,6 +41,8 @@ import WalletPage from "@/pages/WalletPage";
 import SettingsPage from "@/pages/SettingsPage";
 import AffiliatePage from "@/pages/AffiliatePage";
 import LandingPage from "@/pages/LandingPage";
+import MockSwapPage from "@/pages/MockSwapPage"; // Our new reliable mock swap page
+import SimpleSwapPage from "@/pages/SimpleSwapPage"; // Pure demo swap page with no Solana dependencies
 import Home from "@/pages/Home"; // Keep for compatibility with existing routes
 
 // Routes that should use the dashboard layout
@@ -50,6 +52,7 @@ const dashboardRoutes = [
   '/swap',
   '/multi-hub-swap',
   '/cashback-swap',
+  '/mock-swap',     // Our new mock swap page
   '/advanced-swap',
   '/tx-debug',
   '/stake',
@@ -177,6 +180,12 @@ function Router() {
         <Route path="/multihub-v3-admin">
           <DashboardLayout>
             <MultihubV3AdminPage />
+          </DashboardLayout>
+        </Route>
+        
+        <Route path="/mock-swap">
+          <DashboardLayout>
+            <MockSwapPage />
           </DashboardLayout>
         </Route>
         
