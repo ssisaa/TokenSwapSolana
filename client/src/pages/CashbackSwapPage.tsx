@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useWallet } from "@/hooks/useSolanaWallet";
 import { useSwap } from "@/hooks/useSwap";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, AlertTriangle, ArrowRightLeft, Key, Percent, Route, Settings, Wrench } from "lucide-react";
+import { AlertCircle, AlertTriangle, ArrowRightLeft, Key, Percent, Route, Settings, Wrench, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 

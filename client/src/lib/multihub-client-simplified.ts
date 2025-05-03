@@ -50,7 +50,7 @@ export async function swapTokenToYOT(
     
     console.log(`Swapping ${amount} of token ${fromTokenMint} to YOT`);
     
-    const connection = getConnection();
+    // Use the imported connection
     const fromMint = new PublicKey(fromTokenMint);
     const yotMint = new PublicKey(YOT_TOKEN);
     const yosMint = new PublicKey(YOS_TOKEN);
@@ -147,7 +147,7 @@ export async function swapYOTToToken(
     
     console.log(`Swapping ${amount} YOT to token ${toTokenMint}`);
     
-    const connection = getConnection();
+    // Use the imported connection
     const yotMint = new PublicKey(YOT_TOKEN);
     const toMint = new PublicKey(toTokenMint);
     const yosMint = new PublicKey(YOS_TOKEN);
