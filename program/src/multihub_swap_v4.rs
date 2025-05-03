@@ -9,7 +9,7 @@ use solana_program::{
     rent::Rent,
     sysvar::Sysvar,
     system_instruction,
-    program::{invoke, invoke_signed},
+    program::invoke_signed,
 };
 
 // Define program-wide constants
@@ -249,8 +249,8 @@ pub fn process_initialize(
 pub fn process_swap(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
-    amount_in: u64,
-    min_amount_out: u64,
+    _amount_in: u64,
+    _min_amount_out: u64,
 ) -> ProgramResult {
     // Load accounts: keep the same pattern for all operations
     let account_info_iter = &mut accounts.iter();
@@ -260,25 +260,25 @@ pub fn process_swap(
     let program_state_account = next_account_info(account_info_iter)?;
     let program_authority = next_account_info(account_info_iter)?;
     
-    // Token accounts
-    let user_token_from = next_account_info(account_info_iter)?;
-    let user_token_to = next_account_info(account_info_iter)?;
-    let user_yos_token = next_account_info(account_info_iter)?;
+    // Token accounts - prefixed with underscore to avoid unused var warnings
+    let _user_token_from = next_account_info(account_info_iter)?;
+    let _user_token_to = next_account_info(account_info_iter)?;
+    let _user_yos_token = next_account_info(account_info_iter)?;
     
-    // Program token accounts
-    let program_token_from = next_account_info(account_info_iter)?;
-    let program_token_to = next_account_info(account_info_iter)?;
-    let program_yos_token = next_account_info(account_info_iter)?;
+    // Program token accounts - prefixed with underscore to avoid unused var warnings
+    let _program_token_from = next_account_info(account_info_iter)?;
+    let _program_token_to = next_account_info(account_info_iter)?;
+    let _program_yos_token = next_account_info(account_info_iter)?;
     
-    // Token mints
-    let token_from_mint = next_account_info(account_info_iter)?;
-    let token_to_mint = next_account_info(account_info_iter)?;
+    // Token mints - prefixed with underscore to avoid unused var warnings
+    let _token_from_mint = next_account_info(account_info_iter)?;
+    let _token_to_mint = next_account_info(account_info_iter)?;
     let yos_mint = next_account_info(account_info_iter)?;
     
-    // Programs
-    let token_program = next_account_info(account_info_iter)?;
-    let system_program = next_account_info(account_info_iter)?;
-    let rent_sysvar = next_account_info(account_info_iter)?;
+    // Programs - prefixed with underscore to avoid unused var warnings
+    let _token_program = next_account_info(account_info_iter)?;
+    let _system_program = next_account_info(account_info_iter)?;
+    let _rent_sysvar = next_account_info(account_info_iter)?;
     
     // Verify that the user is a signer
     if !user.is_signer {
@@ -310,7 +310,7 @@ pub fn process_swap(
         return Err(ProgramError::InvalidAccountData);
     }
     
-    let (expected_authority_pubkey, authority_bump) = 
+    let (expected_authority_pubkey, _authority_bump) = 
         Pubkey::find_program_address(&[AUTHORITY_SEED], program_id);
     
     if expected_authority_pubkey != *program_authority.key {

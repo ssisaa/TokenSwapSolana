@@ -1,0 +1,97 @@
+Building...
+warning: unused import: `invoke`
+  --> src/lib.rs:12:15
+   |
+12 |     program::{invoke, invoke_signed},
+   |               ^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+ 
+warning: unused variable: `user_token_from`
+   --> src/lib.rs:264:9
+    |
+264 |     let user_token_from = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_user_token_from`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+ 
+warning: unused variable: `user_token_to`
+   --> src/lib.rs:265:9
+    |
+265 |     let user_token_to = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_user_token_to`
+ 
+warning: unused variable: `user_yos_token`
+   --> src/lib.rs:266:9
+    |
+266 |     let user_yos_token = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_user_yos_token`
+ 
+warning: unused variable: `program_token_from`
+   --> src/lib.rs:269:9
+    |
+269 |     let program_token_from = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_program_token_from`
+ 
+warning: unused variable: `program_token_to`
+   --> src/lib.rs:270:9
+    |
+270 |     let program_token_to = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_program_token_to`
+ 
+warning: unused variable: `program_yos_token`
+   --> src/lib.rs:271:9
+    |
+271 |     let program_yos_token = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_program_yos_token`
+ 
+warning: unused variable: `token_from_mint`
+   --> src/lib.rs:274:9
+    |
+274 |     let token_from_mint = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_token_from_mint`
+ 
+warning: unused variable: `token_to_mint`
+   --> src/lib.rs:275:9
+    |
+275 |     let token_to_mint = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_token_to_mint`
+ 
+warning: unused variable: `token_program`
+   --> src/lib.rs:279:9
+    |
+279 |     let token_program = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_token_program`
+ 
+warning: unused variable: `system_program`
+   --> src/lib.rs:280:9
+    |
+280 |     let system_program = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_system_program`
+ 
+warning: unused variable: `rent_sysvar`
+   --> src/lib.rs:281:9
+    |
+281 |     let rent_sysvar = next_account_info(account_info_iter)?;
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_rent_sysvar`
+ 
+warning: unused variable: `authority_bump`
+   --> src/lib.rs:313:37
+    |
+313 |     let (expected_authority_pubkey, authority_bump) = 
+    |                                     ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_authority_bump`
+ 
+warning: unused variable: `amount_in`
+   --> src/lib.rs:252:5
+    |
+252 |     amount_in: u64,
+    |     ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_amount_in`
+ 
+warning: unused variable: `min_amount_out`
+   --> src/lib.rs:253:5
+    |
+253 |     min_amount_out: u64,
+    |     ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_min_amount_out`
+ 
+warning: `stake` (lib) generated 15 warnings (run `cargo fix --lib -p stake` to apply 15 suggestions)
+Build successful. Completed in 8.20s.
