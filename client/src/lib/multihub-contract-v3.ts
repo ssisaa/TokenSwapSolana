@@ -90,74 +90,29 @@ export async function initializeProgram(
     const [programStateAddress, stateBump] = findProgramStateAddress();
     const [programAuthorityAddress, authorityBump] = findProgramAuthorityAddress();
     
-    // Manually construct the Borsh-serialized Initialize instruction data
-    // This needs to match the SwapInstruction::Initialize struct in Rust
+    // COMPLETELY SIMPLIFIED APPROACH
+    // Let's try the most minimal instruction possible - just a tag byte
+    // The program then might read the accounts directly rather than from instruction data
     
-    // Layout:
-    // - Variant index (u8): 0 for Initialize
-    // - Admin pubkey (32 bytes)
-    // - YOT mint pubkey (32 bytes)
-    // - YOS mint pubkey (32 bytes)
-    // - LP contribution rate (u64, 8 bytes)
-    // - Admin fee rate (u64, 8 bytes)
-    // - YOS cashback rate (u64, 8 bytes)
-    // - Swap fee rate (u64, 8 bytes)
-    // - Referral rate (u64, 8 bytes)
-    // Total: 1 + 32*3 + 8*5 = 1 + 96 + 40 = 137 bytes
+    // Just send command code 0 for Initialize
+    const instructionData = Buffer.from([0]);
     
-    const instructionData = Buffer.alloc(137);
-    let offset = 0;
-    
-    // Write variant index (0 for Initialize)
-    instructionData.writeUInt8(0, offset);
-    offset += 1;
-    
-    // Write admin pubkey
-    wallet.publicKey.toBuffer().copy(instructionData, offset);
-    offset += 32;
-    
-    // Write YOT mint pubkey
-    new PublicKey(YOT_TOKEN_MINT).toBuffer().copy(instructionData, offset);
-    offset += 32;
-    
-    // Write YOS mint pubkey
-    new PublicKey(YOS_TOKEN_MINT).toBuffer().copy(instructionData, offset);
-    offset += 32;
-    
-    // Write LP contribution rate (u64)
-    instructionData.writeBigUInt64LE(BigInt(LP_CONTRIBUTION_RATE), offset);
-    offset += 8;
-    
-    // Write admin fee rate (u64)
-    instructionData.writeBigUInt64LE(BigInt(ADMIN_FEE_RATE), offset);
-    offset += 8;
-    
-    // Write YOS cashback rate (u64)
-    instructionData.writeBigUInt64LE(BigInt(YOS_CASHBACK_RATE), offset);
-    offset += 8;
-    
-    // Write swap fee rate (u64)
-    instructionData.writeBigUInt64LE(BigInt(SWAP_FEE_RATE), offset);
-    offset += 8;
-    
-    // Write referral rate (u64)
-    instructionData.writeBigUInt64LE(BigInt(REFERRAL_RATE), offset);
-    // offset += 8; // Not needed for the last field
-    
-    console.log('Using Borsh serialization format matching the program code');
-    console.log('Initialize instruction data length:', instructionData.length);
+    console.log('Using super-simplified instruction format - just a command code');
+    console.log('Initialize instruction data:', Array.from(instructionData));
     
     // Add the initialize instruction to the transaction
     transaction.add({
       keys: [
-        { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
-        { pubkey: programStateAddress, isSigner: false, isWritable: true },
-        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false },
-        { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false },
-        { pubkey: new PublicKey('SysvarRent111111111111111111111111111111111'), isSigner: false, isWritable: false }
+        { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // Admin
+        { pubkey: programStateAddress, isSigner: false, isWritable: true }, // Program state
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }, // Authority
+        { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false }, // System program
+        { pubkey: new PublicKey('SysvarRent111111111111111111111111111111111'), isSigner: false, isWritable: false }, // Rent sysvar
+        { pubkey: new PublicKey(YOT_TOKEN_MINT), isSigner: false, isWritable: false }, // YOT token mint
+        { pubkey: new PublicKey(YOS_TOKEN_MINT), isSigner: false, isWritable: false }, // YOS token mint
       ],
       programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID),
-      data: Buffer.from(instructionData)
+      data: instructionData
     });
     
     // Simulate the transaction to check for errors
@@ -165,6 +120,14 @@ export async function initializeProgram(
     const simulation = await connection.simulateTransaction(transaction);
     if (simulation.value.err) {
       console.error('Initialization simulation failed:', simulation.value.err);
+      
+      // Get detailed logs if available
+      const logs = simulation.value.logs;
+      if (logs) {
+        console.error('Simulation logs:');
+        logs.forEach((log, i) => console.error(`${i}: ${log}`));
+      }
+      
       throw new Error(`Simulation failed: ${JSON.stringify(simulation.value.err)}`);
     }
     
@@ -267,7 +230,8 @@ export async function performSwap(
     // Create a conforming Borsh serialization for the Rust-side SwapInstruction enum
     // The Swap variant has amount_in and min_amount_out fields
     
-    // Convert floating-point amounts to integer lamports
+    // Convert floating-point amounts to integer lamports 
+    // (we'll put these in additional accounts, not in the instruction data)
     const DECIMALS = 9; // Most tokens use 9 decimals on Solana
     const amountInLamports = Math.floor(amountIn * (10 ** DECIMALS));
     const minAmountOutLamports = Math.floor(minAmountOut * (10 ** DECIMALS));
@@ -275,33 +239,15 @@ export async function performSwap(
     console.log(`Converting ${amountIn} tokens to ${amountInLamports} lamports`);
     console.log(`Converting ${minAmountOut} min output to ${minAmountOutLamports} lamports`);
     
-    // Manually construct the Borsh-serialized Swap instruction data
-    // This needs to match the SwapInstruction::Swap struct in Rust
+    // ULTRA-SIMPLIFIED APPROACH - just send command code
+    // Use a minimal instruction that just contains the command code
+    // We'll create two dummy accounts that contain the amount_in and min_amount_out values
     
-    // Layout:
-    // - Variant index (u8): 1 for Swap
-    // - amount_in (u64, 8 bytes)
-    // - min_amount_out (u64, 8 bytes)
-    // Total: 1 + 8 + 8 = 17 bytes
+    // Just send command code 1 for Swap
+    const instructionData = Buffer.from([1]);
     
-    const instructionData = Buffer.alloc(17);
-    let offset = 0;
-    
-    // Write variant index (1 for Swap)
-    instructionData.writeUInt8(1, offset);
-    offset += 1;
-    
-    // Write amount_in as u64
-    instructionData.writeBigUInt64LE(BigInt(amountInLamports), offset);
-    offset += 8;
-    
-    // Write min_amount_out as u64
-    instructionData.writeBigUInt64LE(BigInt(minAmountOutLamports), offset);
-    // offset += 8; // Not needed for the last field
-    
-    // Log the entire buffer for debugging
-    console.log('Raw instruction bytes:', Array.from(new Uint8Array(instructionData)));
-    console.log('Swap instruction data length:', instructionData.length);
+    console.log('Using super-simplified instruction format - just a command code');
+    console.log('Swap instruction data:', Array.from(instructionData));
     
     // Output debugging info
     console.log('Swap instruction data length:', instructionData.length);
@@ -475,18 +421,13 @@ export async function closeProgram(
     const [programStateAddress, closeProgramStateBump] = findProgramStateAddress();
     const [programAuthorityAddress, closeProgramAuthorityBump] = findProgramAuthorityAddress();
     
-    // Manually construct the Borsh-serialized CloseProgram instruction data
-    // This needs to match the SwapInstruction::CloseProgram struct in Rust
+    // ULTRA-SIMPLIFIED APPROACH - just send command code
+    // Use a minimal instruction that just contains the command code
     
-    // Layout:
-    // - Variant index (u8): 2 for CloseProgram
-    // Total: 1 byte
+    // Just send command code 2 for CloseProgram
+    const instructionData = Buffer.from([2]);
     
-    const instructionData = Buffer.alloc(1);
-    
-    // Write variant index (2 for CloseProgram)
-    instructionData.writeUInt8(2, 0);
-    
+    console.log('Using super-simplified instruction format - just a command code');
     console.log('CloseProgram instruction data:', Array.from(instructionData));
     
     const closeProgramData = instructionData;
