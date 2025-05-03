@@ -2,6 +2,7 @@ import { PublicKey, Transaction, LAMPORTS_PER_SOL, sendAndConfirmTransaction } f
 import { getOrCreateAssociatedTokenAccount, createAssociatedTokenAccountInstruction, getAssociatedTokenAddress } from '@solana/spl-token';
 import { connection } from '@/lib/solana';
 import { ADMIN_WALLET_ADDRESS } from '@/lib/constants';
+import { handleWalletError } from '@/lib/wallet-error-handler';
 
 // Token constants
 const SOL_TOKEN = 'So11111111111111111111111111111111111111112';
