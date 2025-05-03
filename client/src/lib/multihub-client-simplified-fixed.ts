@@ -114,15 +114,61 @@ export async function swapTokenToYOT(
       - YOS cashback: ${cashbackAmount} YOS
     `);
     
-    // In a simplified implementation, we'll just send the tokens directly
-    // This implementation focuses on the UI flow and doesn't perform
-    // actual token transactions to avoid errors with the on-chain program
+    // Import the needed Token functions from @solana/spl-token
+    const { createTransferInstruction } = await import('@solana/spl-token');
     
-    // Return a mock transaction signature
-    const mockSignature = "SimulatedSwapTransaction" + Date.now().toString();
-    console.log("Simplified swap completed with mock signature:", mockSignature);
+    // Convert amounts to raw token amounts with appropriate decimals
+    const rawAmount = BigInt(Math.floor(amount * (10 ** decimals)));
+    const rawUserReceiveAmount = BigInt(Math.floor(userReceiveAmount * (10 ** decimals)));
+    const rawLiquidityContribution = BigInt(Math.floor(liquidityContribution * (10 ** decimals)));
+    const rawCashbackAmount = BigInt(Math.floor(cashbackAmount * (10 ** decimals)));
     
-    return mockSignature;
+    // Special handling for SOL token
+    if (fromTokenMint === SOL_TOKEN) {
+      const { SystemProgram } = await import('@solana/web3.js');
+      
+      // Transfer SOL to the associated token account (wrapped SOL)
+      transaction.add(
+        SystemProgram.transfer({
+          fromPubkey: wallet.publicKey,
+          toPubkey: fromTokenAccount.address,
+          lamports: Number(rawAmount)
+        })
+      );
+      
+      console.log("Added SystemProgram.transfer for SOL");
+    } else {
+      // For other tokens, user already has the tokens in their account
+      // No need to transfer to themselves
+      console.log("Using existing token account for non-SOL token");
+    }
+    
+    // Add a transfer instruction from user's token account
+    // In a real implementation, this would swap through a liquidity pool
+    // but for this simulation we're just transferring tokens directly
+    transaction.add(
+      createTransferInstruction(
+        fromTokenAccount.address, // from (user's token account)
+        adminYotTokenAccount, // to (admin's YOT account for now - would be pool in reality)
+        wallet.publicKey, // authority (user)
+        Number(rawAmount) // amount of input token
+      )
+    );
+    
+    // Add recent blockhash
+    transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+    transaction.feePayer = wallet.publicKey;
+    
+    // For this demo, we'll request wallet signature
+    try {
+      // Sign and send transaction
+      const signature = await wallet.sendTransaction(transaction, connection);
+      console.log("Transaction sent with signature:", signature);
+      return signature;
+    } catch (signError) {
+      console.error("Error sending transaction:", signError);
+      throw new Error("Failed to send transaction: " + String(signError));
+    }
   } catch (error) {
     console.error("Error in simplified swapTokenToYOT:", error);
     throw error;
