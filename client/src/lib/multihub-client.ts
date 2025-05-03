@@ -14,7 +14,7 @@ import {
 } from '@solana/spl-token';
 import { connection } from '@/lib/solana';
 import { ADMIN_WALLET_ADDRESS } from '@/lib/constants';
-import * as borsh from 'borsh';
+import { serialize } from 'borsh';
 
 // Constants
 const MULTIHUB_PROGRAM_ID = new PublicKey('Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L');
@@ -177,7 +177,7 @@ export async function initializeMultiHubSwapProgram(wallet: any): Promise<string
 
     // Serialize the initialization data
     const initData = new InitializeInstruction(initParams);
-    const initBuffer = borsh.serialize(InitializeInstruction.schema, initData);
+    const initBuffer = serialize(InitializeInstruction.schema as any, initData);
     
     // Create the instruction
     const instruction = new TransactionInstruction({
@@ -299,7 +299,7 @@ export async function swapTokenToYOT(
     
     // Create the swap instruction data
     const swapData = new SwapInstruction({ amount: rawAmount });
-    const dataBuffer = borsh.serialize(SwapInstruction.schema, swapData);
+    const dataBuffer = serialize(SwapInstruction.schema as any, swapData);
     
     // Create the program instruction
     const swapInstruction = new TransactionInstruction({
@@ -434,7 +434,7 @@ export async function swapYOTToToken(
     
     // Create the swap instruction data
     const swapData = new SwapYotInstruction({ amount: rawAmount });
-    const dataBuffer = borsh.serialize(SwapYotInstruction.schema, swapData);
+    const dataBuffer = serialize(SwapYotInstruction.schema as any, swapData);
     
     // Create the program instruction
     const swapInstruction = new TransactionInstruction({
