@@ -186,3 +186,14 @@ export async function swapYOTToToken(
 export function isMockTransactionSignature(signature: string): boolean {
   return fallbackClient.isMockTransactionSignature(signature);
 }
+
+/**
+ * Initialize the MultiHub Swap Program (for admin use)
+ * 
+ * @param wallet The admin wallet
+ * @returns Transaction signature
+ */
+export async function initializeProgram(wallet: any): Promise<string> {
+  // This is an alias for initializeMultiHubSwapProgram for better naming consistency
+  return initializeMultiHubSwapProgram(wallet);
+}
