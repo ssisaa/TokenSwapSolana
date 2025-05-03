@@ -24,13 +24,13 @@ import { useLocation } from "wouter";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
-// Import simplified implementation 
+// Import simplified implementation with improved error handling
 import { 
   initializeSimplified, 
   isInitializedSimplified,
   swapTokenToYOT,
   swapYOTToToken
-} from "@/lib/multihub-client-simplified-fixed";
+} from "@/lib/multihub-client-simplified-fixed-v2";
 
 // These will be imported conditionally in the component
 // to avoid errors if files don't exist or have issues
@@ -211,8 +211,8 @@ export default function CashbackSwapPage() {
       
       if (useSimplifiedMode) {
         console.log("Using simplified implementation for swap");
-        // Use the simplified implementation from our fixed module
-        ({ swapTokenToYOT, swapYOTToToken } = await import('@/lib/multihub-client-simplified-fixed'));
+        // Use the simplified implementation with improved error handling
+        ({ swapTokenToYOT, swapYOTToToken } = await import('@/lib/multihub-client-simplified-fixed-v2'));
       } else {
         console.log("Attempting to use on-chain implementation for swap");
         try {
@@ -225,8 +225,8 @@ export default function CashbackSwapPage() {
             description: "On-chain implementation couldn't be loaded. Falling back to simplified mode.",
             variant: "destructive"
           });
-          // Fall back to simplified implementation
-          ({ swapTokenToYOT, swapYOTToToken } = await import('@/lib/multihub-client-simplified-fixed'));
+          // Fall back to simplified implementation with improved error handling
+          ({ swapTokenToYOT, swapYOTToToken } = await import('@/lib/multihub-client-simplified-fixed-v2'));
         }
       }
       
