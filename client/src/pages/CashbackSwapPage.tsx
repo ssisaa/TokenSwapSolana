@@ -21,7 +21,22 @@ import { PublicKey } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { useLocation } from "wouter";
-import { initializeMultiHubSwapProgram, isMultiHubSwapProgramInitialized } from "@/lib/multihub-client-simplified";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+
+// Import simplified implementation 
+import { 
+  initializeSimplified, 
+  isInitializedSimplified,
+  swapTokenToYOT as swapTokenToYOTSimplified,
+  swapYOTToToken as swapYOTToTokenSimplified
+} from "@/lib/multihub-client-simplified";
+
+// These will be imported conditionally in the component
+// to avoid errors if files don't exist or have issues
+let initializeOnChain: any;
+let isInitializedOnChain: any;
+let executeMultiHubSwapImproved: any;
 
 export default function CashbackSwapPage() {
   const { connected, connect, wallet } = useWallet();
@@ -36,6 +51,9 @@ export default function CashbackSwapPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isProgramInitialized, setIsProgramInitialized] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
+  
+  // Toggle state for simplified mode
+  const [useSimplifiedMode, setUseSimplifiedMode] = useState(true);
   
   // Calculate cashback amount (5% of transaction)
   useEffect(() => {
@@ -56,7 +74,7 @@ export default function CashbackSwapPage() {
       // Check if program is initialized
       const checkInitialization = async () => {
         try {
-          const isInitialized = await isMultiHubSwapProgramInitialized();
+          const isInitialized = await isInitializedSimplified();
           setIsProgramInitialized(isInitialized);
         } catch (error) {
           console.error("Error checking program initialization:", error);
@@ -100,18 +118,47 @@ export default function CashbackSwapPage() {
         description: "Please approve the transaction to initialize the MultiHub Swap program.",
       });
       
-      const signature = await initializeMultiHubSwapProgram(wallet);
-      
-      toast({
-        title: "Simplified Mode Activated",
-        description: (
-          <div>
-            <p>The MultiHub Swap is now running in simplified mode, bypassing on-chain program initialization.</p>
-            <p className="mt-2 text-green-600 font-semibold">You can now use the swap functionality without waiting for program initialization!</p>
-          </div>
-        ),
-        variant: "default"
-      });
+      if (useSimplifiedMode) {
+        // Use simplified implementation that doesn't interact with the blockchain
+        await initializeSimplified(wallet);
+        
+        toast({
+          title: "Simplified Mode Activated",
+          description: (
+            <div>
+              <p>The MultiHub Swap is now running in simplified mode, bypassing on-chain program initialization.</p>
+              <p className="mt-2 text-green-600 font-semibold">You can now use the swap functionality without waiting for program initialization!</p>
+            </div>
+          ),
+          variant: "default"
+        });
+      } else {
+        // Try to use on-chain implementation (this will likely fail with current issues)
+        try {
+          // Dynamically import the on-chain implementation to avoid errors
+          const { initializeMultiHubSwapProgram } = await import('@/lib/multihub-client');
+          await initializeMultiHubSwapProgram(wallet);
+          
+          toast({
+            title: "On-Chain Program Initialized",
+            description: "The on-chain MultiHub Swap program has been successfully initialized.",
+            variant: "default"
+          });
+        } catch (onChainError) {
+          console.error("On-chain initialization failed:", onChainError);
+          toast({
+            title: "On-Chain Initialization Failed",
+            description: (
+              <div>
+                <p>Failed to initialize the on-chain program: {String(onChainError)}</p>
+                <p className="mt-2">Consider using the simplified implementation for testing.</p>
+              </div>
+            ),
+            variant: "destructive"
+          });
+          throw onChainError; // Re-throw to show failure
+        }
+      }
       
       setIsProgramInitialized(true);
     } catch (error) {
@@ -135,8 +182,30 @@ export default function CashbackSwapPage() {
       setSwapSuccess(false);
       setSwapError(null);
       
-      // Import our simplified swap implementation
-      const { swapTokenToYOT, swapYOTToToken } = await import('@/lib/multihub-client-simplified');
+      // Import the appropriate implementation based on toggle setting
+      let swapTokenToYOT, swapYOTToToken;
+      
+      if (useSimplifiedMode) {
+        console.log("Using simplified implementation for swap");
+        // Use the simplified implementation
+        ({ swapTokenToYOT, swapYOTToToken } = await import('@/lib/multihub-client-simplified'));
+      } else {
+        console.log("Attempting to use on-chain implementation for swap");
+        try {
+          // Try to use the on-chain implementation
+          ({ swapTokenToYOT, swapYOTToToken } = await import('@/lib/multihub-client'));
+        } catch (importError) {
+          console.error("Failed to import on-chain implementation:", importError);
+          toast({
+            title: "Implementation Error",
+            description: "On-chain implementation couldn't be loaded. Falling back to simplified mode.",
+            variant: "destructive"
+          });
+          // Fall back to simplified implementation
+          ({ swapTokenToYOT, swapYOTToToken } = await import('@/lib/multihub-client-simplified'));
+        }
+      }
+      
       const { PublicKey } = await import('@solana/web3.js');
       
       console.log("Using simplified swap implementation - no program validation required");
@@ -367,6 +436,67 @@ export default function CashbackSwapPage() {
   
   return (
     <div className="container max-w-4xl mx-auto py-8">
+      {/* Admin Settings Panel */}
+      {isAdmin && (
+        <Card className="mb-6 bg-primary/5 border-primary/20">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Settings className="h-5 w-5 mr-2" />
+              <span>Admin Settings</span>
+            </CardTitle>
+            <CardDescription>
+              Configure the implementation used for swaps and initialize the program
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="implementation-toggle" className="font-medium">
+                  Implementation Mode
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  {useSimplifiedMode 
+                    ? "Using client-side implementation that bypasses on-chain program" 
+                    : "Attempting to use on-chain program implementation (may fail)"
+                  }
+                </p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Label htmlFor="implementation-toggle" className={!useSimplifiedMode ? "font-medium" : "text-muted-foreground"}>
+                  On-Chain
+                </Label>
+                <Switch 
+                  id="implementation-toggle" 
+                  checked={useSimplifiedMode}
+                  onCheckedChange={setUseSimplifiedMode}
+                />
+                <Label htmlFor="implementation-toggle" className={useSimplifiedMode ? "font-medium" : "text-muted-foreground"}>
+                  Simplified
+                </Label>
+              </div>
+            </div>
+            
+            <div className="mt-4 pt-4 border-t">
+              <Button 
+                variant="outline"
+                onClick={handleInitializeProgram}
+                disabled={isInitializing}
+                className="w-full md:w-auto"
+              >
+                <Key className="h-4 w-4 mr-2" />
+                {isInitializing ? "Initializing..." : useSimplifiedMode ? "Initialize Simplified Mode" : "Initialize On-Chain Program"}
+              </Button>
+              <p className="text-xs text-muted-foreground mt-2">
+                {useSimplifiedMode 
+                  ? "Simplified mode doesn't require actual on-chain initialization" 
+                  : "On-chain initialization creates necessary accounts for token swaps"
+                }
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      
       {/* Program Not Initialized Warning - displayed at the top of the page */}
       {swapError && swapError.message.includes("needs to be initialized") && (
         <Alert variant="destructive" className="mb-6 bg-destructive/10 border-destructive">
