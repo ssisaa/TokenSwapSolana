@@ -20,30 +20,30 @@ class InitializeInstruction {
   admin: Uint8Array;
   yot_mint: Uint8Array;
   yos_mint: Uint8Array;
-  lp_contribution_rate: number;
-  admin_fee_rate: number;
-  yos_cashback_rate: number;
-  swap_fee_rate: number;
-  referral_rate: number;
+  lp_contribution_rate: bigint;
+  admin_fee_rate: bigint;
+  yos_cashback_rate: bigint;
+  swap_fee_rate: bigint;
+  referral_rate: bigint;
 
-  constructor(
-    admin: Uint8Array,
-    yot_mint: Uint8Array, 
-    yos_mint: Uint8Array,
-    lp_contribution_rate: number,
-    admin_fee_rate: number,
-    yos_cashback_rate: number,
-    swap_fee_rate: number,
-    referral_rate: number
-  ) {
-    this.admin = admin;
-    this.yot_mint = yot_mint;
-    this.yos_mint = yos_mint;
-    this.lp_contribution_rate = lp_contribution_rate;
-    this.admin_fee_rate = admin_fee_rate;
-    this.yos_cashback_rate = yos_cashback_rate;
-    this.swap_fee_rate = swap_fee_rate;
-    this.referral_rate = referral_rate;
+  constructor(fields: {
+    admin: Uint8Array;
+    yot_mint: Uint8Array;
+    yos_mint: Uint8Array;
+    lp_contribution_rate: bigint;
+    admin_fee_rate: bigint;
+    yos_cashback_rate: bigint;
+    swap_fee_rate: bigint;
+    referral_rate: bigint;
+  }) {
+    this.admin = fields.admin;
+    this.yot_mint = fields.yot_mint;
+    this.yos_mint = fields.yos_mint;
+    this.lp_contribution_rate = fields.lp_contribution_rate;
+    this.admin_fee_rate = fields.admin_fee_rate;
+    this.yos_cashback_rate = fields.yos_cashback_rate;
+    this.swap_fee_rate = fields.swap_fee_rate;
+    this.referral_rate = fields.referral_rate;
   }
 }
 
@@ -71,64 +71,47 @@ class CloseProgramInstruction {
   }
 }
 
-// Define the schema for Borsh serialization - must be formatted properly for borsh.js
-class InitializeInstructionSchema {
-  constructor(properties) {
-    Object.assign(this, properties);
-  }
-}
-
-class SwapInstructionSchema {
-  constructor(properties) {
-    Object.assign(this, properties);
-  }
-}
-
-class CloseProgramInstructionSchema {
-  constructor(properties) {
-    Object.assign(this, properties);
-  }
-}
-
-// Create schema format that works with borsh.js
-const initializeInstructionSchema = new Map([
+// Define Borsh Schema for InitializeInstruction
+const InitializeInstructionSchema = new Map([
   [
     InitializeInstruction,
     {
-      kind: 'struct',
+      kind: "struct",
       fields: [
-        ['admin', [32]], // Pubkey is 32 bytes
-        ['yot_mint', [32]],
-        ['yos_mint', [32]],
-        ['lp_contribution_rate', 'u64'],
-        ['admin_fee_rate', 'u64'],
-        ['yos_cashback_rate', 'u64'],
-        ['swap_fee_rate', 'u64'],
-        ['referral_rate', 'u64'],
+        ["admin", [32]],
+        ["yot_mint", [32]],
+        ["yos_mint", [32]],
+        ["lp_contribution_rate", "u64"],
+        ["admin_fee_rate", "u64"],
+        ["yos_cashback_rate", "u64"],
+        ["swap_fee_rate", "u64"],
+        ["referral_rate", "u64"],
       ],
     },
   ],
 ]);
 
-const swapInstructionSchema = new Map([
+// Define Borsh Schema for SwapInstruction
+const SwapInstructionSchema = new Map([
   [
     SwapInstruction,
     {
-      kind: 'struct',
+      kind: "struct",
       fields: [
-        ['amount_in', 'u64'],
-        ['min_amount_out', 'u64'],
+        ["amount_in", "u64"],
+        ["min_amount_out", "u64"],
       ],
     },
   ],
 ]);
 
-const closeProgramInstructionSchema = new Map([
+// Define Borsh Schema for CloseProgramInstruction
+const CloseProgramInstructionSchema = new Map([
   [
     CloseProgramInstruction,
     {
-      kind: 'struct',
-      fields: [], // No fields
+      kind: "struct",
+      fields: [],
     },
   ],
 ]);
