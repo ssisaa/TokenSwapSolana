@@ -1,0 +1,65 @@
+multihub-contract-v3.ts:190 Initialization simulation failed: {InstructionError: Array(2)}
+initializeProgram @ multihub-contract-v3.ts:190
+await in initializeProgram
+initializeMultihubSwapV3 @ multihub-integration-v3.ts:166
+handleInitialize @ MultihubV3AdminActions.tsx:51
+callCallback2 @ chunk-276SZO74.js?v=c10a72ea:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c10a72ea:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c10a72ea:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c10a72ea:3736
+executeDispatch @ chunk-276SZO74.js?v=c10a72ea:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c10a72ea:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c10a72ea:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c10a72ea:7051
+(anonymous) @ chunk-276SZO74.js?v=c10a72ea:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c10a72ea:18913
+batchedUpdates @ chunk-276SZO74.js?v=c10a72ea:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c10a72ea:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c10a72ea:5478
+dispatchEvent @ chunk-276SZO74.js?v=c10a72ea:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c10a72ea:5449Understand this error
+multihub-contract-v3.ts:191 Simulation error details: {"InstructionError":[0,{"BorshIoError":"Unknown"}]}
+initializeProgram @ multihub-contract-v3.ts:191
+await in initializeProgram
+initializeMultihubSwapV3 @ multihub-integration-v3.ts:166
+handleInitialize @ MultihubV3AdminActions.tsx:51
+callCallback2 @ chunk-276SZO74.js?v=c10a72ea:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c10a72ea:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c10a72ea:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c10a72ea:3736
+executeDispatch @ chunk-276SZO74.js?v=c10a72ea:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c10a72ea:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c10a72ea:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c10a72ea:7051
+(anonymous) @ chunk-276SZO74.js?v=c10a72ea:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c10a72ea:18913
+batchedUpdates @ chunk-276SZO74.js?v=c10a72ea:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c10a72ea:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c10a72ea:5478
+dispatchEvent @ chunk-276SZO74.js?v=c10a72ea:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c10a72ea:5449Understand this error
+multihub-contract-v3.ts:205 Error in initialize program function: Error: Simulation failed: {"InstructionError":[0,{"BorshIoError":"Unknown"}]}
+    at Object.initializeProgram (multihub-contract-v3.ts:192:13)
+    at async handleInitialize (MultihubV3AdminActions.tsx:51:25)
+initializeProgram @ multihub-contract-v3.ts:205
+await in initializeProgram
+initializeMultihubSwapV3 @ multihub-integration-v3.ts:166
+handleInitialize @ MultihubV3AdminActions.tsx:51
+callCallback2 @ chunk-276SZO74.js?v=c10a72ea:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c10a72ea:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c10a72ea:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c10a72ea:3736
+executeDispatch @ chunk-276SZO74.js?v=c10a72ea:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c10a72ea:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c10a72ea:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c10a72ea:7051
+(anonymous) @ chunk-276SZO74.js?v=c10a72ea:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c10a72ea:18913
+batchedUpdates @ chunk-276SZO74.js?v=c10a72ea:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c10a72ea:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c10a72ea:5478
+dispatchEvent @ chunk-276SZO74.js?v=c10a72ea:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c10a72ea:5449Understand this error
+MultihubV3AdminActions.tsx:63 Failed to initialize program: Error: Simulation failed: {"InstructionError":[0,{"BorshIoError":"Unknown"}]}
+    at Object.initializeProgram (multihub-contract-v3.ts:192:13)
+    at async handleInitialize (MultihubV3AdminActions.tsx:51:25)
