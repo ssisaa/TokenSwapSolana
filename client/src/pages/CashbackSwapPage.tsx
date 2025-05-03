@@ -122,6 +122,9 @@ export default function CashbackSwapPage() {
         // Use simplified implementation that doesn't interact with the blockchain
         await initializeSimplified(wallet);
         
+        // Set program as initialized in state
+        setIsProgramInitialized(true);
+        
         toast({
           title: "Simplified Mode Activated",
           description: (
@@ -138,6 +141,9 @@ export default function CashbackSwapPage() {
           // Dynamically import the on-chain implementation to avoid errors
           const { initializeMultiHubSwapProgram } = await import('@/lib/multihub-client');
           await initializeMultiHubSwapProgram(wallet);
+          
+          // Set program as initialized in state
+          setIsProgramInitialized(true);
           
           toast({
             title: "On-Chain Program Initialized",
@@ -159,8 +165,6 @@ export default function CashbackSwapPage() {
           throw onChainError; // Re-throw to show failure
         }
       }
-      
-      setIsProgramInitialized(true);
     } catch (error) {
       console.error("Error initializing program:", error);
       toast({
@@ -478,13 +482,27 @@ export default function CashbackSwapPage() {
             
             <div className="mt-4 pt-4 border-t">
               <Button 
-                variant="outline"
+                variant={isProgramInitialized ? "outline" : "default"}
                 onClick={handleInitializeProgram}
-                disabled={isInitializing}
+                disabled={isInitializing || isProgramInitialized}
                 className="w-full md:w-auto"
               >
-                <Key className="h-4 w-4 mr-2" />
-                {isInitializing ? "Initializing..." : useSimplifiedMode ? "Initialize Simplified Mode" : "Initialize On-Chain Program"}
+                {isInitializing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Initializing...
+                  </>
+                ) : isProgramInitialized ? (
+                  <>
+                    <Check className="h-4 w-4 mr-2 text-green-500" />
+                    Simplified Mode Active
+                  </>
+                ) : (
+                  <>
+                    <Key className="h-4 w-4 mr-2" />
+                    {useSimplifiedMode ? "Initialize Simplified Mode" : "Initialize On-Chain Program"}
+                  </>
+                )}
               </Button>
               <p className="text-xs text-muted-foreground mt-2">
                 {useSimplifiedMode 
@@ -608,16 +626,20 @@ export default function CashbackSwapPage() {
                 <div className="flex space-x-2">
                   <div className="flex-1">
                     <Input
-                      type="number"
+                      type="text" 
+                      inputMode="decimal"
                       placeholder="0.0"
                       value={swap.fromAmount}
                       onChange={(e) => {
                         const value = e.target.value;
-                        swap.setFromAmount(value);
-                        if (value && !isNaN(parseFloat(value))) {
-                          swap.calculateToAmount(parseFloat(value));
-                        } else {
-                          swap.setToAmount("");
+                        // Only allow numbers and a single decimal point
+                        if (value === '' || /^[0-9]*\.?[0-9]*$/.test(value)) {
+                          swap.setFromAmount(value);
+                          if (value && !isNaN(parseFloat(value))) {
+                            swap.calculateToAmount(parseFloat(value));
+                          } else {
+                            swap.setToAmount("");
+                          }
                         }
                       }}
                       className="text-right text-lg"
@@ -670,16 +692,20 @@ export default function CashbackSwapPage() {
                 <div className="flex space-x-2">
                   <div className="flex-1">
                     <Input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       placeholder="0.0"
                       value={swap.toAmount}
                       onChange={(e) => {
                         const value = e.target.value;
-                        swap.setToAmount(value);
-                        if (value && !isNaN(parseFloat(value))) {
-                          swap.calculateFromAmount(parseFloat(value));
-                        } else {
-                          swap.setFromAmount("");
+                        // Only allow numbers and a single decimal point
+                        if (value === '' || /^[0-9]*\.?[0-9]*$/.test(value)) {
+                          swap.setToAmount(value);
+                          if (value && !isNaN(parseFloat(value))) {
+                            swap.calculateFromAmount(parseFloat(value));
+                          } else {
+                            swap.setFromAmount("");
+                          }
                         }
                       }}
                       className="text-right text-lg"
