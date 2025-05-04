@@ -193,11 +193,26 @@ export default function FixedSwapPage() {
           throw new Error("Failed to get token information");
         }
         
-        // Create a swap estimate using the current exchange rate
+        // CRITICAL FIX: Log the raw input amount to verify what we're sending
+        console.log(`Raw form amounts: ${fromAmount} ${fromToken} -> ${toAmount} ${toToken}`);
+        
+        // CRITICAL FIX: Convert the input amount to raw blockchain format (lamports)
+        // This ensures the amount shown in UI is exactly what's sent to the blockchain
+        const rawFromAmount = fromToken === SOL_SYMBOL 
+          ? Math.floor(fromAmount * 1e9) // Convert SOL to lamports 
+          : Math.floor(fromAmount * 1e9); // Convert YOT to raw amount with 9 decimals
+          
+        const rawToAmount = toToken === SOL_SYMBOL
+          ? Math.floor(toAmount * 1e9) // Convert SOL to lamports
+          : Math.floor(toAmount * 1e9); // Convert YOT to raw amount with 9 decimals
+          
+        console.log(`Converted raw amounts: ${rawFromAmount} ${fromToken} -> ${rawToAmount} ${toToken}`);
+        
+        // Create a swap estimate using the current exchange rate with corrected raw amounts
         const swapEstimate: SwapEstimate = {
           provider: SwapProvider.Contract,
-          inAmount: fromAmount,
-          outAmount: toAmount,
+          inAmount: rawFromAmount,
+          outAmount: rawToAmount,
           rate: fromToken === SOL_SYMBOL ? exchangeRate : 1/exchangeRate,
           impact: 0.005, // Price impact is calculated by the contract
           fee: 0.003     // Fee is set by the contract
@@ -210,7 +225,7 @@ export default function FixedSwapPage() {
             wallet,
             solTokenInfo,
             yotTokenInfo,
-            fromAmount,
+            rawFromAmount, // CRITICAL FIX: Use raw amount that matches what the UI shows
             swapEstimate
           );
         } else {
@@ -220,7 +235,7 @@ export default function FixedSwapPage() {
             wallet,
             yotTokenInfo,
             solTokenInfo,
-            fromAmount,
+            rawFromAmount, // CRITICAL FIX: Use raw amount that matches what the UI shows
             swapEstimate
           );
         }

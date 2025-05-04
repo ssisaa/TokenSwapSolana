@@ -374,14 +374,25 @@ export async function performMultiHubSwap(
     throw stateCheckError;
   }
   
-  // Now perform the actual swap with improved slippage calculation
+  // CRITICAL FIX: Ensure that the input amount is exactly as shown in the UI
+  // This addresses the issue where entering 0.2 SOL shows as 0.1 SOL in the wallet
+  console.log(`Performing swap with original amount: ${amountIn} (${Number(amountIn) / 1e9} tokens)`);
+  
+  // Ensure the estimate is a valid number to avoid transaction failures due to NaN or infinity
+  const minAmountOut = Number.isFinite(swapEstimate.outAmount) 
+    ? Math.floor(swapEstimate.outAmount * 0.99) // Allow 1% slippage
+    : 0;
+    
+  console.log(`Minimum amount out: ${minAmountOut} (${Number(minAmountOut) / 1e9} tokens)`);
+  
+  // Now perform the actual swap with improved slippage calculation and exact amounts
   return MultihubSwapV3.performSwap(
     connection,
     wallet,
     inputMint,
     outputMint,
     amountIn,
-    Math.floor(swapEstimate.outAmount * 0.99) // Allow 1% slippage
+    minAmountOut
   );
 }
 
