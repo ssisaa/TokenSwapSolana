@@ -1,22 +1,22 @@
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { useWallet } from "@/hooks/useSolanaWallet";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Input } from "../components/ui/input";
+import { Button } from "../components/ui/button";
+import { useToast } from "../hooks/use-toast";
+import { useWallet } from "../hooks/useSolanaWallet";
 import { PublicKey } from "@solana/web3.js";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
-import { YOT_MINT, YOS_MINT } from "@/lib/constants";
+import { YOT_MINT, YOS_MINT } from "../lib/constants";
 import { 
   fundProgramTokenAccount,
   findProgramAuthorityAddress, 
   getTokenBalance 
-} from "@/lib/program-admin";
-import { formatCurrency } from "@/lib/utils";
-import PageHeading from "@/components/PageHeading";
+} from "../lib/program-admin";
+import { formatCurrency } from "../lib/utils";
+import PageHeading from "../components/PageHeading";
 import { ShieldAlert, ArrowUpCircle, Coins, Info, Lock } from "lucide-react";
-import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { useAdminAuth } from "../hooks/use-admin-auth";
 
 const ADMIN_WALLET = new PublicKey("AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ");
 
@@ -220,7 +220,7 @@ export default function AdminPage() {
     );
   }
 
-  if (loadingAuth) {
+  if (authLoading || loading) {
     return (
       <div className="container mx-auto py-6">
         <PageHeading
@@ -235,7 +235,7 @@ export default function AdminPage() {
     );
   }
 
-  if (!isAdmin) {
+  if (!admin) {
     return (
       <div className="container mx-auto py-6">
         <PageHeading
