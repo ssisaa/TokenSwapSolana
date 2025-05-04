@@ -44,7 +44,8 @@
       "adminFeeRate": 10,
       "yosCashbackRate": 300,
       "swapFeeRate": 30,
-      "referralRate": 50
+      "referralRate": 50,
+      "pdaFundingFee": 0.000005
     },
     "staking": {
       "stakeRatePerSecond": 0.0000125,
