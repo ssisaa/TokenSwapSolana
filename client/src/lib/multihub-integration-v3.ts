@@ -13,7 +13,7 @@ import {
 } from '@solana/spl-token';
 
 // Constants for the different program versions
-export const PROGRAM_ID_V3 = MultihubSwapV3.MULTIHUB_SWAP_PROGRAM_ID; // Updated to SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE
+export const PROGRAM_ID_V3 = MultihubSwapV3.MULTIHUB_SWAP_PROGRAM_ID; // Using deployed program ID from config
 
 // Token constants
 export const YOT_TOKEN_MINT = new PublicKey(MultihubSwapV3.YOT_TOKEN_MINT);

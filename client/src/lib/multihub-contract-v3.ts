@@ -147,9 +147,7 @@ export function buildCloseProgramInstruction(): Buffer {
 
 /**
  * IMPORTANT: All program IDs are loaded from app.config.json
- * from what we are using in the client. This causes PDA mismatch and InvalidAccountData errors.
- * 
- * This is the hardcoded program ID from the deployed Rust program
+ * ensuring we always use the same deployed program ID from app.config.json for all PDA derivations and transactions
  */
 // We're now using the deployed program ID from config
 // Using deployed program ID directly from config
@@ -680,7 +678,7 @@ export async function initializeProgram(
         { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false }, // system_program_account
         { pubkey: new PublicKey('SysvarRent111111111111111111111111111111111'), isSigner: false, isWritable: false }, // rent_sysvar_account
       ],
-      programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID), // Use hardcoded program ID to match PDAs
+      programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID), // Using program ID from config
       data: instructionData
     });
     
@@ -1209,7 +1207,7 @@ export async function performSwap(
         { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false }, // System program [13]
         { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, // Rent sysvar [14]
       ],
-      programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID), // Use hardcoded program ID to match PDAs
+      programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID), // Using program ID from config
       data: Buffer.from(swapData)
     }));
     
@@ -1349,7 +1347,7 @@ export async function closeProgram(
         { pubkey: programAuthorityAddress, isSigner: false, isWritable: true }, // Program authority - must be writable!
         { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false }, // System Program - needed for closing accounts
       ],
-      programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID), // Use hardcoded program ID to match PDAs
+      programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID), // Using program ID from config
       data: Buffer.from(closeProgramData)
     }));
     
