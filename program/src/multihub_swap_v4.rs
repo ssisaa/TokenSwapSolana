@@ -199,41 +199,57 @@ pub fn process_initialize(
     // Verify program state PDA
     let (expected_program_state, program_state_bump) = find_program_state_address(program_id);
     if expected_program_state != *program_state_account.key {
-        msg!("Invalid program state account");
+        msg!("❌ Invalid program state account");
         return Err(ProgramError::InvalidAccountData);
     }
     
     // Verify program authority PDA
     let (expected_program_authority, program_authority_bump) = find_program_authority_address(program_id);
     if expected_program_authority != *program_authority_account.key {
-        msg!("Invalid program authority account");
+        msg!("❌ Invalid program authority account");
         return Err(ProgramError::InvalidAccountData);
     }
     
     // Calculate space for program state
     let space = 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8; // 3 pubkeys + 5 u64 rates
     
-    // Create program state account
-    let rent = Rent::get()?;
-    let required_lamports = rent.minimum_balance(space);
-    msg!("Creating program state with {} bytes", space);
-    msg!("Rent-exempt balance: {} lamports", required_lamports);
-    
-    invoke_signed(
-        &system_instruction::create_account(
-            payer_account.key,
-            program_state_account.key,
-            required_lamports,
-            space as u64,
-            program_id,
-        ),
-        &[
-            payer_account.clone(),
-            program_state_account.clone(),
-            system_program_account.clone(),
-        ],
-        &[&[b"state", &[program_state_bump]]],
-    )?;
+    // Check if the account already exists and validate it
+    if !program_state_account.data_is_empty() {
+        // If it exists, check owner and size
+        if program_state_account.owner != program_id {
+            msg!("❌ State account not owned by this program");
+            return Err(ProgramError::IncorrectProgramId);
+        }
+        
+        if program_state_account.data_len() < space {
+            msg!("❌ State account too small: expected {}, got {}", space, program_state_account.data_len());
+            return Err(ProgramError::AccountDataTooSmall);
+        }
+        
+        msg!("✓ Program state account already exists and is valid");
+    } else {
+        // Create program state account if it doesn't exist
+        let rent = Rent::get()?;
+        let required_lamports = rent.minimum_balance(space);
+        msg!("Creating program state with {} bytes", space);
+        msg!("Rent-exempt balance: {} lamports", required_lamports);
+        
+        invoke_signed(
+            &system_instruction::create_account(
+                payer_account.key,
+                program_state_account.key,
+                required_lamports,
+                space as u64,
+                program_id,
+            ),
+            &[
+                payer_account.clone(),
+                program_state_account.clone(),
+                system_program_account.clone(),
+            ],
+            &[&[b"state", &[program_state_bump]]],
+        )?;
+    }
     
     // Initialize program state
     let program_state = ProgramState {

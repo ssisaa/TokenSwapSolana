@@ -7,8 +7,10 @@ import multihubContract from "@/lib/multihub-contract-v3";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { ReloadIcon } from "@radix-ui/react-icons";
+import { CircleAlert, CircleCheck, InfoIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { type PublicKey } from '@solana/web3.js';
+import { Badge } from "@/components/ui/badge";
 
 export default function MultihubV3DebugPanel() {
   // Get wallet context - we need to support both types of wallet contexts
@@ -21,6 +23,13 @@ export default function MultihubV3DebugPanel() {
   const [debugInfo, setDebugInfo] = useState<string>("");
   const [isDebugLoading, setIsDebugLoading] = useState(false);
   const [isVerifyLoading, setIsVerifyLoading] = useState(false);
+  const [isStateCheckLoading, setIsStateCheckLoading] = useState(false);
+  const [stateCheckResult, setStateCheckResult] = useState<{
+    exists: boolean;
+    hasCorrectOwner: boolean;
+    hasCorrectSize: boolean;
+    details: string;
+  } | null>(null);
   const { toast } = useToast();
 
   // Function to run debug info
@@ -67,6 +76,61 @@ export default function MultihubV3DebugPanel() {
     }
   };
   
+  // Function to check state account
+  const checkStateAccount = async () => {
+    if (!connection) return;
+    
+    setIsStateCheckLoading(true);
+    setStateCheckResult(null);
+    
+    try {
+      // Override console.log to capture output
+      const originalConsoleLog = console.log;
+      const logs: string[] = [];
+      
+      console.log = (...args) => {
+        logs.push(args.join(' '));
+        originalConsoleLog(...args);
+      };
+      
+      // Run the check state account function
+      const result = await multihubContract.checkStateAccount(connection);
+      
+      // Restore console.log
+      console.log = originalConsoleLog;
+      
+      // Update state with result
+      setStateCheckResult(result);
+      
+      // Update debug info with new logs
+      setDebugInfo(prevLogs => {
+        const newLogs = prevLogs ? prevLogs + '\n\n=== STATE ACCOUNT VERIFICATION ===\n' : '=== STATE ACCOUNT VERIFICATION ===\n';
+        return newLogs + logs.join('\n') + '\n' + result.details;
+      });
+      
+      toast({
+        title: "State Account Check Complete",
+        description: result.exists 
+          ? (result.hasCorrectOwner && result.hasCorrectSize 
+              ? "State account exists and is valid" 
+              : "State account exists but has issues")
+          : "State account doesn't exist yet",
+        variant: result.exists && (!result.hasCorrectOwner || !result.hasCorrectSize) ? "destructive" : "default",
+      });
+    } catch (error) {
+      console.error("Error checking state account:", error);
+      setDebugInfo(prevLogs => prevLogs + `\n\nError checking state account: ${error instanceof Error ? error.message : String(error)}`);
+      
+      toast({
+        title: "State Account Check Failed",
+        description: "Failed to check program state account",
+        variant: "destructive",
+      });
+    } finally {
+      setIsStateCheckLoading(false);
+    }
+  };
+
   // Function to verify and fund the program authority
   const verifyProgramAuthority = async () => {
     if (!connection || !publicKey) return;
@@ -148,6 +212,15 @@ export default function MultihubV3DebugPanel() {
           </Button>
           
           <Button
+            onClick={checkStateAccount}
+            disabled={isStateCheckLoading}
+            className="bg-amber-600 hover:bg-amber-700"
+          >
+            {isStateCheckLoading && <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />}
+            Check State Account
+          </Button>
+          
+          <Button
             onClick={verifyProgramAuthority}
             disabled={!publicKey || isVerifyLoading}
             className="bg-green-600 hover:bg-green-700"
@@ -156,6 +229,55 @@ export default function MultihubV3DebugPanel() {
             Verify & Fund Program Authority
           </Button>
         </div>
+        
+        {stateCheckResult && (
+          <Alert className="mb-4 bg-gray-50 dark:bg-gray-900">
+            <AlertTitle className="flex items-center">
+              State Account Status
+              {stateCheckResult.exists ? (
+                stateCheckResult.hasCorrectOwner && stateCheckResult.hasCorrectSize ? (
+                  <Badge className="ml-2 bg-green-500" variant="outline">
+                    <CircleCheck className="h-3 w-3 mr-1" /> Valid
+                  </Badge>
+                ) : (
+                  <Badge className="ml-2 bg-red-500" variant="outline">
+                    <CircleAlert className="h-3 w-3 mr-1" /> Invalid
+                  </Badge>
+                )
+              ) : (
+                <Badge className="ml-2 bg-blue-500" variant="outline">
+                  <InfoIcon className="h-3 w-3 mr-1" /> Not Exists
+                </Badge>
+              )}
+            </AlertTitle>
+            <AlertDescription>
+              <div className="text-xs mt-2 space-y-1">
+                <div className="flex justify-between">
+                  <span>Account Exists:</span>
+                  <span className={stateCheckResult.exists ? "text-green-600" : "text-amber-600"}>
+                    {stateCheckResult.exists ? "Yes" : "No"}
+                  </span>
+                </div>
+                {stateCheckResult.exists && (
+                  <>
+                    <div className="flex justify-between">
+                      <span>Correct Owner:</span>
+                      <span className={stateCheckResult.hasCorrectOwner ? "text-green-600" : "text-red-600"}>
+                        {stateCheckResult.hasCorrectOwner ? "Yes" : "No"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Sufficient Size:</span>
+                      <span className={stateCheckResult.hasCorrectSize ? "text-green-600" : "text-red-600"}>
+                        {stateCheckResult.hasCorrectSize ? "Yes" : "No"}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
         
         <Separator className="my-4" />
         
