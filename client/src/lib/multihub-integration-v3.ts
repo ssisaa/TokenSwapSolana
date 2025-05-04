@@ -77,11 +77,23 @@ export async function verifyProgramTokenAccounts(connection: Connection): Promis
       true // allowOwnerOffCurve for PDAs
     );
     
-    // CRITICAL FIX: Use the hard-coded SOL token account that we know is funded
+    // CRITICAL FIX: Use the correct SOL token account from config
     // The ATA derivation is producing Hde7zab2woDRC1KLe11KVRzs5enigbK7mnq2r5YYZobD
-    // But the actual account receiving funds is 7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS
+    // But the actual account receiving funds is the one configured in app.config.json
     // This mismatch was causing the InvalidAccountData error
-    const solTokenAccount = new PublicKey("7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS");
+    const solTokenAccount = new PublicKey(config.accounts.poolSol);
+    console.log(`Using SOL token account from config: ${solTokenAccount.toString()}`);
+    
+    // Also get the YOT and YOS token accounts directly from config for consistency
+    const configYotAccount = new PublicKey(config.accounts.yotToken);
+    const configYosAccount = new PublicKey(config.accounts.yosToken);
+    
+    // Log verification of using the accounts from config
+    console.log(`Verifying token accounts from config:
+    SOL: ${solTokenAccount.toString()} (from derivation: Hde7zab2woDRC1KLe11KVRzs5enigbK7mnq2r5YYZobD)
+    YOT: ${configYotAccount.toString()} (from ATA: ${yotTokenAccount.toString()})
+    YOS: ${configYosAccount.toString()} (from ATA: ${yosTokenAccount.toString()})
+    `);
     
     // Check YOT account
     const yotAccountInfo = await checkTokenAccount(connection, yotTokenAccount);
