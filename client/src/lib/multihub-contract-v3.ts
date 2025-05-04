@@ -230,6 +230,75 @@ export async function debugProgramIDs(): Promise<void> {
   }
 }
 
+/**
+ * Check if the state account exists, and if it does, verify it has the correct owner and size
+ * This helps diagnose the "IncorrectProgramId" and "AccountDataTooSmall" errors from the Rust code
+ */
+export async function checkStateAccount(
+  connection: Connection
+): Promise<{
+  exists: boolean;
+  hasCorrectOwner: boolean;
+  hasCorrectSize: boolean;
+  details: string;
+}> {
+  try {
+    // Get the program state PDA address
+    const [programStateAddress, stateBump] = findProgramStateAddress();
+    console.log(`Checking state account at ${programStateAddress.toString()} (bump: ${stateBump})`);
+    
+    // Check if the account exists
+    const stateInfo = await connection.getAccountInfo(programStateAddress);
+    
+    // If state account doesn't exist, that's fine for initialization
+    if (!stateInfo) {
+      return {
+        exists: false,
+        hasCorrectOwner: false,
+        hasCorrectSize: false,
+        details: "State account doesn't exist yet, ready for initialization"
+      };
+    }
+    
+    // The account exists, check owner
+    const programId = new PublicKey(MULTIHUB_SWAP_PROGRAM_ID);
+    const hasCorrectOwner = stateInfo.owner.equals(programId);
+    
+    // Check size - the Rust code expects 32*3 + 8*5 = 136 bytes (as defined in the contract)
+    const expectedSize = 32*3 + 8*5;
+    const hasCorrectSize = stateInfo.data.length >= expectedSize;
+    
+    let details = `State account exists:\n`;
+    details += `- Owner: ${stateInfo.owner.toString()}\n`;
+    details += `- Expected owner: ${programId.toString()}\n`;
+    details += `- Size: ${stateInfo.data.length} bytes\n`;
+    details += `- Expected size: ${expectedSize} bytes\n`;
+    
+    if (!hasCorrectOwner) {
+      details += `⚠️ INCORRECT OWNER: This will cause ProgramError::IncorrectProgramId during initialization\n`;
+    }
+    
+    if (!hasCorrectSize) {
+      details += `⚠️ ACCOUNT TOO SMALL: This will cause ProgramError::AccountDataTooSmall during initialization\n`;
+    }
+    
+    return {
+      exists: true,
+      hasCorrectOwner,
+      hasCorrectSize,
+      details
+    };
+  } catch (error) {
+    console.error("Error checking state account:", error);
+    return {
+      exists: false,
+      hasCorrectOwner: false,
+      hasCorrectSize: false,
+      details: `Error checking state account: ${error}`
+    };
+  }
+}
+
 export async function verifyProgramAuthority(
   connection: Connection,
   wallet: any
