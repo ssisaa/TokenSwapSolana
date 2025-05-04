@@ -44,7 +44,7 @@ export const REFERRAL_RATE = config.parameters.swap.referralRate;
 
 /**
  * Manual buffer serialization for initialization instruction
- * This matches the Rust enum variant MultihubSwapInstruction::Initialize exactly
+ * UPDATED TO MATCH the exact format expected by the Rust code in process_initialize function
  */
 export function buildInitializeInstruction({
   admin,
@@ -63,34 +63,48 @@ export function buildInitializeInstruction({
     referral: bigint;
   };
 }): Buffer {
-  const discriminator = Buffer.from([0]); // enum variant for Initialize
+  // In the Rust code, instruction_data.first() is used to determine the instruction type (0 = Initialize)
+  // Then admin = Pubkey::new(&input[1..33]) which means the admin public key starts at index 1
+  const discriminator = Buffer.from([0]); // enum variant for Initialize = 0
+  
+  // Size of data buffer: 1 byte discriminator + 3 PublicKeys (32 bytes each) + 5 u64 values (8 bytes each)
   const buffer = Buffer.alloc(1 + 32 * 3 + 8 * 5);
   let offset = 0;
 
+  // Write the discriminator (instruction type)
   discriminator.copy(buffer, offset);
   offset += 1;
 
+  // Write the admin public key - Pubkey::new(&input[1..33])
   admin.toBuffer().copy(buffer, offset);
   offset += 32;
 
+  // Write the YOT mint public key - Pubkey::new(&input[33..65])
   yotMint.toBuffer().copy(buffer, offset);
   offset += 32;
 
+  // Write the YOS mint public key - Pubkey::new(&input[65..97])
   yosMint.toBuffer().copy(buffer, offset);
   offset += 32;
 
+  // Write the rates as u64 LE values matching the exact byte offsets in the Rust code
+  // LP rate - u64::from_le_bytes(input[97..105].try_into().unwrap())
   buffer.writeBigUInt64LE(rates.lp, offset);
   offset += 8;
 
+  // Admin fee - u64::from_le_bytes(input[105..113].try_into().unwrap())
   buffer.writeBigUInt64LE(rates.fee, offset);
   offset += 8;
 
+  // Cashback rate - u64::from_le_bytes(input[113..121].try_into().unwrap())
   buffer.writeBigUInt64LE(rates.cashback, offset);
   offset += 8;
 
+  // Swap fee - u64::from_le_bytes(input[121..129].try_into().unwrap())
   buffer.writeBigUInt64LE(rates.swap, offset);
   offset += 8;
 
+  // Referral rate - u64::from_le_bytes(input[129..137].try_into().unwrap())
   buffer.writeBigUInt64LE(rates.referral, offset);
   offset += 8;
 
