@@ -58,24 +58,132 @@ export async function getMultiHubSwapEstimate(
   toToken: TokenInfo,
   amount: number
 ): Promise<SwapEstimate> {
-  // The actual implementation would calculate different rates and fees
-  // For now, we're providing a simplified estimate that works for any token pair
-  
   const isFromSol = fromToken.symbol === 'SOL';
   const isToSol = toToken.symbol === 'SOL';
   const isFromYot = fromToken.symbol === 'YOT';
   const isToYot = toToken.symbol === 'YOT';
   
-  // Calculate a realistic rate and impact based on token pair
-  let rate = 1.0;
-  let impact = 0.005; // 0.5% impact for most swaps
+  // Import getPoolBalances dynamically to avoid circular dependencies
+  const { getPoolBalances } = await import('./solana');
   
-  // Simple rate calculations for common pairs
+  // Fetch real pool balances
+  const { solBalance, yotBalance, yosBalance } = await getPoolBalances();
+  
+  // Convert SOL balance from lamports to SOL
+  const solBalanceInSol = solBalance / 1_000_000_000;
+  
+  console.log(`Using real pool balances for price calculation - SOL: ${solBalanceInSol}, YOT: ${yotBalance}, YOS: ${yosBalance}`);
+  
+  // Calculate rate and impact based on actual pool balances
+  let rate = 1.0;
+  let impact = 0.005; // 0.5% default impact
+  const swapFee = 0.003; // 0.3% swap fee
+  const liquidityFee = 0.02; // 2% liquidity contribution + cashback
+  const totalFee = swapFee + liquidityFee;
+  
+  // Skip calculation and use fallback if pool balances are invalid
+  if (!solBalance || !yotBalance || solBalance === 0 || yotBalance === 0) {
+    console.warn('Invalid pool balances, using backup calculation');
+    
+    // Use conservative backup values when pool data is unavailable
+    if (isFromSol && isToYot) {
+      rate = 15000; // Conservative estimate: 1 SOL = 15000 YOT
+    } else if (isFromYot && isToSol) {
+      rate = 1 / 15000; // Conservative estimate: 15000 YOT = 1 SOL
+    }
+    
+    // Calculate output using backup rate
+    const outAmount = amount * rate * (1 - totalFee);
+    
+    return {
+      provider: SwapProvider.Contract,
+      inAmount: amount,
+      outAmount,
+      rate,
+      impact,
+      fee: totalFee
+    };
+  }
+  
+  // Calculate using AMM constant product formula (x * y = k)
   if (isFromSol && isToYot) {
-    rate = 15000; // 1 SOL = 15000 YOT
-  } else if (isFromYot && isToSol) {
-    rate = 1 / 15000; // 15000 YOT = 1 SOL
-  } else if (isFromSol) {
+    // SOL to YOT: Calculate (dx * y) / (x + dx * (1-fee))
+    // Where dx = input amount, x = input reserve, y = output reserve
+    
+    // Apply the swap fee to the input amount (0.3% fee)
+    const adjustedInputAmount = amount * (1 - swapFee);
+    
+    // Calculate output based on constant product formula
+    const numerator = adjustedInputAmount * yotBalance;
+    const denominator = solBalanceInSol + adjustedInputAmount;
+    
+    // Calculate impact based on pool reserves
+    const initialPrice = solBalanceInSol / yotBalance;
+    const newSolReserve = solBalanceInSol + amount;
+    const estimatedOutput = numerator / denominator;
+    const newYotReserve = yotBalance - estimatedOutput;
+    const newPrice = newSolReserve / newYotReserve;
+    impact = Math.abs((newPrice - initialPrice) / initialPrice);
+    
+    // Calculate rate from the pool balances
+    rate = yotBalance / solBalanceInSol;
+    
+    // Apply liquidity fee to output (20% liquidity + 5% cashback = 25% total)
+    const outAmount = estimatedOutput * (1 - liquidityFee);
+    
+    console.log(`AMM calculation: ${amount} SOL should yield approximately ${outAmount} YOT`);
+    console.log(`Real rate from pool: 1 SOL = ${rate} YOT`);
+    
+    return {
+      provider: SwapProvider.Contract,
+      inAmount: amount,
+      outAmount,
+      rate,
+      impact,
+      fee: totalFee
+    };
+  } 
+  else if (isFromYot && isToSol) {
+    // YOT to SOL: Calculate (dx * y) / (x + dx * (1-fee))
+    // Where dx = input amount, x = input reserve, y = output reserve
+    
+    // Apply the swap fee to the input amount (0.3% fee)
+    const adjustedInputAmount = amount * (1 - swapFee);
+    
+    // Calculate output based on constant product formula
+    const numerator = adjustedInputAmount * solBalanceInSol;
+    const denominator = yotBalance + adjustedInputAmount;
+    
+    // Calculate impact based on pool reserves
+    const initialPrice = yotBalance / solBalanceInSol;
+    const newYotReserve = yotBalance + amount;
+    const estimatedOutput = numerator / denominator;
+    const newSolReserve = solBalanceInSol - estimatedOutput;
+    const newPrice = newYotReserve / newSolReserve;
+    impact = Math.abs((newPrice - initialPrice) / initialPrice);
+    
+    // Calculate rate from the pool balances
+    rate = solBalanceInSol / yotBalance;
+    
+    // Apply liquidity fee to output (20% liquidity + 5% cashback = 25% total)
+    const outAmount = estimatedOutput * (1 - liquidityFee);
+    
+    console.log(`AMM calculation: ${amount} YOT should yield approximately ${outAmount} SOL`);
+    console.log(`Real rate from pool: 1 YOT = ${rate} SOL`);
+    
+    return {
+      provider: SwapProvider.Contract,
+      inAmount: amount,
+      outAmount,
+      rate,
+      impact,
+      fee: totalFee
+    };
+  }
+  
+  // For other token pairs, use backup calculations
+  // These calculations are not as accurate but provide a reasonable estimate
+  if (isFromSol) {
     rate = 10; // Generic SOL to other token rate
   } else if (isToSol) {
     rate = 0.1; // Generic token to SOL rate
@@ -86,7 +194,7 @@ export async function getMultiHubSwapEstimate(
   }
   
   // Calculate output amount based on rate, fees, and impact
-  const outAmount = amount * rate * (1 - 0.02); // 2% total fee
+  const outAmount = amount * rate * (1 - totalFee);
   
   return {
     provider: SwapProvider.Contract,
@@ -94,7 +202,7 @@ export async function getMultiHubSwapEstimate(
     outAmount,
     rate,
     impact,
-    fee: 0.02 // 2% fee includes both protocol and liquidity fee
+    fee: totalFee
   };
 }
 
