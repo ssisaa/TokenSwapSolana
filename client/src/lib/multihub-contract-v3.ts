@@ -1487,7 +1487,8 @@ export async function performSwap(
         
         // CRITICAL: Program Authority must be third - this is exactly where InvalidAccountData occurs
         // The ordering here is EXTREMELY important and must match the Rust side accounts exactly
-        { pubkey: programAuthorityPDA, isSigner: false, isWritable: false }, // Program Authority - NOT writable! [2]
+        // CRITICAL FIX: Make Program Authority writable to match Rust-side expectations
+        { pubkey: programAuthorityPDA, isSigner: false, isWritable: true }, // Program Authority - MUST be writable! [2]
         
         // Pool Authority is the actual owner of token accounts
         { pubkey: poolAuthorityAddress, isSigner: false, isWritable: true }, // Pool Authority [3]
