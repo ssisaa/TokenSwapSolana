@@ -56,7 +56,61 @@ export default function FixedSwapPage() {
     }
   }, [connected, wallet]);
   
-  // Handle token swap
+  // Exchange rate state
+  const [exchangeRate, setExchangeRate] = useState<number>(0);
+  
+  // Fetch the current exchange rate from blockchain data
+  const fetchExchangeRate = async () => {
+    try {
+      const { getPoolBalances } = await import('@/lib/solana');
+      const poolData = await getPoolBalances();
+      
+      if (poolData && poolData.solBalance && poolData.yotBalance && 
+          poolData.solBalance > 0 && poolData.yotBalance > 0) {
+        // Convert SOL from lamports for calculation
+        const solBalanceInSol = poolData.solBalance / 1_000_000_000;
+        
+        // Calculate actual exchange rate based on pool balances
+        const actualRate = poolData.yotBalance / solBalanceInSol;
+        
+        console.log(`Using real blockchain exchange rate: 1 SOL = ${actualRate.toFixed(2)} YOT`);
+        setExchangeRate(actualRate);
+        
+        // Update the displayed amount if needed
+        updateAmounts(fromToken, toToken, fromAmount, actualRate);
+      } else {
+        console.error('Invalid pool data received', poolData);
+        // Don't set a fallback rate - just keep current state
+      }
+    } catch (error) {
+      console.error('Error fetching exchange rate:', error);
+    }
+  };
+  
+  // Update amounts based on the token direction and exchange rate
+  const updateAmounts = (from: string, to: string, amount: number, rate: number) => {
+    if (from === SOL_SYMBOL && to === YOT_SYMBOL) {
+      setToAmount(amount * rate);
+    } else if (from === YOT_SYMBOL && to === SOL_SYMBOL) {
+      setToAmount(amount / rate);
+    }
+    
+    // Update cashback calculation - 5% of the input amount
+    const cashback = amount * 0.05;
+    setCashbackAmount(cashback.toFixed(6));
+  };
+  
+  // Fetch exchange rate on component mount
+  useEffect(() => {
+    fetchExchangeRate();
+    
+    // Set up a refresh interval
+    const intervalId = setInterval(fetchExchangeRate, 30000); // Refresh every 30 seconds
+    
+    return () => clearInterval(intervalId);
+  }, []);
+
+  // Handle token swap with real exchange rate
   const handleFromTokenChange = (newFromToken: string) => {
     setFromToken(newFromToken);
     
@@ -65,21 +119,11 @@ export default function FixedSwapPage() {
       setToToken(newFromToken === SOL_SYMBOL ? YOT_SYMBOL : SOL_SYMBOL);
     }
     
-    // Update amounts based on mock exchange rate
-    if (newFromToken === SOL_SYMBOL) {
-      // SOL to YOT rate: 1 SOL = 15000 YOT
-      setToAmount(fromAmount * 15000);
-    } else {
-      // YOT to SOL rate: 15000 YOT = 1 SOL
-      setToAmount(fromAmount / 15000);
-    }
-    
-    // Update cashback calculation
-    const cashback = fromAmount * 0.05;
-    setCashbackAmount(cashback.toFixed(6));
+    // Update amounts based on real exchange rate
+    updateAmounts(newFromToken, toToken, fromAmount, exchangeRate);
   };
   
-  // Handle token swap
+  // Handle token swap using real exchange rate
   const handleToTokenChange = (newToToken: string) => {
     setToToken(newToToken);
     
@@ -88,37 +132,20 @@ export default function FixedSwapPage() {
       setFromToken(newToToken === SOL_SYMBOL ? YOT_SYMBOL : SOL_SYMBOL);
     }
     
-    // Update amounts based on mock exchange rate
-    if (newToToken === YOT_SYMBOL) {
-      // SOL to YOT rate: 1 SOL = 15000 YOT
-      setToAmount(fromAmount * 15000);
-    } else {
-      // YOT to SOL rate: 15000 YOT = 1 SOL
-      setToAmount(fromAmount / 15000);
-    }
+    // Update amounts based on real exchange rate
+    updateAmounts(fromToken, newToToken, fromAmount, exchangeRate);
     
-    // Update cashback calculation
-    const cashback = fromAmount * 0.05;
-    setCashbackAmount(cashback.toFixed(6));
+    // Refresh the exchange rate when token changes
+    fetchExchangeRate();
   };
   
-  // Handle from amount change
+  // Handle from amount change using real exchange rate
   const handleFromAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseFloat(e.target.value) || 0;
     setFromAmount(value);
     
-    // Update to amount based on exchange rate
-    if (fromToken === SOL_SYMBOL && toToken === YOT_SYMBOL) {
-      // SOL to YOT rate: 1 SOL = 15000 YOT
-      setToAmount(value * 15000);
-    } else if (fromToken === YOT_SYMBOL && toToken === SOL_SYMBOL) {
-      // YOT to SOL rate: 15000 YOT = 1 SOL
-      setToAmount(value / 15000);
-    }
-    
-    // Update cashback calculation - 5% of the input amount
-    const cashback = value * 0.05;
-    setCashbackAmount(cashback.toFixed(6));
+    // Update amounts based on real exchange rate
+    updateAmounts(fromToken, toToken, value, exchangeRate);
   };
   
   // Execute the swap using actual on-chain transactions

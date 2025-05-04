@@ -81,28 +81,62 @@ export async function getMultiHubSwapEstimate(
   const liquidityFee = 0.02; // 2% liquidity contribution + cashback
   const totalFee = swapFee + liquidityFee;
   
-  // Skip calculation and use fallback if pool balances are invalid
+  // If pool balances are invalid, use the API to fetch new balances
   if (!solBalance || !yotBalance || solBalance === 0 || yotBalance === 0) {
-    console.warn('Invalid pool balances, using backup calculation');
+    console.warn('Invalid pool balances, attempting to fetch from API');
     
-    // Use conservative backup values when pool data is unavailable
-    if (isFromSol && isToYot) {
-      rate = 15000; // Conservative estimate: 1 SOL = 15000 YOT
-    } else if (isFromYot && isToSol) {
-      rate = 1 / 15000; // Conservative estimate: 15000 YOT = 1 SOL
+    try {
+      // Try to fetch from our server API which should have cached values
+      const apiUrl = `${window.location.protocol}//${window.location.host}/api/pool-data`;
+      const response = await fetch(apiUrl);
+      const apiPoolData = await response.json();
+      
+      if (apiPoolData && apiPoolData.sol > 0 && apiPoolData.yot > 0) {
+        console.log(`Using pool data from API: SOL=${apiPoolData.sol}, YOT=${apiPoolData.yot}`);
+        
+        // Update our values with API data
+        const solBalanceInSol = apiPoolData.sol;
+        
+        // Calculate rate from the API pool data
+        if (isFromSol && isToYot) {
+          // Rate calculated from API data
+          rate = apiPoolData.yot / solBalanceInSol;
+        } else if (isFromYot && isToSol) {
+          rate = solBalanceInSol / apiPoolData.yot;
+        }
+        
+        // Calculate output using API-based rate
+        const outAmount = amount * rate * (1 - totalFee);
+        
+        console.log(`Using real pool data from API: 1 SOL = ${rate} YOT`);
+        
+        return {
+          provider: SwapProvider.Contract,
+          inAmount: amount,
+          outAmount,
+          rate,
+          impact,
+          fee: totalFee
+        };
+      } else {
+        throw new Error('API returned invalid pool data');
+      }
+    } catch (apiError) {
+      console.error('Failed to fetch pool data from API:', apiError);
+      
+      // Log the error and continue with the best available data
+      console.error('Unable to get valid pool balance data. Cannot calculate accurate exchange rates.');
+      
+      // Return zero amount to indicate failure - no hardcoded values
+      return {
+        provider: SwapProvider.Contract,
+        inAmount: amount,
+        outAmount: 0,
+        rate: 0,
+        impact: 0,
+        fee: totalFee
+      };
     }
-    
-    // Calculate output using backup rate
-    const outAmount = amount * rate * (1 - totalFee);
-    
-    return {
-      provider: SwapProvider.Contract,
-      inAmount: amount,
-      outAmount,
-      rate,
-      impact,
-      fee: totalFee
-    };
   }
   
   // Calculate using AMM constant product formula (x * y = k)
