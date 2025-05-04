@@ -35,6 +35,7 @@ export const MULTIHUB_SWAP_PROGRAM_ID = config.programs.multiHub.v4;
 const DEFAULT_SOL_TOKEN_ACCOUNT = "7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS";
 const DEFAULT_YOT_TOKEN_ACCOUNT = "BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE";
 const DEFAULT_YOS_TOKEN_ACCOUNT = "5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz";
+const POOL_AUTHORITY = "7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK";
 
 // Token addresses from central config
 export const YOT_TOKEN_MINT = config.tokens.YOT;
