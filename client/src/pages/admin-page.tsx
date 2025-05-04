@@ -16,14 +16,14 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import PageHeading from "@/components/PageHeading";
 import { ShieldAlert, ArrowUpCircle, Coins, Info, Lock } from "lucide-react";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
 
 const ADMIN_WALLET = new PublicKey("AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ");
 
 export default function AdminPage() {
   const { toast } = useToast();
   const { wallet, connected } = useWallet();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [loadingAuth, setLoadingAuth] = useState(true);
+  const { admin, isLoading: authLoading, verifyWalletMutation } = useAdminAuth();
   const [yotAmount, setYotAmount] = useState("");
   const [yosAmount, setYosAmount] = useState("");
   const [loading, setLoading] = useState(false);
@@ -69,46 +69,46 @@ export default function AdminPage() {
     }
   }, [toast]);
   
-  // Check if connected wallet is admin
+  // Check if wallet is admin and verify with server
   useEffect(() => {
-    const checkAdmin = async () => {
-      setLoadingAuth(true);
+    const verifyAdmin = async () => {
       try {
         console.log("Checking admin status, connected:", connected, "wallet:", wallet?.publicKey?.toString());
         if (connected && wallet && wallet.publicKey) {
-          // Check if the connected wallet is the admin wallet
+          // First, check locally if the wallet is the admin wallet
           const currentWallet = wallet.publicKey.toString();
-          const adminWallet = ADMIN_WALLET.toString();
-          console.log("Current wallet:", currentWallet);
-          console.log("Admin wallet:", adminWallet);
+          const isAdminWallet = currentWallet === ADMIN_WALLET.toString();
+          console.log("Local admin wallet check:", isAdminWallet);
           
-          const isAdminWallet = currentWallet === adminWallet;
-          console.log("Is admin wallet:", isAdminWallet);
-          
-          setIsAdmin(isAdminWallet);
-          
-          // If admin, get program authority
           if (isAdminWallet) {
+            // Verify with server if we don't already have admin data
+            if (!admin) {
+              console.log("Verifying admin with server");
+              verifyWalletMutation.mutate({ publicKey: currentWallet });
+            }
+            
+            // Get program authority and balances
             const [authority] = findProgramAuthorityAddress();
             setProgramAuthority(authority);
             await loadTokenBalances(authority);
           }
-        } else {
-          setIsAdmin(false);
         }
       } catch (err) {
         console.error("Error checking admin status:", err);
-      } finally {
-        setLoadingAuth(false);
+        toast({
+          title: "Error",
+          description: "Failed to verify admin privileges",
+          variant: "destructive"
+        });
       }
     };
     
-    checkAdmin();
-  }, [connected, wallet, loadTokenBalances]);
+    verifyAdmin();
+  }, [connected, wallet, admin, verifyWalletMutation, loadTokenBalances, toast]);
   
   // Fund YOT token account
   const handleFundYot = async () => {
-    if (!connected || !wallet || !isAdmin || !programAuthority) return;
+    if (!connected || !wallet || !admin || !programAuthority) return;
     
     setLoading(true);
     try {
@@ -149,7 +149,7 @@ export default function AdminPage() {
   
   // Fund YOS token account
   const handleFundYos = async () => {
-    if (!connected || !wallet || !isAdmin || !programAuthority) return;
+    if (!connected || !wallet || !admin || !programAuthority) return;
     
     setLoading(true);
     try {
