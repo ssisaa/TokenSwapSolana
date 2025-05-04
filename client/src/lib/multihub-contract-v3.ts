@@ -152,7 +152,8 @@ export function buildCloseProgramInstruction(): Buffer {
  * This is the hardcoded program ID from the deployed Rust program
  */
 // We're now using the deployed program ID from config
-export const HARDCODED_PROGRAM_ID = MULTIHUB_SWAP_PROGRAM_ID;
+// Using deployed program ID directly from config
+// No hardcoded program IDs anymore
 
 /**
  * Find the program's authority PDA
@@ -162,11 +163,10 @@ export const HARDCODED_PROGRAM_ID = MULTIHUB_SWAP_PROGRAM_ID;
  * even though we're calling a different program ID. This is to ensure the PDAs match.
  */
 export function findProgramAuthorityAddress(): [PublicKey, number] {
-  // Important: Use the hardcoded program ID for PDA derivation 
-  // This may be different from the actual program ID we call
+  // Use the program ID from config for PDA derivation
   return PublicKey.findProgramAddressSync(
     [Buffer.from('authority')],
-    new PublicKey(HARDCODED_PROGRAM_ID) // Use hardcoded ID for PDA derivation
+    new PublicKey(MULTIHUB_SWAP_PROGRAM_ID)
   );
 }
 
@@ -177,69 +177,24 @@ export function findProgramAuthorityAddress(): [PublicKey, number] {
 export async function debugProgramIDs(): Promise<void> {
   // Output the program IDs for debugging purposes
   console.log(`\n=== MULTIHUB SWAP PROGRAM DEBUG INFO ===`);
-  console.log(`Current MULTIHUB_SWAP_PROGRAM_ID: ${MULTIHUB_SWAP_PROGRAM_ID}`);
+  console.log(`Program ID: ${MULTIHUB_SWAP_PROGRAM_ID}`);
   console.log(`YOT Token Mint: ${YOT_TOKEN_MINT}`);
   console.log(`YOS Token Mint: ${YOS_TOKEN_MINT}`);
-  
-  // Derive program state address using deployed ID
-  const [actualProgramStateAddress, actualStateBump] = 
-    PublicKey.findProgramAddressSync(
-      [Buffer.from("state")],
-      new PublicKey(MULTIHUB_SWAP_PROGRAM_ID)
-    );
-  
-  // Derive program state address using hardcoded ID from Rust
-  const [hardcodedProgramStateAddress, hardcodedStateBump] = 
-    PublicKey.findProgramAddressSync(
-      [Buffer.from("state")],
-      new PublicKey(MULTIHUB_SWAP_PROGRAM_ID)
-    );
-  
-  console.log(`\n=== PROGRAM STATE PDA ===`);
-  console.log(`Using deployed ID: ${actualProgramStateAddress.toString()} (bump: ${actualStateBump})`);
-  console.log(`Using hardcoded ID: ${hardcodedProgramStateAddress.toString()} (bump: ${hardcodedStateBump})`);
-  
-  // Derive program authority address using deployed ID
-  const [actualProgramAuthorityAddress, actualAuthorityBump] = 
-    PublicKey.findProgramAddressSync(
-      [Buffer.from("authority")],
-      new PublicKey(MULTIHUB_SWAP_PROGRAM_ID)
-    );
-  
-  // Derive program authority address using deployed ID 
-  const [hardcodedProgramAuthorityAddress, hardcodedAuthorityBump] = 
-    PublicKey.findProgramAddressSync(
-      [Buffer.from("authority")],
-      new PublicKey(MULTIHUB_SWAP_PROGRAM_ID)
-    );
-  
-  console.log(`\n=== PROGRAM AUTHORITY PDA ===`);
-  console.log(`Using deployed ID: ${actualProgramAuthorityAddress.toString()} (bump: ${actualAuthorityBump})`);
-  console.log(`Using hardcoded ID: ${hardcodedProgramAuthorityAddress.toString()} (bump: ${hardcodedAuthorityBump})`);
-  
-  // Show what we're actually using in the contract
-  const [programStateAddress, programStateBump] = findProgramStateAddress();
-  const [programAuthorityAddress, programAuthorityBump] = findProgramAuthorityAddress();
   
   // Calculate and log the PDA addresses using our current program ID
   const [stateAddress, stateAddressBump] = findProgramStateAddress();
   const [authorityAddress, authorityAddressBump] = findProgramAuthorityAddress();
   
-  console.log(`\nDerived Program State PDA (seed 'state'):`);
+  console.log(`\n=== PROGRAM PDAs ===`);
+  console.log(`\nProgram State PDA (seed 'state'):`);
   console.log(`Address: ${stateAddress.toString()}`);
   console.log(`Bump: ${stateAddressBump}`);
   
-  console.log(`\nDerived Program Authority PDA (seed 'authority'):`);
+  console.log(`\nProgram Authority PDA (seed 'authority'):`);
   console.log(`Address: ${authorityAddress.toString()}`);
   console.log(`Bump: ${authorityAddressBump}`);
   
-  // Using the deployed program ID from config
-  console.log(`\n=== USING DEPLOYED PROGRAM ID ===`);
-  console.log(`Program ID: ${MULTIHUB_SWAP_PROGRAM_ID}`);
-  
-  // All PDA derivation now uses the same deployed program ID from config
-  console.log(`\n✅ All PDA derivations are using the deployed program ID.`);
-  console.log(`✅ PDAs match correctly between client and program.`);
+  console.log(`\n✅ All PDA derivations use the deployed program ID from config.`);
 }
 
 /**
