@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useMultiWallet } from '@/context/MultiWalletContext';
-import { useConnection } from '@/hooks/useConnection';
+import { getConnection } from '@/lib/solanaConnectionManager';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Card, 
@@ -111,7 +111,8 @@ const FixedSwapComponent: React.FC = () => {
     setTxResult(null);
 
     try {
-      const signature = await initializeMultiHubSwap(wallet);
+      const connection = getConnection();
+      const signature = await initializeMultiHubSwap(connection, wallet);
       setTxResult({
         success: true,
         signature,
@@ -185,7 +186,9 @@ const FixedSwapComponent: React.FC = () => {
       }
       
       // Execute the swap with detailed error handling
+      const connection = getConnection();
       const signature = await executeMultiHubSwap(
+        connection,
         wallet,
         fromAddress,
         toAddress,
