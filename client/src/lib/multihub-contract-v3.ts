@@ -22,6 +22,8 @@ import { Connection, PublicKey, Transaction, SystemProgram } from '@solana/web3.
 import {
   getAssociatedTokenAddress,
   createAssociatedTokenAccountInstruction,
+  getAccount,
+  getOrCreateAssociatedTokenAccount,
 } from '@solana/spl-token';
 import { config } from './config';
 
@@ -304,36 +306,85 @@ export async function initializeProgram(
 }
 
 /**
- * Ensure a token account exists, or create it if it doesn't
+ * Ensure a token account exists, or create it if it doesn't, and return actual balance
  */
 async function ensureTokenAccount(
   connection: Connection,
   wallet: any,
   mint: PublicKey,
   transaction: Transaction
-): Promise<PublicKey> {
-  // Get the associated token address for the wallet
-  const tokenAccount = await getAssociatedTokenAddress(
-    mint,
-    wallet.publicKey
-  );
-  
-  // Check if the account exists
-  const accountInfo = await connection.getAccountInfo(tokenAccount);
-  
-  // If account doesn't exist, create it
-  if (!accountInfo) {
-    console.log('Creating token account for mint:', mint.toString());
-    const createAtaIx = createAssociatedTokenAccountInstruction(
-      wallet.publicKey,
-      tokenAccount,
-      wallet.publicKey,
-      mint
+): Promise<{ address: PublicKey, balance: bigint }> {
+  try {
+    // Handle SOL separately since it's not a token account
+    if (mint.toString() === 'So11111111111111111111111111111111111111112' || 
+        mint.toString() === SystemProgram.programId.toString()) {
+      
+      const solBalance = await connection.getBalance(wallet.publicKey);
+      console.log(`SOL balance: ${solBalance / 1_000_000_000} SOL`);
+      return { 
+        address: wallet.publicKey, 
+        balance: BigInt(solBalance) 
+      };
+    }
+    
+    // For other tokens, use getOrCreateAssociatedTokenAccount for maximum compatibility
+    const tokenAccount = await getOrCreateAssociatedTokenAccount(
+      connection,
+      wallet, // Payer for account creation
+      mint,
+      wallet.publicKey // Owner of the token account
     );
-    transaction.add(createAtaIx);
+    
+    console.log(`Token account for ${mint.toString()}: ${tokenAccount.address.toString()}`);
+    console.log(`Balance: ${tokenAccount.amount.toString()} (Owner: ${tokenAccount.owner.toString()})`);
+    
+    return {
+      address: tokenAccount.address,
+      balance: tokenAccount.amount
+    };
+  } catch (err: any) {
+    console.error(`Error ensuring token account for mint ${mint.toString()}:`, err);
+    
+    // Fallback to the old method if getOrCreateAssociatedTokenAccount fails
+    console.log('Falling back to basic account creation...');
+    
+    // Get the associated token address for the wallet
+    const tokenAddress = await getAssociatedTokenAddress(
+      mint,
+      wallet.publicKey
+    );
+    
+    // Check if the account exists
+    const accountInfo = await connection.getAccountInfo(tokenAddress);
+    
+    // If account doesn't exist, create it
+    if (!accountInfo) {
+      console.log('Creating token account for mint:', mint.toString());
+      const createAtaIx = createAssociatedTokenAccountInstruction(
+        wallet.publicKey,
+        tokenAddress,
+        wallet.publicKey,
+        mint
+      );
+      transaction.add(createAtaIx);
+    }
+    
+    try {
+      // Get token balance if possible
+      const accountInfo = await getAccount(connection, tokenAddress);
+      return {
+        address: tokenAddress,
+        balance: accountInfo.amount
+      };
+    } catch (balanceErr) {
+      // Return zero balance if we can't get it yet
+      console.warn('Unable to get account balance, assuming zero:', balanceErr.message);
+      return {
+        address: tokenAddress,
+        balance: BigInt(0)
+      };
+    }
   }
-  
-  return tokenAccount;
 }
 
 /**
@@ -461,9 +512,9 @@ export async function performSwap(
           console.warn(`⚠️ This is likely causing the InsufficientFunds error at instruction index 4`);
           throw new Error(`Program doesn't have enough ${tokenToMint.toString()} tokens for this swap. Please try a smaller amount or try YOT->SOL direction.`);
         }
-      } catch (err) {
+      } catch (err: any) {
         // If account doesn't exist yet, we definitely can't do a SOL->YOT swap
-        if (err.message?.includes("could not find account")) {
+        if (err?.message?.includes("could not find account")) {
           console.error(`⚠️ CRITICAL: Program ${tokenToMint.toString()} account doesn't exist yet!`);
           throw new Error(`Program doesn't have a ${tokenToMint.toString()} account yet. Please try YOT->SOL direction first to fund the program.`);
         }

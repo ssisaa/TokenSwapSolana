@@ -338,7 +338,19 @@ const FixedSwapComponent: React.FC = () => {
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Error</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>
+                {error}
+                {error.includes("Program doesn't have enough") && (
+                  <div className="mt-2 pt-2 border-t border-destructive/20">
+                    <strong>Why this happens:</strong> When swapping SOL → YOT, the program must already have YOT tokens to send to you.
+                    <ul className="list-disc pl-4 mt-1 space-y-1">
+                      <li>Try swapping YOT → SOL first to fund the program</li>
+                      <li>Use a smaller swap amount</li>
+                      <li>The admin can fund the program with YOT</li>
+                    </ul>
+                  </div>
+                )}
+              </AlertDescription>
             </Alert>
           )}
 
