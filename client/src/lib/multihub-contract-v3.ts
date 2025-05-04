@@ -147,7 +147,7 @@ export function findProgramAuthorityAddress(): [PublicKey, number] {
  * Special verification function for debugging and fixing "InvalidAccountData" error at account index 2
  * This is specifically targeting the exact problem mentioned in the Solana error logs
  */
-export async function debugProgramIDs(): void {
+export async function debugProgramIDs(): Promise<void> {
   // Output the program IDs for debugging purposes
   console.log(`\n=== MULTIHUB SWAP PROGRAM DEBUG INFO ===`);
   console.log(`Current MULTIHUB_SWAP_PROGRAM_ID: ${MULTIHUB_SWAP_PROGRAM_ID}`);

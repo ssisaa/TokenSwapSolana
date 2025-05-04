@@ -24,6 +24,24 @@ export function MultihubV3AdminActions({ wallet }: MultihubV3AdminActionsProps) 
   const [fundSolAmount, setFundSolAmount] = useState("0.05");
   const [fundYotAmount, setFundYotAmount] = useState("100000");
   
+  const handleDebugIDs = async () => {
+    // Call the debug function to print out program IDs and PDAs for debugging
+    try {
+      await MultihubSwapV3.debugProgramIDs();
+      toast({
+        title: 'Program ID Debug',
+        description: 'Program ID and PDA information printed to console. Check the browser console for details.',
+      });
+    } catch (error) {
+      console.error("Debug error:", error);
+      toast({
+        title: 'Debug Error',
+        description: 'Failed to get debug information. Check console for details.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleInitialize = async () => {
     if (!wallet?.publicKey) {
       toast({
@@ -50,6 +68,9 @@ export function MultihubV3AdminActions({ wallet }: MultihubV3AdminActionsProps) 
         setIsInitializing(false);
         return;
       }
+      
+      // Run debug to check program IDs and PDAs
+      await MultihubSwapV3.debugProgramIDs();
       
       toast({
         title: 'Preparing Transaction',
@@ -296,6 +317,20 @@ export function MultihubV3AdminActions({ wallet }: MultihubV3AdminActionsProps) 
         <p className="text-sm mb-4">
           Program ID: <code className="bg-muted p-1 rounded">{MultihubIntegrationV3.PROGRAM_ID_V3}</code>
         </p>
+        
+        {/* Debug Button - shows program ID and PDA information in console */}
+        <div className="mb-4">
+          <Button 
+            onClick={handleDebugIDs} 
+            variant="outline" 
+            className="w-full bg-blue-100 hover:bg-blue-200 border-blue-300"
+          >
+            Debug Program IDs and PDAs
+          </Button>
+          <p className="text-xs text-muted-foreground mt-1">
+            Check browser console (F12) for detailed program ID and PDA information
+          </p>
+        </div>
         
         {/* Debug Panel - shows program state and PDA information */}
         <div className="mb-6">
