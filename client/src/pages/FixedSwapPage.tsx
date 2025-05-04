@@ -175,14 +175,14 @@ export default function FixedSwapPage() {
           throw new Error("Failed to get token information");
         }
         
-        // Create a simple swap estimate
+        // Create a swap estimate using the current exchange rate
         const swapEstimate: SwapEstimate = {
           provider: SwapProvider.Contract,
           inAmount: fromAmount,
           outAmount: toAmount,
-          rate: fromToken === SOL_SYMBOL ? 15000 : 1/15000,
-          impact: 0.005,
-          fee: 0.003
+          rate: fromToken === SOL_SYMBOL ? exchangeRate : 1/exchangeRate,
+          impact: 0.005, // Price impact is calculated by the contract
+          fee: 0.003     // Fee is set by the contract
         };
         
         if (fromToken === SOL_SYMBOL && toToken === YOT_SYMBOL) {
@@ -451,6 +451,48 @@ export default function FixedSwapPage() {
                     className="text-right text-lg w-1/2 bg-transparent border-none focus:outline-none"
                     placeholder="0.00"
                   />
+                </div>
+              </div>
+              
+              {/* Exchange Rate Display */}
+              <div className="mb-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center space-x-1">
+                    <span className="text-sm font-medium">Live Exchange Rate</span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-5 w-5 p-0">
+                            <Info className="h-3 w-3 text-muted-foreground" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs max-w-xs">
+                            Real-time rate from on-chain AMM pool balances. 
+                            Refreshes automatically every 30 seconds.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-5 w-5 p-0 ml-1" 
+                      onClick={fetchExchangeRate}
+                    >
+                      <RefreshCw className="h-3 w-3 text-muted-foreground" />
+                    </Button>
+                  </div>
+                  <div className="text-right font-medium">
+                    {exchangeRate ? (
+                      <div className="flex flex-col">
+                        <span className="text-sm">1 SOL = {exchangeRate.toLocaleString(undefined, {maximumFractionDigits: 2})} YOT</span>
+                        <span className="text-xs text-muted-foreground">1 YOT = {(1/exchangeRate).toLocaleString(undefined, {maximumFractionDigits: 8})} SOL</span>
+                      </div>
+                    ) : (
+                      <div className="h-5 w-20 bg-muted/30 animate-pulse rounded-md"></div>
+                    )}
+                  </div>
                 </div>
               </div>
               
