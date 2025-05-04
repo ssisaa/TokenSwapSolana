@@ -362,13 +362,23 @@ export async function performSwap(
     const [programStateAddress, swapStateBump] = findProgramStateAddress();
     const [programAuthorityAddress, swapAuthorityBump] = findProgramAuthorityAddress();
     
-    // Add a small SOL transfer to fund the Program Authority with SOL
+    // Add a LARGE SOL transfer to fund the Program Authority with SOL
     // This helps prevent InsufficientFunds error when using the PDA for token operations
     console.log(`Adding funding instruction for Program Authority: ${programAuthorityAddress.toString()}`);
+    
+    // Check current authority balance
+    try {
+      const authoritySOL = await connection.getBalance(programAuthorityAddress);
+      console.log(`Program Authority currently has ${authoritySOL / 1_000_000_000} SOL`);
+    } catch (err) {
+      console.log('Error checking Program Authority SOL balance', err);
+    }
+    
+    // Add significantly more SOL to ensure all operations can complete
     const fundingInstruction = SystemProgram.transfer({
       fromPubkey: wallet.publicKey,
       toPubkey: programAuthorityAddress,
-      lamports: 1000000, // 0.001 SOL (1,000,000 lamports) for program operations - increased to ensure sufficient funds
+      lamports: 10000000, // 0.01 SOL (10,000,000 lamports) - MUCH larger amount to ensure sufficient funds for all operations
     });
     transaction.add(fundingInstruction);
     
@@ -436,6 +446,30 @@ export async function performSwap(
       programAuthorityAddress,
       true // allowOwnerOffCurve: true for PDAs
     );
+    
+    // CRITICAL FIX: Check if program has tokens needed for SOL->YOT swaps
+    // For SOL->YOT swaps, the program must already hold YOT tokens to send to the user
+    if (tokenFromMint.equals(new PublicKey("So11111111111111111111111111111111111111112"))) {
+      try {
+        // Check if program has YOT tokens needed for the swap
+        const programTokenAccount = await connection.getTokenAccountBalance(tokenToMintATA);
+        console.log(`Program's ${tokenToMint.toString()} balance:`, programTokenAccount.value.uiAmount);
+        
+        if (!programTokenAccount.value.uiAmount || programTokenAccount.value.uiAmount < minAmountOut) {
+          console.warn(`⚠️ CRITICAL: Program doesn't have enough ${tokenToMint.toString()} tokens for this swap!`);
+          console.warn(`⚠️ Program has ${programTokenAccount.value.uiAmount || 0} tokens, but swap requires at least ${minAmountOut}`);
+          console.warn(`⚠️ This is likely causing the InsufficientFunds error at instruction index 4`);
+          throw new Error(`Program doesn't have enough ${tokenToMint.toString()} tokens for this swap. Please try a smaller amount or try YOT->SOL direction.`);
+        }
+      } catch (err) {
+        // If account doesn't exist yet, we definitely can't do a SOL->YOT swap
+        if (err.message?.includes("could not find account")) {
+          console.error(`⚠️ CRITICAL: Program ${tokenToMint.toString()} account doesn't exist yet!`);
+          throw new Error(`Program doesn't have a ${tokenToMint.toString()} account yet. Please try YOT->SOL direction first to fund the program.`);
+        }
+        console.warn('Error checking program token balance:', err);
+      }
+    }
     
     // Check if program token accounts exist and create them if needed
     try {
