@@ -1,4 +1,5 @@
 pub mod multihub_swap_v3;
+pub mod multihub_swap_v4;
 
 use solana_program::{
     account_info::AccountInfo, entrypoint, entrypoint::ProgramResult, pubkey::Pubkey,
@@ -11,5 +12,6 @@ fn process_instruction(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
-    multihub_swap_v3::process_instruction(program_id, accounts, instruction_data)
+    // We're now using the v4 implementation with direct buffer parsing
+    multihub_swap_v4::process_instruction(program_id, accounts, instruction_data)
 }
