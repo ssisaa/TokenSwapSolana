@@ -747,33 +747,61 @@ export async function performSwap(
       // Continue with swap attempt
     }
     
+    // First, verify the program authority with a specific check
+    let programAuthorityAccountInfo;
+    try {
+      programAuthorityAccountInfo = await connection.getAccountInfo(programAuthorityAddress);
+      if (!programAuthorityAccountInfo) {
+        console.warn("Program authority account not found - this is normal for a PDA that is used only for signing");
+        
+        // Add a funding instruction to ensure the PDA has enough SOL for rent
+        const fundInstruction = SystemProgram.transfer({
+          fromPubkey: wallet.publicKey,
+          toPubkey: programAuthorityAddress,
+          lamports: 1000000 // 0.001 SOL for operations
+        });
+        
+        transaction.add(fundInstruction);
+      }
+    } catch (error) {
+      console.error("Error checking program authority account:", error);
+    }
+
+    // Ensure program state exists and has data before proceeding
+    const programStateAccountInfo = await connection.getAccountInfo(programStateAddress);
+    if (!programStateAccountInfo || !programStateAccountInfo.data || programStateAccountInfo.data.length === 0) {
+      throw new Error("Program state account is not initialized or has invalid data. Please initialize the program first.");
+    }
+    
+    // Important fix for accounts order:
     // Add the swap instruction with EXACT key ordering as expected by the program
+    // This matches EXACTLY what the Rust program expects in the same order
     transaction.add({
       keys: [
-        // User accounts
-        { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // User wallet
-        { pubkey: programStateAddress, isSigner: false, isWritable: true }, // Program state for updating
-        { pubkey: programAuthorityAddress, isSigner: false, isWritable: true }, // Program authority for token transfers - CRITICAL: must be writable!
+        // User accounts (indexes 0-2)
+        { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // User wallet [0]
+        { pubkey: programStateAddress, isSigner: false, isWritable: true }, // Program state for updating [1]
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: true }, // Program authority for signing PDAs [2]
         
-        // User token accounts
-        { pubkey: tokenFromAccount.address, isSigner: false, isWritable: true }, // User's source token account
-        { pubkey: tokenToAccount.address, isSigner: false, isWritable: true }, // User's destination token account
-        { pubkey: yosTokenAccount.address, isSigner: false, isWritable: true }, // User's YOS token account for cashback
+        // User token accounts (indexes 3-5)
+        { pubkey: tokenFromAccount.address, isSigner: false, isWritable: true }, // User's source token account [3]
+        { pubkey: tokenToAccount.address, isSigner: false, isWritable: true }, // User's destination token account [4]
+        { pubkey: yosTokenAccount.address, isSigner: false, isWritable: true }, // User's YOS token account for cashback [5]
         
-        // Program token accounts
-        { pubkey: tokenFromMintATA, isSigner: false, isWritable: true }, // Program's token account for source token
-        { pubkey: tokenToMintATA, isSigner: false, isWritable: true }, // Program's token account for destination token
-        { pubkey: yosTokenProgramATA, isSigner: false, isWritable: true }, // Program's YOS token account
+        // Program token accounts (indexes 6-8)
+        { pubkey: tokenFromMintATA, isSigner: false, isWritable: true }, // Program's token account for source token [6]
+        { pubkey: tokenToMintATA, isSigner: false, isWritable: true }, // Program's token account for destination token [7]
+        { pubkey: yosTokenProgramATA, isSigner: false, isWritable: true }, // Program's YOS token account [8]
         
-        // Token mints
-        { pubkey: tokenFromMint, isSigner: false, isWritable: false }, // From token mint
-        { pubkey: tokenToMint, isSigner: false, isWritable: false }, // To token mint
-        { pubkey: new PublicKey(YOS_TOKEN_MINT), isSigner: false, isWritable: false }, // YOS token mint
+        // Token mints (indexes 9-11)
+        { pubkey: tokenFromMint, isSigner: false, isWritable: false }, // From token mint [9]
+        { pubkey: tokenToMint, isSigner: false, isWritable: false }, // To token mint [10]
+        { pubkey: new PublicKey(YOS_TOKEN_MINT), isSigner: false, isWritable: false }, // YOS token mint [11]
         
-        // System programs
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // SPL Token program
-        { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false }, // System program
-        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, // Rent sysvar
+        // System programs (indexes 12-14)
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // SPL Token program [12]
+        { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false }, // System program [13]
+        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, // Rent sysvar [14]
       ],
       programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID),
       data: Buffer.from(swapData)
