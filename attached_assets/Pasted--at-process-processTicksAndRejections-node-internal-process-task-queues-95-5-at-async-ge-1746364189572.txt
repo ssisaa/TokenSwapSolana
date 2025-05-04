@@ -1,0 +1,63 @@
+
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async getAccount (/home/runner/workspace/node_modules/@solana/spl-token/src/state/account.ts:102:18)
+    at async Timeout.sendPoolData (/home/runner/workspace/server/routes.ts:877:34)
+YOS token account may not exist yet or error occurred: Error: failed to get info about account BLz2mfhb9qoPAtKuFNVfrj9uTEyChHKKbZsniS1eRaUB: TypeError: fetch failed
+    at Connection.getAccountInfo (/home/runner/workspace/node_modules/@solana/web3.js/src/connection.ts:3616:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async getAccount (/home/runner/workspace/node_modules/@solana/spl-token/src/state/account.ts:102:18)
+    at async Timeout.sendPoolData (/home/runner/workspace/server/routes.ts:895:34)
+Browserslist: browsers data (caniuse-lite) is 7 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Fetched SOL balance: 39.127196998 SOL
+Fetched YOT balance: 634676840.2645388 YOT
+Fetched YOS balance: 0 YOS
+1:09:19 PM [express] GET /api/admin/user 401 in 2ms :: {"message":"Unauthorized"}
+Error fetching SOL balance, will try one more time: Error: failed to get balance of account 7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS: TypeError: fetch failed
+    at e (/home/runner/workspace/node_modules/@solana/web3.js/src/connection.ts:3324:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async Connection.getBalance (/home/runner/workspace/node_modules/@solana/web3.js/src/connection.ts:3321:12)
+    at async Timeout.sendPoolData (/home/runner/workspace/server/routes.ts:850:22)
+Retry failed to fetch SOL balance: Error: failed to get balance of account 7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS: StructError: Expected the value to satisfy a union of `type | type`, but received: [object Object]
+    at e (/home/runner/workspace/node_modules/@solana/web3.js/src/connection.ts:3324:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async Connection.getBalance (/home/runner/workspace/node_modules/@solana/web3.js/src/connection.ts:3321:12)
+    at async Timeout.sendPoolData (/home/runner/workspace/server/routes.ts:860:24)
+Error getting YOT balance: Error: failed to get info about account BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE: TypeError: fetch failed
+    at Connection.getAccountInfo (/home/runner/workspace/node_modules/@solana/web3.js/src/connection.ts:3616:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async getAccount (/home/runner/workspace/node_modules/@solana/spl-token/src/state/account.ts:102:18)
+    at async Timeout.sendPoolData (/home/runner/workspace/server/routes.ts:877:34)
+YOS token account may not exist yet or error occurred: Error: failed to get info about account BLz2mfhb9qoPAtKuFNVfrj9uTEyChHKKbZsniS1eRaUB: TypeError: fetch failed
+    at Connection.getAccountInfo (/home/runner/workspace/node_modules/@solana/web3.js/src/connection.ts:3616:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async getAccount (/home/runner/workspace/node_modules/@solana/spl-token/src/state/account.ts:102:18)
+    at async Timeout.sendPoolData (/home/runner/workspace/server/routes.ts:895:34)
+Fetched SOL balance: 39.127196998 SOL
+Fetched YOT balance: 634676840.2645388 YOT
+Fetched YOS balance: 0 YOS
+Error fetching SOL balance, will try one more time: Error: failed to get balance of account 7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS: TypeError: fetch failed
+    at e (/home/runner/workspace/node_modules/@solana/web3.js/src/connection.ts:3324:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async Connection.getBalance (/home/runner/workspace/node_modules/@solana/web3.js/src/connection.ts:3321:12)
+    at async Timeout.sendPoolData (/home/runner/workspace/server/routes.ts:850:22)
+Retry failed to fetch SOL balance: Error: failed to get balance of account 7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS: StructError: Expected the value to satisfy a union of `type | type`, but received: [object Object]
+    at e (/home/runner/workspace/node_modules/@solana/web3.js/src/connection.ts:3324:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async Connection.getBalance (/home/runner/workspace/node_modules/@solana/web3.js/src/connection.ts:3321:12)
+    at async Timeout.sendPoolData (/home/runner/workspace/server/routes.ts:860:24)
+Error getting YOT balance: Error: failed to get info about account BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE: TypeError: fetch failed
+    at Connection.getAccountInfo (/home/runner/workspace/node_modules/@solana/web3.js/src/connection.ts:3616:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async getAccount (/home/runner/workspace/node_modules/@solana/spl-token/src/state/account.ts:102:18)
+    at async Timeout.sendPoolData (/home/runner/workspace/server/routes.ts:877:34)
+YOS token account may not exist yet or error occurred: Error: failed to get info about account BLz2mfhb9qoPAtKuFNVfrj9uTEyChHKKbZsniS1eRaUB: TypeError: fetch failed
+    at Connection.getAccountInfo (/home/runner/workspace/node_modules/@solana/web3.js/src/connection.ts:3616:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async getAccount (/home/runner/workspace/node_modules/@solana/spl-token/src/state/account.ts:102:18)
+    at async Timeout.sendPoolData (/home/runner/workspace/server/routes.ts:895:34)
+1:09:33 PM [express] GET /api/admin/user 304 in 197ms :: {"id":1,"username":"admin","isFounder":true…
+Fetched SOL balance: 39.127196998 SOL
+Fetched YOT balance: 634676840.2645388 YOT
+Fetched YOS balance: 0 YOS
