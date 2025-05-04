@@ -16,17 +16,25 @@ import {
 import { WebSocketServer, WebSocket } from 'ws';
 import { LRUCache } from "../client/src/lib/lruCache";
 
-// Constants
-const CLUSTER = 'devnet';
+// Load configuration from app.config.json
+import fs from 'fs';
+import path from 'path';
+
+// Load configuration from app.config.json in the project root
+const appConfigPath = path.join(process.cwd(), 'app.config.json');
+const appConfig = JSON.parse(fs.readFileSync(appConfigPath, 'utf8'));
+
+// Constants from central configuration
+const CLUSTER = appConfig.network;
 const RPC_ENDPOINTS = [
   clusterApiUrl(CLUSTER),
   'https://rpc-devnet.helius.xyz/?api-key=15319bf6-5525-43d0-8cdc-17f54a2c452a',
   'https://rpc.ankr.com/solana_devnet'
 ];
-const YOT_TOKEN_ADDRESS = '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF';
-const YOS_TOKEN_ADDRESS = 'GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n';
-const POOL_AUTHORITY = '7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK';
-const POOL_SOL_ACCOUNT = '7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS';
+const YOT_TOKEN_ADDRESS = appConfig.tokens.YOT;
+const YOS_TOKEN_ADDRESS = appConfig.tokens.YOS;
+const POOL_AUTHORITY = appConfig.accounts.poolAuthority;
+const POOL_SOL_ACCOUNT = appConfig.accounts.poolSol;
 
 // Connection manager for Solana RPC
 class SolanaConnectionManager {

@@ -8,8 +8,65 @@
 
 import { PublicKey } from '@solana/web3.js';
 
+// Type definitions for better intellisense and type safety
+export interface AppConfig {
+  network: string;
+  endpoints: {
+    [network: string]: string;
+  };
+  explorer: {
+    url: string;
+    txUrl: string;
+    accountUrl: string;
+  };
+  programs: {
+    multiHub: {
+      v4: string;
+      v3: string;
+      v2: string;
+      v1: string;
+    };
+    staking: string;
+  };
+  tokens: {
+    SOL: string;
+    YOT: string;
+    YOS: string;
+    USDC: string;
+    testTokens: {
+      [symbol: string]: string;
+    };
+  };
+  accounts?: {
+    admin: string;
+    poolAuthority: string;
+    poolSol: string;
+    yotToken: string;
+    yosToken: string;
+  };
+  parameters: {
+    swap: {
+      liquidityContributionRate: number;
+      adminFeeRate: number;
+      yosCashbackRate: number;
+      swapFeeRate: number;
+      referralRate: number;
+    };
+    staking?: {
+      stakeRatePerSecond: number;
+      harvestThreshold: number;
+      stakeThreshold: number;
+      unstakeThreshold: number;
+    };
+    tokenDecimals: {
+      [symbol: string]: number;
+    };
+    yosScalingFactor: number;
+  };
+}
+
 // Default configuration values in case the config file cannot be loaded
-const defaultConfig = {
+const defaultConfig: AppConfig = {
   network: "devnet",
   endpoints: {
     devnet: "https://api.devnet.solana.com"
@@ -38,6 +95,13 @@ const defaultConfig = {
       XMP: "HMfSHCLwS6tJmg4aoYnkAqCFte1LQMkjRpfFvP5M3HPs"
     }
   },
+  accounts: {
+    admin: "AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ",
+    poolAuthority: "7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK",
+    poolSol: "7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS",
+    yotToken: "BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE",
+    yosToken: "5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz"
+  },
   parameters: {
     swap: {
       liquidityContributionRate: 2000,
@@ -45,6 +109,12 @@ const defaultConfig = {
       yosCashbackRate: 300,
       swapFeeRate: 30,
       referralRate: 50
+    },
+    staking: {
+      stakeRatePerSecond: 0.0000125,
+      harvestThreshold: 1,
+      stakeThreshold: 10,
+      unstakeThreshold: 10
     },
     tokenDecimals: {
       SOL: 9,
