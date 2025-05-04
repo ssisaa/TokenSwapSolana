@@ -4,7 +4,7 @@
  */
 
 import { Connection, PublicKey, Transaction } from '@solana/web3.js';
-import MultihubSwapV3 from './multihub-contract-v3';
+import MultihubSwapV3, * as multihubExports from './multihub-contract-v3';
 import { TokenInfo } from './token-search-api';
 import { SwapEstimate, SwapProvider } from './multi-hub-swap';
 import {
@@ -119,7 +119,7 @@ export async function performMultiHubSwap(
   // Run the program authority verification to prevent InvalidAccountData error at index 2
   try {
     console.log("Verifying program authority before swap to prevent InvalidAccountData error...");
-    const authorityVerified = await MultihubSwapV3.verifyProgramAuthority(connection, wallet);
+    const authorityVerified = await MultihubSwapV3.fundProgramAuthority(connection, wallet, 0.01);
     
     if (!authorityVerified) {
       console.warn("Program authority verification failed - attempting swap anyway but expect possible failures");

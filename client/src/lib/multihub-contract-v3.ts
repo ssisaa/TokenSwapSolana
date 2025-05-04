@@ -173,17 +173,57 @@ export async function debugProgramIDs(): Promise<void> {
   console.log(`YOT Token Mint: ${YOT_TOKEN_MINT}`);
   console.log(`YOS Token Mint: ${YOS_TOKEN_MINT}`);
   
+  // Derive program state address using deployed ID
+  const [actualProgramStateAddress, actualStateBump] = 
+    PublicKey.findProgramAddressSync(
+      [Buffer.from("state")],
+      new PublicKey(MULTIHUB_SWAP_PROGRAM_ID)
+    );
+  
+  // Derive program state address using hardcoded ID from Rust
+  const [hardcodedProgramStateAddress, hardcodedStateBump] = 
+    PublicKey.findProgramAddressSync(
+      [Buffer.from("state")],
+      new PublicKey("Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L")
+    );
+  
+  console.log(`\n=== PROGRAM STATE PDA ===`);
+  console.log(`Using deployed ID: ${actualProgramStateAddress.toString()} (bump: ${actualStateBump})`);
+  console.log(`Using hardcoded ID: ${hardcodedProgramStateAddress.toString()} (bump: ${hardcodedStateBump})`);
+  
+  // Derive program authority address using deployed ID
+  const [actualProgramAuthorityAddress, actualAuthorityBump] = 
+    PublicKey.findProgramAddressSync(
+      [Buffer.from("authority")],
+      new PublicKey(MULTIHUB_SWAP_PROGRAM_ID)
+    );
+  
+  // Derive program authority address using hardcoded ID from Rust
+  const [hardcodedProgramAuthorityAddress, hardcodedAuthorityBump] = 
+    PublicKey.findProgramAddressSync(
+      [Buffer.from("authority")],
+      new PublicKey("Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L")
+    );
+  
+  console.log(`\n=== PROGRAM AUTHORITY PDA ===`);
+  console.log(`Using deployed ID: ${actualProgramAuthorityAddress.toString()} (bump: ${actualAuthorityBump})`);
+  console.log(`Using hardcoded ID: ${hardcodedProgramAuthorityAddress.toString()} (bump: ${hardcodedAuthorityBump})`);
+  
+  // Show what we're actually using in the contract
+  const [programStateAddress, programStateBump] = findProgramStateAddress();
+  const [programAuthorityAddress, programAuthorityBump] = findProgramAuthorityAddress();
+  
   // Calculate and log the PDA addresses using our current program ID
-  const [stateAddress, stateBump] = findProgramStateAddress();
-  const [authorityAddress, authorityBump] = findProgramAuthorityAddress();
+  const [stateAddress, stateAddressBump] = findProgramStateAddress();
+  const [authorityAddress, authorityAddressBump] = findProgramAuthorityAddress();
   
   console.log(`\nDerived Program State PDA (seed 'state'):`);
   console.log(`Address: ${stateAddress.toString()}`);
-  console.log(`Bump: ${stateBump}`);
+  console.log(`Bump: ${stateAddressBump}`);
   
   console.log(`\nDerived Program Authority PDA (seed 'authority'):`);
   console.log(`Address: ${authorityAddress.toString()}`);
-  console.log(`Bump: ${authorityBump}`);
+  console.log(`Bump: ${authorityAddressBump}`);
   
   // Now calculate PDAs using the HARDCODED program ID from the Rust code
   const HARDCODED_PROGRAM_ID = "Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L";
@@ -191,28 +231,28 @@ export async function debugProgramIDs(): Promise<void> {
   console.log(`Hardcoded Program ID: ${HARDCODED_PROGRAM_ID}`);
   
   // Find state PDA using hardcoded program ID
-  const [hardcodedStateAddress, hardcodedStateBump] = PublicKey.findProgramAddressSync(
+  const [hardcodedStateAddress2, hardcodedStateBump2] = PublicKey.findProgramAddressSync(
     [Buffer.from('state')],
     new PublicKey(HARDCODED_PROGRAM_ID)
   );
   
   // Find authority PDA using hardcoded program ID
-  const [hardcodedAuthorityAddress, hardcodedAuthorityBump] = PublicKey.findProgramAddressSync(
+  const [hardcodedAuthorityAddress2, hardcodedAuthorityBump2] = PublicKey.findProgramAddressSync(
     [Buffer.from('authority')],
     new PublicKey(HARDCODED_PROGRAM_ID)
   );
   
   console.log(`\nDerived Program State PDA using hardcoded ID (seed 'state'):`);
-  console.log(`Address: ${hardcodedStateAddress.toString()}`);
-  console.log(`Bump: ${hardcodedStateBump}`);
+  console.log(`Address: ${hardcodedStateAddress2.toString()}`);
+  console.log(`Bump: ${hardcodedStateBump2}`);
   
   console.log(`\nDerived Program Authority PDA using hardcoded ID (seed 'authority'):`);
-  console.log(`Address: ${hardcodedAuthorityAddress.toString()}`);
-  console.log(`Bump: ${hardcodedAuthorityBump}`);
+  console.log(`Address: ${hardcodedAuthorityAddress2.toString()}`);
+  console.log(`Bump: ${hardcodedAuthorityBump2}`);
   
   // Check for mismatch
-  const stateMatch = stateAddress.equals(hardcodedStateAddress);
-  const authorityMatch = authorityAddress.equals(hardcodedAuthorityAddress);
+  const stateMatch = stateAddress.equals(hardcodedStateAddress2);
+  const authorityMatch = authorityAddress.equals(hardcodedAuthorityAddress2);
   
   console.log(`\n=== PDA MATCH VERIFICATION ===`);
   console.log(`State PDAs match: ${stateMatch ? '✅ YES' : '❌ NO - This may cause initialization errors'}`);
@@ -298,6 +338,11 @@ export async function checkStateAccount(
     };
   }
 }
+
+/**
+ * Check if the state account exists, and if it does, verify it has the correct owner and size
+ * This helps diagnose the "IncorrectProgramId" and "AccountDataTooSmall" errors from the Rust code
+ * ENHANCED VERSION: Provides comprehensive diagnostics about state account
 
 export async function verifyProgramAuthority(
   connection: Connection,
@@ -848,7 +893,7 @@ export async function performSwap(
     // First, verify the program authority PDA to specifically address the "InvalidAccountData" error at index 2
     console.log("Running program authority verification to prevent InvalidAccountData error...");
     // Use ConnectionManager to ensure reliable operation
-    const authorityVerified = await verifyProgramAuthority(connectionManager.getConnection(), wallet);
+    const authorityVerified = await fundProgramAuthority(connectionManager.getConnection(), wallet, 0);
     if (!authorityVerified) {
       console.warn("Program authority verification failed. Proceeding anyway, but expect possible failures.");
     } else {
@@ -1393,9 +1438,10 @@ export default {
   findProgramAuthorityAddress,
   findProgramStateAddress,
   debugProgramIDs,
+  checkStateAccount,
   fundProgramAuthority,
+  fundProgramYotAccount,
   initializeProgram,
   performSwap,
-  closeProgram,
-  verifyProgramAuthority
+  closeProgram
 };

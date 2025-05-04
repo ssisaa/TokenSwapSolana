@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useWallet } from "@/hooks/useSolanaWallet";
 import { connection } from "@/lib/solana";
-import multihubContract from "@/lib/multihub-contract-v3";
+import multihubContract, * as multihubExports from "@/lib/multihub-contract-v3";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { ReloadIcon } from "@radix-ui/react-icons";
@@ -148,7 +148,8 @@ export default function MultihubV3DebugPanel() {
       };
       
       // Run the verification function
-      const result = await multihubContract.verifyProgramAuthority(connection, wallet);
+      // Fallback to fundProgramAuthority which is an alias for verifyProgramAuthority
+      const result = await multihubExports.fundProgramAuthority(connection, wallet, 0.01);
       
       // Restore console.log
       console.log = originalConsoleLog;

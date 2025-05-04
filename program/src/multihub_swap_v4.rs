@@ -327,16 +327,27 @@ pub fn process_swap(
     // Verify program state PDA
     let (expected_program_state, _program_state_bump) = find_program_state_address(program_id);
     if expected_program_state != *program_state_account.key {
-        msg!("Invalid program state account");
+        msg!("❌ Invalid program state account");
         return Err(ProgramError::InvalidAccountData);
     }
     
-    // Verify program authority PDA - FIXED: Only check the key matches, don't access data
+    // Validate that state account exists, is owned by this program, and has correct size
+    if program_state_account.data_is_empty() {
+        msg!("❌ Program state account is empty");
+        return Err(ProgramError::UninitializedAccount);
+    }
+    
+    if program_state_account.owner != program_id {
+        msg!("❌ Program state account has wrong owner, expected {}, got {}", program_id, program_state_account.owner);
+        return Err(ProgramError::IncorrectProgramId);
+    }
+    
+    // Verify program authority PDA and validate it
     let (expected_program_authority, program_authority_bump) = find_program_authority_address(program_id);
     
     // Add debug logs to help troubleshooting
-    msg!("Account[2] key: {}", program_authority_account.key);
-    msg!("Expected PDA: {}", expected_program_authority);
+    msg!("Program authority account: {}", program_authority_account.key);
+    msg!("Expected authority PDA: {}", expected_program_authority);
     
     if expected_program_authority != *program_authority_account.key {
         msg!("❌ Invalid program authority");
@@ -497,16 +508,27 @@ pub fn process_close_program(
     // Verify program state PDA
     let (expected_program_state, program_state_bump) = find_program_state_address(program_id);
     if expected_program_state != *program_state_account.key {
-        msg!("Invalid program state account");
+        msg!("❌ Invalid program state account");
         return Err(ProgramError::InvalidAccountData);
     }
     
-    // Verify program authority PDA - FIXED: Only check the key matches, don't access data
+    // Validate that state account exists, is owned by this program, and has correct size
+    if program_state_account.data_is_empty() {
+        msg!("❌ Program state account is empty");
+        return Err(ProgramError::UninitializedAccount);
+    }
+    
+    if program_state_account.owner != program_id {
+        msg!("❌ Program state account has wrong owner, expected {}, got {}", program_id, program_state_account.owner);
+        return Err(ProgramError::IncorrectProgramId);
+    }
+    
+    // Verify program authority PDA 
     let (expected_program_authority, _program_authority_bump) = find_program_authority_address(program_id);
     
     // Add debug logs to help troubleshooting
-    msg!("Account[2] key: {}", program_authority_account.key);
-    msg!("Expected PDA: {}", expected_program_authority);
+    msg!("Program authority account: {}", program_authority_account.key);
+    msg!("Expected authority PDA: {}", expected_program_authority);
     
     if expected_program_authority != *program_authority_account.key {
         msg!("❌ Invalid program authority");
