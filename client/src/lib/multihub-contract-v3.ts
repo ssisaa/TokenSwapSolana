@@ -1504,6 +1504,82 @@ export async function closeProgram(
 }
 
 /**
+ * Transfer tokens from an existing token account to a PDA-derived ATA
+ * This function allows transferring tokens from any token account you have authority over
+ * @param connection Solana connection
+ * @param wallet Connected wallet (must have authority over the source account)
+ * @param sourceAddress Source token account public key
+ * @param isYot True to transfer YOT, false to transfer YOS
+ * @param amount Amount of tokens to transfer
+ * @returns Transaction signature
+ */
+export async function transferTokensToPDA(
+  connection: Connection,
+  wallet: any,
+  sourceAddress: PublicKey,
+  isYot: boolean,
+  amount: number
+): Promise<string> {
+  try {
+    // Get Program Authority PDA
+    const [programAuthorityAddress, _bump] = findProgramAuthorityAddress();
+    
+    // Get the appropriate mint address
+    const mint = new PublicKey(isYot ? YOT_TOKEN_MINT : YOS_TOKEN_MINT);
+    
+    // Get destination ATA
+    const pdaAta = await getAssociatedTokenAddress(
+      mint,
+      programAuthorityAddress,
+      true // Allow PDA as owner
+    );
+    
+    // Check if destination ATA exists, if not, create it
+    const transaction = new Transaction();
+    transaction.feePayer = wallet.publicKey;
+    
+    const { blockhash } = await connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    
+    const destinationInfo = await connection.getAccountInfo(pdaAta);
+    if (!destinationInfo) {
+      console.log(`Creating ${isYot ? 'YOT' : 'YOS'} ATA for Program Authority: ${pdaAta.toString()}`);
+      const createAtaIx = createAssociatedTokenAccountInstruction(
+        wallet.publicKey, // payer
+        pdaAta, // ata address
+        programAuthorityAddress, // owner (PDA)
+        mint // mint
+      );
+      transaction.add(createAtaIx);
+    }
+    
+    // Calculate amount in raw format (assuming 9 decimals)
+    const rawAmount = BigInt(Math.floor(amount * 1e9));
+    
+    // Add transfer instruction
+    const { createTransferInstruction } = await import('@solana/spl-token');
+    const transferIx = createTransferInstruction(
+      sourceAddress, // source
+      pdaAta, // destination
+      wallet.publicKey, // owner
+      rawAmount // amount
+    );
+    transaction.add(transferIx);
+    
+    // Send and confirm transaction
+    console.log(`Transferring ${amount} ${isYot ? 'YOT' : 'YOS'} from ${sourceAddress.toString()} to ${pdaAta.toString()}`);
+    const signature = await wallet.sendTransaction(transaction, connection);
+    await connection.confirmTransaction(signature, 'confirmed');
+    console.log(`Transfer successful: ${signature}`);
+    
+    return signature;
+  } catch (error) {
+    console.error('Error in transferTokensToPDA function:', error);
+    throw error;
+  }
+}
+
+/**
  * Admin function to mint tokens directly from mint to PDA-derived ATAs
  * This approach avoids issues with transferring from existing accounts
  * by minting new tokens directly to the PDA ATAs
@@ -1718,5 +1794,6 @@ export default {
   initializeProgram,
   performSwap,
   closeProgram,
-  mintTokensToProgramPDA
+  mintTokensToProgramPDA,
+  transferTokensToPDA
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -7,6 +7,7 @@ import { MultihubIntegrationV3 } from '@/lib/multihub-integration-v3';
 import MultihubSwapV3 from '@/lib/multihub-contract-v3';
 import { Loader2 } from 'lucide-react';
 import MultihubV3DebugPanel from './MultihubV3DebugPanel';
+import MultihubV3TokenTransferPanel from './MultihubV3TokenTransferPanel';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Connection, clusterApiUrl } from '@solana/web3.js';
@@ -305,6 +306,14 @@ export function MultihubV3AdminActions({ wallet }: MultihubV3AdminActionsProps) 
     }
   };
   
+  // Create a connection to Solana devnet for the token transfer panel
+  const [connection, setConnection] = useState<Connection | null>(null);
+  
+  useEffect(() => {
+    const conn = new Connection(clusterApiUrl('devnet'), 'confirmed');
+    setConnection(conn);
+  }, []);
+
   return (
     <Card className="w-full">
       <CardHeader>
@@ -335,6 +344,11 @@ export function MultihubV3AdminActions({ wallet }: MultihubV3AdminActionsProps) 
         {/* Debug Panel - shows program state and PDA information */}
         <div className="mb-6">
           <MultihubV3DebugPanel />
+        </div>
+
+        {/* Token Transfer Panel */}
+        <div className="mb-6">
+          {connection && <MultihubV3TokenTransferPanel connection={connection} wallet={wallet} />}
         </div>
         
         <Separator className="my-6" />
