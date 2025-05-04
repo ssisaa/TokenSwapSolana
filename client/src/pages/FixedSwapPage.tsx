@@ -97,8 +97,25 @@ export default function FixedSwapPage() {
     }
     
     // Update cashback calculation - 5% of the input amount
-    const cashback = amount * 0.05;
-    setCashbackAmount(cashback.toFixed(6));
+    // For SOL, apply the exchange rate to get YOS amount based on YOT value
+    let cashback;
+    if (from === SOL_SYMBOL && to === YOT_SYMBOL) {
+      // For SOL->YOT, first convert SOL to YOT then apply 5% cashback
+      const yotAmount = amount * rate;
+      cashback = yotAmount * 0.05;
+    } else if (from === YOT_SYMBOL && to === SOL_SYMBOL) {
+      // For YOT->SOL, just take 5% of the input YOT amount
+      cashback = amount * 0.05;
+    } else {
+      cashback = amount * 0.05;
+    }
+    
+    // Use at least 2 decimal places for display
+    if (cashback < 0.01) {
+      setCashbackAmount(cashback.toFixed(6));
+    } else {
+      setCashbackAmount(cashback.toFixed(2));
+    }
   };
   
   // Fetch exchange rate on component mount

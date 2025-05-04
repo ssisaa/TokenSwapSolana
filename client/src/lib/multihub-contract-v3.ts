@@ -880,16 +880,6 @@ export async function performSwap(
   try {
     console.log("Starting swap using ConnectionManager for reliable network operations");
     
-    // First, verify the program authority PDA to specifically address the "InvalidAccountData" error at index 2
-    console.log("Running program authority verification to prevent InvalidAccountData error...");
-    // Use ConnectionManager to ensure reliable operation
-    const authorityVerified = await fundProgramAuthority(connectionManager.getConnection(), wallet, 0);
-    if (!authorityVerified) {
-      console.warn("Program authority verification failed. Proceeding anyway, but expect possible failures.");
-    } else {
-      console.log("Program authority successfully verified and funded if needed.");
-    }
-    
     // Create a new transaction
     const transaction = new Transaction();
     
@@ -906,27 +896,36 @@ export async function performSwap(
     const [programStateAddress, swapStateBump] = findProgramStateAddress();
     const [programAuthorityAddress, swapAuthorityBump] = findProgramAuthorityAddress();
     
-    // Add a LARGE SOL transfer to fund the Program Authority with SOL
-    // This helps prevent InsufficientFunds error when using the PDA for token operations
-    console.log(`Adding funding instruction for Program Authority: ${programAuthorityAddress.toString()}`);
-    
     // Check current authority balance - use ConnectionManager with retries
     try {
       const authoritySOL = await connectionManager.executeWithFallback(
         conn => conn.getBalance(programAuthorityAddress)
       );
       console.log(`Program Authority currently has ${authoritySOL / 1_000_000_000} SOL`);
+      
+      // Only add funding if balance is low (less than 0.002 SOL)
+      if (authoritySOL < 2000000) {
+        console.log(`Program Authority needs funding. Adding funding instruction.`);
+        // Add minimal SOL - just what's needed for token operations
+        const fundingInstruction = SystemProgram.transfer({
+          fromPubkey: wallet.publicKey,
+          toPubkey: programAuthorityAddress,
+          lamports: 2000000, // 0.002 SOL (2,000,000 lamports) - minimal amount for token operations
+        });
+        transaction.add(fundingInstruction);
+      } else {
+        console.log(`Program Authority already has sufficient funds. Skipping funding instruction.`);
+      }
     } catch (err) {
-      console.log('Error checking Program Authority SOL balance', err);
+      console.log('Error checking Program Authority SOL balance. Adding minimal funding as precaution.', err);
+      // Add minimal SOL as a precaution
+      const fundingInstruction = SystemProgram.transfer({
+        fromPubkey: wallet.publicKey,
+        toPubkey: programAuthorityAddress,
+        lamports: 2000000, // 0.002 SOL (2,000,000 lamports)
+      });
+      transaction.add(fundingInstruction);
     }
-    
-    // Add significantly more SOL to ensure all operations can complete
-    const fundingInstruction = SystemProgram.transfer({
-      fromPubkey: wallet.publicKey,
-      toPubkey: programAuthorityAddress,
-      lamports: 10000000, // 0.01 SOL (10,000,000 lamports) - MUCH larger amount to ensure sufficient funds for all operations
-    });
-    transaction.add(fundingInstruction);
     
     // Ensure token accounts exist - using connection manager
     const tokenFromAccount = await ensureTokenAccount(
@@ -1220,10 +1219,33 @@ export async function performSwap(
       throw new Error("Program state account is not initialized or has invalid data. Please initialize the program first.");
     }
     
+    // Track whether we had an actual TokenAccount issue
+    let hasTokenAccountIssues = false;
+
+    // CRITICAL FIX: Check for "InvalidAccountData" errors - specifically check program authority
+    try {
+      const authorityInfo = await connectionManager.executeWithFallback(
+        conn => conn.getAccountInfo(programAuthorityAddress)
+      );
+      
+      if (authorityInfo && authorityInfo.data.length > 0) {
+        console.warn('WARNING: Program authority account has data which may cause InvalidAccountData error');
+        console.log('Authority data length:', authorityInfo.data.length);
+        console.log('Authority data:', Buffer.from(authorityInfo.data).toString('hex'));
+        
+        // Display first few bytes for debugging
+        const firstFewBytes = Buffer.from(authorityInfo.data.slice(0, 8));
+        console.log('First 8 bytes:', firstFewBytes.toString('hex'));
+        console.log('This is likely causing the InvalidAccountData error at instruction index 2');
+      }
+    } catch (error) {
+      console.log('Error checking program authority account data:', error);
+    }
+
     // Important fix for accounts order:
     // Add the swap instruction with EXACT key ordering as expected by the program
     // This matches EXACTLY what the Rust program expects in the same order
-    transaction.add({
+    transaction.add(new TransactionInstruction({
       keys: [
         // User accounts (indexes 0-2)
         { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // User wallet [0]
@@ -1252,7 +1274,7 @@ export async function performSwap(
       ],
       programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID),
       data: Buffer.from(swapData)
-    });
+    }));
     
     // Simulate the transaction to check for errors with detailed output
     console.log('Simulating swap transaction...');
