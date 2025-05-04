@@ -19,6 +19,8 @@ import {
   getEndpoint 
 } from './config';
 
+// Access token accounts through the config module
+
 // Import additional token account functions
 import { 
   getAccount,
@@ -81,12 +83,12 @@ export async function verifyProgramTokenAccounts(connection: Connection): Promis
     // The ATA derivation is producing Hde7zab2woDRC1KLe11KVRzs5enigbK7mnq2r5YYZobD
     // But the actual account receiving funds is the one configured in app.config.json
     // This mismatch was causing the InvalidAccountData error
-    const solTokenAccount = new PublicKey(config.accounts.poolSol);
+    const solTokenAccount = new PublicKey(config.accounts?.poolSol || "7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS");
     console.log(`Using SOL token account from config: ${solTokenAccount.toString()}`);
     
     // Also get the YOT and YOS token accounts directly from config for consistency
-    const configYotAccount = new PublicKey(config.accounts.yotToken);
-    const configYosAccount = new PublicKey(config.accounts.yosToken);
+    const configYotAccount = new PublicKey(config.accounts?.yotToken || "BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE");
+    const configYosAccount = new PublicKey(config.accounts?.yosToken || "5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz");
     
     // Log verification of using the accounts from config
     console.log(`Verifying token accounts from config:
@@ -95,24 +97,24 @@ export async function verifyProgramTokenAccounts(connection: Connection): Promis
     YOS: ${configYosAccount.toString()} (from ATA: ${yosTokenAccount.toString()})
     `);
     
-    // Check YOT account
-    const yotAccountInfo = await checkTokenAccount(connection, yotTokenAccount);
+    // Check YOT account - use account from config
+    const yotAccountInfo = await checkTokenAccount(connection, configYotAccount);
     
-    // Check YOS account
-    const yosAccountInfo = await checkTokenAccount(connection, yosTokenAccount);
+    // Check YOS account - use account from config
+    const yosAccountInfo = await checkTokenAccount(connection, configYosAccount);
     
-    // Check SOL account
+    // Check SOL account - already using the correct account from config
     const solAccountInfo = await checkTokenAccount(connection, solTokenAccount);
     
     return {
       programAuthorityAddress: programAuthorityAddress.toString(),
       yotAccount: {
-        address: yotTokenAccount.toString(),
+        address: configYotAccount.toString(),
         exists: yotAccountInfo.exists,
         balance: yotAccountInfo.balance
       },
       yosAccount: {
-        address: yosTokenAccount.toString(),
+        address: configYosAccount.toString(),
         exists: yosAccountInfo.exists,
         balance: yosAccountInfo.balance
       },

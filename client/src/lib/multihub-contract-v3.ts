@@ -27,8 +27,6 @@ import {
 } from '@solana/spl-token';
 import { config } from './config';
 import { connectionManager } from './connection-manager';
-// Add direct import of app config to access token account addresses
-import appConfig from '../../app.config.json';
 
 // Program ID for the multihub swap V3/V4 contract from central config
 export const MULTIHUB_SWAP_PROGRAM_ID = config.programs.multiHub.v4;
@@ -975,20 +973,20 @@ export async function performSwap(
     const swapData = instructionData;
     
     // Find all Token Program PDAs for token account verification
-    // CRITICAL FIX: Use the correct token accounts from config
+    // CRITICAL FIX: Use the correct token accounts from app config
     let tokenFromMintATA;
     if (tokenFromMint.toString() === "So11111111111111111111111111111111111111112") {
-      // Use SOL token account from config
-      tokenFromMintATA = new PublicKey(config.accounts.poolSol);
-      console.log("Using config SOL token account (FROM):", tokenFromMintATA.toString());
-    } else if (tokenFromMint.toString() === config.tokens.YOT) {
-      // Use YOT token account from config
-      tokenFromMintATA = new PublicKey(config.accounts.yotToken);
-      console.log("Using config YOT token account (FROM):", tokenFromMintATA.toString());
-    } else if (tokenFromMint.toString() === config.tokens.YOS) {
-      // Use YOS token account from config
-      tokenFromMintATA = new PublicKey(config.accounts.yosToken);
-      console.log("Using config YOS token account (FROM):", tokenFromMintATA.toString());
+      // Use SOL token account from appConfig
+      tokenFromMintATA = new PublicKey(appConfig.accounts.poolSol);
+      console.log("Using appConfig SOL token account (FROM):", tokenFromMintATA.toString());
+    } else if (tokenFromMint.toString() === appConfig.tokens.YOT) {
+      // Use YOT token account from appConfig
+      tokenFromMintATA = new PublicKey(appConfig.accounts.yotToken);
+      console.log("Using appConfig YOT token account (FROM):", tokenFromMintATA.toString());
+    } else if (tokenFromMint.toString() === appConfig.tokens.YOS) {
+      // Use YOS token account from appConfig
+      tokenFromMintATA = new PublicKey(appConfig.accounts.yosToken);
+      console.log("Using appConfig YOS token account (FROM):", tokenFromMintATA.toString());
     } else {
       tokenFromMintATA = await getAssociatedTokenAddress(
         tokenFromMint,
@@ -997,20 +995,20 @@ export async function performSwap(
       );
     }
     
-    // CRITICAL FIX: Use the correct token accounts from config
+    // CRITICAL FIX: Use the correct token accounts from app config
     let tokenToMintATA;
     if (tokenToMint.toString() === "So11111111111111111111111111111111111111112") {
-      // Use SOL token account from config
-      tokenToMintATA = new PublicKey(config.accounts.poolSol);
-      console.log("Using config SOL token account (TO):", tokenToMintATA.toString());
-    } else if (tokenToMint.toString() === config.tokens.YOT) {
-      // Use YOT token account from config
-      tokenToMintATA = new PublicKey(config.accounts.yotToken);
-      console.log("Using config YOT token account (TO):", tokenToMintATA.toString());
-    } else if (tokenToMint.toString() === config.tokens.YOS) {
-      // Use YOS token account from config
-      tokenToMintATA = new PublicKey(config.accounts.yosToken);
-      console.log("Using config YOS token account (TO):", tokenToMintATA.toString());
+      // Use SOL token account from appConfig
+      tokenToMintATA = new PublicKey(appConfig.accounts.poolSol);
+      console.log("Using appConfig SOL token account (TO):", tokenToMintATA.toString());
+    } else if (tokenToMint.toString() === appConfig.tokens.YOT) {
+      // Use YOT token account from appConfig
+      tokenToMintATA = new PublicKey(appConfig.accounts.yotToken);
+      console.log("Using appConfig YOT token account (TO):", tokenToMintATA.toString());
+    } else if (tokenToMint.toString() === appConfig.tokens.YOS) {
+      // Use YOS token account from appConfig
+      tokenToMintATA = new PublicKey(appConfig.accounts.yosToken);
+      console.log("Using appConfig YOS token account (TO):", tokenToMintATA.toString());
     } else {
       tokenToMintATA = await getAssociatedTokenAddress(
         tokenToMint, 
