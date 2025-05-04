@@ -1,22 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Connection, PublicKey } from '@solana/web3.js';
+import { PublicKey, Connection } from '@solana/web3.js';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import MultihubSwapV3 from '../lib/multihub-contract-v3';
 import { useMultiWallet } from '@/context/MultiWalletContext';
-import { DEVNET_ENDPOINT } from '@/lib/multihub-integration-v3';
+import { connectionManager } from '@/lib/connection-manager';
 
 export default function MultihubV3DebugPanel() {
   const { wallet, connected } = useMultiWallet();
-  const connection = new Connection(DEVNET_ENDPOINT);
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [pdaInfo, setPdaInfo] = useState<any>(null);
   const [programInfo, setProgramInfo] = useState<any>(null);
   const [verificationResult, setVerificationResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'unstable' | 'disconnected'>('connected');
 
   // Check PDAs and program info when wallet is connected
   const checkProgramSetup = async () => {
@@ -30,17 +30,27 @@ export default function MultihubV3DebugPanel() {
       const [programStateAddress, stateBump] = MultihubSwapV3.findProgramStateAddress();
       const [programAuthorityAddress, authorityBump] = MultihubSwapV3.findProgramAuthorityAddress();
       
+      // Use connection manager with fallback and retry logic
       // Get program account info (to verify if program exists)
-      const programAccountInfo = await connection.getAccountInfo(programId);
+      const programAccountInfo = await connectionManager.executeWithFallback(
+        (conn) => conn.getAccountInfo(programId)
+      );
       
       // Get program state account info (to verify if it's initialized)
-      const programStateInfo = await connection.getAccountInfo(programStateAddress);
+      const programStateInfo = await connectionManager.executeWithFallback(
+        (conn) => conn.getAccountInfo(programStateAddress)
+      );
       
       // Get program authority account info
-      const authorityInfo = await connection.getAccountInfo(programAuthorityAddress);
+      const authorityInfo = await connectionManager.executeWithFallback(
+        (conn) => conn.getAccountInfo(programAuthorityAddress)
+      );
       
       // Get program authority SOL balance
-      const authorityBalance = await connection.getBalance(programAuthorityAddress);
+      const authorityBalance = await connectionManager.executeWithFallback(
+        (conn) => conn.getBalance(programAuthorityAddress)
+      );
+      
       const authorityBalanceSOL = authorityBalance / 1_000_000_000; // Convert lamports to SOL
       
       setPdaInfo({
@@ -65,9 +75,11 @@ export default function MultihubV3DebugPanel() {
         yosMint: MultihubSwapV3.YOS_TOKEN_MINT,
       });
       
+      setConnectionStatus('connected');
     } catch (err: any) {
       console.error('Error checking program setup:', err);
       setError(`Error: ${err.message}`);
+      setConnectionStatus('unstable');
     } finally {
       setLoading(false);
     }
@@ -89,6 +101,9 @@ export default function MultihubV3DebugPanel() {
     
     try {
       console.log("Running program authority verification...");
+      
+      // Get a reliable connection from our manager
+      const connection = connectionManager.getConnection();
       const result = await MultihubSwapV3.verifyProgramAuthority(connection, wallet);
       
       if (result) {
@@ -98,9 +113,11 @@ export default function MultihubV3DebugPanel() {
       } else {
         setVerificationResult("Program authority verification failed. This may cause swap failures.");
       }
+      setConnectionStatus('connected');
     } catch (err: any) {
       console.error("Authority verification error:", err);
       setError(`Authority verification error: ${err.message}`);
+      setConnectionStatus('unstable');
     } finally {
       setVerifying(false);
     }
@@ -148,6 +165,23 @@ export default function MultihubV3DebugPanel() {
                 {verifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {pdaInfo?.authorityBalanceSOL < 0.01 ? "Fund & Verify Authority" : "Verify Authority"}
               </Button>
+              
+              <div className="flex items-center ml-auto">
+                <div className={`w-3 h-3 rounded-full mr-2 ${
+                  connectionStatus === 'connected' 
+                    ? 'bg-green-500' 
+                    : connectionStatus === 'unstable' 
+                    ? 'bg-amber-500' 
+                    : 'bg-red-500'
+                }`}></div>
+                <span className="text-xs">
+                  {connectionStatus === 'connected' 
+                    ? 'Connected to Solana' 
+                    : connectionStatus === 'unstable' 
+                    ? 'Solana connection unstable' 
+                    : 'Disconnected from Solana'}
+                </span>
+              </div>
             </div>
             
             {error && (
