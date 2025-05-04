@@ -349,7 +349,7 @@ export async function performSwap(
     const { blockhash } = await connection.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
     
-    // Get program addresses first so we can fund the authority
+    // Get all the program addresses up front to avoid redeclaration issues
     const [programStateAddress, swapStateBump] = findProgramStateAddress();
     const [programAuthorityAddress, swapAuthorityBump] = findProgramAuthorityAddress();
     
@@ -385,8 +385,6 @@ export async function performSwap(
       new PublicKey(YOS_TOKEN_MINT),
       transaction
     );
-    
-    // Program addresses already obtained above
     
     // Create a direct buffer encoding for the Rust-side SwapInstruction enum
     // The Swap variant has amount_in and min_amount_out fields
