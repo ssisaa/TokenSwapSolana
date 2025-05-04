@@ -1079,6 +1079,7 @@ export default {
   YOS_TOKEN_MINT,
   findProgramAuthorityAddress,
   findProgramStateAddress,
+  fundProgramAuthority,
   initializeProgram,
   performSwap,
   closeProgram,

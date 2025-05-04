@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { MultihubIntegrationV3 } from '@/lib/multihub-integration-v3';
-import { fundProgramAuthority } from '@/lib/multihub-contract-v3';
+import MultihubSwapV3 from '@/lib/multihub-contract-v3';
 import { Loader2 } from 'lucide-react';
 import MultihubV3DebugPanel from './MultihubV3DebugPanel';
 import { Input } from '@/components/ui/input';
@@ -122,7 +122,7 @@ export function MultihubV3AdminActions({ wallet }: MultihubV3AdminActionsProps) 
       const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
       
       // Fund the program authority account
-      const signature = await fundProgramAuthority(
+      const signature = await MultihubSwapV3.fundProgramAuthority(
         connection,
         wallet,
         amountToSend
