@@ -7,8 +7,8 @@ const fs = require('fs');
 
 // YOT token mint
 const YOT_TOKEN_MINT = new PublicKey('2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF');
-// Program ID 
-const PROGRAM_ID = new PublicKey('Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L');
+// Program ID - V4 Program
+const PROGRAM_ID = new PublicKey('SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE');
 
 // Find program authority PDA
 function findProgramAuthorityAddress() {
