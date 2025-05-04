@@ -260,6 +260,27 @@ export async function closeMultihubSwapV3(wallet: any): Promise<string> {
 }
 
 /**
+ * Fund the program with SOL for operations (pays transaction fees)
+ */
+export async function fundProgramAuthoritySol(wallet: any, amountSOL: number = 0.05): Promise<string> {
+  console.log(`Funding program authority with ${amountSOL} SOL...`);
+  const connection = new Connection(DEVNET_ENDPOINT);
+  
+  return MultihubSwapV3.fundProgramAuthority(connection, wallet, amountSOL);
+}
+
+/**
+ * Fund the program's YOT token account for swap liquidity
+ * This is critical for SOL→YOT swaps to work properly
+ */
+export async function fundProgramYotLiquidity(wallet: any, amountYOT: number = 100000): Promise<string> {
+  console.log(`Funding program with ${amountYOT} YOT tokens for swap liquidity...`);
+  const connection = new Connection(DEVNET_ENDPOINT);
+  
+  return MultihubSwapV3.fundProgramYotAccount(connection, wallet, amountYOT);
+}
+
+/**
  * Export a clean API for the integration
  */
 export const MultihubIntegrationV3 = {
@@ -269,7 +290,9 @@ export const MultihubIntegrationV3 = {
   performMultiHubSwap,
   prepareForSwap,
   initializeMultihubSwapV3,
-  closeMultihubSwapV3
+  closeMultihubSwapV3,
+  fundProgramAuthoritySol,
+  fundProgramYotLiquidity
 };
 
 export default MultihubIntegrationV3;

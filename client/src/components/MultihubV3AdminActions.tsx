@@ -19,8 +19,10 @@ export function MultihubV3AdminActions({ wallet }: MultihubV3AdminActionsProps) 
   const { toast } = useToast();
   const [isInitializing, setIsInitializing] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
-  const [isFunding, setIsFunding] = useState(false);
-  const [fundAmount, setFundAmount] = useState("0.05");
+  const [isFundingSol, setIsFundingSol] = useState(false);
+  const [isFundingYot, setIsFundingYot] = useState(false);
+  const [fundSolAmount, setFundSolAmount] = useState("0.05");
+  const [fundYotAmount, setFundYotAmount] = useState("100000");
   
   const handleInitialize = async () => {
     if (!wallet?.publicKey) {
@@ -86,7 +88,7 @@ export function MultihubV3AdminActions({ wallet }: MultihubV3AdminActionsProps) 
     }
   };
   
-  const handleFundAuthority = async () => {
+  const handleFundAuthoritySol = async () => {
     if (!wallet?.publicKey) {
       toast({
         title: 'Wallet not connected',
@@ -97,10 +99,10 @@ export function MultihubV3AdminActions({ wallet }: MultihubV3AdminActionsProps) 
     }
     
     try {
-      setIsFunding(true);
+      setIsFundingSol(true);
       
       // Convert input value to number
-      const amountToSend = parseFloat(fundAmount);
+      const amountToSend = parseFloat(fundSolAmount);
       
       // Validate amount
       if (isNaN(amountToSend) || amountToSend <= 0) {
@@ -109,7 +111,7 @@ export function MultihubV3AdminActions({ wallet }: MultihubV3AdminActionsProps) 
           description: 'Please enter a valid SOL amount greater than 0.',
           variant: 'destructive',
         });
-        setIsFunding(false);
+        setIsFundingSol(false);
         return;
       }
       
@@ -118,12 +120,8 @@ export function MultihubV3AdminActions({ wallet }: MultihubV3AdminActionsProps) 
         description: 'Please approve the transaction in your wallet...',
       });
       
-      // Create a Solana connection to the devnet
-      const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
-      
-      // Fund the program authority account
-      const signature = await MultihubSwapV3.fundProgramAuthority(
-        connection,
+      // Fund the program authority account with SOL
+      const signature = await MultihubIntegrationV3.fundProgramAuthoritySol(
         wallet,
         amountToSend
       );
@@ -152,7 +150,73 @@ export function MultihubV3AdminActions({ wallet }: MultihubV3AdminActionsProps) 
         variant: 'destructive',
       });
     } finally {
-      setIsFunding(false);
+      setIsFundingSol(false);
+    }
+  };
+  
+  const handleFundProgramYot = async () => {
+    if (!wallet?.publicKey) {
+      toast({
+        title: 'Wallet not connected',
+        description: 'Please connect your wallet first.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    try {
+      setIsFundingYot(true);
+      
+      // Convert input value to number
+      const amountToSend = parseFloat(fundYotAmount);
+      
+      // Validate amount
+      if (isNaN(amountToSend) || amountToSend <= 0) {
+        toast({
+          title: 'Invalid amount',
+          description: 'Please enter a valid YOT amount greater than 0.',
+          variant: 'destructive',
+        });
+        setIsFundingYot(false);
+        return;
+      }
+      
+      toast({
+        title: 'Preparing Transaction',
+        description: 'Please approve the transaction in your wallet to fund the program with YOT tokens...',
+      });
+      
+      // Fund the program with YOT tokens
+      const signature = await MultihubIntegrationV3.fundProgramYotLiquidity(
+        wallet,
+        amountToSend
+      );
+      
+      toast({
+        title: 'Program YOT Account Funded Successfully',
+        description: `Sent ${amountToSend.toLocaleString()} YOT tokens to program. Transaction: ${signature.slice(0, 8)}...${signature.slice(-8)}`,
+      });
+      
+      // Link to Solana Explorer
+      const explorerUrl = `https://explorer.solana.com/tx/${signature}?cluster=devnet`;
+      window.open(explorerUrl, '_blank');
+      
+    } catch (error: any) {
+      console.error('Failed to fund program YOT account:', error);
+      
+      // Extract meaningful error message
+      let errorMessage = error.message || 'Unknown error';
+      if (errorMessage.includes('User rejected')) {
+        errorMessage = 'Transaction was rejected by the user.';
+      }
+      
+      toast({
+        title: 'Failed to fund program YOT account',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsFundingYot(false);
     }
   };
 
@@ -272,42 +336,85 @@ export function MultihubV3AdminActions({ wallet }: MultihubV3AdminActionsProps) 
           <Separator />
           
           <div>
-            <h3 className="font-medium mb-1">Fund Program Authority</h3>
+            <h3 className="font-medium mb-1">Fund Program with SOL</h3>
             <p className="text-sm text-muted-foreground mb-2">
-              Fund the program authority to fix "InsufficientFunds" errors in swap operations
+              Fund the program authority with SOL to fix "InsufficientFunds" errors in swap operations
             </p>
             <div className="flex items-center space-x-2 mb-2">
-              <Label htmlFor="fundAmount" className="sr-only">
+              <Label htmlFor="fundSolAmount" className="sr-only">
                 Amount (SOL)
               </Label>
               <Input
-                id="fundAmount"
+                id="fundSolAmount"
                 type="number"
                 min="0.01"
                 step="0.01"
-                value={fundAmount}
-                onChange={(e) => setFundAmount(e.target.value)}
+                value={fundSolAmount}
+                onChange={(e) => setFundSolAmount(e.target.value)}
                 placeholder="SOL amount"
                 className="w-full"
               />
             </div>
             <Button 
-              onClick={handleFundAuthority}
-              disabled={isFunding}
+              onClick={handleFundAuthoritySol}
+              disabled={isFundingSol}
               variant="outline"
               className="w-full bg-amber-100 hover:bg-amber-200 border-amber-300"
             >
-              {isFunding ? (
+              {isFundingSol ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Funding...
+                  Funding with SOL...
                 </>
               ) : (
-                'Fund Program Authority'
+                'Fund Program with SOL'
               )}
             </Button>
             <p className="text-xs text-muted-foreground mt-1">
               This action sends SOL to the program authority account to allow it to create token accounts and perform swaps.
+            </p>
+          </div>
+          
+          <Separator />
+          
+          <div>
+            <h3 className="font-medium mb-1 text-green-600">Fund Program with YOT Tokens</h3>
+            <p className="text-sm text-muted-foreground mb-2">
+              <span className="font-bold text-red-500">IMPORTANT:</span> Fund the program with YOT tokens to enable SOL → YOT swaps
+            </p>
+            <div className="flex items-center space-x-2 mb-2">
+              <Label htmlFor="fundYotAmount" className="sr-only">
+                Amount (YOT)
+              </Label>
+              <Input
+                id="fundYotAmount"
+                type="number"
+                min="10000"
+                step="10000"
+                value={fundYotAmount}
+                onChange={(e) => setFundYotAmount(e.target.value)}
+                placeholder="YOT amount"
+                className="w-full"
+              />
+            </div>
+            <Button 
+              onClick={handleFundProgramYot}
+              disabled={isFundingYot}
+              variant="outline"
+              className="w-full bg-green-100 hover:bg-green-200 border-green-300"
+            >
+              {isFundingYot ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Funding with YOT...
+                </>
+              ) : (
+                'Fund Program with YOT Tokens'
+              )}
+            </Button>
+            <p className="text-xs text-muted-foreground mt-1">
+              This action sends YOT tokens to the program's token account to provide liquidity for SOL → YOT swaps.
+              Without this, SOL → YOT swaps will fail with "Insufficient YOT" errors.
             </p>
           </div>
           

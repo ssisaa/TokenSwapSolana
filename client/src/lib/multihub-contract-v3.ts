@@ -301,6 +301,93 @@ export async function fundProgramAuthority(
 }
 
 /**
+ * Fund the program YOT token account to ensure it has enough YOT for swaps
+ * This is needed because the program needs YOT tokens to provide liquidity for SOL→YOT swaps
+ */
+export async function fundProgramYotAccount(
+  connection: Connection,
+  wallet: any,
+  amountYOT: number = 100000 // Default to 100,000 YOT tokens
+): Promise<string> {
+  try {
+    console.log(`Starting process to fund program with ${amountYOT} YOT tokens`);
+    
+    // Get program authority PDA address
+    const [programAuthorityAddress] = findProgramAuthorityAddress();
+    console.log(`Program authority PDA: ${programAuthorityAddress.toString()}`);
+    
+    // Get YOT mint address
+    const yotMint = new PublicKey(YOT_TOKEN_MINT);
+    
+    // Get associated token account addresses
+    const walletYotAccount = await getAssociatedTokenAddress(
+      yotMint,
+      wallet.publicKey
+    );
+    
+    const programYotAccount = await getAssociatedTokenAddress(
+      yotMint,
+      programAuthorityAddress,
+      true // allowOwnerOffCurve for PDAs
+    );
+    
+    console.log(`Wallet YOT account: ${walletYotAccount.toString()}`);
+    console.log(`Program YOT account: ${programYotAccount.toString()}`);
+    
+    // Check if program YOT account exists
+    const programAccountInfo = await connection.getAccountInfo(programYotAccount);
+    const transaction = new Transaction();
+    
+    // Set fee payer and add recent blockhash
+    transaction.feePayer = wallet.publicKey;
+    const { blockhash } = await connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    
+    // Create program token account if it doesn't exist
+    if (!programAccountInfo) {
+      console.log('Program YOT token account does not exist, creating it...');
+      const createTokenAccountIx = createAssociatedTokenAccountInstruction(
+        wallet.publicKey,
+        programYotAccount,
+        programAuthorityAddress,
+        yotMint
+      );
+      transaction.add(createTokenAccountIx);
+    }
+    
+    // Convert amount to raw token amount with decimals
+    // YOT has 9 decimals, so 1 YOT = 1_000_000_000 raw units
+    const rawAmount = BigInt(Math.floor(amountYOT * 1_000_000_000));
+    
+    // Import needed TokenProgram functions
+    const { createTransferInstruction } = await import('@solana/spl-token');
+    
+    // Add transfer instruction to send YOT tokens to the program account
+    const transferIx = createTransferInstruction(
+      walletYotAccount,
+      programYotAccount,
+      wallet.publicKey,
+      Number(rawAmount) // Convert back to number for the instruction
+    );
+    
+    transaction.add(transferIx);
+    
+    console.log(`Transferring ${amountYOT} YOT to program account...`);
+    
+    // Sign and send the transaction
+    const signature = await wallet.sendTransaction(transaction, connection);
+    
+    console.log(`Transaction sent with signature ${signature}`);
+    console.log(`Program YOT account funded successfully with ${amountYOT} YOT tokens`);
+    
+    return signature;
+  } catch (error) {
+    console.error('Error funding program YOT account:', error);
+    throw error;
+  }
+}
+
+/**
  * Initialize the multihub swap program
  */
 export async function initializeProgram(
