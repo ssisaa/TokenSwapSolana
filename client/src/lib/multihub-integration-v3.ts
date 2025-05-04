@@ -12,14 +12,21 @@ import {
   createAssociatedTokenAccountInstruction
 } from '@solana/spl-token';
 
+// Import config helper functions
+import { 
+  getMultiHubProgramPublicKey, 
+  getTokenPublicKey, 
+  getEndpoint 
+} from './config';
+
 // Constants for the different program versions
 export const PROGRAM_ID_V3 = MultihubSwapV3.MULTIHUB_SWAP_PROGRAM_ID; // Using deployed program ID from config
 
-// Token constants
-export const YOT_TOKEN_MINT = new PublicKey(MultihubSwapV3.YOT_TOKEN_MINT);
-export const YOS_TOKEN_MINT = new PublicKey(MultihubSwapV3.YOS_TOKEN_MINT);
-export const SOL_TOKEN_MINT = new PublicKey('So11111111111111111111111111111111111111112');
-export const DEVNET_ENDPOINT = 'https://api.devnet.solana.com';
+// Token constants - using config helpers for consistency
+export const YOT_TOKEN_MINT = getTokenPublicKey('YOT');
+export const YOS_TOKEN_MINT = getTokenPublicKey('YOS');
+export const SOL_TOKEN_MINT = getTokenPublicKey('SOL');
+export const DEVNET_ENDPOINT = getEndpoint();
 
 /**
  * Prepare for a swap by ensuring all necessary token accounts exist
