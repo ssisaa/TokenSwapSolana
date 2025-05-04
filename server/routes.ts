@@ -35,6 +35,8 @@ const YOT_TOKEN_ADDRESS = appConfig.tokens.YOT;
 const YOS_TOKEN_ADDRESS = appConfig.tokens.YOS;
 const POOL_AUTHORITY = appConfig.accounts.poolAuthority;
 const POOL_SOL_ACCOUNT = appConfig.accounts.poolSol;
+const YOT_TOKEN_ACCOUNT = appConfig.accounts.yotToken;
+const YOS_TOKEN_ACCOUNT = appConfig.accounts.yosToken;
 
 // Connection manager for Solana RPC
 class SolanaConnectionManager {
@@ -844,56 +846,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get a connection from the connection manager
       const conn = getConnection();
       
-      // Step 1: Get SOL balance with retry mechanism
+      // Step 1: Get SOL balance using ConnectionManager for reliability
       try {
         const poolSolAccount = new PublicKey(POOL_SOL_ACCOUNT);
-        solBalance = await conn.getBalance(poolSolAccount);
-        console.log(`Fetched SOL balance: ${solBalance / LAMPORTS_PER_SOL} SOL`);
-      } catch (solError) {
-        console.error('Error fetching SOL balance, will try one more time:', solError);
         
-        // Retry once after small delay with a fresh connection
-        try {
-          await new Promise(resolve => setTimeout(resolve, 500));
-          const freshConn = getConnection();
-          const poolSolAccount = new PublicKey(POOL_SOL_ACCOUNT);
-          solBalance = await freshConn.getBalance(poolSolAccount);
-          console.log(`Retry successful, fetched SOL balance: ${solBalance / LAMPORTS_PER_SOL} SOL`);
-        } catch (retryError) {
-          console.error('Retry failed to fetch SOL balance:', retryError);
-        }
-      }
-      
-      // Step 2: Get YOT balance
-      try {
-        const poolAuthority = new PublicKey(POOL_AUTHORITY);
-        const yotTokenMint = new PublicKey(YOT_TOKEN_ADDRESS);
+        // Import and use the client-side ConnectionManager for reliable network operations
+        const { connectionManager } = require("../client/src/lib/connection-manager");
         
-        const yotTokenAccount = await getAssociatedTokenAddress(
-          yotTokenMint,
-          poolAuthority
+        // Use ConnectionManager's executeWithFallback to handle retries and failover automatically
+        solBalance = await connectionManager.executeWithFallback(
+          connection => connection.getBalance(poolSolAccount),
+          3, // max retries
+          500  // initial delay in ms
         );
         
-        const tokenAccountInfo = await getAccount(conn, yotTokenAccount);
-        const mintInfo = await getMint(conn, yotTokenMint);
+        console.log(`Fetched SOL balance: ${solBalance / LAMPORTS_PER_SOL} SOL`);
+      } catch (solError) {
+        console.error('Error fetching SOL balance even with ConnectionManager:', solError);
+      }
+      
+      // Step 2: Get YOT balance using ConnectionManager for reliability
+      try {
+        // Use direct YOT token account instead of derived address
+        const yotTokenAccount = new PublicKey(YOT_TOKEN_ACCOUNT);
+        const yotTokenMint = new PublicKey(YOT_TOKEN_ADDRESS);
+        
+        console.log(`Using direct YOT token account: ${yotTokenAccount.toString()}`);
+        
+        // Get the client-side ConnectionManager that's already imported
+        const { connectionManager } = require("../client/src/lib/connection-manager");
+        
+        // Use ConnectionManager for reliable network operations
+        const tokenAccountInfo = await connectionManager.executeWithFallback(
+          async (connection) => await getAccount(connection, yotTokenAccount)
+        );
+        
+        const mintInfo = await connectionManager.executeWithFallback(
+          async (connection) => await getMint(connection, yotTokenMint)
+        );
+        
         yotBalance = Number(tokenAccountInfo.amount) / Math.pow(10, mintInfo.decimals);
         console.log(`Fetched YOT balance: ${yotBalance} YOT`);
       } catch (yotError) {
         console.error('Error getting YOT balance:', yotError);
       }
       
-      // Step 3: Get YOS balance
+      // Step 3: Get YOS balance using ConnectionManager for reliability
       try {
-        const poolAuthority = new PublicKey(POOL_AUTHORITY);
+        // Use the direct YOS token account instead of deriving from mint
+        const yosTokenAccount = new PublicKey(YOS_TOKEN_ACCOUNT);
         const yosTokenMint = new PublicKey(YOS_TOKEN_ADDRESS);
         
-        const yosTokenAccount = await getAssociatedTokenAddress(
-          yosTokenMint,
-          poolAuthority
+        console.log(`Using direct YOS token account: ${yosTokenAccount.toString()}`);
+        
+        // Get the client-side ConnectionManager that's already imported
+        const { connectionManager } = require("../client/src/lib/connection-manager");
+        
+        // Use ConnectionManager for reliable network operations
+        const tokenAccountInfo = await connectionManager.executeWithFallback(
+          async (connection) => await getAccount(connection, yosTokenAccount)
         );
         
-        const tokenAccountInfo = await getAccount(conn, yosTokenAccount);
-        const mintInfo = await getMint(conn, yosTokenMint);
+        const mintInfo = await connectionManager.executeWithFallback(
+          async (connection) => await getMint(connection, yosTokenMint)
+        );
+        
         yosBalance = Number(tokenAccountInfo.amount) / Math.pow(10, mintInfo.decimals);
         console.log(`Fetched YOS balance: ${yosBalance} YOS`);
       } catch (yosError) {
