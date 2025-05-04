@@ -1081,5 +1081,6 @@ export default {
   findProgramStateAddress,
   initializeProgram,
   performSwap,
-  closeProgram
+  closeProgram,
+  verifyProgramAuthority
 };

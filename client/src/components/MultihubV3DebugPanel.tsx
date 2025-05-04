@@ -4,14 +4,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Loader2 } from 'lucide-react';
-import { 
-  findProgramStateAddress, 
-  findProgramAuthorityAddress, 
-  verifyProgramAuthority,
-  MULTIHUB_SWAP_PROGRAM_ID, 
-  YOT_TOKEN_MINT, 
-  YOS_TOKEN_MINT 
-} from '../lib/multihub-contract-v3';
+import MultihubSwapV3 from '../lib/multihub-contract-v3';
 import { useMultiWallet } from '@/context/MultiWalletContext';
 import { DEVNET_ENDPOINT } from '@/lib/multihub-integration-v3';
 
@@ -33,9 +26,9 @@ export default function MultihubV3DebugPanel() {
     setError(null);
     
     try {
-      const programId = new PublicKey(MULTIHUB_SWAP_PROGRAM_ID);
-      const [programStateAddress, stateBump] = findProgramStateAddress();
-      const [programAuthorityAddress, authorityBump] = findProgramAuthorityAddress();
+      const programId = new PublicKey(MultihubSwapV3.MULTIHUB_SWAP_PROGRAM_ID);
+      const [programStateAddress, stateBump] = MultihubSwapV3.findProgramStateAddress();
+      const [programAuthorityAddress, authorityBump] = MultihubSwapV3.findProgramAuthorityAddress();
       
       // Get program account info (to verify if program exists)
       const programAccountInfo = await connection.getAccountInfo(programId);
@@ -68,8 +61,8 @@ export default function MultihubV3DebugPanel() {
         programSize: programAccountInfo?.data.length || 0,
         programExecutable: programAccountInfo?.executable || false,
         programOwner: programAccountInfo?.owner?.toBase58() || 'Unknown',
-        yotMint: YOT_TOKEN_MINT,
-        yosMint: YOS_TOKEN_MINT,
+        yotMint: MultihubSwapV3.YOT_TOKEN_MINT,
+        yosMint: MultihubSwapV3.YOS_TOKEN_MINT,
       });
       
     } catch (err: any) {
@@ -96,7 +89,7 @@ export default function MultihubV3DebugPanel() {
     
     try {
       console.log("Running program authority verification...");
-      const result = await verifyProgramAuthority(connection, wallet);
+      const result = await MultihubSwapV3.verifyProgramAuthority(connection, wallet);
       
       if (result) {
         setVerificationResult("Program authority successfully verified and funded if needed.");
