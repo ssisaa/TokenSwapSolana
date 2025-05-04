@@ -153,6 +153,56 @@ export function findProgramStateAddress(): [PublicKey, number] {
 }
 
 /**
+ * Fund the program authority account with SOL to fix 'InsufficientFunds' errors
+ * This is needed to ensure the program can create token accounts and process swaps
+ */
+export async function fundProgramAuthority(
+  connection: Connection,
+  wallet: any,
+  amountSOL: number = 0.05 // Default to 0.05 SOL which is enough for several token accounts
+): Promise<string> {
+  try {
+    // Get program authority address
+    const [programAuthorityAddress] = findProgramAuthorityAddress();
+    
+    // Create a new transaction
+    const transaction = new Transaction();
+    
+    // Set fee payer
+    transaction.feePayer = wallet.publicKey;
+    
+    // Add a recent blockhash
+    const { blockhash } = await connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    
+    // Convert SOL amount to lamports (1 SOL = 1,000,000,000 lamports)
+    const lamports = Math.floor(amountSOL * 1_000_000_000);
+    
+    // Add transfer instruction to the transaction
+    transaction.add(
+      SystemProgram.transfer({
+        fromPubkey: wallet.publicKey,
+        toPubkey: programAuthorityAddress,
+        lamports,
+      })
+    );
+    
+    console.log(`Sending ${amountSOL} SOL to program authority at ${programAuthorityAddress.toBase58()}`);
+    
+    // Sign and send the transaction
+    const signature = await wallet.sendTransaction(transaction, connection);
+    
+    console.log(`Transaction sent with signature ${signature}`);
+    console.log(`Program authority funded successfully with ${amountSOL} SOL`);
+    
+    return signature;
+  } catch (error) {
+    console.error('Error funding program authority:', error);
+    throw error;
+  }
+}
+
+/**
  * Initialize the multihub swap program
  */
 export async function initializeProgram(

@@ -4,8 +4,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { MultihubIntegrationV3 } from '@/lib/multihub-integration-v3';
+import { fundProgramAuthority } from '@/lib/multihub-contract-v3';
 import { Loader2 } from 'lucide-react';
 import MultihubV3DebugPanel from './MultihubV3DebugPanel';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface MultihubV3AdminActionsProps {
   wallet: any;
@@ -15,6 +18,8 @@ export function MultihubV3AdminActions({ wallet }: MultihubV3AdminActionsProps) 
   const { toast } = useToast();
   const [isInitializing, setIsInitializing] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [isFunding, setIsFunding] = useState(false);
+  const [fundAmount, setFundAmount] = useState("0.05");
   
   const handleInitialize = async () => {
     if (!wallet?.publicKey) {
