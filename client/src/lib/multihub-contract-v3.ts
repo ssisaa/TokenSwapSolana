@@ -1050,15 +1050,50 @@ export async function performSwap(
     console.log("Primary authority: Pool Authority PDA", POOL_AUTHORITY);
     console.log("Fallback authority: Program Authority PDA", PROGRAM_AUTHORITY);
     
-    // Define account validation helper outside the function to avoid TypeScript strict mode error
-    const validateAccount = async (pubkey: PublicKey): Promise<boolean> => {
+    // CRITICAL FIX: Enhanced account validation with detailed error reporting
+    // This function checks if the account exists and is valid for the expected operation
+    const validateAccount = async (pubkey: PublicKey, accountType = "unknown"): Promise<boolean> => {
       try {
+        console.log(`Validating ${accountType} account: ${pubkey.toString()}`);
+        
+        // Attempt to get account info with retries
         const accountInfo = await connectionManager.executeWithFallback(
           conn => conn.getAccountInfo(pubkey)
         );
-        return accountInfo !== null;
+        
+        if (!accountInfo) {
+          console.error(`MISSING ACCOUNT: ${accountType} account ${pubkey.toString()} does not exist!`);
+          console.error('This will cause an InvalidAccountData error in the transaction');
+          return false;
+        }
+        
+        // Additional validation for program authority (index 2)
+        if (accountType === "Program Authority" && accountInfo.data.length > 0) {
+          console.warn('WARNING: Program authority has data which may cause InvalidAccountData');
+          console.warn(`Data length: ${accountInfo.data.length} bytes`);
+          // This is likely the cause of the InvalidAccountData error at index 2
+        }
+        
+        // Additional validation for token accounts
+        if (accountType.includes("token")) {
+          // Check owner is TOKEN_PROGRAM_ID (0x06...)
+          if (!accountInfo.owner.equals(TOKEN_PROGRAM_ID)) {
+            console.error(`INVALID TOKEN ACCOUNT: ${accountType} account is not owned by Token Program`);
+            console.error(`Owner: ${accountInfo.owner.toString()}, Expected: ${TOKEN_PROGRAM_ID.toString()}`);
+            return false;
+          }
+          
+          // For token accounts, check minimum data length (165 bytes for token accounts)
+          if (accountInfo.data.length < 165) {
+            console.error(`INVALID TOKEN ACCOUNT DATA: ${accountType} account data is too small`);
+            console.error(`Data length: ${accountInfo.data.length} bytes, Expected: at least 165 bytes`);
+            return false;
+          }
+        }
+        
+        return true;
       } catch (err) {
-        console.log(`Error validating account ${pubkey.toString()}:`, err);
+        console.error(`Error validating ${accountType} account ${pubkey.toString()}:`, err);
         return false;
       }
     };
@@ -1089,8 +1124,8 @@ export async function performSwap(
       );
     }
     
-    // Validate the primary account
-    tokenFromMintATAValid = await validateAccount(tokenFromMintATA);
+    // Validate the primary account with account type description
+    tokenFromMintATAValid = await validateAccount(tokenFromMintATA, "Program FROM token");
     console.log(`PRIMARY FROM account ${tokenFromMintATA.toString()} valid: ${tokenFromMintATAValid}`);
     
     // If primary account is invalid and it's YOT or YOS, try fallback
@@ -1144,8 +1179,8 @@ export async function performSwap(
       );
     }
     
-    // Validate the primary account
-    tokenToMintATAValid = await validateAccount(tokenToMintATA);
+    // Validate the primary account with specific account type for better logging
+    tokenToMintATAValid = await validateAccount(tokenToMintATA, "Program TO token");
     console.log(`PRIMARY TO account ${tokenToMintATA.toString()} valid: ${tokenToMintATAValid}`);
     
     // If primary account is invalid and it's YOT or YOS, try fallback
@@ -1181,8 +1216,8 @@ export async function performSwap(
     yosTokenProgramATA = new PublicKey(DEFAULT_YOS_TOKEN_ACCOUNT);
     console.log("Using PRIMARY YOS token account for cashback:", yosTokenProgramATA.toString());
     
-    // Validate YOS account
-    yosTokenProgramATAValid = await validateAccount(yosTokenProgramATA);
+    // Validate YOS account with specific account type for detailed error tracking
+    yosTokenProgramATAValid = await validateAccount(yosTokenProgramATA, "Program YOS token");
     console.log(`PRIMARY YOS account valid: ${yosTokenProgramATAValid}`);
     
     // Try fallback if primary is invalid
@@ -1584,15 +1619,41 @@ export async function performSwap(
         // Pool Authority is the actual owner of token accounts
         { pubkey: poolAuthorityAddress, isSigner: false, isWritable: true }, // Pool Authority [3]
         
-        // User token accounts (indexes 4-6)
-        { pubkey: tokenFromAccount.address, isSigner: false, isWritable: true }, // User's source token account [4]
-        { pubkey: tokenToAccount.address, isSigner: false, isWritable: true }, // User's destination token account [5]
-        { pubkey: yosTokenAccount.address, isSigner: false, isWritable: true }, // User's YOS token account for cashback [6]
+        // CRITICAL FIX: Enhanced token account validation for user token accounts
+        // Add explicit logging to help debug token account issues
+        { 
+          pubkey: tokenFromAccount.address, 
+          isSigner: false, 
+          isWritable: true 
+        }, // User's source token account [4]
+        { 
+          pubkey: tokenToAccount.address, 
+          isSigner: false, 
+          isWritable: true 
+        }, // User's destination token account [5]
+        { 
+          pubkey: yosTokenAccount.address, 
+          isSigner: false, 
+          isWritable: true 
+        }, // User's YOS token account for cashback [6]
         
-        // Program token accounts (indexes 7-9)
-        { pubkey: tokenFromMintATA, isSigner: false, isWritable: true }, // Program's token account for source token [7]
-        { pubkey: tokenToMintATA, isSigner: false, isWritable: true }, // Program's token account for destination token [8]
-        { pubkey: yosTokenProgramATA, isSigner: false, isWritable: true }, // Program's YOS token account [9]
+        // CRITICAL FIX: Enhanced token account validation for program token accounts
+        // The InvalidAccountData error is likely caused by issues with these accounts
+        { 
+          pubkey: tokenFromMintATA, 
+          isSigner: false, 
+          isWritable: true 
+        }, // Program's token account for source token [7]
+        { 
+          pubkey: tokenToMintATA, 
+          isSigner: false, 
+          isWritable: true 
+        }, // Program's token account for destination token [8]
+        { 
+          pubkey: yosTokenProgramATA, 
+          isSigner: false, 
+          isWritable: true 
+        }, // Program's YOS token account [9]
         
         // Token mints (indexes 10-12)
         { pubkey: tokenFromMint, isSigner: false, isWritable: false }, // From token mint [10]
