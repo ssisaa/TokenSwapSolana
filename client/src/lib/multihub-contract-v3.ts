@@ -147,13 +147,39 @@ export function findProgramAuthorityAddress(): [PublicKey, number] {
  * Special verification function for debugging and fixing "InvalidAccountData" error at account index 2
  * This is specifically targeting the exact problem mentioned in the Solana error logs
  */
+export async function debugProgramIDs(): void {
+  // Output the program IDs for debugging purposes
+  console.log(`\n=== MULTIHUB SWAP PROGRAM DEBUG INFO ===`);
+  console.log(`Current MULTIHUB_SWAP_PROGRAM_ID: ${MULTIHUB_SWAP_PROGRAM_ID}`);
+  console.log(`YOT Token Mint: ${YOT_TOKEN_MINT}`);
+  console.log(`YOS Token Mint: ${YOS_TOKEN_MINT}`);
+  
+  // Calculate and log the PDA addresses
+  const [stateAddress, stateBump] = findProgramStateAddress();
+  const [authorityAddress, authorityBump] = findProgramAuthorityAddress();
+  
+  console.log(`\nDerived Program State PDA (seed 'state'):`);
+  console.log(`Address: ${stateAddress.toString()}`);
+  console.log(`Bump: ${stateBump}`);
+  
+  console.log(`\nDerived Program Authority PDA (seed 'authority'):`);
+  console.log(`Address: ${authorityAddress.toString()}`);
+  console.log(`Bump: ${authorityBump}`);
+  
+  console.log(`\nMake sure these values match what the program expects on-chain!`);
+  console.log(`If they don't match, the program may be using a different program ID internally.`);
+}
+
 export async function verifyProgramAuthority(
   connection: Connection,
   wallet: any
 ): Promise<boolean> {
   try {
+    // Run the debug info first
+    await debugProgramIDs();
+    
     const [programAuthorityAddress, programAuthorityBump] = findProgramAuthorityAddress();
-    console.log(`=== PROGRAM AUTHORITY VERIFICATION ===`);
+    console.log(`\n=== PROGRAM AUTHORITY VERIFICATION ===`);
     console.log(`Authority PDA: ${programAuthorityAddress.toString()}`);
     console.log(`Authority Bump: ${programAuthorityBump}`);
     
