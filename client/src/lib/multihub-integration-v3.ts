@@ -14,12 +14,16 @@ import {
 
 // Import config helper functions
 import { 
+  config,
   getMultiHubProgramPublicKey, 
   getTokenPublicKey, 
   getEndpoint 
 } from './config';
 
-// Access token accounts through the config module
+// Define fallback addresses for token accounts
+const DEFAULT_SOL_TOKEN_ACCOUNT = "7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS";
+const DEFAULT_YOT_TOKEN_ACCOUNT = "BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE";
+const DEFAULT_YOS_TOKEN_ACCOUNT = "5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz";
 
 // Import additional token account functions
 import { 
@@ -83,12 +87,12 @@ export async function verifyProgramTokenAccounts(connection: Connection): Promis
     // The ATA derivation is producing Hde7zab2woDRC1KLe11KVRzs5enigbK7mnq2r5YYZobD
     // But the actual account receiving funds is the one configured in app.config.json
     // This mismatch was causing the InvalidAccountData error
-    const solTokenAccount = new PublicKey(config.accounts?.poolSol || "7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS");
+    const solTokenAccount = new PublicKey(DEFAULT_SOL_TOKEN_ACCOUNT);
     console.log(`Using SOL token account from config: ${solTokenAccount.toString()}`);
     
     // Also get the YOT and YOS token accounts directly from config for consistency
-    const configYotAccount = new PublicKey(config.accounts?.yotToken || "BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE");
-    const configYosAccount = new PublicKey(config.accounts?.yosToken || "5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz");
+    const configYotAccount = new PublicKey(DEFAULT_YOT_TOKEN_ACCOUNT);
+    const configYosAccount = new PublicKey(DEFAULT_YOS_TOKEN_ACCOUNT);
     
     // Log verification of using the accounts from config
     console.log(`Verifying token accounts from config:

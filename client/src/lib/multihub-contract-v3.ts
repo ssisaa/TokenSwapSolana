@@ -31,6 +31,11 @@ import { connectionManager } from './connection-manager';
 // Program ID for the multihub swap V3/V4 contract from central config
 export const MULTIHUB_SWAP_PROGRAM_ID = config.programs.multiHub.v4;
 
+// Define hardcoded token account addresses as fallbacks
+const DEFAULT_SOL_TOKEN_ACCOUNT = "7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS";
+const DEFAULT_YOT_TOKEN_ACCOUNT = "BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE";
+const DEFAULT_YOS_TOKEN_ACCOUNT = "5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz";
+
 // Token addresses from central config
 export const YOT_TOKEN_MINT = config.tokens.YOT;
 export const YOS_TOKEN_MINT = config.tokens.YOS;
@@ -973,20 +978,20 @@ export async function performSwap(
     const swapData = instructionData;
     
     // Find all Token Program PDAs for token account verification
-    // CRITICAL FIX: Use the correct token accounts from app config
+    // CRITICAL FIX: Use the correct token accounts from hardcoded values
     let tokenFromMintATA;
     if (tokenFromMint.toString() === "So11111111111111111111111111111111111111112") {
-      // Use SOL token account from appConfig
-      tokenFromMintATA = new PublicKey(appConfig.accounts.poolSol);
-      console.log("Using appConfig SOL token account (FROM):", tokenFromMintATA.toString());
-    } else if (tokenFromMint.toString() === appConfig.tokens.YOT) {
-      // Use YOT token account from appConfig
-      tokenFromMintATA = new PublicKey(appConfig.accounts.yotToken);
-      console.log("Using appConfig YOT token account (FROM):", tokenFromMintATA.toString());
-    } else if (tokenFromMint.toString() === appConfig.tokens.YOS) {
-      // Use YOS token account from appConfig
-      tokenFromMintATA = new PublicKey(appConfig.accounts.yosToken);
-      console.log("Using appConfig YOS token account (FROM):", tokenFromMintATA.toString());
+      // Use SOL token account from hardcoded value
+      tokenFromMintATA = new PublicKey(DEFAULT_SOL_TOKEN_ACCOUNT);
+      console.log("Using SOL token account (FROM):", tokenFromMintATA.toString());
+    } else if (tokenFromMint.toString() === config.tokens.YOT) {
+      // Use YOT token account from hardcoded value
+      tokenFromMintATA = new PublicKey(DEFAULT_YOT_TOKEN_ACCOUNT);
+      console.log("Using YOT token account (FROM):", tokenFromMintATA.toString());
+    } else if (tokenFromMint.toString() === config.tokens.YOS) {
+      // Use YOS token account from hardcoded value
+      tokenFromMintATA = new PublicKey(DEFAULT_YOS_TOKEN_ACCOUNT);
+      console.log("Using YOS token account (FROM):", tokenFromMintATA.toString());
     } else {
       tokenFromMintATA = await getAssociatedTokenAddress(
         tokenFromMint,
@@ -995,20 +1000,20 @@ export async function performSwap(
       );
     }
     
-    // CRITICAL FIX: Use the correct token accounts from app config
+    // CRITICAL FIX: Use the correct token accounts from hardcoded values
     let tokenToMintATA;
     if (tokenToMint.toString() === "So11111111111111111111111111111111111111112") {
-      // Use SOL token account from appConfig
-      tokenToMintATA = new PublicKey(appConfig.accounts.poolSol);
-      console.log("Using appConfig SOL token account (TO):", tokenToMintATA.toString());
-    } else if (tokenToMint.toString() === appConfig.tokens.YOT) {
-      // Use YOT token account from appConfig
-      tokenToMintATA = new PublicKey(appConfig.accounts.yotToken);
-      console.log("Using appConfig YOT token account (TO):", tokenToMintATA.toString());
-    } else if (tokenToMint.toString() === appConfig.tokens.YOS) {
-      // Use YOS token account from appConfig
-      tokenToMintATA = new PublicKey(appConfig.accounts.yosToken);
-      console.log("Using appConfig YOS token account (TO):", tokenToMintATA.toString());
+      // Use SOL token account from hardcoded value
+      tokenToMintATA = new PublicKey(DEFAULT_SOL_TOKEN_ACCOUNT);
+      console.log("Using SOL token account (TO):", tokenToMintATA.toString());
+    } else if (tokenToMint.toString() === config.tokens.YOT) {
+      // Use YOT token account from hardcoded value
+      tokenToMintATA = new PublicKey(DEFAULT_YOT_TOKEN_ACCOUNT);
+      console.log("Using YOT token account (TO):", tokenToMintATA.toString());
+    } else if (tokenToMint.toString() === config.tokens.YOS) {
+      // Use YOS token account from hardcoded value
+      tokenToMintATA = new PublicKey(DEFAULT_YOS_TOKEN_ACCOUNT);
+      console.log("Using YOS token account (TO):", tokenToMintATA.toString());
     } else {
       tokenToMintATA = await getAssociatedTokenAddress(
         tokenToMint, 
