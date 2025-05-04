@@ -1503,6 +1503,208 @@ export async function closeProgram(
   }
 }
 
+/**
+ * Admin function to mint tokens directly from mint to PDA-derived ATAs
+ * This approach avoids issues with transferring from existing accounts
+ * by minting new tokens directly to the PDA ATAs
+ */
+export async function mintTokensToProgramPDA(
+  connection: Connection,
+  wallet: any,
+  amountYot: number = 0,
+  amountYos: number = 0
+): Promise<string[]> {
+  try {
+    // Get Program Authority PDA
+    const [programAuthorityAddress, _bump] = findProgramAuthorityAddress();
+    
+    // Create an array to store transaction signatures from multiple transactions if needed
+    const signatures: string[] = [];
+    
+    // Create or get PDA-owned token accounts for YOT and YOS
+    console.log(`Finding or creating PDA-owned ATAs for YOT and YOS tokens...`);
+    
+    // First transaction: Create ATAs if needed
+    const ataTransaction = new Transaction();
+    ataTransaction.feePayer = wallet.publicKey;
+    const { blockhash } = await connection.getLatestBlockhash();
+    ataTransaction.recentBlockhash = blockhash;
+    let needsAtaCreation = false;
+    
+    // Create or get PDA-owned YOT account
+    const yotMint = new PublicKey(YOT_TOKEN_MINT);
+    const pdaYotAta = await getAssociatedTokenAddress(
+      yotMint,
+      programAuthorityAddress,
+      true // Allow PDA as owner
+    );
+    
+    // Check if account already exists
+    const yotAtaInfo = await connection.getAccountInfo(pdaYotAta);
+    if (!yotAtaInfo) {
+      console.log(`Creating YOT ATA for Program Authority: ${pdaYotAta.toString()}`);
+      // Create ATA for Program Authority
+      const createYotAtaIx = createAssociatedTokenAccountInstruction(
+        wallet.publicKey, // payer
+        pdaYotAta, // ata address
+        programAuthorityAddress, // owner (PDA)
+        yotMint // mint
+      );
+      ataTransaction.add(createYotAtaIx);
+      needsAtaCreation = true;
+    } else {
+      console.log(`YOT ATA for Program Authority already exists: ${pdaYotAta.toString()}`);
+    }
+    
+    // Create or get PDA-owned YOS account
+    const yosMint = new PublicKey(YOS_TOKEN_MINT);
+    const pdaYosAta = await getAssociatedTokenAddress(
+      yosMint,
+      programAuthorityAddress,
+      true // Allow PDA as owner
+    );
+    
+    // Check if account already exists
+    const yosAtaInfo = await connection.getAccountInfo(pdaYosAta);
+    if (!yosAtaInfo) {
+      console.log(`Creating YOS ATA for Program Authority: ${pdaYosAta.toString()}`);
+      // Create ATA for Program Authority
+      const createYosAtaIx = createAssociatedTokenAccountInstruction(
+        wallet.publicKey, // payer
+        pdaYosAta, // ata address
+        programAuthorityAddress, // owner (PDA)
+        yosMint // mint
+      );
+      ataTransaction.add(createYosAtaIx);
+      needsAtaCreation = true;
+    } else {
+      console.log(`YOS ATA for Program Authority already exists: ${pdaYosAta.toString()}`);
+    }
+    
+    // Send the transaction to create the ATAs if needed
+    if (needsAtaCreation) {
+      console.log(`Sending transaction to create ATAs...`);
+      const createSig = await wallet.sendTransaction(ataTransaction, connection);
+      console.log(`ATAs created successfully: ${createSig}`);
+      await connection.confirmTransaction(createSig, 'confirmed');
+      signatures.push(createSig);
+    }
+    
+    // Get token accounts from mint
+    const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+    
+    // Create separate transactions for YOT and YOS to mint directly to PDAs
+    if (amountYot > 0) {
+      try {
+        const mintToYotTx = new Transaction();
+        mintToYotTx.feePayer = wallet.publicKey;
+        const { blockhash: yotBlockhash } = await connection.getLatestBlockhash();
+        mintToYotTx.recentBlockhash = yotBlockhash;
+        
+        // Convert amount to raw token amount (assuming 9 decimals)
+        const mintAmount = BigInt(Math.floor(amountYot * 1e9));
+        
+        // Create mint instruction using MintToChecked (safer)
+        // Instruction data layout:
+        // 0: Instruction index (14 for MintToChecked)
+        // 1-8: Amount as u64 LE
+        // 9: Decimals as u8
+        const instructionData = Buffer.alloc(10);
+        instructionData.writeUInt8(14, 0); // MintToChecked instruction
+        
+        // Convert bigint to little-endian bytes
+        const amountLE = Buffer.alloc(8);
+        amountLE.writeBigUInt64LE(mintAmount, 0);
+        amountLE.copy(instructionData, 1);
+        
+        // Write decimals (9 for most Solana tokens)
+        instructionData.writeUInt8(9, 9);
+        
+        const mintToYotIx = new TransactionInstruction({
+          keys: [
+            { pubkey: yotMint, isSigner: false, isWritable: true }, // token mint
+            { pubkey: pdaYotAta, isSigner: false, isWritable: true }, // destination
+            { pubkey: wallet.publicKey, isSigner: true, isWritable: false }, // mint authority
+          ],
+          programId: TOKEN_PROGRAM_ID,
+          data: instructionData
+        });
+        
+        mintToYotTx.add(mintToYotIx);
+        
+        console.log(`Minting ${amountYot} YOT tokens from mint to PDA ATA...`);
+        const yotSig = await wallet.sendTransaction(mintToYotTx, connection);
+        console.log(`YOT minting successful: ${yotSig}`);
+        await connection.confirmTransaction(yotSig, 'confirmed');
+        signatures.push(yotSig);
+      } catch (err) {
+        console.error(`Error minting YOT tokens:`, err);
+      }
+    }
+    
+    if (amountYos > 0) {
+      try {
+        const mintToYosTx = new Transaction();
+        mintToYosTx.feePayer = wallet.publicKey;
+        const { blockhash: yosBlockhash } = await connection.getLatestBlockhash();
+        mintToYosTx.recentBlockhash = yosBlockhash;
+        
+        // Convert amount to raw token amount (assuming 9 decimals)
+        const mintAmount = BigInt(Math.floor(amountYos * 1e9));
+        
+        // Create mint instruction using MintToChecked (safer)
+        const instructionData = Buffer.alloc(10);
+        instructionData.writeUInt8(14, 0); // MintToChecked instruction
+        
+        // Convert bigint to little-endian bytes
+        const amountLE = Buffer.alloc(8);
+        amountLE.writeBigUInt64LE(mintAmount, 0);
+        amountLE.copy(instructionData, 1);
+        
+        // Write decimals (9 for most Solana tokens)
+        instructionData.writeUInt8(9, 9);
+        
+        const mintToYosIx = new TransactionInstruction({
+          keys: [
+            { pubkey: yosMint, isSigner: false, isWritable: true }, // token mint
+            { pubkey: pdaYosAta, isSigner: false, isWritable: true }, // destination
+            { pubkey: wallet.publicKey, isSigner: true, isWritable: false }, // mint authority
+          ],
+          programId: TOKEN_PROGRAM_ID,
+          data: instructionData
+        });
+        
+        mintToYosTx.add(mintToYosIx);
+        
+        console.log(`Minting ${amountYos} YOS tokens from mint to PDA ATA...`);
+        const yosSig = await wallet.sendTransaction(mintToYosTx, connection);
+        console.log(`YOS minting successful: ${yosSig}`);
+        await connection.confirmTransaction(yosSig, 'confirmed');
+        signatures.push(yosSig);
+      } catch (err) {
+        console.error(`Error minting YOS tokens:`, err);
+      }
+    }
+    
+    console.log(`
+Completed token minting process:
+- Created PDA-owned Associated Token Accounts if needed
+- Minted tokens directly from token mint to these accounts
+- No need for intermediate transfers
+
+Important notes:
+- This operation requires the wallet to be a mint authority for both tokens
+- The PDA-derived ATAs can now be used in swap operations
+- Update program code to reference these new PDA ATAs
+    `);
+    
+    return signatures;
+  } catch (error) {
+    console.error('Error in mintTokensToProgramPDA function:', error);
+    throw error;
+  }
+}
+
 export default {
   MULTIHUB_SWAP_PROGRAM_ID,
   YOT_TOKEN_MINT,
@@ -1515,5 +1717,6 @@ export default {
   fundProgramYotAccount,
   initializeProgram,
   performSwap,
-  closeProgram
+  closeProgram,
+  mintTokensToProgramPDA
 };
