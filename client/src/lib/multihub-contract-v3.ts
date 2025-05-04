@@ -31,11 +31,18 @@ import { connectionManager } from './connection-manager';
 // Program ID for the multihub swap V3/V4 contract from central config
 export const MULTIHUB_SWAP_PROGRAM_ID = config.programs.multiHub.v4;
 
-// Define hardcoded token account addresses as fallbacks
+// Define token accounts for both authorities for dual implementation and fallback
+const POOL_AUTHORITY = "7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK";
+const PROGRAM_AUTHORITY = "Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ";
+
+// Primary token accounts (Pool Authority)
 const DEFAULT_SOL_TOKEN_ACCOUNT = "7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS";
 const DEFAULT_YOT_TOKEN_ACCOUNT = "BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE";
 const DEFAULT_YOS_TOKEN_ACCOUNT = "5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz";
-const POOL_AUTHORITY = "7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK";
+
+// Fallback token accounts (Program Authority ATAs)
+const FALLBACK_YOT_TOKEN_ACCOUNT = "ALNfRZWERhp8eDyBR5wcbeDVzz3yv61zQJz5wwW9GnN8";
+const FALLBACK_YOS_TOKEN_ACCOUNT = "49APzC9EH1sBSA2uy5wsvX1qnBeeRyxHm7zgfcv9dYRA";
 
 // Token addresses from central config
 export const YOT_TOKEN_MINT = config.tokens.YOT;
@@ -983,26 +990,43 @@ export async function performSwap(
     
     const swapData = instructionData;
     
-    // CRITICAL FIX: Use the correct token accounts from hardcoded values with Pool Authority
-    // The accounts are now directly associated with the Pool Authority rather than Program Authority
-    console.log("Using Pool Authority:", POOL_AUTHORITY);
+    // DUAL IMPLEMENTATION: Use both Pool Authority and Program Authority with fallback logic
+    console.log("Implementing dual authority approach with fallback logic");
+    console.log("Primary authority: Pool Authority PDA", POOL_AUTHORITY);
+    console.log("Fallback authority: Program Authority PDA", PROGRAM_AUTHORITY);
     
-    // Find all Token Program PDAs for token account verification
-    let tokenFromMintATA;
+    // Define account validation helper outside the function to avoid TypeScript strict mode error
+    const validateAccount = async (pubkey: PublicKey): Promise<boolean> => {
+      try {
+        const accountInfo = await connectionManager.executeWithFallback(
+          conn => conn.getAccountInfo(pubkey)
+        );
+        return accountInfo !== null;
+      } catch (err) {
+        console.log(`Error validating account ${pubkey.toString()}:`, err);
+        return false;
+      }
+    };
+    
+    // STEP 1: Find the tokenFromMintATA with fallback logic
+    let tokenFromMintATA: PublicKey;
+    let tokenFromMintATAValid = false;
+    
+    // Primary account (Pool Authority)
     if (tokenFromMint.toString() === "So11111111111111111111111111111111111111112") {
-      // Use SOL token account from hardcoded value
+      // SOL account
       tokenFromMintATA = new PublicKey(DEFAULT_SOL_TOKEN_ACCOUNT);
-      console.log("Using hardcoded SOL token account (FROM):", tokenFromMintATA.toString());
+      console.log("Using PRIMARY SOL token account (FROM):", tokenFromMintATA.toString());
     } else if (tokenFromMint.toString() === config.tokens.YOT) {
-      // Use YOT token account from hardcoded value
+      // YOT account
       tokenFromMintATA = new PublicKey(DEFAULT_YOT_TOKEN_ACCOUNT);
-      console.log("Using hardcoded YOT token account (FROM):", tokenFromMintATA.toString());
+      console.log("Using PRIMARY YOT token account (FROM):", tokenFromMintATA.toString());
     } else if (tokenFromMint.toString() === config.tokens.YOS) {
-      // Use YOS token account from hardcoded value
+      // YOS account
       tokenFromMintATA = new PublicKey(DEFAULT_YOS_TOKEN_ACCOUNT);
-      console.log("Using hardcoded YOS token account (FROM):", tokenFromMintATA.toString());
+      console.log("Using PRIMARY YOS token account (FROM):", tokenFromMintATA.toString());
     } else {
-      // For other tokens, we'll derive the ATA with the Pool Authority
+      // For other tokens, derive ATA with Pool Authority
       tokenFromMintATA = await getAssociatedTokenAddress(
         tokenFromMint,
         new PublicKey(POOL_AUTHORITY),
@@ -1010,35 +1034,118 @@ export async function performSwap(
       );
     }
     
-    // CRITICAL FIX: Use the correct token accounts from hardcoded values
-    let tokenToMintATA;
+    // Validate the primary account
+    tokenFromMintATAValid = await validateAccount(tokenFromMintATA);
+    console.log(`PRIMARY FROM account ${tokenFromMintATA.toString()} valid: ${tokenFromMintATAValid}`);
+    
+    // If primary account is invalid and it's YOT or YOS, try fallback
+    if (!tokenFromMintATAValid) {
+      if (tokenFromMint.toString() === config.tokens.YOT) {
+        // Try fallback YOT account
+        const fallbackAccount = new PublicKey(FALLBACK_YOT_TOKEN_ACCOUNT);
+        const fallbackValid = await validateAccount(fallbackAccount);
+        
+        if (fallbackValid) {
+          console.log(`Using FALLBACK YOT account (FROM): ${fallbackAccount.toString()}`);
+          tokenFromMintATA = fallbackAccount;
+          tokenFromMintATAValid = true;
+        }
+      } else if (tokenFromMint.toString() === config.tokens.YOS) {
+        // Try fallback YOS account
+        const fallbackAccount = new PublicKey(FALLBACK_YOS_TOKEN_ACCOUNT);
+        const fallbackValid = await validateAccount(fallbackAccount);
+        
+        if (fallbackValid) {
+          console.log(`Using FALLBACK YOS account (FROM): ${fallbackAccount.toString()}`);
+          tokenFromMintATA = fallbackAccount;
+          tokenFromMintATAValid = true;
+        }
+      }
+    }
+    
+    // STEP 2: Find the tokenToMintATA with fallback logic
+    let tokenToMintATA: PublicKey;
+    let tokenToMintATAValid = false;
+    
+    // Primary account (Pool Authority)
     if (tokenToMint.toString() === "So11111111111111111111111111111111111111112") {
-      // Use SOL token account from hardcoded value
+      // SOL account
       tokenToMintATA = new PublicKey(DEFAULT_SOL_TOKEN_ACCOUNT);
-      console.log("Using hardcoded SOL token account (TO):", tokenToMintATA.toString());
+      console.log("Using PRIMARY SOL token account (TO):", tokenToMintATA.toString());
     } else if (tokenToMint.toString() === config.tokens.YOT) {
-      // Use YOT token account from hardcoded value
+      // YOT account
       tokenToMintATA = new PublicKey(DEFAULT_YOT_TOKEN_ACCOUNT);
-      console.log("Using hardcoded YOT token account (TO):", tokenToMintATA.toString());
+      console.log("Using PRIMARY YOT token account (TO):", tokenToMintATA.toString());
     } else if (tokenToMint.toString() === config.tokens.YOS) {
-      // Use YOS token account from hardcoded value
+      // YOS account
       tokenToMintATA = new PublicKey(DEFAULT_YOS_TOKEN_ACCOUNT);
-      console.log("Using hardcoded YOS token account (TO):", tokenToMintATA.toString());
+      console.log("Using PRIMARY YOS token account (TO):", tokenToMintATA.toString());
     } else {
-      // For other tokens, we'll derive the ATA with the Pool Authority
+      // For other tokens, derive ATA with Pool Authority
       tokenToMintATA = await getAssociatedTokenAddress(
         tokenToMint,
         new PublicKey(POOL_AUTHORITY),
-        true // allowOwnerOffCurve: true for PDAs
+        true  // allowOwnerOffCurve: true for PDAs
       );
     }
     
-    // CRITICAL FIX: Use Pool Authority for YOS token account
-    const yosTokenProgramATA = await getAssociatedTokenAddress(
-      new PublicKey(YOS_TOKEN_MINT),
-      new PublicKey(POOL_AUTHORITY),
-      true // allowOwnerOffCurve: true for PDAs
-    );
+    // Validate the primary account
+    tokenToMintATAValid = await validateAccount(tokenToMintATA);
+    console.log(`PRIMARY TO account ${tokenToMintATA.toString()} valid: ${tokenToMintATAValid}`);
+    
+    // If primary account is invalid and it's YOT or YOS, try fallback
+    if (!tokenToMintATAValid) {
+      if (tokenToMint.toString() === config.tokens.YOT) {
+        // Try fallback YOT account
+        const fallbackAccount = new PublicKey(FALLBACK_YOT_TOKEN_ACCOUNT);
+        const fallbackValid = await validateAccount(fallbackAccount);
+        
+        if (fallbackValid) {
+          console.log(`Using FALLBACK YOT account (TO): ${fallbackAccount.toString()}`);
+          tokenToMintATA = fallbackAccount;
+          tokenToMintATAValid = true;
+        }
+      } else if (tokenToMint.toString() === config.tokens.YOS) {
+        // Try fallback YOS account
+        const fallbackAccount = new PublicKey(FALLBACK_YOS_TOKEN_ACCOUNT);
+        const fallbackValid = await validateAccount(fallbackAccount);
+        
+        if (fallbackValid) {
+          console.log(`Using FALLBACK YOS account (TO): ${fallbackAccount.toString()}`);
+          tokenToMintATA = fallbackAccount;
+          tokenToMintATAValid = true;
+        }
+      }
+    }
+    
+    // STEP 3: Find YOS token account for cashback with fallback logic
+    let yosTokenProgramATA: PublicKey;
+    let yosTokenProgramATAValid = false;
+    
+    // Primary YOS account (Pool Authority)
+    yosTokenProgramATA = new PublicKey(DEFAULT_YOS_TOKEN_ACCOUNT);
+    console.log("Using PRIMARY YOS token account for cashback:", yosTokenProgramATA.toString());
+    
+    // Validate YOS account
+    yosTokenProgramATAValid = await validateAccount(yosTokenProgramATA);
+    console.log(`PRIMARY YOS account valid: ${yosTokenProgramATAValid}`);
+    
+    // Try fallback if primary is invalid
+    if (!yosTokenProgramATAValid) {
+      const fallbackAccount = new PublicKey(FALLBACK_YOS_TOKEN_ACCOUNT);
+      const fallbackValid = await validateAccount(fallbackAccount);
+      
+      if (fallbackValid) {
+        console.log(`Using FALLBACK YOS account for cashback: ${fallbackAccount.toString()}`);
+        yosTokenProgramATA = fallbackAccount;
+        yosTokenProgramATAValid = true;
+      }
+    }
+    
+    // Throw error if any required account is still invalid after fallback
+    if (!tokenFromMintATAValid || !tokenToMintATAValid || !yosTokenProgramATAValid) {
+      throw new Error("Required token accounts are invalid and fallback accounts were also invalid");
+    }
     
     // Create all token accounts first before we do any validations
     // This ensures all accounts exist before we try to check balances
@@ -1297,17 +1404,27 @@ export async function performSwap(
     // Add the swap instruction with EXACT key ordering as expected by the program
     // This matches EXACTLY what the Rust program expects in the same order
     // CRITICAL FIX: Add the Pool Authority to the accounts list
+    // Use both authorities for transaction - this is the key to the dual fallback implementation
     const poolAuthorityAddress = new PublicKey(POOL_AUTHORITY);
+    const programAuthorityPDA = new PublicKey(PROGRAM_AUTHORITY);
+    
+    console.log("=== TRANSACTION SETUP ===");
+    console.log("Program Authority PDA:", programAuthorityPDA.toString());
+    console.log("Pool Authority PDA:", poolAuthorityAddress.toString());
+    console.log("Using token accounts with fallback logic");
+    console.log("From token account:", tokenFromMintATA.toString());
+    console.log("To token account:", tokenToMintATA.toString());
+    console.log("YOS token account:", yosTokenProgramATA.toString());
     
     transaction.add(new TransactionInstruction({
       keys: [
         // User accounts (indexes 0-2)
         { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // User wallet [0]
         { pubkey: programStateAddress, isSigner: false, isWritable: true }, // Program state for updating [1]
-        { pubkey: programAuthorityAddress, isSigner: false, isWritable: true }, // Program authority for signing PDAs [2]
+        { pubkey: programAuthorityPDA, isSigner: false, isWritable: true }, // Program Authority PDA for signing [2]
         
-        // CRITICAL FIX: Add Pool Authority for token account ownership [3]
-        { pubkey: poolAuthorityAddress, isSigner: false, isWritable: true }, // Pool Authority (owner of token accounts) [3]
+        // DUAL IMPLEMENTATION: Add Pool Authority AND Program Authority for token account ownership
+        { pubkey: poolAuthorityAddress, isSigner: false, isWritable: true }, // Pool Authority (primary token account owner) [3]
         
         // User token accounts (indexes 4-6)
         { pubkey: tokenFromAccount.address, isSigner: false, isWritable: true }, // User's source token account [4]
