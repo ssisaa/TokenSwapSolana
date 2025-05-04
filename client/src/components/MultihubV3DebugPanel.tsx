@@ -1,290 +1,179 @@
-import React, { useState, useEffect } from 'react';
-import { PublicKey, Connection } from '@solana/web3.js';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { Loader2, AlertCircle } from 'lucide-react';
-import MultihubSwapV3 from '../lib/multihub-contract-v3';
-import { useMultiWallet } from '@/context/MultiWalletContext';
-import { connectionManager } from '@/lib/connection-manager';
+import React, { useState } from 'react';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { useWallet } from "@/hooks/useSolanaWallet";
+import { connection } from "@/lib/solana";
+import multihubContract from "@/lib/multihub-contract-v3";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
+import { ReloadIcon } from "@radix-ui/react-icons";
+import { useToast } from "@/hooks/use-toast";
+import { type PublicKey } from '@solana/web3.js';
 
 export default function MultihubV3DebugPanel() {
-  const { wallet, connected } = useMultiWallet();
-  const [loading, setLoading] = useState(false);
-  const [verifying, setVerifying] = useState(false);
-  const [pdaInfo, setPdaInfo] = useState<any>(null);
-  const [programInfo, setProgramInfo] = useState<any>(null);
-  const [verificationResult, setVerificationResult] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'unstable' | 'disconnected'>('connected');
+  // Get wallet context - we need to support both types of wallet contexts
+  const walletContextObj = useWallet();
+  
+  // Extract the properties we need regardless of wallet context type
+  const wallet = 'wallet' in walletContextObj ? walletContextObj.wallet : walletContextObj;
+  const publicKey = 'publicKey' in walletContextObj ? walletContextObj.publicKey : null;
+  
+  const [debugInfo, setDebugInfo] = useState<string>("");
+  const [isDebugLoading, setIsDebugLoading] = useState(false);
+  const [isVerifyLoading, setIsVerifyLoading] = useState(false);
+  const { toast } = useToast();
 
-  // Check PDAs and program info when wallet is connected
-  const checkProgramSetup = async () => {
-    if (!wallet.publicKey) return;
+  // Function to run debug info
+  const runDebugInfo = async () => {
+    if (!connection || !publicKey) return;
     
-    setLoading(true);
-    setError(null);
+    setIsDebugLoading(true);
+    setDebugInfo("");
     
     try {
-      const programId = new PublicKey(MultihubSwapV3.MULTIHUB_SWAP_PROGRAM_ID);
-      const [programStateAddress, stateBump] = MultihubSwapV3.findProgramStateAddress();
-      const [programAuthorityAddress, authorityBump] = MultihubSwapV3.findProgramAuthorityAddress();
+      // Override console.log to capture output
+      const originalConsoleLog = console.log;
+      const logs: string[] = [];
       
-      // Use connection manager with fallback and retry logic
-      // Get program account info (to verify if program exists)
-      const programAccountInfo = await connectionManager.executeWithFallback(
-        (conn) => conn.getAccountInfo(programId)
-      );
+      console.log = (...args) => {
+        logs.push(args.join(' '));
+        originalConsoleLog(...args);
+      };
       
-      // Get program state account info (to verify if it's initialized)
-      const programStateInfo = await connectionManager.executeWithFallback(
-        (conn) => conn.getAccountInfo(programStateAddress)
-      );
+      // Run debug function
+      await multihubContract.debugProgramIDs();
       
-      // Get program authority account info
-      const authorityInfo = await connectionManager.executeWithFallback(
-        (conn) => conn.getAccountInfo(programAuthorityAddress)
-      );
+      // Restore console.log
+      console.log = originalConsoleLog;
       
-      // Get program authority SOL balance
-      const authorityBalance = await connectionManager.executeWithFallback(
-        (conn) => conn.getBalance(programAuthorityAddress)
-      );
+      // Update state with captured logs
+      setDebugInfo(logs.join('\n'));
       
-      const authorityBalanceSOL = authorityBalance / 1_000_000_000; // Convert lamports to SOL
-      
-      setPdaInfo({
-        programStateAddress: programStateAddress.toBase58(),
-        stateBump,
-        programAuthorityAddress: programAuthorityAddress.toBase58(),
-        authorityBump,
-        programStateExists: !!programStateInfo,
-        programStateSize: programStateInfo?.data.length || 0,
-        authorityExists: !!authorityInfo,
-        authorityBalanceLamports: authorityBalance,
-        authorityBalanceSOL: authorityBalanceSOL,
+      toast({
+        title: "Debug Complete",
+        description: "Debug information collected successfully",
       });
+    } catch (error) {
+      console.error("Error running debug:", error);
+      setDebugInfo(`Error: ${error instanceof Error ? error.message : String(error)}`);
       
-      setProgramInfo({
-        programId: programId.toBase58(),
-        programExists: !!programAccountInfo,
-        programSize: programAccountInfo?.data.length || 0,
-        programExecutable: programAccountInfo?.executable || false,
-        programOwner: programAccountInfo?.owner?.toBase58() || 'Unknown',
-        yotMint: MultihubSwapV3.YOT_TOKEN_MINT,
-        yosMint: MultihubSwapV3.YOS_TOKEN_MINT,
+      toast({
+        title: "Debug Failed",
+        description: "Failed to collect debug information",
+        variant: "destructive",
       });
-      
-      setConnectionStatus('connected');
-    } catch (err: any) {
-      console.error('Error checking program setup:', err);
-      setError(`Error: ${err.message}`);
-      setConnectionStatus('unstable');
     } finally {
-      setLoading(false);
+      setIsDebugLoading(false);
     }
   };
   
-  useEffect(() => {
-    if (connected) {
-      checkProgramSetup();
-    }
-  }, [connected]);
-  
-  // Verify program authority to fix "InvalidAccountData" error
-  const verifyAuthority = async () => {
-    if (!wallet.publicKey) return;
+  // Function to verify and fund the program authority
+  const verifyProgramAuthority = async () => {
+    if (!connection || !publicKey) return;
     
-    setVerifying(true);
-    setVerificationResult(null);
-    setError(null);
+    setIsVerifyLoading(true);
     
     try {
-      console.log("Running program authority verification...");
+      // Override console.log to capture output
+      const originalConsoleLog = console.log;
+      const logs: string[] = [];
       
-      // Get a reliable connection from our manager
-      const connection = connectionManager.getConnection();
-      const result = await MultihubSwapV3.verifyProgramAuthority(connection, wallet);
+      console.log = (...args) => {
+        logs.push(args.join(' '));
+        originalConsoleLog(...args);
+      };
+      
+      // Run the verification function
+      const result = await multihubContract.verifyProgramAuthority(connection, wallet);
+      
+      // Restore console.log
+      console.log = originalConsoleLog;
+      
+      // Update debug info with new logs
+      setDebugInfo(prevLogs => prevLogs + '\n\n=== PROGRAM AUTHORITY VERIFICATION ===\n' + logs.join('\n'));
       
       if (result) {
-        setVerificationResult("Program authority successfully verified and funded if needed.");
-        // Refresh the program info to show updated balance
-        checkProgramSetup();
+        toast({
+          title: "Verification Successful",
+          description: "Program authority verified and funded if needed",
+        });
       } else {
-        setVerificationResult("Program authority verification failed. This may cause swap failures.");
+        toast({
+          title: "Verification Failed",
+          description: "Failed to verify program authority",
+          variant: "destructive",
+        });
       }
-      setConnectionStatus('connected');
-    } catch (err: any) {
-      console.error("Authority verification error:", err);
-      setError(`Authority verification error: ${err.message}`);
-      setConnectionStatus('unstable');
+    } catch (error) {
+      console.error("Error verifying program authority:", error);
+      setDebugInfo(prevLogs => prevLogs + `\n\nError verifying: ${error instanceof Error ? error.message : String(error)}`);
+      
+      toast({
+        title: "Verification Failed",
+        description: "Error verifying program authority",
+        variant: "destructive",
+      });
     } finally {
-      setVerifying(false);
+      setIsVerifyLoading(false);
     }
   };
-  
-  // Format bytes as a readable size
-  const formatBytes = (bytes: number): string => {
-    if (bytes === 0) return '0 B';
-    const sizes = ['B', 'KB', 'MB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
-  };
-  
+
   return (
-    <Card className="w-full">
+    <Card className="w-full mb-6">
       <CardHeader>
-        <CardTitle>MultihubSwap V3 Debug Panel</CardTitle>
-        <CardDescription>Program and PDA information for debugging</CardDescription>
+        <CardTitle className="text-lg font-bold">MultiHub V3 Program Debug Panel</CardTitle>
+        <CardDescription>
+          Diagnose and fix program ID and PDA issues that can cause initialization errors
+        </CardDescription>
       </CardHeader>
+      
       <CardContent>
-        {!connected && (
-          <div className="text-center py-4">
-            Connect your wallet to view program information
+        <Alert className="mb-4 bg-amber-50 dark:bg-amber-950">
+          <AlertTitle className="text-amber-600 dark:text-amber-400">Initialization Error Diagnosis</AlertTitle>
+          <AlertDescription>
+            This panel helps diagnose the "Custom:0" error that occurs during initialization due to PDA mismatches.
+            The problem happens because the program has a hardcoded program ID that doesn't match the deployed ID.
+            The fix is to derive PDAs using the hardcoded ID rather than the actual deployed ID.
+          </AlertDescription>
+        </Alert>
+        
+        <div className="flex flex-wrap gap-4 mb-4">
+          <Button 
+            onClick={runDebugInfo}
+            disabled={!walletContext.publicKey || isDebugLoading}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            {isDebugLoading && <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />}
+            Run Debug Info
+          </Button>
+          
+          <Button
+            onClick={verifyProgramAuthority}
+            disabled={!walletContext.publicKey || isVerifyLoading}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            {isVerifyLoading && <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />}
+            Verify & Fund Program Authority
+          </Button>
+        </div>
+        
+        <Separator className="my-4" />
+        
+        {debugInfo && (
+          <div className="mt-4">
+            <h3 className="text-sm font-semibold mb-2">Debug Output:</h3>
+            <pre className="p-4 bg-gray-100 dark:bg-gray-800 rounded-md text-xs overflow-auto max-h-[400px] whitespace-pre-wrap">
+              {debugInfo}
+            </pre>
           </div>
         )}
-        
-        {connected && (
-          <>
-            <div className="flex flex-wrap gap-2 mb-4">
-              <Button 
-                onClick={checkProgramSetup} 
-                disabled={loading || verifying}
-                variant="outline"
-              >
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Refresh Program Info
-              </Button>
-              
-              <Button 
-                onClick={verifyAuthority} 
-                disabled={verifying || loading}
-                variant="default"
-                className={pdaInfo?.authorityBalanceSOL < 0.01 ? "bg-red-600 hover:bg-red-700" : "bg-yellow-600 hover:bg-yellow-700 text-white font-bold"}
-                size="lg"
-              >
-                {verifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {pdaInfo?.authorityBalanceSOL < 0.01 ? "Fund & Verify Authority" : "Fix InvalidAccountData Error"}
-              </Button>
-              
-              <div className="bg-amber-100 border-l-4 border-amber-500 p-3 mt-2 mb-2 text-sm">
-                <p className="font-bold">💡 Click "Fix InvalidAccountData Error" if you see:</p>
-                <p className="ml-2 text-red-600 font-mono text-xs whitespace-nowrap overflow-hidden">
-                  Simulation failed: &#123;"InstructionError":[2,"InvalidAccountData"]&#125;
-                </p>
-                <p className="mt-1">This verifies and funds the program authority account.</p>
-              </div>
-              
-              <div className="flex items-center ml-auto">
-                <div className={`w-3 h-3 rounded-full mr-2 ${
-                  connectionStatus === 'connected' 
-                    ? 'bg-green-500' 
-                    : connectionStatus === 'unstable' 
-                    ? 'bg-amber-500' 
-                    : 'bg-red-500'
-                }`}></div>
-                <span className="text-xs">
-                  {connectionStatus === 'connected' 
-                    ? 'Connected to Solana' 
-                    : connectionStatus === 'unstable' 
-                    ? 'Solana connection unstable' 
-                    : 'Disconnected from Solana'}
-                </span>
-              </div>
-            </div>
-            
-            {error && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                {error}
-              </div>
-            )}
-            
-            {verificationResult && (
-              <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-                {verificationResult}
-              </div>
-            )}
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Program Information */}
-              <div className="space-y-2">
-                <h3 className="text-lg font-medium">Program Info</h3>
-                <Separator />
-                
-                {programInfo && (
-                  <div className="space-y-1 text-sm">
-                    <div><span className="font-medium">Program ID:</span> {programInfo.programId}</div>
-                    <div><span className="font-medium">Program Exists:</span> {programInfo.programExists ? 'Yes' : 'No'}</div>
-                    <div><span className="font-medium">Program Size:</span> {formatBytes(programInfo.programSize)}</div>
-                    <div><span className="font-medium">Executable:</span> {programInfo.programExecutable ? 'Yes' : 'No'}</div>
-                    <div><span className="font-medium">Program Owner:</span> {programInfo.programOwner}</div>
-                    <div><span className="font-medium">YOT Mint:</span> {programInfo.yotMint}</div>
-                    <div><span className="font-medium">YOS Mint:</span> {programInfo.yosMint}</div>
-                  </div>
-                )}
-                
-                {!programInfo && !loading && (
-                  <div className="text-sm text-muted-foreground">
-                    No program information available
-                  </div>
-                )}
-              </div>
-              
-              {/* PDA Information */}
-              <div className="space-y-2">
-                <h3 className="text-lg font-medium">PDA Info</h3>
-                <Separator />
-                
-                {pdaInfo && (
-                  <div className="space-y-1 text-sm">
-                    <div><span className="font-medium">Program State Address:</span> {pdaInfo.programStateAddress}</div>
-                    <div><span className="font-medium">State Bump:</span> {pdaInfo.stateBump}</div>
-                    <div><span className="font-medium">Program Authority Address:</span> {pdaInfo.programAuthorityAddress}</div>
-                    <div><span className="font-medium">Authority Bump:</span> {pdaInfo.authorityBump}</div>
-                    <div><span className="font-medium">State Account Exists:</span> {pdaInfo.programStateExists ? 'Yes' : 'No'}</div>
-                    <div><span className="font-medium">State Account Size:</span> {formatBytes(pdaInfo.programStateSize)}</div>
-                    <div><span className="font-medium">Authority Account Exists:</span> {pdaInfo.authorityExists ? 'Yes' : 'No'}</div>
-                    <div className="font-medium mt-2">Program Authority Balance:</div>
-                    <div className={pdaInfo.authorityBalanceSOL < 0.01 ? "text-red-500 font-bold" : pdaInfo.authorityBalanceSOL < 0.05 ? "text-amber-500 font-bold" : "text-green-600"}>
-                      {pdaInfo.authorityBalanceSOL.toFixed(6)} SOL
-                      {pdaInfo.authorityBalanceSOL < 0.01 && (
-                        <span className="ml-2 text-red-500 text-xs">Low balance! Fund now.</span>
-                      )}
-                      {pdaInfo.authorityBalanceSOL >= 0.01 && pdaInfo.authorityBalanceSOL < 0.05 && (
-                        <span className="ml-2 text-amber-500 text-xs">Consider funding soon.</span>
-                      )}
-                    </div>
-                  </div>
-                )}
-                
-                {!pdaInfo && !loading && (
-                  <div className="text-sm text-muted-foreground">
-                    No PDA information available
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            {loading && (
-              <div className="flex justify-center items-center py-4">
-                <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-                <span>Loading program information...</span>
-              </div>
-            )}
-            
-            {verifying && (
-              <div className="flex justify-center items-center py-4 bg-blue-50 rounded-lg border border-blue-300 mt-4">
-                <Loader2 className="mr-2 h-6 w-6 animate-spin text-blue-600" />
-                <span className="text-blue-800">
-                  Verifying program authority and funding if needed...
-                  <br />
-                  <span className="text-xs">This prevents the "InvalidAccountData" error at index 2</span>
-                </span>
-              </div>
-            )}
-          </>
-        )}
       </CardContent>
+      
+      <CardFooter className="flex justify-between">
+        <p className="text-xs text-gray-500">
+          Connected Wallet: {walletContext.publicKey ? walletContext.publicKey.toString() : "Not connected"}
+        </p>
+      </CardFooter>
     </Card>
   );
 }
