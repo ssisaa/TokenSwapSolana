@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -32,37 +32,8 @@ export default function AdminPage() {
   const [yosBalance, setYosBalance] = useState<number | null>(null);
   const [loadingBalances, setLoadingBalances] = useState(false);
 
-  // Check if connected wallet is admin
-  useState(() => {
-    const checkAdmin = async () => {
-      setLoadingAuth(true);
-      try {
-        if (connected && wallet) {
-          // Check if the connected wallet is the admin wallet
-          const isAdminWallet = wallet.publicKey?.toString() === ADMIN_WALLET.toString();
-          setIsAdmin(isAdminWallet);
-          
-          // If admin, get program authority
-          if (isAdminWallet) {
-            const [authority] = findProgramAuthorityAddress();
-            setProgramAuthority(authority);
-            await loadTokenBalances(authority);
-          }
-        } else {
-          setIsAdmin(false);
-        }
-      } catch (err) {
-        console.error("Error checking admin status:", err);
-      } finally {
-        setLoadingAuth(false);
-      }
-    };
-    
-    checkAdmin();
-  }, [connected, wallet]);
-  
   // Load token balances for program authority
-  const loadTokenBalances = async (authority: PublicKey) => {
+  const loadTokenBalances = useCallback(async (authority: PublicKey) => {
     setLoadingBalances(true);
     try {
       // Get YOT balance
@@ -96,7 +67,44 @@ export default function AdminPage() {
     } finally {
       setLoadingBalances(false);
     }
-  };
+  }, [toast]);
+  
+  // Check if connected wallet is admin
+  useEffect(() => {
+    const checkAdmin = async () => {
+      setLoadingAuth(true);
+      try {
+        console.log("Checking admin status, connected:", connected, "wallet:", wallet?.publicKey?.toString());
+        if (connected && wallet && wallet.publicKey) {
+          // Check if the connected wallet is the admin wallet
+          const currentWallet = wallet.publicKey.toString();
+          const adminWallet = ADMIN_WALLET.toString();
+          console.log("Current wallet:", currentWallet);
+          console.log("Admin wallet:", adminWallet);
+          
+          const isAdminWallet = currentWallet === adminWallet;
+          console.log("Is admin wallet:", isAdminWallet);
+          
+          setIsAdmin(isAdminWallet);
+          
+          // If admin, get program authority
+          if (isAdminWallet) {
+            const [authority] = findProgramAuthorityAddress();
+            setProgramAuthority(authority);
+            await loadTokenBalances(authority);
+          }
+        } else {
+          setIsAdmin(false);
+        }
+      } catch (err) {
+        console.error("Error checking admin status:", err);
+      } finally {
+        setLoadingAuth(false);
+      }
+    };
+    
+    checkAdmin();
+  }, [connected, wallet, loadTokenBalances]);
   
   // Fund YOT token account
   const handleFundYot = async () => {
