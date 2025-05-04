@@ -685,6 +685,69 @@ export async function performSwap(
     console.log(`Using YOS mint: ${YOS_TOKEN_MINT}`);
     
     // Add the swap instruction to the transaction with more complete account list
+    // First, let's verify each account is accessible with robust error handling
+    const accountsToVerify = [
+      { name: 'Program State', account: programStateAddress, expectData: true },
+      { name: 'Program Authority', account: programAuthorityAddress, expectData: false }, // PDA may not have data yet
+      { name: 'User Token From', account: tokenFromAccount.address, expectData: true },
+      { name: 'User Token To', account: tokenToAccount.address, expectData: true },
+      { name: 'User YOS', account: yosTokenAccount.address, expectData: true },
+      { name: 'Program Token From', account: tokenFromMintATA, expectData: true },
+      { name: 'Program Token To', account: tokenToMintATA, expectData: true },
+      { name: 'Program YOS', account: yosTokenProgramATA, expectData: true },
+    ];
+    
+    console.log('Verifying account accessibility before swap...');
+    
+    try {
+      // CRITICAL: Check for proper program initialization first!
+      const programState = await connection.getAccountInfo(programStateAddress);
+      if (!programState || !programState.data || programState.data.length === 0) {
+        console.error('Program state account has no data! Program needs to be initialized first.');
+        
+        // Try automatic initialization since the program state may be missing
+        console.log('Attempting automatic program initialization...');
+        try {
+          const initSignature = await initializeProgram(connection, wallet);
+          console.log('Program successfully initialized:', initSignature);
+          console.log('Please try your swap again now.');
+          throw new Error('Program was not initialized. We\'ve initialized it for you - please try your swap again.');
+        } catch (initError: any) {
+          console.error('Failed to auto-initialize program:', initError);
+          throw new Error('Program is not initialized. Please visit the admin page to initialize it first.');
+        }
+      }
+      
+      // Check other critical accounts
+      for (const acct of accountsToVerify) {
+        try {
+          const info = await connection.getAccountInfo(acct.account);
+          if (acct.expectData && (!info || !info.data || info.data.length === 0)) {
+            console.warn(`WARNING: ${acct.name} account exists but has no data!`);
+            
+            // Special handling for token accounts - auto create if missing
+            if (acct.name.includes('Token')) {
+              console.log(`Creating missing token account: ${acct.name}`);
+              
+              // Use a helper function to determine the correct instruction for token account creation
+              const ix = await getTokenAccountCreateInstruction(connection, wallet, acct.account, acct.name);
+              if (ix) {
+                transaction.add(ix);
+                console.log(`Added instruction to create token account ${acct.name}`);
+              }
+            }
+          }
+        } catch (acctErr) {
+          console.warn(`Error checking ${acct.name} account:`, acctErr);
+          // Continue checking other accounts
+        }
+      }
+    } catch (verifyErr) {
+      console.warn('Error during account verification:', verifyErr);
+      // Continue with swap attempt
+    }
+    
+    // Add the swap instruction with EXACT key ordering as expected by the program
     transaction.add({
       keys: [
         // User accounts
@@ -741,6 +804,57 @@ export async function performSwap(
   } catch (error) {
     console.error('Error in swap function:', error);
     throw error;
+  }
+}
+
+/**
+ * Helper function to create a token account instruction based on account name pattern
+ */
+async function getTokenAccountCreateInstruction(
+  connection: Connection,
+  wallet: any,
+  account: PublicKey,
+  accountName: string
+): Promise<any> {
+  try {
+    // Extract mint and owner from the account name pattern
+    let mint: PublicKey;
+    let owner: PublicKey;
+    
+    // Program authority is always the owner for program token accounts
+    const [programAuthorityAddress] = findProgramAuthorityAddress();
+    
+    if (accountName.includes('YOT')) {
+      mint = new PublicKey(YOT_TOKEN_MINT);
+    } else if (accountName.includes('YOS')) {
+      mint = new PublicKey(YOS_TOKEN_MINT);
+    } else if (accountName.includes('SOL')) {
+      mint = new PublicKey('So11111111111111111111111111111111111111112');
+    } else {
+      console.warn(`Unknown token type in account name: ${accountName}`);
+      return null;
+    }
+    
+    // Determine the owner based on account name
+    if (accountName.includes('Program')) {
+      owner = programAuthorityAddress;
+    } else {
+      owner = wallet.publicKey;
+    }
+    
+    // Create the token account
+    const instruction = createAssociatedTokenAccountInstruction(
+      wallet.publicKey,
+      account,
+      owner,
+      mint
+    );
+    
+    console.log(`Created instruction for: ${accountName} (mint: ${mint.toString()}, owner: ${owner.toString()})`);
+    return instruction;
+  } catch (error) {
+    console.error(`Error creating token account instruction for ${accountName}:`, error);
+    return null;
   }
 }
 
