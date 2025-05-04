@@ -14,7 +14,7 @@ import path from 'path';
 
 // Constants
 const YOT_TOKEN_MINT = new PublicKey("2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF");
-const PROGRAM_ID = new PublicKey("Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L");
+const PROGRAM_ID = new PublicKey("SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE"); // V4 Program
 
 // Load admin keypair
 function loadKeypair(filePath: string): Keypair {
