@@ -26,6 +26,7 @@ import {
   getOrCreateAssociatedTokenAccount,
 } from '@solana/spl-token';
 import { config } from './config';
+import { connectionManager } from './connection-manager';
 
 // Program ID for the multihub swap V3/V4 contract from central config
 export const MULTIHUB_SWAP_PROGRAM_ID = config.programs.multiHub.v4;
@@ -559,6 +560,7 @@ async function ensureTokenAccount(
 
 /**
  * Perform a token swap using the multihub swap V3 program
+ * This improved version uses ConnectionManager for reliable network operations
  */
 export async function performSwap(
   connection: Connection,
@@ -569,9 +571,12 @@ export async function performSwap(
   minAmountOut: number
 ): Promise<string> {
   try {
+    console.log("Starting swap using ConnectionManager for reliable network operations");
+    
     // First, verify the program authority PDA to specifically address the "InvalidAccountData" error at index 2
     console.log("Running program authority verification to prevent InvalidAccountData error...");
-    const authorityVerified = await verifyProgramAuthority(connection, wallet);
+    // Use ConnectionManager to ensure reliable operation
+    const authorityVerified = await verifyProgramAuthority(connectionManager.getConnection(), wallet);
     if (!authorityVerified) {
       console.warn("Program authority verification failed. Proceeding anyway, but expect possible failures.");
     } else {
@@ -584,9 +589,11 @@ export async function performSwap(
     // Set fee payer immediately
     transaction.feePayer = wallet.publicKey;
     
-    // Add a recent blockhash immediately
-    const { blockhash } = await connection.getLatestBlockhash();
-    transaction.recentBlockhash = blockhash;
+    // Add a recent blockhash immediately - use ConnectionManager for reliability
+    const blockhashResponse = await connectionManager.executeWithFallback(
+      conn => conn.getLatestBlockhash()
+    );
+    transaction.recentBlockhash = blockhashResponse.blockhash;
     
     // Get all the program addresses up front to avoid redeclaration issues
     const [programStateAddress, swapStateBump] = findProgramStateAddress();
@@ -596,9 +603,11 @@ export async function performSwap(
     // This helps prevent InsufficientFunds error when using the PDA for token operations
     console.log(`Adding funding instruction for Program Authority: ${programAuthorityAddress.toString()}`);
     
-    // Check current authority balance
+    // Check current authority balance - use ConnectionManager with retries
     try {
-      const authoritySOL = await connection.getBalance(programAuthorityAddress);
+      const authoritySOL = await connectionManager.executeWithFallback(
+        conn => conn.getBalance(programAuthorityAddress)
+      );
       console.log(`Program Authority currently has ${authoritySOL / 1_000_000_000} SOL`);
     } catch (err) {
       console.log('Error checking Program Authority SOL balance', err);
@@ -612,16 +621,16 @@ export async function performSwap(
     });
     transaction.add(fundingInstruction);
     
-    // Ensure token accounts exist
+    // Ensure token accounts exist - using connection manager
     const tokenFromAccount = await ensureTokenAccount(
-      connection, 
+      connectionManager.getConnection(), 
       wallet, 
       tokenFromMint, 
       transaction
     );
     
     const tokenToAccount = await ensureTokenAccount(
-      connection, 
+      connectionManager.getConnection(), 
       wallet, 
       tokenToMint, 
       transaction
@@ -629,7 +638,7 @@ export async function performSwap(
     
     // Ensure YOS token account exists
     const yosTokenAccount = await ensureTokenAccount(
-      connection,
+      connectionManager.getConnection(),
       wallet,
       new PublicKey(YOS_TOKEN_MINT),
       transaction
@@ -680,8 +689,11 @@ export async function performSwap(
     // Create all token accounts first before we do any validations
     // This ensures all accounts exist before we try to check balances
     try {
-      // Check the program's token accounts
-      const tokenFromProgramAccount = await connection.getAccountInfo(tokenFromMintATA);
+      // Check the program's token accounts using ConnectionManager for reliability
+      const tokenFromProgramAccount = await connectionManager.executeWithFallback(
+        conn => conn.getAccountInfo(tokenFromMintATA)
+      );
+      
       if (!tokenFromProgramAccount) {
         console.log('Creating program token account for tokenFromMint:', tokenFromMint.toString());
         const ix = createAssociatedTokenAccountInstruction(
@@ -693,7 +705,10 @@ export async function performSwap(
         transaction.add(ix);
       }
       
-      const tokenToProgramAccount = await connection.getAccountInfo(tokenToMintATA);
+      const tokenToProgramAccount = await connectionManager.executeWithFallback(
+        conn => conn.getAccountInfo(tokenToMintATA)
+      );
+      
       if (!tokenToProgramAccount) {
         console.log('Creating program token account for tokenToMint:', tokenToMint.toString());
         const ix = createAssociatedTokenAccountInstruction(
@@ -705,7 +720,10 @@ export async function performSwap(
         transaction.add(ix);
       }
       
-      const yosProgramAccount = await connection.getAccountInfo(yosTokenProgramATA);
+      const yosProgramAccount = await connectionManager.executeWithFallback(
+        conn => conn.getAccountInfo(yosTokenProgramATA)
+      );
+      
       if (!yosProgramAccount) {
         console.log('Creating program token account for YOS mint');
         const ix = createAssociatedTokenAccountInstruction(
@@ -725,8 +743,11 @@ export async function performSwap(
     // For SOL->YOT swaps, the program must already hold YOT tokens to send to the user
     if (tokenFromMint.equals(new PublicKey("So11111111111111111111111111111111111111112"))) {
       try {
-        // Check if program has YOT tokens needed for the swap
-        const programTokenAccount = await connection.getTokenAccountBalance(tokenToMintATA);
+        // Check if program has YOT tokens needed for the swap using ConnectionManager
+        const programTokenAccount = await connectionManager.executeWithFallback(
+          conn => conn.getTokenAccountBalance(tokenToMintATA)
+        );
+        
         console.log(`Program's ${tokenToMint.toString()} balance:`, programTokenAccount.value.uiAmount);
         
         if (!programTokenAccount.value.uiAmount || programTokenAccount.value.uiAmount < minAmountOut) {
@@ -768,8 +789,11 @@ export async function performSwap(
         throw new Error(`Insufficient balance. You have ${tokenFromAccount.balance.toString()} ${tokenFromMint.toString()} tokens, but need ${rawAmountNeeded.toString()}.`);
       }
     } else {
-      // For SOL transfers, check wallet SOL balance
-      const solBalance = await connection.getBalance(wallet.publicKey);
+      // For SOL transfers, check wallet SOL balance using ConnectionManager
+      const solBalance = await connectionManager.executeWithFallback(
+        conn => conn.getBalance(wallet.publicKey)
+      );
+      
       // We need the transfer amount plus extra for transaction fees (0.001 SOL should be enough)
       const neededAmount = amountInLamports + 1000000; // amount + 0.001 SOL for fees
       if (solBalance < neededAmount) {
@@ -805,14 +829,17 @@ export async function performSwap(
     
     try {
       // CRITICAL: Check for proper program initialization first!
-      const programState = await connection.getAccountInfo(programStateAddress);
+      const programState = await connectionManager.executeWithFallback(
+        conn => conn.getAccountInfo(programStateAddress)
+      );
+      
       if (!programState || !programState.data || programState.data.length === 0) {
         console.error('Program state account has no data! Program needs to be initialized first.');
         
         // Try automatic initialization since the program state may be missing
         console.log('Attempting automatic program initialization...');
         try {
-          const initSignature = await initializeProgram(connection, wallet);
+          const initSignature = await initializeProgram(connectionManager.getConnection(), wallet);
           console.log('Program successfully initialized:', initSignature);
           console.log('Please try your swap again now.');
           throw new Error('Program was not initialized. We\'ve initialized it for you - please try your swap again.');
@@ -822,10 +849,13 @@ export async function performSwap(
         }
       }
       
-      // Check other critical accounts
+      // Check other critical accounts using ConnectionManager for reliability
       for (const acct of accountsToVerify) {
         try {
-          const info = await connection.getAccountInfo(acct.account);
+          const info = await connectionManager.executeWithFallback(
+            conn => conn.getAccountInfo(acct.account)
+          );
+          
           if (acct.expectData && (!info || !info.data || info.data.length === 0)) {
             console.warn(`WARNING: ${acct.name} account exists but has no data!`);
             
@@ -834,7 +864,7 @@ export async function performSwap(
               console.log(`Creating missing token account: ${acct.name}`);
               
               // Use a helper function to determine the correct instruction for token account creation
-              const ix = await getTokenAccountCreateInstruction(connection, wallet, acct.account, acct.name);
+              const ix = await getTokenAccountCreateInstruction(connectionManager.getConnection(), wallet, acct.account, acct.name);
               if (ix) {
                 transaction.add(ix);
                 console.log(`Added instruction to create token account ${acct.name}`);
@@ -854,7 +884,10 @@ export async function performSwap(
     // First, verify the program authority with a specific check
     let programAuthorityAccountInfo;
     try {
-      programAuthorityAccountInfo = await connection.getAccountInfo(programAuthorityAddress);
+      programAuthorityAccountInfo = await connectionManager.executeWithFallback(
+        conn => conn.getAccountInfo(programAuthorityAddress)
+      );
+      
       if (!programAuthorityAccountInfo) {
         console.warn("Program authority account not found - this is normal for a PDA that is used only for signing");
         
@@ -872,7 +905,10 @@ export async function performSwap(
     }
 
     // Ensure program state exists and has data before proceeding
-    const programStateAccountInfo = await connection.getAccountInfo(programStateAddress);
+    const programStateAccountInfo = await connectionManager.executeWithFallback(
+      conn => conn.getAccountInfo(programStateAddress)
+    );
+    
     if (!programStateAccountInfo || !programStateAccountInfo.data || programStateAccountInfo.data.length === 0) {
       throw new Error("Program state account is not initialized or has invalid data. Please initialize the program first.");
     }
@@ -913,7 +949,9 @@ export async function performSwap(
     
     // Simulate the transaction to check for errors with detailed output
     console.log('Simulating swap transaction...');
-    const simulation = await connection.simulateTransaction(transaction, undefined, true);
+    const simulation = await connectionManager.executeWithFallback(
+      conn => conn.simulateTransaction(transaction, undefined, true)
+    );
     
     // Log detailed simulation results
     console.log('Detailed swap simulation logs:', simulation.value.logs);
@@ -926,12 +964,15 @@ export async function performSwap(
     
     // Send the transaction
     console.log('Sending swap transaction...');
-    const signature = await wallet.sendTransaction(transaction, connection);
+    const signature = await wallet.sendTransaction(transaction, connectionManager.getConnection());
     console.log('Swap transaction sent:', signature);
     
-    // Wait for confirmation
-    await connection.confirmTransaction(signature, 'confirmed');
+    // Wait for confirmation using ConnectionManager for reliability
+    await connectionManager.executeWithFallback(
+      conn => conn.confirmTransaction(signature, 'confirmed')
+    );
     
+    console.log('Swap transaction confirmed:', signature);
     return signature;
   } catch (error) {
     console.error('Error in swap function:', error);
