@@ -72,31 +72,49 @@ class CloseProgramInstruction {
 }
 
 // Define Borsh Schema for InitializeInstruction
-const InitializeInstructionSchema = {
-  struct: {
-    admin: { array: { type: 'u8', len: 32 } },
-    yot_mint: { array: { type: 'u8', len: 32 } },
-    yos_mint: { array: { type: 'u8', len: 32 } },
-    lp_contribution_rate: 'u64',
-    admin_fee_rate: 'u64',
-    yos_cashback_rate: 'u64',
-    swap_fee_rate: 'u64',
-    referral_rate: 'u64',
-  }
-};
+const InitializeInstructionSchema = new Map([
+  [
+    InitializeInstruction,
+    {
+      kind: "struct",
+      fields: [
+        ["admin", [32]],
+        ["yot_mint", [32]],
+        ["yos_mint", [32]],
+        ["lp_contribution_rate", "u64"],
+        ["admin_fee_rate", "u64"],
+        ["yos_cashback_rate", "u64"],
+        ["swap_fee_rate", "u64"],
+        ["referral_rate", "u64"],
+      ],
+    },
+  ],
+]);
 
 // Define Borsh Schema for SwapInstruction
-const SwapInstructionSchema = {
-  struct: {
-    amount_in: 'u64',
-    min_amount_out: 'u64',
-  }
-};
+const SwapInstructionSchema = new Map([
+  [
+    SwapInstruction,
+    {
+      kind: "struct",
+      fields: [
+        ["amount_in", "u64"],
+        ["min_amount_out", "u64"],
+      ],
+    },
+  ],
+]);
 
 // Define Borsh Schema for CloseProgramInstruction
-const CloseProgramInstructionSchema = {
-  struct: {}
-};
+const CloseProgramInstructionSchema = new Map([
+  [
+    CloseProgramInstruction,
+    {
+      kind: "struct",
+      fields: [],
+    },
+  ],
+]);
 
 // Program ID for the multihub swap V3 contract
 export const MULTIHUB_SWAP_PROGRAM_ID = 'Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L';
