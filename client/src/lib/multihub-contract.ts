@@ -18,12 +18,15 @@ import { Buffer } from 'buffer';
 import { SwapEstimate, SwapProvider } from './multi-hub-swap';
 import { TokenInfo } from './token-search-api';
 
-// Constants - use the correct Multi-Hub Swap Program ID (not the Staking Program ID)
-const MULTIHUB_SWAP_PROGRAM_ID = new PublicKey('3cXKNjtRv8b1HVYU6vRDvmoSMHfXrWATCLFY2Y5wTsps'); // Multi-Hub Swap Program ID
-const YOT_TOKEN_MINT = new PublicKey('2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF');
-const YOS_TOKEN_MINT = new PublicKey('GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n');
+// Import config to get program IDs and token addresses
+import config from './config';
+
+// Constants from centralized configuration
+const MULTIHUB_SWAP_PROGRAM_ID = new PublicKey(config.programs.multiHub.v1); // Using v1 from config 
+const YOT_TOKEN_MINT = new PublicKey(config.tokens.YOT);
+const YOS_TOKEN_MINT = new PublicKey(config.tokens.YOS);
 const SOL_TOKEN_MINT = new PublicKey('So11111111111111111111111111111111111111112');
-const ENDPOINT = 'https://api.devnet.solana.com';
+const ENDPOINT = config.endpoints[config.network];
 
 // Import required Solana system constants
 import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from '@solana/spl-token';

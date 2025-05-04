@@ -594,7 +594,7 @@ export default function AdminSettings() {
                     } else {
                       toast({
                         title: "Program YOS Account",
-                        description: `Program YOS account: ${programYosTokenAccount.toString()}\nStatus: Not yet created (will be created when funded)\n\nNOTE: This is different from the old hardcoded account (BLz2mfhb9qoPAtKuFNVfrj9uTEyChHKKbZsniS1eRaUB) and must be funded for harvesting to work.`
+                        description: `Program YOS account: ${programYosTokenAccount.toString()}\nStatus: Not yet created (will be created when funded)\n\nNOTE: This account is dynamically derived from the program ID in app.config.json and must be funded for harvesting to work.`
                       });
                     }
                   } catch (error) {

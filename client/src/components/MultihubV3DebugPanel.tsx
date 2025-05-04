@@ -197,8 +197,8 @@ export default function MultihubV3DebugPanel() {
           <AlertTitle className="text-amber-600 dark:text-amber-400">Initialization Error Diagnosis</AlertTitle>
           <AlertDescription>
             This panel helps diagnose the "Custom:0" error that occurs during initialization due to PDA mismatches.
-            The problem happens because the program has a hardcoded program ID that doesn't match the deployed ID.
-            The fix is to derive PDAs using the hardcoded ID rather than the actual deployed ID.
+            The problem happens when there's a mismatch between program ID configuration and the actual deployed ID.
+            The fix is to ensure the program ID from app.config.json is used consistently throughout the codebase.
           </AlertDescription>
         </Alert>
         
