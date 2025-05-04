@@ -9,6 +9,7 @@ import {
   TOKEN_PROGRAM_ID,
   getAssociatedTokenAddress,
   createTransferInstruction,
+  createAssociatedTokenAccountInstruction,
 } from "@solana/spl-token";
 import { MULTI_HUB_SWAP_PROGRAM_ID, SOLANA_CLUSTER, YOT_MINT, YOS_MINT } from "./constants";
 import { connection } from "./solana";

@@ -7,6 +7,7 @@ import {
   sendAndConfirmTransaction,
   Keypair
 } from '@solana/web3.js';
+import { withRetry } from './solana-utils';
 import { 
   createTransferInstruction, 
   getAccount, 
@@ -45,34 +46,27 @@ export function solToLamports(sol: number): bigint {
   return BigInt(Math.round(sol * LAMPORTS_PER_SOL));
 }
 
-// Get SOL balance for a wallet with retry
+// Get SOL balance for a wallet with retry using the utility
 export async function getSolBalance(publicKey: PublicKey): Promise<number> {
-  // Maximum retry attempts
-  const MAX_RETRIES = 3;
-  let retries = 0;
-  let lastError: any = null;
-  
-  while (retries < MAX_RETRIES) {
-    try {
-      // If we're retrying, add a small delay to avoid rate limiting
-      if (retries > 0) {
-        console.log(`Retrying SOL balance fetch (attempt ${retries+1}/${MAX_RETRIES})...`);
-        // Exponential backoff: 500ms, 1000ms, 2000ms, etc.
-        await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, retries - 1)));
+  try {
+    return await withRetry(
+      async () => {
+        const balance = await connection.getBalance(publicKey);
+        return lamportsToSol(balance);
+      },
+      {
+        maxRetries: 3,
+        onRetry: (attempt, error, backoffMs) => {
+          console.log(`Retrying SOL balance fetch (attempt ${attempt}/3) in ${backoffMs}ms...`);
+          console.error(`Error getting SOL balance:`, error);
+        }
       }
-      
-      const balance = await connection.getBalance(publicKey);
-      return lamportsToSol(balance);
-    } catch (error) {
-      console.error(`Error getting SOL balance (attempt ${retries+1}/${MAX_RETRIES}):`, error);
-      lastError = error;
-      retries++;
-    }
+    );
+  } catch (error) {
+    // After all retries failed, log and return 0 for graceful degradation
+    console.error(`Failed to get SOL balance after multiple attempts:`, error);
+    return 0;
   }
-  
-  // After all retries failed, log and return 0 for graceful degradation
-  console.error(`Failed to get SOL balance after ${MAX_RETRIES} attempts:`, lastError);
-  return 0;
 }
 
 // Get token balance for a wallet with retry mechanism
