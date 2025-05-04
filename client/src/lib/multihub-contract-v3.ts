@@ -150,15 +150,10 @@ export function buildCloseProgramInstruction(): Buffer {
  * From multihub_swap.rs: let (authority_pubkey, authority_bump_seed) = Pubkey::find_program_address(&[b"authority"], program_id);
  */
 export function findProgramAuthorityAddress(): [PublicKey, number] {
-  // CRITICAL FIX: Use the hardcoded program ID from the Rust code instead of the deployed program ID
-  // This is because the program will derive PDAs using its internal hardcoded program ID,
-  // not the actual program ID we're calling.
-  const HARDCODED_PROGRAM_ID = "Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L";
-  
-  // Must match EXACTLY what the program uses for the seed
+  // Important: Use the correct, deployed program ID
   return PublicKey.findProgramAddressSync(
     [Buffer.from('authority')],
-    new PublicKey(HARDCODED_PROGRAM_ID)
+    new PublicKey(MULTIHUB_SWAP_PROGRAM_ID)
   );
 }
 
@@ -443,15 +438,10 @@ export async function verifyProgramAuthority(
  * From multihub_swap_v3.rs: Pubkey::find_program_address(&[b"state"], program_id)
  */
 export function findProgramStateAddress(): [PublicKey, number] {
-  // CRITICAL FIX: Use the hardcoded program ID from the Rust code instead of the deployed program ID
-  // This is because the program will derive PDAs using its internal hardcoded program ID,
-  // not the actual program ID we're calling.
-  const HARDCODED_PROGRAM_ID = "Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L";
-  
-  // Must match EXACTLY what the program uses for the seed
+  // Use the currently deployed program ID
   return PublicKey.findProgramAddressSync(
     [Buffer.from('state')],
-    new PublicKey(HARDCODED_PROGRAM_ID)
+    new PublicKey(MULTIHUB_SWAP_PROGRAM_ID)
   );
 }
 
