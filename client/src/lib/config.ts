@@ -51,6 +51,7 @@ export interface AppConfig {
       yosCashbackRate: number;
       swapFeeRate: number;
       referralRate: number;
+      pdaFundingFee?: number;
     };
     staking?: {
       stakeRatePerSecond: number;
@@ -108,7 +109,8 @@ const defaultConfig: AppConfig = {
       adminFeeRate: 10,
       yosCashbackRate: 300,
       swapFeeRate: 30,
-      referralRate: 50
+      referralRate: 50,
+      pdaFundingFee: 0.000005
     },
     staking: {
       stakeRatePerSecond: 0.0000125,
@@ -183,7 +185,7 @@ export interface AppConfig {
       [symbol: string]: string;
     };
   };
-  accounts: {
+  accounts?: {
     admin: string;
     poolAuthority: string;
     poolSol: string;
@@ -197,8 +199,9 @@ export interface AppConfig {
       yosCashbackRate: number;
       swapFeeRate: number;
       referralRate: number;
+      pdaFundingFee?: number;
     };
-    staking: {
+    staking?: {
       stakeRatePerSecond: number;
       harvestThreshold: number;
       stakeThreshold: number;
