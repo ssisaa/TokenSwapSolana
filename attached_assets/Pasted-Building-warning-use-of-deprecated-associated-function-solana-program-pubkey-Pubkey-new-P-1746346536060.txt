@@ -1,0 +1,174 @@
+Building...
+warning: use of deprecated associated function `solana_program::pubkey::Pubkey::new`: Please use 'Pubkey::from' or 'Pubkey::try_from' instead
+  --> src/lib.rs:74:33
+   |
+74 |             let admin = Pubkey::new(&instruction_data[offset..offset + 32]);
+   |                                 ^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+ 
+warning: use of deprecated associated function `solana_program::pubkey::Pubkey::new`: Please use 'Pubkey::from' or 'Pubkey::try_from' instead
+  --> src/lib.rs:76:36
+   |
+76 |             let yot_mint = Pubkey::new(&instruction_data[offset..offset + 32]);
+   |                                    ^^^
+ 
+warning: use of deprecated associated function `solana_program::pubkey::Pubkey::new`: Please use 'Pubkey::from' or 'Pubkey::try_from' instead
+  --> src/lib.rs:78:36
+   |
+78 |             let yos_mint = Pubkey::new(&instruction_data[offset..offset + 32]);
+   |                                    ^^^
+ 
+warning: unused variable: `rent_sysvar_account`
+   --> src/lib.rs:190:9
+    |
+190 |     let rent_sysvar_account = next_account_info(accounts_iter)?;
+    |         ^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_rent_sysvar_account`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+ 
+warning: unused variable: `program_authority_bump`
+   --> src/lib.rs:206:38
+    |
+206 |     let (expected_program_authority, program_authority_bump) = find_program_authority_address(program_id);
+    |                                      ^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_program_authority_bump`
+ 
+warning: unused variable: `token_from_mint`
+   --> src/lib.rs:295:9
+    |
+295 |     let token_from_mint = next_account_info(accounts_iter)?;
+    |         ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_token_from_mint`
+ 
+warning: unused variable: `token_to_mint`
+   --> src/lib.rs:296:9
+    |
+296 |     let token_to_mint = next_account_info(accounts_iter)?;
+    |         ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_token_to_mint`
+ 
+warning: unused variable: `yos_token_mint`
+   --> src/lib.rs:297:9
+    |
+297 |     let yos_token_mint = next_account_info(accounts_iter)?;
+    |         ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_yos_token_mint`
+ 
+warning: unused variable: `system_program`
+   --> src/lib.rs:301:9
+    |
+301 |     let system_program = next_account_info(accounts_iter)?;
+    |         ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_system_program`
+ 
+warning: unused variable: `rent_sysvar`
+   --> src/lib.rs:302:9
+    |
+302 |     let rent_sysvar = next_account_info(accounts_iter)?;
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_rent_sysvar`
+ 
+warning: unused variable: `program_token_from`
+   --> src/lib.rs:329:9
+    |
+329 |     let program_token_from = TokenAccount::unpack(&program_token_from_account.data.borrow())?;
+    |         ^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_program_token_from`
+ 
+warning: unused variable: `program_token_to`
+   --> src/lib.rs:330:9
+    |
+330 |     let program_token_to = TokenAccount::unpack(&program_token_to_account.data.borrow())?;
+    |         ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_program_token_to`
+ 
+warning: unused variable: `system_program`
+   --> src/lib.rs:452:9
+    |
+452 |     let system_program = next_account_info(accounts_iter)?;
+    |         ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_system_program`
+ 
+Building...
+warning: use of deprecated associated function `solana_program::pubkey::Pubkey::new`: Please use 'Pubkey::from' or 'Pubkey::try_from' instead
+  --> src/lib.rs:74:33
+   |
+74 |             let admin = Pubkey::new(&instruction_data[offset..offset + 32]);
+   |                                 ^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+ 
+warning: use of deprecated associated function `solana_program::pubkey::Pubkey::new`: Please use 'Pubkey::from' or 'Pubkey::try_from' instead
+  --> src/lib.rs:76:36
+   |
+76 |             let yot_mint = Pubkey::new(&instruction_data[offset..offset + 32]);
+   |                                    ^^^
+ 
+warning: use of deprecated associated function `solana_program::pubkey::Pubkey::new`: Please use 'Pubkey::from' or 'Pubkey::try_from' instead
+  --> src/lib.rs:78:36
+   |
+78 |             let yos_mint = Pubkey::new(&instruction_data[offset..offset + 32]);
+   |                                    ^^^
+ 
+warning: unused variable: `rent_sysvar_account`
+   --> src/lib.rs:190:9
+    |
+190 |     let rent_sysvar_account = next_account_info(accounts_iter)?;
+    |         ^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_rent_sysvar_account`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+ 
+warning: unused variable: `program_authority_bump`
+   --> src/lib.rs:206:38
+    |
+206 |     let (expected_program_authority, program_authority_bump) = find_program_authority_address(program_id);
+    |                                      ^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_program_authority_bump`
+ 
+warning: unused variable: `token_from_mint`
+   --> src/lib.rs:295:9
+    |
+295 |     let token_from_mint = next_account_info(accounts_iter)?;
+    |         ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_token_from_mint`
+ 
+warning: unused variable: `token_to_mint`
+   --> src/lib.rs:296:9
+    |
+296 |     let token_to_mint = next_account_info(accounts_iter)?;
+    |         ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_token_to_mint`
+ 
+warning: unused variable: `yos_token_mint`
+   --> src/lib.rs:297:9
+    |
+297 |     let yos_token_mint = next_account_info(accounts_iter)?;
+    |         ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_yos_token_mint`
+ 
+warning: unused variable: `system_program`
+   --> src/lib.rs:301:9
+    |
+301 |     let system_program = next_account_info(accounts_iter)?;
+    |         ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_system_program`
+ 
+warning: unused variable: `rent_sysvar`
+   --> src/lib.rs:302:9
+    |
+302 |     let rent_sysvar = next_account_info(accounts_iter)?;
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_rent_sysvar`
+ 
+warning: unused variable: `program_token_from`
+   --> src/lib.rs:329:9
+    |
+329 |     let program_token_from = TokenAccount::unpack(&program_token_from_account.data.borrow())?;
+    |         ^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_program_token_from`
+ 
+warning: unused variable: `program_token_to`
+   --> src/lib.rs:330:9
+    |
+330 |     let program_token_to = TokenAccount::unpack(&program_token_to_account.data.borrow())?;
+    |         ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_program_token_to`
+ 
+warning: unused variable: `system_program`
+   --> src/lib.rs:452:9
+    |
+452 |     let system_program = next_account_info(accounts_iter)?;
+    |         ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_system_program`
+ 
+warning: unused variable: `program_state_bump`
+   --> src/lib.rs:455:34
+    |
+455 |     let (expected_program_state, program_state_bump) = find_program_state_address(program_id);
+    |                                  ^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_program_state_bump`
+ 
+warning: `stake` (lib) generated 14 warnings (run `cargo fix --lib -p stake` to apply 11 suggestions)
+Build successful. Completed in 7.72s.
