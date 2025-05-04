@@ -480,32 +480,45 @@ export async function fundProgramYotAccount(
 
 /**
  * Initialize the multihub swap program
+ * UPDATED TO MATCH the Rust code process_initialize behavior
  */
 export async function initializeProgram(
   connection: Connection,
   wallet: any
 ): Promise<string> {
   try {
+    console.log('Initializing multihub swap program...');
+    
+    // First, check for PDA mismatches which could cause "Custom(0)" errors
+    await debugProgramIDs();
+    
     // Create a new transaction
     const transaction = new Transaction();
     
-    // Set fee payer immediately
+    // Set fee payer
     transaction.feePayer = wallet.publicKey;
     
-    // Add a recent blockhash immediately
+    // Add a recent blockhash
     const { blockhash } = await connection.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
     
-    // Get program state address
+    // Get program addresses - but DO NOT create the accounts
     const [programStateAddress, stateBump] = findProgramStateAddress();
     const [programAuthorityAddress, authorityBump] = findProgramAuthorityAddress();
     
-    // Add a SOL transfer to fund the Program Authority with SOL to prevent InsufficientFunds errors
+    console.log(`Program State Address (PDA): ${programStateAddress.toString()}`);
+    console.log(`Program State Bump: ${stateBump}`);
+    console.log(`Program Authority Address (PDA): ${programAuthorityAddress.toString()}`);
+    console.log(`Program Authority Bump: ${authorityBump}`);
+    
+    // IMPORTANT: Do NOT try to create the state account beforehand!
+    // The Rust program will create it via invoke_signed during process_initialize.
+    // Let's just add a funding instruction for the authority account.
     console.log(`Adding funding instruction for Program Authority: ${programAuthorityAddress.toString()}`);
     const fundingInstruction = SystemProgram.transfer({
       fromPubkey: wallet.publicKey,
       toPubkey: programAuthorityAddress,
-      lamports: 1000000, // 0.001 SOL (1,000,000 lamports) for program operations
+      lamports: 10000000, // 0.01 SOL (10,000,000 lamports) for program operations - increased for safety
     });
     transaction.add(fundingInstruction);
     
@@ -607,13 +620,25 @@ export async function initializeProgram(
     console.log('Initialize instruction data length:', instructionData.length);
     console.log('Instruction data in bytes:', Array.from(new Uint8Array(instructionData)));
     
-    // Add the initialize instruction to the transaction with EXACT accounts
-    // as expected by the program (see process_initialize function)
+    // Add the initialize instruction to the transaction with EXACT accounts in EXACT order
+    // This must match what the Rust program expects in process_initialize():
+    // 1. payer (wallet) - signer and writable
+    // 2. program state account - writable (not signer, will be created by the program)
+    // 3. program authority account - writable (not signer)
+    // 4. system program - needed for creating accounts
+    // 5. rent sysvar - needed for calculating lamports
+    console.log(`Adding initialization instruction with accounts:`);
+    console.log(`1. Payer: ${wallet.publicKey.toString()}`);
+    console.log(`2. Program State (PDA): ${programStateAddress.toString()}`);
+    console.log(`3. Program Authority (PDA): ${programAuthorityAddress.toString()}`);
+    console.log(`4. System Program: 11111111111111111111111111111111`);
+    console.log(`5. Rent Sysvar: SysvarRent111111111111111111111111111111111`);
+    
     transaction.add({
       keys: [
         { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // payer_account
-        { pubkey: programStateAddress, isSigner: false, isWritable: true }, // program_state_account
-        { pubkey: programAuthorityAddress, isSigner: false, isWritable: true }, // program_authority_account - must be writable!
+        { pubkey: programStateAddress, isSigner: false, isWritable: true }, // program_state_account (will be created by program)
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: true }, // program_authority_account 
         { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false }, // system_program_account
         { pubkey: new PublicKey('SysvarRent111111111111111111111111111111111'), isSigner: false, isWritable: false }, // rent_sysvar_account
       ],
