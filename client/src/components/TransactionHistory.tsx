@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
-import { ClipboardIcon } from "lucide-react";
+import { ClipboardIcon, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useTransactions } from "@/hooks/useTransactions";
 import { useWallet } from "@/hooks/useSolanaWallet";
 import { formatCurrency, formatTransactionTime } from "@/lib/utils";
@@ -124,10 +125,22 @@ export default function TransactionHistory() {
 
   return (
     <Card className="bg-dark-100 rounded-xl p-6 shadow-lg">
-      <h2 className="text-xl font-semibold mb-4 text-white flex items-center">
-        <ClipboardIcon className="h-5 w-5 mr-2 text-primary-400" />
-        Transaction History
-      </h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-semibold text-white flex items-center">
+          <ClipboardIcon className="h-5 w-5 mr-2 text-primary-400" />
+          Transaction History
+        </h2>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={refreshTransactions}
+          disabled={loading || refreshing || !connected}
+          className="text-gray-400 hover:text-white"
+        >
+          <RefreshCw className={`h-4 w-4 mr-1 ${refreshing ? 'animate-spin' : ''}`} />
+          <span className="text-xs">Refresh</span>
+        </Button>
+      </div>
       
       <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
         {/* Show loading indicator */}
@@ -216,23 +229,50 @@ export default function TransactionHistory() {
             </div>
             
             {tx.isSwap && (
-              <div className="mt-3 pt-3 border-t border-dark-100 grid grid-cols-3 gap-2 text-sm">
-                <div>
-                  <div className="text-gray-400">From</div>
-                  <div className="font-medium text-white">
-                    {tx.fromAmount ? `${formatCurrency(tx.fromAmount)} ${tx.fromToken}` : 'Unknown'}
+              <div className="mt-3 pt-3 border-t border-dark-100 text-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-gray-400">Type</div>
+                  <div className="font-medium px-2 py-0.5 bg-primary-500/10 text-primary-400 rounded-full text-xs">
+                    {tx.isGroup ? 'Multi-Transaction Swap' : 'Token Swap'}
                   </div>
                 </div>
-                <div>
-                  <div className="text-gray-400">To</div>
-                  <div className="font-medium text-white">
-                    {tx.toAmount ? `${formatCurrency(tx.toAmount)} ${tx.toToken}` : 'Unknown'}
+                
+                <div className="grid grid-cols-3 gap-2 bg-dark-200 rounded-lg p-2 mb-2">
+                  <div>
+                    <div className="text-gray-400 text-xs">From</div>
+                    <div className="font-medium text-white">
+                      {tx.fromAmount ? `${formatCurrency(tx.fromAmount)} ${tx.fromToken}` : 'Unknown'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-gray-400 text-xs">To</div>
+                    <div className="font-medium text-white">
+                      {tx.toAmount ? `${formatCurrency(tx.toAmount)} ${tx.toToken}` : 'Unknown'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-gray-400 text-xs">Fee</div>
+                    <div className="font-medium text-white">
+                      {tx.fee ? `${formatCurrency(tx.fee)} ${tx.fromToken}` : '-'}
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <div className="text-gray-400">Fee</div>
-                  <div className="font-medium text-white">
-                    {tx.fee ? `${formatCurrency(tx.fee)} ${tx.fromToken}` : 'Unknown'}
+                
+                {tx.isGroup && tx.relatedSignatures && tx.relatedSignatures.length > 1 && (
+                  <div className="mt-2 text-xs text-gray-400">
+                    <span className="font-medium">Related transactions:</span> {tx.relatedSignatures.length}
+                  </div>
+                )}
+                
+                <div className="mt-2 text-xs text-gray-400 flex justify-between">
+                  <div>
+                    <span className="font-medium">Exchange rate:</span> 
+                    {tx.fromAmount && tx.toAmount 
+                      ? ` 1 ${tx.fromToken} ≈ ${formatCurrency(tx.toAmount / tx.fromAmount)} ${tx.toToken}`
+                      : ' Unknown'}
+                  </div>
+                  <div>
+                    <span className="font-medium">Network:</span> Solana Devnet
                   </div>
                 </div>
               </div>
