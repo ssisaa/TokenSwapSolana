@@ -7,7 +7,7 @@ import {
   sendAndConfirmTransaction,
   Keypair
 } from '@solana/web3.js';
-import { withRetry } from './solana-utils';
+import { withRetry, isRetriableNetworkError } from './solana-utils';
 import { 
   createTransferInstruction, 
   getAccount, 
@@ -69,16 +69,11 @@ export async function getSolBalance(publicKey: PublicKey): Promise<number> {
   }
 }
 
-// Get token balance for a wallet with retry mechanism
+// Get token balance for a wallet with retry using our new utility
 export async function getTokenBalance(
   tokenMintAddress: string,
   walletPublicKey: PublicKey
 ): Promise<number> {
-  // Maximum retry attempts
-  const MAX_RETRIES = 3;
-  let retries = 0;
-  let lastError: any = null;
-  
   const tokenMint = new PublicKey(tokenMintAddress);
   const tokenSymbol = tokenMintAddress === YOT_TOKEN_ADDRESS ? "YOT" : 
                       tokenMintAddress === YOS_TOKEN_ADDRESS ? "YOS" : "Unknown";
@@ -94,49 +89,47 @@ export async function getTokenBalance(
     
     console.log(`Associated token account address: ${associatedTokenAddress.toBase58()}`);
     
-    while (retries < MAX_RETRIES) {
-      try {
-        // If we're retrying, add a small delay to avoid rate limiting
-        if (retries > 0) {
-          console.log(`Retrying ${tokenSymbol} balance fetch (attempt ${retries+1}/${MAX_RETRIES})...`);
-          // Exponential backoff: 500ms, 1000ms, 2000ms, etc.
-          await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, retries - 1)));
+    // Use retry utility for blockchain operations
+    return await withRetry(
+      async () => {
+        try {
+          // Get account info for the associated token account
+          const tokenAccountInfo = await getAccount(connection, associatedTokenAddress);
+          
+          // Get mint info to get decimals
+          const mintInfo = await getMint(connection, tokenMint);
+          
+          // Calculate the actual balance
+          const tokenBalance = Number(tokenAccountInfo.amount) / Math.pow(10, mintInfo.decimals);
+          console.log(`Found ${tokenSymbol} balance: ${tokenBalance}`);
+          
+          return tokenBalance;
+        } catch (error) {
+          if (error instanceof TokenAccountNotFoundError) {
+            // Token account doesn't exist yet - this is a valid state, return 0
+            console.log(`${tokenSymbol} token account not found for this wallet`);
+            return 0;
+          }
+          throw error; // Re-throw for retry handling
         }
-        
-        // Get account info for the associated token account
-        const tokenAccountInfo = await getAccount(connection, associatedTokenAddress);
-        
-        // Get mint info to get decimals
-        const mintInfo = await getMint(connection, tokenMint);
-        
-        // Calculate the actual balance
-        const tokenBalance = Number(tokenAccountInfo.amount) / Math.pow(10, mintInfo.decimals);
-        console.log(`Found ${tokenSymbol} balance: ${tokenBalance}`);
-        
-        return tokenBalance;
-      } catch (error) {
-        if (error instanceof TokenAccountNotFoundError) {
-          // Token account doesn't exist yet - this is a valid state, return 0
-          console.log(`${tokenSymbol} token account not found for this wallet`);
-          return 0;
-        }
-        
-        console.error(`Error getting ${tokenSymbol} balance (attempt ${retries+1}/${MAX_RETRIES}):`, error);
-        lastError = error;
-        retries++;
-        
-        // If we've exhausted all retries, continue to return 0
-        if (retries >= MAX_RETRIES) {
-          console.error(`Failed to get ${tokenSymbol} balance after ${MAX_RETRIES} attempts`);
-          return 0;
+      },
+      {
+        maxRetries: 3,
+        retryableError: (error) => {
+          // Don't retry token account not found errors
+          if (error instanceof TokenAccountNotFoundError) {
+            return false;
+          }
+          return isRetriableNetworkError(error);
+        },
+        onRetry: (attempt, error, backoffMs) => {
+          console.log(`Retrying ${tokenSymbol} balance fetch (attempt ${attempt}/3) in ${backoffMs}ms...`);
+          console.error(`Error getting ${tokenSymbol} balance:`, error);
         }
       }
-    }
-    
-    // Fallback return - shouldn't be reached but TypeScript needs it
-    return 0;
+    );
   } catch (error) {
-    console.error(`Error getting ${tokenSymbol} balance:`, error);
+    console.error(`Failed to get ${tokenSymbol} balance after multiple attempts:`, error);
     // Return 0 as a fallback - graceful degradation
     return 0;
   }
@@ -161,40 +154,67 @@ export async function getTokenInfo(tokenMintAddress: string) {
   }
 }
 
-// Get pool balances
+// Get pool balances with retry
 export async function getPoolBalances() {
+  const poolSolAccount = new PublicKey(POOL_SOL_ACCOUNT);
+  const poolAuthority = new PublicKey(POOL_AUTHORITY);
+  const yotTokenMint = new PublicKey(YOT_TOKEN_ADDRESS);
+  const yotTokenAccount = new PublicKey(YOT_TOKEN_ACCOUNT);
+  const yosTokenMint = new PublicKey(YOS_TOKEN_ADDRESS);
+  const yosTokenAccount = new PublicKey(YOS_TOKEN_ACCOUNT);
+  
   try {
-    const poolSolAccount = new PublicKey(POOL_SOL_ACCOUNT);
-    const poolAuthority = new PublicKey(POOL_AUTHORITY);
-    const yotTokenMint = new PublicKey(YOT_TOKEN_ADDRESS);
-    const yotTokenAccount = new PublicKey(YOT_TOKEN_ACCOUNT);
-    const yosTokenMint = new PublicKey(YOS_TOKEN_ADDRESS);
-    const yosTokenAccount = new PublicKey(YOS_TOKEN_ACCOUNT);
+    // Get SOL balance of the pool with retry
+    const solBalance = await withRetry(
+      async () => await connection.getBalance(poolSolAccount),
+      {
+        maxRetries: 3,
+        onRetry: (attempt, error, backoffMs) => {
+          console.log(`Retrying pool SOL balance fetch (attempt ${attempt}/3) in ${backoffMs}ms...`);
+        }
+      }
+    );
     
-    // Get SOL balance of the pool
-    const solBalance = await connection.getBalance(poolSolAccount);
-    
+    // Get YOT balance with retry
     let yotBalance = 0;
-    let yosBalance = 0;
-    
     try {
-      // Try to get YOT balance directly from the token account
-      const yotAccountInfo = await getAccount(connection, yotTokenAccount);
-      const yotMintInfo = await getMint(connection, yotTokenMint);
-      yotBalance = Number(yotAccountInfo.amount) / Math.pow(10, yotMintInfo.decimals);
+      yotBalance = await withRetry(
+        async () => {
+          const yotAccountInfo = await getAccount(connection, yotTokenAccount);
+          const yotMintInfo = await getMint(connection, yotTokenMint);
+          return Number(yotAccountInfo.amount) / Math.pow(10, yotMintInfo.decimals);
+        },
+        {
+          maxRetries: 3,
+          onRetry: (attempt, error, backoffMs) => {
+            console.log(`Retrying pool YOT balance fetch (attempt ${attempt}/3) in ${backoffMs}ms...`);
+          }
+        }
+      );
     } catch (error) {
-      console.error('Error getting YOT token balance:', error);
-      // If there's an error, we use 0 as the balance
+      console.error('Error getting YOT token balance after retries:', error);
+      // Keep as 0 if all retries fail
     }
     
+    // Get YOS balance with retry
+    let yosBalance = 0;
     try {
-      // Try to get YOS balance directly from the token account
-      const yosAccountInfo = await getAccount(connection, yosTokenAccount);
-      const yosMintInfo = await getMint(connection, yosTokenMint);
-      yosBalance = Number(yosAccountInfo.amount) / Math.pow(10, yosMintInfo.decimals);
+      yosBalance = await withRetry(
+        async () => {
+          const yosAccountInfo = await getAccount(connection, yosTokenAccount);
+          const yosMintInfo = await getMint(connection, yosTokenMint);
+          return Number(yosAccountInfo.amount) / Math.pow(10, yosMintInfo.decimals);
+        },
+        {
+          maxRetries: 3,
+          onRetry: (attempt, error, backoffMs) => {
+            console.log(`Retrying pool YOS balance fetch (attempt ${attempt}/3) in ${backoffMs}ms...`);
+          }
+        }
+      );
     } catch (error) {
-      console.error('Error getting YOS token balance:', error);
-      // If there's an error, we use 0 as the balance
+      console.error('Error getting YOS token balance after retries:', error);
+      // Keep as 0 if all retries fail
     }
     
     console.log(`Pool balances fetched - SOL: ${lamportsToSol(solBalance)}, YOT: ${yotBalance}, YOS: ${yosBalance}`);

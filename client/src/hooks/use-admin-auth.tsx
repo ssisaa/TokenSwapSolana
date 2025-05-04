@@ -4,19 +4,9 @@ import {
   useMutation,
   UseMutationResult,
 } from "@tanstack/react-query";
-import { AdminUser } from "../../shared/schema";
+import { AdminUser, LoginData, RegisterData } from "../types/auth";
 import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "./use-toast";
-
-type LoginData = {
-  username: string;
-  password: string;
-};
-
-type RegisterData = LoginData & {
-  isFounder?: boolean;
-  founderPublicKey?: string;
-};
 
 type AdminAuthContextType = {
   admin: AdminUser | null;
