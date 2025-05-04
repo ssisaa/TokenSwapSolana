@@ -47,6 +47,7 @@ import SimpleSwapPage from "@/pages/SimpleSwapPage"; // Pure demo swap page with
 import FixedSwapPage from "@/pages/FixedSwapPage"; // Our optimized swap page that handles crypto module issues
 import MultihubAdminPage from "@/pages/MultihubAdminPage"; // Admin page with program initialization
 import Home from "@/pages/Home"; // Keep for compatibility with existing routes
+import MultihubV3DebugPanel from "@/components/MultihubV3DebugPanel"; // Debug panel for program authority verification
 
 // Routes that should use the dashboard layout
 const dashboardRoutes = [
@@ -66,6 +67,7 @@ const dashboardRoutes = [
   '/wallet',
   '/admin',
   '/multihub-v3-admin',
+  '/multihub-v3-debug', // Debug panel for program authority verification
   '/settings',
   '/affiliate',
   '/memes'
@@ -183,6 +185,15 @@ function Router() {
         <Route path="/multihub-v3-admin">
           <DashboardLayout>
             <MultihubV3AdminPage />
+          </DashboardLayout>
+        </Route>
+        
+        <Route path="/multihub-v3-debug">
+          <DashboardLayout>
+            <div className="container mx-auto px-4 py-8">
+              <h1 className="text-2xl font-bold mb-6">MultihubSwap V3 Debug Panel</h1>
+              <MultihubV3DebugPanel />
+            </div>
           </DashboardLayout>
         </Route>
         
