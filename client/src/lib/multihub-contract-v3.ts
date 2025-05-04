@@ -143,6 +143,101 @@ export function findProgramAuthorityAddress(): [PublicKey, number] {
 }
 
 /**
+ * Special verification function for debugging and fixing "InvalidAccountData" error at account index 2
+ * This is specifically targeting the exact problem mentioned in the Solana error logs
+ */
+export async function verifyProgramAuthority(
+  connection: Connection,
+  wallet: any
+): Promise<boolean> {
+  try {
+    const [programAuthorityAddress, programAuthorityBump] = findProgramAuthorityAddress();
+    console.log(`=== PROGRAM AUTHORITY VERIFICATION ===`);
+    console.log(`Authority PDA: ${programAuthorityAddress.toString()}`);
+    console.log(`Authority Bump: ${programAuthorityBump}`);
+    
+    // Check if this PDA actually exists and if it has any data (it shouldn't)
+    const authorityInfo = await connection.getAccountInfo(programAuthorityAddress);
+    
+    if (!authorityInfo) {
+      console.log(`Authority PDA doesn't exist yet - creating it with funding`);
+      
+      // Create a transaction to fund the PDA with some SOL
+      const tx = new Transaction();
+      
+      // Add a recent blockhash
+      const { blockhash } = await connection.getLatestBlockhash();
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = wallet.publicKey;
+      
+      // Add a funding instruction - this will also create the PDA account if needed
+      const fundingIx = SystemProgram.transfer({
+        fromPubkey: wallet.publicKey,
+        toPubkey: programAuthorityAddress,
+        lamports: 10000000 // 0.01 SOL to ensure it has enough for operations
+      });
+      
+      tx.add(fundingIx);
+      
+      // Send and confirm the transaction
+      try {
+        const signature = await wallet.sendTransaction(tx, connection);
+        console.log(`Authority funded successfully: ${signature}`);
+        await connection.confirmTransaction(signature, 'confirmed');
+        return true;
+      } catch (fundError) {
+        console.error('Failed to fund authority:', fundError);
+        return false;
+      }
+    }
+    
+    console.log(`Authority exists with ${authorityInfo.lamports} lamports`);
+    console.log(`Authority data length: ${authorityInfo.data.length}`);
+    
+    // Authority should not have data - it's only used for signing
+    if (authorityInfo.data.length > 0) {
+      console.warn('WARNING: Authority PDA has data which may cause InvalidAccountData errors');
+    }
+    
+    // Ensure it has enough SOL for operations
+    if (authorityInfo.lamports < 5000000) { // Less than 0.005 SOL
+      console.log('Authority has low balance, topping up...');
+      
+      // Create a transaction to fund the PDA with some more SOL
+      const tx = new Transaction();
+      
+      // Add a recent blockhash
+      const { blockhash } = await connection.getLatestBlockhash();
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = wallet.publicKey;
+      
+      // Add a funding instruction
+      const fundingIx = SystemProgram.transfer({
+        fromPubkey: wallet.publicKey,
+        toPubkey: programAuthorityAddress,
+        lamports: 10000000 // 0.01 SOL
+      });
+      
+      tx.add(fundingIx);
+      
+      // Send and confirm the transaction
+      try {
+        const signature = await wallet.sendTransaction(tx, connection);
+        console.log(`Authority topped up successfully: ${signature}`);
+        await connection.confirmTransaction(signature, 'confirmed');
+      } catch (fundError) {
+        console.error('Failed to top up authority:', fundError);
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error verifying program authority:', error);
+    return false;
+  }
+}
+
+/**
  * Find the program's state PDA
  * From multihub_swap_v3.rs: Pubkey::find_program_address(&[b"state"], program_id)
  */
@@ -474,6 +569,15 @@ export async function performSwap(
   minAmountOut: number
 ): Promise<string> {
   try {
+    // First, verify the program authority PDA to specifically address the "InvalidAccountData" error at index 2
+    console.log("Running program authority verification to prevent InvalidAccountData error...");
+    const authorityVerified = await verifyProgramAuthority(connection, wallet);
+    if (!authorityVerified) {
+      console.warn("Program authority verification failed. Proceeding anyway, but expect possible failures.");
+    } else {
+      console.log("Program authority successfully verified and funded if needed.");
+    }
+    
     // Create a new transaction
     const transaction = new Transaction();
     
