@@ -28,6 +28,7 @@ import Liquidity from "@/pages/Liquidity";
 import Memes from "@/pages/Memes";
 import Integration from "@/pages/Integration";
 import AdminPage from "@/pages/AdminPage";
+import ProgramFundingPage from "@/pages/admin-page";
 import TestPage from "@/pages/TestPage";
 import TokenTestingPage from "@/pages/TokenTestingPage";
 import MultiHubSwapPage from "@/pages/MultiHubSwapPage";
@@ -188,6 +189,12 @@ function Router() {
         <Route path="/multihub-admin">
           <DashboardLayout>
             <MultihubAdminPage />
+          </DashboardLayout>
+        </Route>
+        
+        <Route path="/program-funding">
+          <DashboardLayout>
+            <ProgramFundingPage />
           </DashboardLayout>
         </Route>
         

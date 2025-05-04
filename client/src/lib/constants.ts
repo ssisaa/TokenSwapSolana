@@ -36,6 +36,15 @@ export const POOL_SOL_ACCOUNT = '7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS';
 export const STAKING_PROGRAM_ID = '6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6'; // Existing staking program
 export const MULTI_HUB_SWAP_PROGRAM_ID = 'SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE'; // Updated V4 program ID
 
+// Program constants
+export const PROGRAM_ID = MULTI_HUB_SWAP_PROGRAM_ID; // Default to multi-hub swap program
+export const YOT_MINT = YOT_TOKEN_ADDRESS; // YOT mint address
+export const YOS_MINT = YOS_TOKEN_ADDRESS; // YOS mint address
+
+// Program seeds
+export const PROGRAM_STATE_SEED = "program-state"; // Seed for program state PDA
+export const PROGRAM_AUTHORITY_SEED = "program-authority"; // Seed for program authority PDA
+
 // Admin wallet
 export const ADMIN_WALLET_ADDRESS = 'AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ';
 

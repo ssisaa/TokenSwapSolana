@@ -32,6 +32,7 @@ export default function Sidebar() {
     { href: '/pool', icon: Database, label: 'Liquidity Pool' },
     { href: '/token-testing', icon: TestTube, label: 'Token Testing' },
     { href: '/admin', icon: ShieldCheck, label: 'Admin' },
+    { href: '/program-funding', icon: Coins, label: 'Program Funding' },
     { href: '/multihub-admin', icon: ShieldCheck, label: 'Multihub Admin' },
     { href: '/multihub-v3-admin', icon: Coins, label: 'Multihub V3 Admin' },
     { href: '/settings', icon: Settings, label: 'Settings' },
