@@ -730,14 +730,18 @@ export async function initializeProgram(
     // 1. payer (wallet) - signer and writable
     // 2. program state account - writable (not signer, will be created by the program)
     // 3. program authority account - writable (not signer)
-    // 4. system program - needed for creating accounts
-    // 5. rent sysvar - needed for calculating lamports
+    // 4. pool authority account - writable (not signer) - CRITICAL FIX: Added Pool Authority
+    // 5. system program - needed for creating accounts
+    // 6. rent sysvar - needed for calculating lamports
+    const poolAuthorityAddress = new PublicKey(POOL_AUTHORITY);
+    
     console.log(`Adding initialization instruction with accounts:`);
     console.log(`1. Payer: ${wallet.publicKey.toString()}`);
     console.log(`2. Program State (PDA): ${programStateAddress.toString()}`);
     console.log(`3. Program Authority (PDA): ${programAuthorityAddress.toString()}`);
-    console.log(`4. System Program: 11111111111111111111111111111111`);
-    console.log(`5. Rent Sysvar: SysvarRent111111111111111111111111111111111`);
+    console.log(`4. Pool Authority: ${poolAuthorityAddress.toString()}`);
+    console.log(`5. System Program: 11111111111111111111111111111111`);
+    console.log(`6. Rent Sysvar: SysvarRent111111111111111111111111111111111`);
     
     // Create a proper TransactionInstruction with all necessary accounts
     const initializeProgramInstruction = new TransactionInstruction({
@@ -745,6 +749,7 @@ export async function initializeProgram(
         { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // payer_account
         { pubkey: programStateAddress, isSigner: false, isWritable: true }, // program_state_account (will be created by program)
         { pubkey: programAuthorityAddress, isSigner: false, isWritable: true }, // program_authority_account 
+        { pubkey: poolAuthorityAddress, isSigner: false, isWritable: true }, // CRITICAL FIX: Add Pool Authority
         { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false }, // system_program_account
         { pubkey: new PublicKey('SysvarRent111111111111111111111111111111111'), isSigner: false, isWritable: false }, // rent_sysvar_account
       ],
@@ -1291,6 +1296,9 @@ export async function performSwap(
     // Important fix for accounts order:
     // Add the swap instruction with EXACT key ordering as expected by the program
     // This matches EXACTLY what the Rust program expects in the same order
+    // CRITICAL FIX: Add the Pool Authority to the accounts list
+    const poolAuthorityAddress = new PublicKey(POOL_AUTHORITY);
+    
     transaction.add(new TransactionInstruction({
       keys: [
         // User accounts (indexes 0-2)
@@ -1298,25 +1306,28 @@ export async function performSwap(
         { pubkey: programStateAddress, isSigner: false, isWritable: true }, // Program state for updating [1]
         { pubkey: programAuthorityAddress, isSigner: false, isWritable: true }, // Program authority for signing PDAs [2]
         
-        // User token accounts (indexes 3-5)
-        { pubkey: tokenFromAccount.address, isSigner: false, isWritable: true }, // User's source token account [3]
-        { pubkey: tokenToAccount.address, isSigner: false, isWritable: true }, // User's destination token account [4]
-        { pubkey: yosTokenAccount.address, isSigner: false, isWritable: true }, // User's YOS token account for cashback [5]
+        // CRITICAL FIX: Add Pool Authority for token account ownership [3]
+        { pubkey: poolAuthorityAddress, isSigner: false, isWritable: true }, // Pool Authority (owner of token accounts) [3]
         
-        // Program token accounts (indexes 6-8)
-        { pubkey: tokenFromMintATA, isSigner: false, isWritable: true }, // Program's token account for source token [6]
-        { pubkey: tokenToMintATA, isSigner: false, isWritable: true }, // Program's token account for destination token [7]
-        { pubkey: yosTokenProgramATA, isSigner: false, isWritable: true }, // Program's YOS token account [8]
+        // User token accounts (indexes 4-6)
+        { pubkey: tokenFromAccount.address, isSigner: false, isWritable: true }, // User's source token account [4]
+        { pubkey: tokenToAccount.address, isSigner: false, isWritable: true }, // User's destination token account [5]
+        { pubkey: yosTokenAccount.address, isSigner: false, isWritable: true }, // User's YOS token account for cashback [6]
         
-        // Token mints (indexes 9-11)
-        { pubkey: tokenFromMint, isSigner: false, isWritable: false }, // From token mint [9]
-        { pubkey: tokenToMint, isSigner: false, isWritable: false }, // To token mint [10]
-        { pubkey: new PublicKey(YOS_TOKEN_MINT), isSigner: false, isWritable: false }, // YOS token mint [11]
+        // Program token accounts (indexes 7-9)
+        { pubkey: tokenFromMintATA, isSigner: false, isWritable: true }, // Program's token account for source token [7]
+        { pubkey: tokenToMintATA, isSigner: false, isWritable: true }, // Program's token account for destination token [8]
+        { pubkey: yosTokenProgramATA, isSigner: false, isWritable: true }, // Program's YOS token account [9]
         
-        // System programs (indexes 12-14)
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // SPL Token program [12]
-        { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false }, // System program [13]
-        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, // Rent sysvar [14]
+        // Token mints (indexes 10-12)
+        { pubkey: tokenFromMint, isSigner: false, isWritable: false }, // From token mint [10]
+        { pubkey: tokenToMint, isSigner: false, isWritable: false }, // To token mint [11]
+        { pubkey: new PublicKey(YOS_TOKEN_MINT), isSigner: false, isWritable: false }, // YOS token mint [12]
+        
+        // System programs (indexes 13-15)
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // SPL Token program [13]
+        { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false }, // System program [14]
+        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, // Rent sysvar [15]
       ],
       programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID), // Using program ID from config
       data: Buffer.from(swapData)
@@ -1427,6 +1438,7 @@ export async function closeProgram(
     // Get program state and authority addresses
     const [programStateAddress, closeProgramStateBump] = findProgramStateAddress();
     const [programAuthorityAddress, closeProgramAuthorityBump] = findProgramAuthorityAddress();
+    const poolAuthorityAddress = new PublicKey(POOL_AUTHORITY);
     
     // Add a SOL transfer to fund the Program Authority with SOL to prevent InsufficientFunds errors
     console.log(`Adding funding instruction for Program Authority: ${programAuthorityAddress.toString()}`);
@@ -1451,11 +1463,13 @@ export async function closeProgram(
     // 1. Admin account (signer)
     // 2. Program state account (PDA)
     // 3. Program authority account (PDA used for token operations)
+    // 4. Pool authority account (PDA used for token accounts) - CRITICAL FIX
     transaction.add(new TransactionInstruction({
       keys: [
         { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // Admin account that receives the rent
         { pubkey: programStateAddress, isSigner: false, isWritable: true }, // Program state account to be closed
         { pubkey: programAuthorityAddress, isSigner: false, isWritable: true }, // Program authority - must be writable!
+        { pubkey: poolAuthorityAddress, isSigner: false, isWritable: true }, // CRITICAL FIX: Pool Authority for token accounts
         { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false }, // System Program - needed for closing accounts
       ],
       programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID), // Using program ID from config
