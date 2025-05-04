@@ -11,6 +11,7 @@ use solana_program::{
     rent::Rent,
     system_instruction,
     sysvar::Sysvar,
+    array_ref,
 };
 use spl_token::{instruction as token_instruction, state::Account as TokenAccount};
 
@@ -70,12 +71,12 @@ pub fn process_instruction(
                 return Err(ProgramError::InvalidInstructionData);
             }
 
-            // Extract public keys
-            let admin = Pubkey::new(&instruction_data[offset..offset + 32]);
+            // Extract public keys using newer method instead of deprecated Pubkey::new
+            let admin = Pubkey::from(*array_ref![instruction_data, offset, 32]);
             offset += 32;
-            let yot_mint = Pubkey::new(&instruction_data[offset..offset + 32]);
+            let yot_mint = Pubkey::from(*array_ref![instruction_data, offset, 32]);
             offset += 32;
-            let yos_mint = Pubkey::new(&instruction_data[offset..offset + 32]);
+            let yos_mint = Pubkey::from(*array_ref![instruction_data, offset, 32]);
             offset += 32;
 
             // Extract rates (all u64 in little-endian)
@@ -187,7 +188,7 @@ pub fn process_initialize(
     let program_state_account = next_account_info(accounts_iter)?;
     let program_authority_account = next_account_info(accounts_iter)?;
     let system_program_account = next_account_info(accounts_iter)?;
-    let rent_sysvar_account = next_account_info(accounts_iter)?;
+    let _rent_sysvar_account = next_account_info(accounts_iter)?;  // Prefixed with underscore since it's unused
     
     // Validate accounts
     if !payer_account.is_signer {
@@ -292,14 +293,14 @@ pub fn process_swap(
     let program_yos_token_account = next_account_info(accounts_iter)?;
     
     // Token mints
-    let token_from_mint = next_account_info(accounts_iter)?;
-    let token_to_mint = next_account_info(accounts_iter)?;
-    let yos_token_mint = next_account_info(accounts_iter)?;
+    let _token_from_mint = next_account_info(accounts_iter)?;
+    let _token_to_mint = next_account_info(accounts_iter)?;
+    let _yos_token_mint = next_account_info(accounts_iter)?;
     
     // System accounts
     let token_program = next_account_info(accounts_iter)?;
-    let system_program = next_account_info(accounts_iter)?;
-    let rent_sysvar = next_account_info(accounts_iter)?;
+    let _system_program = next_account_info(accounts_iter)?;
+    let _rent_sysvar = next_account_info(accounts_iter)?;
     
     // Validate accounts
     if !user_account.is_signer {
@@ -449,7 +450,7 @@ pub fn process_close_program(
     let admin_account = next_account_info(accounts_iter)?;
     let program_state_account = next_account_info(accounts_iter)?;
     let program_authority_account = next_account_info(accounts_iter)?;
-    let system_program = next_account_info(accounts_iter)?;
+    let _system_program = next_account_info(accounts_iter)?;  // Prefixed with underscore since it's unused
     
     // Verify program state PDA
     let (expected_program_state, program_state_bump) = find_program_state_address(program_id);
