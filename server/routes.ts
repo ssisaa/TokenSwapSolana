@@ -84,6 +84,10 @@ const connectionManager = SolanaConnectionManager.getInstance();
 const getConnection = () => connectionManager.getConnection();
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Serve app.config.json from project root
+  app.get('/app.config.json', (req, res) => {
+    res.sendFile('app.config.json', { root: '.' });
+  });
   // Add HTTP fallback route for pool data with caching
   app.get('/api/pool-data', async (req, res) => {
     try {

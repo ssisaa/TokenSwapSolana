@@ -23,20 +23,21 @@ import {
   getAssociatedTokenAddress,
   createAssociatedTokenAccountInstruction,
 } from '@solana/spl-token';
+import { config } from './config';
 
-// Program ID for the multihub swap V3 contract
-export const MULTIHUB_SWAP_PROGRAM_ID = 'SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE';
+// Program ID for the multihub swap V3/V4 contract from central config
+export const MULTIHUB_SWAP_PROGRAM_ID = config.programs.multiHub.v4;
 
-// Token addresses (same as original contract)
-export const YOT_TOKEN_MINT = '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF';
-export const YOS_TOKEN_MINT = 'GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n';
+// Token addresses from central config
+export const YOT_TOKEN_MINT = config.tokens.YOT;
+export const YOS_TOKEN_MINT = config.tokens.YOS;
 
-// Constants for the program
-export const LP_CONTRIBUTION_RATE = 2000; // 20%
-export const ADMIN_FEE_RATE = 10; // 0.1%
-export const YOS_CASHBACK_RATE = 300; // 3%  
-export const SWAP_FEE_RATE = 30; // 0.3%
-export const REFERRAL_RATE = 50; // 0.5%
+// Constants for the program from central config
+export const LP_CONTRIBUTION_RATE = config.parameters.swap.liquidityContributionRate;
+export const ADMIN_FEE_RATE = config.parameters.swap.adminFeeRate;
+export const YOS_CASHBACK_RATE = config.parameters.swap.yosCashbackRate;
+export const SWAP_FEE_RATE = config.parameters.swap.swapFeeRate;
+export const REFERRAL_RATE = config.parameters.swap.referralRate;
 
 /**
  * Manual buffer serialization for initialization instruction

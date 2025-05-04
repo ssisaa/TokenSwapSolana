@@ -1,71 +1,65 @@
 {
-  "environment": "production",
-  
-  "solana": {
-    "network": "devnet",
-    "rpcUrl": "https://api.devnet.solana.com",
-    "programId": "6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6",
-    "commitment": "confirmed",
-    "tokens": {
-      "yot": {
-        "address": "2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF", 
-        "decimals": 9,
-        "name": "YOT Token"
-      },
-      "yos": {
-        "address": "GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n",
-        "decimals": 9,
-        "name": "YOS Staking Token"
-      }
+  "network": "devnet",
+  "endpoints": {
+    "mainnet": "https://api.mainnet-beta.solana.com",
+    "devnet": "https://api.devnet.solana.com",
+    "testnet": "https://api.testnet.solana.com"
+  },
+  "explorer": {
+    "url": "https://explorer.solana.com",
+    "txUrl": "https://explorer.solana.com/tx/",
+    "accountUrl": "https://explorer.solana.com/address/"
+  },
+  "programs": {
+    "multiHub": {
+      "v4": "SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE",
+      "v3": "Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L",
+      "v2": "J66SY1YNFyXt6jat8Ek8uAUshxBY2mLrubsMRN4wggt3",
+      "v1": "3cXKNjtRv8b1HVYU6vRDvmoSMHfXrWATCLFY2Y5wTsps"
     },
-    "pool": {
-      "authority": "7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK",
-      "solAccount": "7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS"
+    "staking": "6yw2VmZEJw5QkSG7svt4QL8DyCMxUKRtLqqBPTzLZHT6"
+  },
+  "tokens": {
+    "SOL": "So11111111111111111111111111111111111111112",
+    "YOT": "2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF",
+    "YOS": "GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n",
+    "USDC": "9T7uw5dqaEmEC4McqyefzYsEg5hoC4e2oV8it1Uc4f1U",
+    "testTokens": {
+      "XAR": "9VnMEkvpCPkRVyxXZQWEDocyipoq2uGehdYwAw3yryEa",
+      "XMP": "HMfSHCLwS6tJmg4aoYnkAqCFte1LQMkjRpfFvP5M3HPs",
+      "SAMX": "SAMXjJJa4XShbsyK3ZK1qUKgHs45u8YUySGBbKctwKX",
+      "MTA": "MTAwpfGYQbnJkjB2iHUNpGV4yxkpJpgAQNHpg3ZJXKd"
     }
   },
-  
-  "admin": {
-    "defaultUsername": "admin",
-    "maxLiquidityContribution": 10000,
-    "defaultLiquidityFee": 0.3,
-    "stakingRatePerSecond": 3, 
-    "harvestThreshold": 1000000000
+  "accounts": {
+    "admin": "AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ",
+    "poolAuthority": "7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK",
+    "poolSol": "7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS",
+    "yotToken": "BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE",
+    "yosToken": "5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz"
   },
-  
-  "security": {
-    "sessionSecret": "REPLACE_WITH_SECURE_RANDOM_STRING",
-    "sessionTTL": 86400000,
-    "rateLimit": {
-      "windowMs": 15 * 60 * 1000,
-      "max": 100
+  "parameters": {
+    "swap": {
+      "liquidityContributionRate": 2000,
+      "adminFeeRate": 10,
+      "yosCashbackRate": 300,
+      "swapFeeRate": 30,
+      "referralRate": 50
     },
-    "cors": {
-      "origin": "*", 
-      "methods": ["GET", "POST"]
-    }
-  },
-  
-  "api": {
-    "port": 3000,
-    "basePath": "/api"
-  },
-  
-  "database": {
-    "usePostgres": true,
-    "migrationStrategy": "auto"
-  },
-  
-  "ui": {
-    "theme": "dark",
-    "defaultDecimalPlaces": 4,
-    "refreshRateMs": 30000
-  },
-  
-  "features": {
-    "enableSwap": true,
-    "enableStaking": true,
-    "enableLiquidity": true,
-    "enableAdminPanel": true,
-    "enableAnalytics": true
+    "staking": {
+      "stakeRatePerSecond": 0.0000125,
+      "harvestThreshold": 1,
+      "stakeThreshold": 10,
+      "unstakeThreshold": 10
+    },
+    "tokenDecimals": {
+      "SOL": 9,
+      "YOT": 9,
+      "YOS": 9,
+      "USDC": 6,
+      "XAR": 9,
+      "XMP": 9
+    },
+    "yosScalingFactor": 9260
   }
 }
