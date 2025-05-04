@@ -1404,7 +1404,10 @@ export async function performSwap(
     // Add the swap instruction with EXACT key ordering as expected by the program
     // This matches EXACTLY what the Rust program expects in the same order
     // CRITICAL FIX: Add the Pool Authority to the accounts list
-    // Use both authorities for transaction - this is the key to the dual fallback implementation
+    // EMERGENCY FIX: Follow the exact account structure expected by the Rust program
+    // The InvalidAccountData error indicates the account at index 2 doesn't match what the program expects
+    
+    // Get the authorities
     const poolAuthorityAddress = new PublicKey(POOL_AUTHORITY);
     const programAuthorityPDA = new PublicKey(PROGRAM_AUTHORITY);
     
@@ -1416,15 +1419,25 @@ export async function performSwap(
     console.log("To token account:", tokenToMintATA.toString());
     console.log("YOS token account:", yosTokenProgramATA.toString());
     
+    // CRITICAL FIX: Dump the instruction data to debug
+    console.log("Instruction data bytes:", Array.from(Buffer.from(swapData)));
+    
+    // IMPORTANT: Add the transaction with very specific ordering that matches the
+    // Rust program's expectation EXACTLY
     transaction.add(new TransactionInstruction({
       keys: [
-        // User accounts (indexes 0-2)
+        // CRITICAL: User must be first
         { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // User wallet [0]
-        { pubkey: programStateAddress, isSigner: false, isWritable: true }, // Program state for updating [1]
-        { pubkey: programAuthorityPDA, isSigner: false, isWritable: true }, // Program Authority PDA for signing [2]
         
-        // DUAL IMPLEMENTATION: Add Pool Authority AND Program Authority for token account ownership
-        { pubkey: poolAuthorityAddress, isSigner: false, isWritable: true }, // Pool Authority (primary token account owner) [3]
+        // CRITICAL: Program state must be second 
+        { pubkey: programStateAddress, isSigner: false, isWritable: true }, // Program state [1]
+        
+        // CRITICAL: Program Authority must be third - this is exactly where InvalidAccountData occurs
+        // The ordering here is EXTREMELY important and must match the Rust side accounts exactly
+        { pubkey: programAuthorityPDA, isSigner: false, isWritable: false }, // Program Authority - NOT writable! [2]
+        
+        // Pool Authority is the actual owner of token accounts
+        { pubkey: poolAuthorityAddress, isSigner: false, isWritable: true }, // Pool Authority [3]
         
         // User token accounts (indexes 4-6)
         { pubkey: tokenFromAccount.address, isSigner: false, isWritable: true }, // User's source token account [4]
