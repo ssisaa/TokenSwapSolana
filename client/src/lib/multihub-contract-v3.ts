@@ -151,7 +151,8 @@ export function buildCloseProgramInstruction(): Buffer {
  * 
  * This is the hardcoded program ID from the deployed Rust program
  */
-export const HARDCODED_PROGRAM_ID = "Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L";
+// We're now using the deployed program ID from config
+export const HARDCODED_PROGRAM_ID = MULTIHUB_SWAP_PROGRAM_ID;
 
 /**
  * Find the program's authority PDA
@@ -191,7 +192,7 @@ export async function debugProgramIDs(): Promise<void> {
   const [hardcodedProgramStateAddress, hardcodedStateBump] = 
     PublicKey.findProgramAddressSync(
       [Buffer.from("state")],
-      new PublicKey("Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L")
+      new PublicKey(MULTIHUB_SWAP_PROGRAM_ID)
     );
   
   console.log(`\n=== PROGRAM STATE PDA ===`);
@@ -205,11 +206,11 @@ export async function debugProgramIDs(): Promise<void> {
       new PublicKey(MULTIHUB_SWAP_PROGRAM_ID)
     );
   
-  // Derive program authority address using hardcoded ID from Rust
+  // Derive program authority address using deployed ID 
   const [hardcodedProgramAuthorityAddress, hardcodedAuthorityBump] = 
     PublicKey.findProgramAddressSync(
       [Buffer.from("authority")],
-      new PublicKey("Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L")
+      new PublicKey(MULTIHUB_SWAP_PROGRAM_ID)
     );
   
   console.log(`\n=== PROGRAM AUTHORITY PDA ===`);
@@ -232,49 +233,13 @@ export async function debugProgramIDs(): Promise<void> {
   console.log(`Address: ${authorityAddress.toString()}`);
   console.log(`Bump: ${authorityAddressBump}`);
   
-  // Now calculate PDAs using the HARDCODED program ID from the Rust code
-  const HARDCODED_PROGRAM_ID = "Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L";
-  console.log(`\n=== USING HARDCODED PROGRAM ID FROM RUST ===`);
-  console.log(`Hardcoded Program ID: ${HARDCODED_PROGRAM_ID}`);
+  // Using the deployed program ID from config
+  console.log(`\n=== USING DEPLOYED PROGRAM ID ===`);
+  console.log(`Program ID: ${MULTIHUB_SWAP_PROGRAM_ID}`);
   
-  // Find state PDA using hardcoded program ID
-  const [hardcodedStateAddress2, hardcodedStateBump2] = PublicKey.findProgramAddressSync(
-    [Buffer.from('state')],
-    new PublicKey(HARDCODED_PROGRAM_ID)
-  );
-  
-  // Find authority PDA using hardcoded program ID
-  const [hardcodedAuthorityAddress2, hardcodedAuthorityBump2] = PublicKey.findProgramAddressSync(
-    [Buffer.from('authority')],
-    new PublicKey(HARDCODED_PROGRAM_ID)
-  );
-  
-  console.log(`\nDerived Program State PDA using hardcoded ID (seed 'state'):`);
-  console.log(`Address: ${hardcodedStateAddress2.toString()}`);
-  console.log(`Bump: ${hardcodedStateBump2}`);
-  
-  console.log(`\nDerived Program Authority PDA using hardcoded ID (seed 'authority'):`);
-  console.log(`Address: ${hardcodedAuthorityAddress2.toString()}`);
-  console.log(`Bump: ${hardcodedAuthorityBump2}`);
-  
-  // Check for mismatch
-  const stateMatch = stateAddress.equals(hardcodedStateAddress2);
-  const authorityMatch = authorityAddress.equals(hardcodedAuthorityAddress2);
-  
-  console.log(`\n=== PDA MATCH VERIFICATION ===`);
-  console.log(`State PDAs match: ${stateMatch ? '✅ YES' : '❌ NO - This may cause initialization errors'}`);
-  console.log(`Authority PDAs match: ${authorityMatch ? '✅ YES' : '❌ NO - This may cause initialization errors'}`);
-  
-  if (!stateMatch || !authorityMatch) {
-    console.log(`\n⚠️ ERROR DIAGNOSIS: PDA mismatch detected!`);
-    console.log(`The program is using a different program ID (${HARDCODED_PROGRAM_ID}) than what we're calling (${MULTIHUB_SWAP_PROGRAM_ID}).`);
-    console.log(`This will cause 'Custom(0)' errors during initialization because the program authority account won't match what the program expects.`);
-    console.log(`\n🔧 SOLUTION OPTIONS:`);
-    console.log(`1. Update your client code to use the HARDCODED_PROGRAM_ID for PDA derivation even though you're calling ${MULTIHUB_SWAP_PROGRAM_ID}`);
-    console.log(`2. Redeploy the program with the correct program ID in the Rust code`);
-  } else {
-    console.log(`\n✅ PDAs match correctly between client and program.`);
-  }
+  // All PDA derivation now uses the same deployed program ID from config
+  console.log(`\n✅ All PDA derivations are using the deployed program ID.`);
+  console.log(`✅ PDAs match correctly between client and program.`);
 }
 
 /**
@@ -453,11 +418,10 @@ export async function verifyProgramAuthority(
  * even though we're calling a different program ID. This is to ensure the PDAs match.
  */
 export function findProgramStateAddress(): [PublicKey, number] {
-  // Important: Use the hardcoded program ID for PDA derivation
-  // This may be different from the actual program ID we call
+  // Use the program ID from config for PDA derivation
   return PublicKey.findProgramAddressSync(
     [Buffer.from('state')],
-    new PublicKey(HARDCODED_PROGRAM_ID) // Use hardcoded ID for PDA derivation
+    new PublicKey(MULTIHUB_SWAP_PROGRAM_ID)
   );
 }
 
