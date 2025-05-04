@@ -25,7 +25,7 @@ import {
 } from '@solana/spl-token';
 
 // Program ID for the multihub swap V3 contract
-export const MULTIHUB_SWAP_PROGRAM_ID = 'Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L';
+export const MULTIHUB_SWAP_PROGRAM_ID = 'SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE';
 
 // Token addresses (same as original contract)
 export const YOT_TOKEN_MINT = '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF';
