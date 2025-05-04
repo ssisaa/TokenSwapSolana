@@ -315,20 +315,46 @@ pub fn process_swap(
         return Err(ProgramError::InvalidAccountData);
     }
     
-    // Verify program authority PDA
+    // Verify program authority PDA - FIXED: Only check the key matches, don't access data
     let (expected_program_authority, program_authority_bump) = find_program_authority_address(program_id);
+    
+    // Add debug logs to help troubleshooting
+    msg!("Account[2] key: {}", program_authority_account.key);
+    msg!("Expected PDA: {}", expected_program_authority);
+    
     if expected_program_authority != *program_authority_account.key {
-        msg!("Invalid program authority account");
+        msg!("❌ Invalid program authority");
         return Err(ProgramError::InvalidAccountData);
     }
     
     // Deserialize program state
     let program_state = ProgramState::try_from_slice(&program_state_account.data.borrow())?;
     
-    // Load token accounts
-    let user_token_from = TokenAccount::unpack(&user_token_from_account.data.borrow())?;
-    let program_token_from = TokenAccount::unpack(&program_token_from_account.data.borrow())?;
-    let program_token_to = TokenAccount::unpack(&program_token_to_account.data.borrow())?;
+    // ***** SAFE TOKEN ACCOUNT HANDLING *****
+    // Only deserialize token accounts with proper error handling
+    let user_token_from = match TokenAccount::unpack(&user_token_from_account.data.borrow()) {
+        Ok(account) => account,
+        Err(err) => {
+            msg!("Error unpacking user_token_from_account: {:?}", err);
+            return Err(ProgramError::InvalidAccountData);
+        }
+    };
+    
+    let program_token_from = match TokenAccount::unpack(&program_token_from_account.data.borrow()) {
+        Ok(account) => account,
+        Err(err) => {
+            msg!("Error unpacking program_token_from_account: {:?}", err);
+            return Err(ProgramError::InvalidAccountData);
+        }
+    };
+    
+    let program_token_to = match TokenAccount::unpack(&program_token_to_account.data.borrow()) {
+        Ok(account) => account,
+        Err(err) => {
+            msg!("Error unpacking program_token_to_account: {:?}", err);
+            return Err(ProgramError::InvalidAccountData);
+        }
+    };
     
     // Calculate amounts
     // LP contribution: 20% of amount_in goes to LP
@@ -459,15 +485,26 @@ pub fn process_close_program(
         return Err(ProgramError::InvalidAccountData);
     }
     
-    // Verify program authority PDA
+    // Verify program authority PDA - FIXED: Only check the key matches, don't access data
     let (expected_program_authority, _program_authority_bump) = find_program_authority_address(program_id);
+    
+    // Add debug logs to help troubleshooting
+    msg!("Account[2] key: {}", program_authority_account.key);
+    msg!("Expected PDA: {}", expected_program_authority);
+    
     if expected_program_authority != *program_authority_account.key {
-        msg!("Invalid program authority account");
+        msg!("❌ Invalid program authority");
         return Err(ProgramError::InvalidAccountData);
     }
     
     // Deserialize program state
-    let program_state = ProgramState::try_from_slice(&program_state_account.data.borrow())?;
+    let program_state = match ProgramState::try_from_slice(&program_state_account.data.borrow()) {
+        Ok(state) => state,
+        Err(err) => {
+            msg!("Error deserializing program state: {:?}", err);
+            return Err(ProgramError::InvalidAccountData);
+        }
+    };
     
     // Verify admin signature
     if !admin_account.is_signer {

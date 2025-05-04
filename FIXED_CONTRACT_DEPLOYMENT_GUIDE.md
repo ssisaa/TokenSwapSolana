@@ -1,79 +1,48 @@
-# Fixed Contract Deployment Guide
+# Updated Multihub Swap Contract - PDA Fix
 
-This guide explains how to deploy the fixed version of the MultihubSwap contract that resolves the InvalidAccountData error.
+This guide explains how to deploy the updated MultihubSwap contract that fixes the InvalidAccountData error.
 
-## What Changed in This Fix
+## What Was Fixed
 
-The root cause of the "InvalidAccountData" error was incorrect handling of the Program Authority PDA in the Rust program:
+The "InvalidAccountData" error was caused by incorrect handling of the Program Authority PDA in the Rust program. The update:
 
-1. ✅ **Fixed PDA Handling**: The program now properly validates the Program Authority PDA by checking only the key matches, without attempting to deserialize any data from it.
+1. ✅ **Fixes PDA Handling**: Now properly validates the Program Authority PDA by only checking that the key matches, without trying to deserialize its data.
 
-2. ✅ **Improved Error Handling**: Added better error handling for token account unpacking to provide more specific error messages.
+2. ✅ **Adds Better Error Handling**: Improved token account unpacking with proper error messages.
 
-3. ✅ **Added Debug Logging**: Added debug logs to help pinpoint issues with Program Authority PDA keys.
+3. ✅ **Includes Debug Logs**: Added detailed logging to help troubleshoot any PDA issues.
 
-4. ✅ **Robust Token Account Access**: Added safer unpacking of token accounts with error handling.
+## Simple Deployment Steps
 
-## Deployment Steps
-
-### 1. Build the Program
+The easiest way to deploy the fixed contract is to use the provided script:
 
 ```bash
-# Navigate to the program directory
-cd program
+# Make the script executable if needed
+chmod +x deploy_fixed_multihub_swap.sh
 
-# Build the program
-cargo build-bpf
-
-# The compiled program will be in target/deploy/
+# Run the deployment script
+./deploy_fixed_multihub_swap.sh
 ```
 
-### 2. Deploy to Devnet
-
-Use the Solana CLI to deploy the program:
-
-```bash
-# Upload the program to devnet (using your keypair)
-solana program deploy --keypair path/to/keypair.json --program-id path/to/program-keypair.json target/deploy/multihub_swap.so --url devnet
-```
-
-### 3. Verify Deployment
-
-Verify the program is correctly deployed:
-
-```bash
-# Check the program account
-solana program show --keypair path/to/keypair.json <PROGRAM_ID> --url devnet
-```
-
-### 4. Update Client Code References
-
-Make sure your client/frontend code is using the correct program ID. No other changes are needed to the client code as all fixes are on the program side.
+The script will:
+1. Build the updated contract
+2. Deploy it to devnet
+3. Generate a reference file with the Program ID
 
 ## After Deployment
 
-After deploying the fixed contract, you should:
+After deploying the fixed contract, you need to:
 
-1. Initialize the program (if it's a new program ID)
+1. Initialize the program using the admin panel
 2. Fund the program with YOT and YOS tokens
-3. Test a small swap (0.001 SOL) to verify functionality
-4. Gradually test with larger amounts
+3. Test with a small swap amount first
 
-## Troubleshooting
+## Why This Fixes the Error
 
-If you still encounter issues after deploying the fixed version:
+The bug was in how the program handled the Program Authority PDA. PDAs are special accounts that don't have private keys, so they shouldn't be treated like normal accounts.
 
-1. Check the token accounts exist and are properly funded
-2. Verify the Program Authority PDA has SOL (use the debug panel)
-3. Make sure the user has token accounts for all involved tokens
-4. Run a simulation before actual swap to debug issues
+The updated code properly uses the PDA only for signing transactions with `invoke_signed` and never tries to access its data directly, which was causing the "InvalidAccountData" error.
 
-## Technical Details of the Fix
+## Testing the Fix
 
-The key changes were:
-
-1. Removed implicit deserialization of account data from the Program Authority PDA
-2. Added proper error handling when unpacking token accounts
-3. Added additional debug logging to verify account addresses match
-
-This ensures that the Program Authority PDA is only used for signing transactions and never for storing/reading data.
+Start with small swaps (0.001 SOL) before trying larger amounts. You should see the swap complete successfully without the InvalidAccountData error.

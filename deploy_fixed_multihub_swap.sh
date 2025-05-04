@@ -1,7 +1,7 @@
 #!/bin/bash
-# Script to build and deploy the fixed MultihubSwap contract
+# Script to build and deploy the updated MultihubSwap contract with fixed PDA handling
 
-echo "Building and deploying the fixed MultihubSwap contract..."
+echo "Building and deploying the updated MultihubSwap contract..."
 
 # Set variables
 PROGRAM_KEYPAIR="multihub-keypair.json"  # Path to program keypair file
@@ -42,17 +42,16 @@ echo "Program Keypair: $PROGRAM_KEYPAIR"
 echo "Wallet Keypair: $WALLET_KEYPAIR"
 echo
 
-# Update lib.rs to use the fixed version
-echo "Updating program entry point to use fixed version..."
+# Update lib.rs to use the fixed multihub_swap_v4.rs version
+echo "Updating program entry point to use updated version..."
 cat > program/src/lib.rs << EOL
 use solana_program::entrypoint;
-entrypoint!(multihub_swap_v4_fixed::process_instruction);
+entrypoint!(multihub_swap_v4::process_instruction);
 
 pub mod multihub_swap_v3;
 pub mod multihub_swap_v4;
-pub mod multihub_swap_v4_fixed;
 EOL
-echo -e "${GREEN}Updated lib.rs to use multihub_swap_v4_fixed${NC}"
+echo -e "${GREEN}Updated lib.rs to use multihub_swap_v4${NC}"
 
 # Check if the Solana CLI is installed
 if ! command -v solana &> /dev/null; then
