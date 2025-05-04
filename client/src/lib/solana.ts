@@ -696,9 +696,17 @@ export async function swapSolToYot(
 }
 
 // Create token account for a user
-export async function createTokenAccount(
+/**
+ * Create a token account if it doesn't exist with robust error handling and retries
+ * @param tokenMintAddress The token mint address as string
+ * @param wallet Connected wallet to use for signing and payment
+ * @param ownerAddress Optional owner of the token account (defaults to wallet)
+ * @returns Created or existing token account address, null if failed
+ */
+export async function createTokenAccountIfNeeded(
   tokenMintAddress: string,
-  wallet: any  // Wallet adapter
+  wallet: any,  // Wallet adapter
+  ownerAddress?: PublicKey
 ): Promise<PublicKey | null> {
   try {
     if (!wallet.publicKey) {
@@ -706,96 +714,171 @@ export async function createTokenAccount(
       return null;
     }
 
+    // If no owner specified, use the wallet's public key
+    const owner = ownerAddress || wallet.publicKey;
     const tokenMint = new PublicKey(tokenMintAddress);
-    const associatedTokenAddress = await getAssociatedTokenAddress(
-      tokenMint,
-      wallet.publicKey
+    
+    // Find the associated token account address with retry for network issues
+    const associatedTokenAddress = await withRetry(
+      async () => await getAssociatedTokenAddress(tokenMint, owner),
+      {
+        maxRetries: 3,
+        onRetry: (attempt) => console.log(`Retrying to get associated token address (attempt ${attempt}/3)`)
+      }
     );
-
-    // Check if the account already exists
+    
+    console.log(`Checking if token account exists: ${associatedTokenAddress.toBase58()}`);
+    
+    // Check if the account already exists with retry for network issues
     try {
-      await getAccount(connection, associatedTokenAddress);
+      await withRetry(
+        async () => {
+          await getAccount(connection, associatedTokenAddress);
+          return true;
+        },
+        {
+          maxRetries: 3,
+          onRetry: (attempt) => console.log(`Retrying to check token account (attempt ${attempt}/3)`)
+        }
+      );
+      
       console.log(`Token account already exists for ${tokenMintAddress}`);
       return associatedTokenAddress;
     } catch (error) {
-      if (error instanceof TokenAccountNotFoundError) {
-        // Create a transaction to create the token account
-        const transaction = new Transaction();
+      if (!(error instanceof TokenAccountNotFoundError)) {
+        console.error('Unexpected error checking token account:', error);
+        throw error;
+      }
+      
+      console.log('Token account does not exist, creating...');
+      
+      // Create a transaction to create the token account
+      const transaction = new Transaction();
+      
+      transaction.add(
+        createAssociatedTokenAccountInstruction(
+          wallet.publicKey, // payer
+          associatedTokenAddress, // associated token account
+          owner, // owner
+          tokenMint // mint
+        )
+      );
+      
+      // Get blockhash with retry
+      const { blockhash, lastValidBlockHeight } = await withRetry(
+        async () => await connection.getLatestBlockhash(),
+        {
+          maxRetries: 3,
+          onRetry: (attempt) => console.log(`Retrying to get blockhash (attempt ${attempt}/3)`)
+        }
+      );
+      
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = wallet.publicKey;
+      
+      // Sign and send the transaction with the wallet with better error handling
+      try {
+        let signature;
         
-        transaction.add(
-          createAssociatedTokenAccountInstruction(
-            wallet.publicKey, // payer
-            associatedTokenAddress, // associated token account
-            wallet.publicKey, // owner
-            tokenMint // mint
-          )
-        );
-        
-        // Get blockhash
-        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-        transaction.recentBlockhash = blockhash;
-        transaction.feePayer = wallet.publicKey;
-        
-        // Sign and send the transaction with the wallet
-        try {
-          let signature;
+        if (typeof wallet.sendTransaction === 'function') {
+          // Standard wallet adapter approach (Phantom)
+          signature = await withRetry(
+            async () => await wallet.sendTransaction(transaction, connection),
+            {
+              maxRetries: 2, // Fewer retries for user interactions
+              onRetry: (attempt) => console.log(`Retrying to send transaction (attempt ${attempt}/2)`)
+            }
+          );
           
-          if (typeof wallet.sendTransaction === 'function') {
-            // Standard wallet adapter approach (Phantom)
-            signature = await wallet.sendTransaction(transaction, connection);
-            
-            // Handle case where Solflare may return an object instead of a string
-            if (typeof signature === 'object' && signature !== null) {
-              // For Solflare wallet which might return an object with signature property
-              if (signature.signature) {
-                signature = signature.signature;
-              } else {
-                // Try to stringify and clean up the signature
-                const sigStr = JSON.stringify(signature);
-                if (sigStr) {
-                  // Remove quotes and braces if they exist
-                  signature = sigStr.replace(/[{}"]/g, '');
-                }
+          // Handle case where Solflare may return an object instead of a string
+          if (typeof signature === 'object' && signature !== null) {
+            // For Solflare wallet which might return an object with signature property
+            if (signature.signature) {
+              signature = signature.signature;
+            } else {
+              // Try to stringify and clean up the signature
+              const sigStr = JSON.stringify(signature);
+              if (sigStr) {
+                // Remove quotes and braces if they exist
+                signature = sigStr.replace(/[{}"]/g, '');
               }
             }
-          } else if (wallet.signAndSendTransaction && typeof wallet.signAndSendTransaction === 'function') {
-            // Some wallet adapters use signAndSendTransaction instead
-            const result = await wallet.signAndSendTransaction(transaction);
-            // Handle various result formats
-            if (typeof result === 'string') {
-              signature = result;
-            } else if (typeof result === 'object' && result !== null) {
-              signature = result.signature || result.toString();
-            }
-          } else if (wallet.signTransaction && typeof wallet.signTransaction === 'function') {
-            // If the wallet can only sign but not send, we sign first then send manually
-            const signedTx = await wallet.signTransaction(transaction);
-            signature = await connection.sendRawTransaction(signedTx.serialize());
-          } else {
-            throw new Error("Wallet doesn't support transaction signing");
           }
+        } else if (wallet.signAndSendTransaction && typeof wallet.signAndSendTransaction === 'function') {
+          // Some wallet adapters use signAndSendTransaction instead
+          const result = await withRetry(
+            async () => await wallet.signAndSendTransaction(transaction),
+            {
+              maxRetries: 2,
+              onRetry: (attempt) => console.log(`Retrying to sign and send transaction (attempt ${attempt}/2)`)
+            }
+          );
           
-          // Wait for confirmation
-          await connection.confirmTransaction({
-            signature,
-            blockhash,
-            lastValidBlockHeight
-          });
-          
-          console.log(`Created token account ${associatedTokenAddress.toString()}`);
-          return associatedTokenAddress;
-        } catch (signError) {
-          console.error('Error creating token account:', signError);
-          throw new Error(`Failed to create token account: ${signError instanceof Error ? signError.message : String(signError)}`);
+          // Handle various result formats
+          if (typeof result === 'string') {
+            signature = result;
+          } else if (typeof result === 'object' && result !== null) {
+            signature = result.signature || result.toString();
+          }
+        } else if (wallet.signTransaction && typeof wallet.signTransaction === 'function') {
+          // If the wallet can only sign but not send, we sign first then send manually
+          const signedTx = await wallet.signTransaction(transaction);
+          signature = await withRetry(
+            async () => await connection.sendRawTransaction(signedTx.serialize()),
+            {
+              maxRetries: 3,
+              onRetry: (attempt) => console.log(`Retrying to send raw transaction (attempt ${attempt}/3)`)
+            }
+          );
+        } else {
+          throw new Error("Wallet doesn't support transaction signing");
         }
-      } else {
-        throw error;
+        
+        // Wait for confirmation with retry
+        await withRetry(
+          async () => {
+            await connection.confirmTransaction({
+              signature,
+              blockhash,
+              lastValidBlockHeight
+            });
+            return true;
+          },
+          {
+            maxRetries: 5,
+            onRetry: (attempt) => console.log(`Retrying to confirm transaction (attempt ${attempt}/5)`)
+          }
+        );
+        
+        console.log(`Created token account ${associatedTokenAddress.toString()}`);
+        return associatedTokenAddress;
+      } catch (signError: any) {
+        // Special case: If the error contains "already in use" or similar, the account
+        // might have been created in a previous attempt but the confirmation failed
+        if (signError.message && (
+          signError.message.includes("already in use") || 
+          signError.message.includes("already exists")
+        )) {
+          console.log("Account may have been created in a previous attempt");
+          return associatedTokenAddress;
+        }
+        
+        console.error('Error creating token account:', signError);
+        throw new Error(`Failed to create token account: ${signError instanceof Error ? signError.message : String(signError)}`);
       }
     }
   } catch (error) {
-    console.error('Error in createTokenAccount:', error);
+    console.error('Error in createTokenAccountIfNeeded:', error);
     throw error;
   }
+}
+
+// Original function maintained for backward compatibility
+export async function createTokenAccount(
+  tokenMintAddress: string,
+  wallet: any  // Wallet adapter
+): Promise<PublicKey | null> {
+  return createTokenAccountIfNeeded(tokenMintAddress, wallet);
 }
 
 // Execute a swap from YOT to SOL
