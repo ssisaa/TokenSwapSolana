@@ -978,25 +978,29 @@ export async function performSwap(
     
     const swapData = instructionData;
     
+    // CRITICAL FIX: Use the correct token accounts from hardcoded values with Pool Authority
+    // The accounts are now directly associated with the Pool Authority rather than Program Authority
+    console.log("Using Pool Authority:", POOL_AUTHORITY);
+    
     // Find all Token Program PDAs for token account verification
-    // CRITICAL FIX: Use the correct token accounts from hardcoded values
     let tokenFromMintATA;
     if (tokenFromMint.toString() === "So11111111111111111111111111111111111111112") {
       // Use SOL token account from hardcoded value
       tokenFromMintATA = new PublicKey(DEFAULT_SOL_TOKEN_ACCOUNT);
-      console.log("Using SOL token account (FROM):", tokenFromMintATA.toString());
+      console.log("Using hardcoded SOL token account (FROM):", tokenFromMintATA.toString());
     } else if (tokenFromMint.toString() === config.tokens.YOT) {
       // Use YOT token account from hardcoded value
       tokenFromMintATA = new PublicKey(DEFAULT_YOT_TOKEN_ACCOUNT);
-      console.log("Using YOT token account (FROM):", tokenFromMintATA.toString());
+      console.log("Using hardcoded YOT token account (FROM):", tokenFromMintATA.toString());
     } else if (tokenFromMint.toString() === config.tokens.YOS) {
       // Use YOS token account from hardcoded value
       tokenFromMintATA = new PublicKey(DEFAULT_YOS_TOKEN_ACCOUNT);
-      console.log("Using YOS token account (FROM):", tokenFromMintATA.toString());
+      console.log("Using hardcoded YOS token account (FROM):", tokenFromMintATA.toString());
     } else {
+      // For other tokens, we'll derive the ATA with the Pool Authority
       tokenFromMintATA = await getAssociatedTokenAddress(
         tokenFromMint,
-        programAuthorityAddress,
+        new PublicKey(POOL_AUTHORITY),
         true  // allowOwnerOffCurve: true for PDAs
       );
     }
@@ -1006,26 +1010,28 @@ export async function performSwap(
     if (tokenToMint.toString() === "So11111111111111111111111111111111111111112") {
       // Use SOL token account from hardcoded value
       tokenToMintATA = new PublicKey(DEFAULT_SOL_TOKEN_ACCOUNT);
-      console.log("Using SOL token account (TO):", tokenToMintATA.toString());
+      console.log("Using hardcoded SOL token account (TO):", tokenToMintATA.toString());
     } else if (tokenToMint.toString() === config.tokens.YOT) {
       // Use YOT token account from hardcoded value
       tokenToMintATA = new PublicKey(DEFAULT_YOT_TOKEN_ACCOUNT);
-      console.log("Using YOT token account (TO):", tokenToMintATA.toString());
+      console.log("Using hardcoded YOT token account (TO):", tokenToMintATA.toString());
     } else if (tokenToMint.toString() === config.tokens.YOS) {
       // Use YOS token account from hardcoded value
       tokenToMintATA = new PublicKey(DEFAULT_YOS_TOKEN_ACCOUNT);
-      console.log("Using YOS token account (TO):", tokenToMintATA.toString());
+      console.log("Using hardcoded YOS token account (TO):", tokenToMintATA.toString());
     } else {
+      // For other tokens, we'll derive the ATA with the Pool Authority
       tokenToMintATA = await getAssociatedTokenAddress(
-        tokenToMint, 
-        programAuthorityAddress,
+        tokenToMint,
+        new PublicKey(POOL_AUTHORITY),
         true // allowOwnerOffCurve: true for PDAs
       );
     }
     
+    // CRITICAL FIX: Use Pool Authority for YOS token account
     const yosTokenProgramATA = await getAssociatedTokenAddress(
       new PublicKey(YOS_TOKEN_MINT),
-      programAuthorityAddress,
+      new PublicKey(POOL_AUTHORITY),
       true // allowOwnerOffCurve: true for PDAs
     );
     
@@ -1039,10 +1045,11 @@ export async function performSwap(
       
       if (!tokenFromProgramAccount) {
         console.log('Creating program token account for tokenFromMint:', tokenFromMint.toString());
+        // CRITICAL FIX: Use Pool Authority instead of Program Authority 
         const ix = createAssociatedTokenAccountInstruction(
           wallet.publicKey,
           tokenFromMintATA,
-          programAuthorityAddress,
+          new PublicKey(POOL_AUTHORITY),
           tokenFromMint
         );
         transaction.add(ix);
@@ -1054,10 +1061,11 @@ export async function performSwap(
       
       if (!tokenToProgramAccount) {
         console.log('Creating program token account for tokenToMint:', tokenToMint.toString());
+        // CRITICAL FIX: Use Pool Authority instead of Program Authority
         const ix = createAssociatedTokenAccountInstruction(
           wallet.publicKey,
           tokenToMintATA,
-          programAuthorityAddress,
+          new PublicKey(POOL_AUTHORITY),
           tokenToMint
         );
         transaction.add(ix);
@@ -1069,10 +1077,11 @@ export async function performSwap(
       
       if (!yosProgramAccount) {
         console.log('Creating program token account for YOS mint');
+        // CRITICAL FIX: Use Pool Authority instead of Program Authority
         const ix = createAssociatedTokenAccountInstruction(
           wallet.publicKey,
           yosTokenProgramATA,
-          programAuthorityAddress,
+          new PublicKey(POOL_AUTHORITY),
           new PublicKey(YOS_TOKEN_MINT)
         );
         transaction.add(ix);
@@ -1360,8 +1369,8 @@ async function getTokenAccountCreateInstruction(
     let mint: PublicKey;
     let owner: PublicKey;
     
-    // Program authority is always the owner for program token accounts
-    const [programAuthorityAddress] = findProgramAuthorityAddress();
+    // CRITICAL FIX: Pool Authority is now the owner for program token accounts
+    const poolAuthorityAddress = new PublicKey(POOL_AUTHORITY);
     
     if (accountName.includes('YOT')) {
       mint = new PublicKey(YOT_TOKEN_MINT);
@@ -1376,7 +1385,7 @@ async function getTokenAccountCreateInstruction(
     
     // Determine the owner based on account name
     if (accountName.includes('Program')) {
-      owner = programAuthorityAddress;
+      owner = poolAuthorityAddress; // Use Pool Authority instead of Program Authority
     } else {
       owner = wallet.publicKey;
     }
