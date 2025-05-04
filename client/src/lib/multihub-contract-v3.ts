@@ -2,111 +2,27 @@
  * MultihubSwap V3 Contract
  * 
  * This is an upgraded version of the multihub swap contract with improved
- * token account validation and error handling.
+ * token account validation, error handling, and robust instruction serialization.
+ * 
+ * IMPORTANT: This implementation uses direct buffer serialization instead of Borsh to avoid
+ * various issues with Borsh implementation differences between JavaScript and Rust:
+ * 
+ * 1. Version inconsistencies between borsh in JS and Rust
+ * 2. Inexact field typing (e.g., BigInt vs u64 confusion)
+ * 3. Lack of enum support — JS borsh doesn't natively support Rust-style enums
+ * 4. Silent failures with vague BorshIoError: Unknown errors
+ * 
+ * By manually building byte buffers, we:
+ * - Avoid schema errors entirely
+ * - Exactly control the layout to match Rust expectations
+ * - Future-proof our instruction encoding
  */
 
-import { Connection, PublicKey, Transaction } from '@solana/web3.js';
+import { Connection, PublicKey, Transaction, SystemProgram } from '@solana/web3.js';
 import {
   getAssociatedTokenAddress,
-  createAssociatedTokenAccountInstruction
+  createAssociatedTokenAccountInstruction,
 } from '@solana/spl-token';
-import { serialize } from 'borsh';
-
-/**
- * Borsh compatible class for InitializeInstruction
- * This must exactly match the Rust struct definition
- */
-class InitializeInstruction {
-  admin: Uint8Array;
-  yot_mint: Uint8Array;
-  yos_mint: Uint8Array;
-  lp_contribution_rate: bigint;
-  admin_fee_rate: bigint;
-  yos_cashback_rate: bigint;
-  swap_fee_rate: bigint;
-  referral_rate: bigint;
-
-  constructor(fields: {
-    admin: Uint8Array;
-    yot_mint: Uint8Array;
-    yos_mint: Uint8Array;
-    lp_contribution_rate: bigint;
-    admin_fee_rate: bigint;
-    yos_cashback_rate: bigint;
-    swap_fee_rate: bigint;
-    referral_rate: bigint;
-  }) {
-    Object.assign(this, fields);
-  }
-}
-
-/**
- * Borsh compatible class for SwapInstruction
- * This must exactly match the Rust struct definition
- */
-class SwapInstruction {
-  amount_in: number;
-  min_amount_out: number;
-
-  constructor(fields: { amount_in: number, min_amount_out: number }) {
-    Object.assign(this, fields);
-  }
-}
-
-/**
- * Borsh compatible class for CloseProgramInstruction
- * This must exactly match the Rust struct definition
- */
-class CloseProgramInstruction {
-  constructor() {
-    // Empty constructor since the struct has no fields
-  }
-}
-
-// Define Borsh Schema for InitializeInstruction
-const InitializeInstructionSchema = new Map([
-  [
-    InitializeInstruction,
-    {
-      kind: "struct",
-      fields: [
-        ["admin", [32]],
-        ["yot_mint", [32]],
-        ["yos_mint", [32]],
-        ["lp_contribution_rate", "u64"],
-        ["admin_fee_rate", "u64"],
-        ["yos_cashback_rate", "u64"],
-        ["swap_fee_rate", "u64"],
-        ["referral_rate", "u64"],
-      ],
-    },
-  ],
-]);
-
-// Define Borsh Schema for SwapInstruction
-const SwapInstructionSchema = new Map([
-  [
-    SwapInstruction,
-    {
-      kind: "struct",
-      fields: [
-        ["amount_in", "u64"],
-        ["min_amount_out", "u64"],
-      ],
-    },
-  ],
-]);
-
-// Define Borsh Schema for CloseProgramInstruction
-const CloseProgramInstructionSchema = new Map([
-  [
-    CloseProgramInstruction,
-    {
-      kind: "struct",
-      fields: [],
-    },
-  ],
-]);
 
 // Program ID for the multihub swap V3 contract
 export const MULTIHUB_SWAP_PROGRAM_ID = 'Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L';
@@ -115,23 +31,101 @@ export const MULTIHUB_SWAP_PROGRAM_ID = 'Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpP
 export const YOT_TOKEN_MINT = '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF';
 export const YOS_TOKEN_MINT = 'GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n';
 
-// ====== Instruction types matching the Rust contract definitions =======
-// Rust-compatible instruction variants for the V3 contract
-// These must match exactly the structure in the Rust program
-
-// Enum variants
-enum InstructionVariant {
-  Initialize = 0,
-  Swap = 1,
-  CloseProgram = 2
-}
-
 // Constants for the program
 export const LP_CONTRIBUTION_RATE = 2000; // 20%
 export const ADMIN_FEE_RATE = 10; // 0.1%
 export const YOS_CASHBACK_RATE = 300; // 3%  
 export const SWAP_FEE_RATE = 30; // 0.3%
 export const REFERRAL_RATE = 50; // 0.5%
+
+/**
+ * Manual buffer serialization for initialization instruction
+ * This matches the Rust enum variant MultihubSwapInstruction::Initialize exactly
+ */
+export function buildInitializeInstruction({
+  admin,
+  yotMint,
+  yosMint,
+  rates,
+}: {
+  admin: PublicKey;
+  yotMint: PublicKey;
+  yosMint: PublicKey;
+  rates: {
+    lp: bigint;
+    fee: bigint;
+    cashback: bigint;
+    swap: bigint;
+    referral: bigint;
+  };
+}): Buffer {
+  const discriminator = Buffer.from([0]); // enum variant for Initialize
+  const buffer = Buffer.alloc(1 + 32 * 3 + 8 * 5);
+  let offset = 0;
+
+  discriminator.copy(buffer, offset);
+  offset += 1;
+
+  admin.toBuffer().copy(buffer, offset);
+  offset += 32;
+
+  yotMint.toBuffer().copy(buffer, offset);
+  offset += 32;
+
+  yosMint.toBuffer().copy(buffer, offset);
+  offset += 32;
+
+  buffer.writeBigUInt64LE(rates.lp, offset);
+  offset += 8;
+
+  buffer.writeBigUInt64LE(rates.fee, offset);
+  offset += 8;
+
+  buffer.writeBigUInt64LE(rates.cashback, offset);
+  offset += 8;
+
+  buffer.writeBigUInt64LE(rates.swap, offset);
+  offset += 8;
+
+  buffer.writeBigUInt64LE(rates.referral, offset);
+  offset += 8;
+
+  return buffer;
+}
+
+/**
+ * Manual buffer serialization for swap instruction
+ * This matches the Rust enum variant MultihubSwapInstruction::Swap exactly
+ */
+export function buildSwapInstruction({
+  amountIn,
+  minAmountOut,
+}: {
+  amountIn: bigint;
+  minAmountOut: bigint;
+}): Buffer {
+  const discriminator = Buffer.from([1]); // enum variant for Swap
+  const buffer = Buffer.alloc(1 + 8 + 8); // 1 byte for enum + 2 * u64
+
+  let offset = 0;
+  discriminator.copy(buffer, offset);
+  offset += 1;
+
+  buffer.writeBigUInt64LE(amountIn, offset);
+  offset += 8;
+
+  buffer.writeBigUInt64LE(minAmountOut, offset);
+
+  return buffer;
+}
+
+/**
+ * Manual buffer serialization for close program instruction
+ * This matches the Rust enum variant MultihubSwapInstruction::CloseProgram exactly
+ */
+export function buildCloseProgramInstruction(): Buffer {
+  return Buffer.from([2]); // enum variant for CloseProgram, no payload
+}
 
 /**
  * Find the program's authority PDA
@@ -189,53 +183,70 @@ export async function initializeProgram(
     console.log('Swap Fee Rate:', SWAP_FEE_RATE);
     console.log('Referral Rate:', REFERRAL_RATE);
     
-    // USING DIRECT BYTE SERIALIZATION APPROACH INSTEAD OF BORSH
-    // This creates a byte array that exactly matches what the Rust program expects
+    // USING IMPROVED DIRECT BUFFER SERIALIZATION
+    // Using the function pattern provided by the user with exact field offsets
     
-    // Enum discriminator for Initialize (0)
-    const enumDiscriminator = Buffer.from([0]);
+    const instructionData = buildInitializeInstruction({
+      admin: wallet.publicKey,
+      yotMint: new PublicKey(YOT_TOKEN_MINT),
+      yosMint: new PublicKey(YOS_TOKEN_MINT),
+      rates: {
+        lp: BigInt(LP_CONTRIBUTION_RATE),
+        fee: BigInt(ADMIN_FEE_RATE),
+        cashback: BigInt(YOS_CASHBACK_RATE),
+        swap: BigInt(SWAP_FEE_RATE),
+        referral: BigInt(REFERRAL_RATE)
+      }
+    });
     
-    // Admin public key (32 bytes)
-    const adminBytes = wallet.publicKey.toBytes();
+    // Helper function to build the initialize instruction buffer
+    function buildInitializeInstruction({
+      admin,
+      yotMint,
+      yosMint,
+      rates,
+    }: {
+      admin: PublicKey;
+      yotMint: PublicKey;
+      yosMint: PublicKey;
+      rates: {
+        lp: bigint;
+        fee: bigint;
+        cashback: bigint;
+        swap: bigint;
+        referral: bigint;
+      };
+    }): Buffer {
+      const discriminator = Buffer.from([0]); // enum variant for Initialize
+      const buffer = Buffer.concat([
+        discriminator,
+        admin.toBuffer(),
+        yotMint.toBuffer(),
+        yosMint.toBuffer(),
+        Buffer.alloc(8), // lp
+        Buffer.alloc(8), // fee
+        Buffer.alloc(8), // cashback
+        Buffer.alloc(8), // swap
+        Buffer.alloc(8), // referral
+      ]);
     
-    // YOT mint (32 bytes)
-    const yotMintBytes = new PublicKey(YOT_TOKEN_MINT).toBytes();
+      // Calculate offsets carefully considering the discriminator byte
+      // Layout is: [discriminator(1)][admin(32)][yot_mint(32)][yos_mint(32)][lp(8)][fee(8)][cashback(8)][swap(8)][referral(8)]
+      const discriminatorSize = 1;
+      const publicKeySize = 32;
+      const uint64Size = 8;
+      
+      // Base offset starts after discriminator + 3 public keys
+      const baseOffset = discriminatorSize + (publicKeySize * 3);
+      
+      buffer.writeBigUInt64LE(rates.lp, baseOffset);
+      buffer.writeBigUInt64LE(rates.fee, baseOffset + uint64Size);
+      buffer.writeBigUInt64LE(rates.cashback, baseOffset + (uint64Size * 2));
+      buffer.writeBigUInt64LE(rates.swap, baseOffset + (uint64Size * 3));
+      buffer.writeBigUInt64LE(rates.referral, baseOffset + (uint64Size * 4));
     
-    // YOS mint (32 bytes)
-    const yosMintBytes = new PublicKey(YOS_TOKEN_MINT).toBytes();
-    
-    // LP contribution rate (8 bytes, u64)
-    const lpContribBuffer = Buffer.alloc(8);
-    lpContribBuffer.writeBigUInt64LE(BigInt(LP_CONTRIBUTION_RATE), 0);
-    
-    // Admin fee rate (8 bytes, u64)
-    const adminFeeBuffer = Buffer.alloc(8);
-    adminFeeBuffer.writeBigUInt64LE(BigInt(ADMIN_FEE_RATE), 0);
-    
-    // YOS cashback rate (8 bytes, u64)
-    const yosCashbackBuffer = Buffer.alloc(8);
-    yosCashbackBuffer.writeBigUInt64LE(BigInt(YOS_CASHBACK_RATE), 0);
-    
-    // Swap fee rate (8 bytes, u64)
-    const swapFeeBuffer = Buffer.alloc(8);
-    swapFeeBuffer.writeBigUInt64LE(BigInt(SWAP_FEE_RATE), 0);
-    
-    // Referral rate (8 bytes, u64)
-    const referralBuffer = Buffer.alloc(8);
-    referralBuffer.writeBigUInt64LE(BigInt(REFERRAL_RATE), 0);
-    
-    // Concatenate all buffers to create the instruction data
-    const instructionData = Buffer.concat([
-      enumDiscriminator,
-      adminBytes,
-      yotMintBytes,
-      yosMintBytes,
-      lpContribBuffer,
-      adminFeeBuffer,
-      yosCashbackBuffer,
-      swapFeeBuffer,
-      referralBuffer
-    ]);
+      return buffer;
+    }
     
     console.log('Using direct byte serialization for Initialize instruction');
     console.log('Initialize instruction data length:', instructionData.length);
@@ -376,28 +387,30 @@ export async function performSwap(
     console.log(`Converting ${amountIn} tokens to ${amountInLamports} lamports`);
     console.log(`Converting ${minAmountOut} min output to ${minAmountOutLamports} lamports`);
     
-    // Create the swap instruction data using Borsh serialization
-    // This will exactly match what the contract expects
+    // Create the swap instruction data using direct serialization
+    // to match the Rust structure exactly
     
-    // DIRECT BYTE SERIALIZATION FOR SWAP INSTRUCTION
+    // Helper function to build swap instruction buffer
+    function buildSwapInstruction(amountIn: number, minAmountOut: number): Buffer {
+      // Layout is: [discriminator(1)][amount_in(8)][min_amount_out(8)]
+      
+      // Create buffer with appropriate size
+      const buffer = Buffer.alloc(1 + 8 + 8);
+      
+      // Write enum discriminator for Swap (1)
+      buffer[0] = 1;
+      
+      // Write amount in (8 bytes, u64)
+      buffer.writeBigUInt64LE(BigInt(amountIn), 1);
+      
+      // Write min amount out (8 bytes, u64)
+      buffer.writeBigUInt64LE(BigInt(minAmountOut), 1 + 8);
+      
+      return buffer;
+    }
     
-    // Enum discriminator for Swap (1)
-    const enumDiscriminator = Buffer.from([1]);
-    
-    // Amount in (8 bytes, u64)
-    const amountInBuffer = Buffer.alloc(8);
-    amountInBuffer.writeBigUInt64LE(BigInt(amountInLamports), 0);
-    
-    // Min amount out (8 bytes, u64)
-    const minAmountOutBuffer = Buffer.alloc(8);
-    minAmountOutBuffer.writeBigUInt64LE(BigInt(minAmountOutLamports), 0);
-    
-    // Create the instruction data using direct buffer concatenation
-    const instructionData = Buffer.concat([
-      enumDiscriminator,
-      amountInBuffer,
-      minAmountOutBuffer
-    ]);
+    // Build the instruction data
+    const instructionData = buildSwapInstruction(amountInLamports, minAmountOutLamports);
     
     console.log('Using direct buffer encoding for Swap instruction');
     console.log('Swap instruction data length:', instructionData.length);
@@ -570,13 +583,16 @@ export async function closeProgram(
     const [programStateAddress, closeProgramStateBump] = findProgramStateAddress();
     const [programAuthorityAddress, closeProgramAuthorityBump] = findProgramAuthorityAddress();
     
-    // Create the close program instruction data using Borsh serialization
-    // This will exactly match what the contract expects
+    // Create the close program instruction data using direct serialization
     
-    // DIRECT BYTE SERIALIZATION FOR CLOSEPROGRAM INSTRUCTION
+    // Helper function to build close program instruction
+    function buildCloseProgramInstruction(): Buffer {
+      // CloseProgram variant only needs the enum discriminator (2)
+      return Buffer.from([2]);
+    }
     
-    // Enum discriminator for CloseProgram (2)
-    const instructionData = Buffer.from([2]); // Just the discriminator since there are no other fields
+    // Build the instruction data
+    const instructionData = buildCloseProgramInstruction();
     
     console.log('Using direct buffer encoding for CloseProgram instruction');
     console.log('CloseProgram instruction data length:', instructionData.length);
