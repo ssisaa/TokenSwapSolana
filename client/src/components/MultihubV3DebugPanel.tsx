@@ -37,6 +37,10 @@ export default function MultihubV3DebugPanel() {
       // Get program authority account info
       const authorityInfo = await connection.getAccountInfo(programAuthorityAddress);
       
+      // Get program authority SOL balance
+      const authorityBalance = await connection.getBalance(programAuthorityAddress);
+      const authorityBalanceSOL = authorityBalance / 1_000_000_000; // Convert lamports to SOL
+      
       setPdaInfo({
         programStateAddress: programStateAddress.toBase58(),
         stateBump,
@@ -45,6 +49,8 @@ export default function MultihubV3DebugPanel() {
         programStateExists: !!programStateInfo,
         programStateSize: programStateInfo?.data.length || 0,
         authorityExists: !!authorityInfo,
+        authorityBalanceLamports: authorityBalance,
+        authorityBalanceSOL: authorityBalanceSOL,
       });
       
       setProgramInfo({
@@ -149,6 +155,16 @@ export default function MultihubV3DebugPanel() {
                     <div><span className="font-medium">State Account Exists:</span> {pdaInfo.programStateExists ? 'Yes' : 'No'}</div>
                     <div><span className="font-medium">State Account Size:</span> {formatBytes(pdaInfo.programStateSize)}</div>
                     <div><span className="font-medium">Authority Account Exists:</span> {pdaInfo.authorityExists ? 'Yes' : 'No'}</div>
+                    <div className="font-medium mt-2">Program Authority Balance:</div>
+                    <div className={pdaInfo.authorityBalanceSOL < 0.01 ? "text-red-500 font-bold" : pdaInfo.authorityBalanceSOL < 0.05 ? "text-amber-500 font-bold" : "text-green-600"}>
+                      {pdaInfo.authorityBalanceSOL.toFixed(6)} SOL
+                      {pdaInfo.authorityBalanceSOL < 0.01 && (
+                        <span className="ml-2 text-red-500 text-xs">Low balance! Fund now.</span>
+                      )}
+                      {pdaInfo.authorityBalanceSOL >= 0.01 && pdaInfo.authorityBalanceSOL < 0.05 && (
+                        <span className="ml-2 text-amber-500 text-xs">Consider funding soon.</span>
+                      )}
+                    </div>
                   </div>
                 )}
                 
