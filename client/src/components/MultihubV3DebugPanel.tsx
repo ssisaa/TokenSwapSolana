@@ -4,10 +4,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useWallet } from "@/hooks/useSolanaWallet";
 import { connection } from "@/lib/solana";
 import multihubContract, * as multihubExports from "@/lib/multihub-contract-v3";
+import MultihubIntegrationV3 from "@/lib/multihub-integration-v3";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { ReloadIcon } from "@radix-ui/react-icons";
-import { CircleAlert, CircleCheck, InfoIcon } from "lucide-react";
+import { CircleAlert, CircleCheck, InfoIcon, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { type PublicKey } from '@solana/web3.js';
 import { Badge } from "@/components/ui/badge";
@@ -24,11 +25,30 @@ export default function MultihubV3DebugPanel() {
   const [isDebugLoading, setIsDebugLoading] = useState(false);
   const [isVerifyLoading, setIsVerifyLoading] = useState(false);
   const [isStateCheckLoading, setIsStateCheckLoading] = useState(false);
+  const [isTokenAccountsLoading, setIsTokenAccountsLoading] = useState(false);
   const [stateCheckResult, setStateCheckResult] = useState<{
     exists: boolean;
     hasCorrectOwner: boolean;
     hasCorrectSize: boolean;
     details: string;
+  } | null>(null);
+  const [tokenAccountsResult, setTokenAccountsResult] = useState<{
+    programAuthorityAddress: string;
+    yotAccount: {
+      address: string;
+      exists: boolean;
+      balance?: number;
+    };
+    yosAccount: {
+      address: string;
+      exists: boolean;
+      balance?: number;
+    };
+    solAccount: {
+      address: string;
+      exists: boolean;
+      balance?: number;
+    };
   } | null>(null);
   const { toast } = useToast();
 
