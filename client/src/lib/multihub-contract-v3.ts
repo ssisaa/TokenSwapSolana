@@ -754,7 +754,8 @@ export async function initializeProgram(
     console.log(`4. System Program: 11111111111111111111111111111111`);
     console.log(`5. Rent Sysvar: SysvarRent111111111111111111111111111111111`);
     
-    transaction.add({
+    // Create a proper TransactionInstruction with all necessary accounts
+    const initializeProgramInstruction = new TransactionInstruction({
       keys: [
         { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // payer_account
         { pubkey: programStateAddress, isSigner: false, isWritable: true }, // program_state_account (will be created by program)
@@ -762,9 +763,12 @@ export async function initializeProgram(
         { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false }, // system_program_account
         { pubkey: new PublicKey('SysvarRent111111111111111111111111111111111'), isSigner: false, isWritable: false }, // rent_sysvar_account
       ],
-      programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID),
+      programId: new PublicKey(HARDCODED_PROGRAM_ID), // Use hardcoded program ID to match PDAs
       data: instructionData
     });
+    
+    // Add the instruction to the transaction
+    transaction.add(initializeProgramInstruction);
     
     // Simulate the transaction to check for errors
     console.log('Simulating initialize program transaction...');
@@ -1288,7 +1292,7 @@ export async function performSwap(
         { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false }, // System program [13]
         { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, // Rent sysvar [14]
       ],
-      programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID),
+      programId: new PublicKey(HARDCODED_PROGRAM_ID), // Use hardcoded program ID to match PDAs
       data: Buffer.from(swapData)
     }));
     
@@ -1428,7 +1432,7 @@ export async function closeProgram(
         { pubkey: programAuthorityAddress, isSigner: false, isWritable: true }, // Program authority - must be writable!
         { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false }, // System Program - needed for closing accounts
       ],
-      programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID),
+      programId: new PublicKey(HARDCODED_PROGRAM_ID), // Use hardcoded program ID to match PDAs
       data: Buffer.from(closeProgramData)
     }));
     
