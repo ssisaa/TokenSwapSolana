@@ -17,101 +17,103 @@ use spl_token::{instruction as token_instruction, state::Account as TokenAccount
 // Define the program ID here (will be replaced during deployment)
 solana_program::declare_id!("Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L");
 
-// Instructions supported by this program
-// Instead of using Borsh, we'll manually parse the instruction data
+// We still need these structs for storing program state and instruction parameters
+// but we don't use Borsh for instruction deserialization anymore
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub enum SwapInstruction {
-    // Initialize the program state with admin and token addresses
     Initialize {
-        // Admin who can manage the program
         admin: Pubkey,
-        // YOT token mint address
         yot_mint: Pubkey,
-        // YOS token mint address
         yos_mint: Pubkey,
-        // Contribution rate to liquidity pool (e.g., 20%)
         lp_contribution_rate: u64,
-        // Admin fee rate (e.g., 0.1%)
         admin_fee_rate: u64,
-        // YOS cashback rate (e.g., 5%)
         yos_cashback_rate: u64,
-        // Swap fee rate (e.g., 0.3%)
         swap_fee_rate: u64,
-        // Referral payment rate (e.g., 0.5%)
         referral_rate: u64,
     },
-    
-    // Swap tokens (source, destination, amount, etc.)
     Swap {
-        // Amount of tokens to swap
         amount_in: u64,
-        // Minimum amount of tokens to receive
         min_amount_out: u64,
     },
-    
-    // Close the program (admin only)
     CloseProgram,
 }
 
-// Program state stored in a PDA
+// Program state stored in a PDA (still uses Borsh for storage)
 #[derive(BorshSerialize, BorshDeserialize, Debug, Default)]
 pub struct ProgramState {
-    // Admin address that can manage the program
     pub admin: Pubkey,
-    // YOT token mint
     pub yot_mint: Pubkey,
-    // YOS token mint for cashback
     pub yos_mint: Pubkey,
-    // Contribution rate to liquidity pool (2000 = 20%)
     pub lp_contribution_rate: u64,
-    // Admin fee rate (10 = 0.1%)
     pub admin_fee_rate: u64,
-    // YOS cashback rate (300 = 3%)
     pub yos_cashback_rate: u64,
-    // Swap fee rate (30 = 0.3%)
     pub swap_fee_rate: u64,
-    // Referral payment rate (50 = 0.5%)
     pub referral_rate: u64,
 }
 
-// Entrypoint is defined in lib.rs
-// but we still need to declare it for standalone testing
+// Entrypoint is defined in lib.rs but we declare it here for standalone testing
 entrypoint!(process_instruction);
 
-// This function manually parses the instruction data based on the first byte (discriminator)
-fn parse_instruction_data(instruction_data: &[u8]) -> Result<SwapInstruction, ProgramError> {
-    // Check that input isn't empty
-    if instruction_data.is_empty() {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-    
-    // Read the first byte as discriminator
-    let discriminator = instruction_data[0];
-    
-    match discriminator {
-        // Initialize
-        0 => {
-            // Initialize instruction needs 137 bytes:
-            // 1 (discriminator) + 32 (admin) + 32 (yot_mint) + 32 (yos_mint) + 
-            // 8 (lp_rate) + 8 (fee_rate) + 8 (cashback_rate) + 8 (swap_fee) + 8 (referral_rate)
-            if instruction_data.len() != 137 {
-                msg!("Invalid Initialize instruction data length: {}", instruction_data.len());
+// Direct manual parsing of instruction data without intermediate Borsh deserialization
+pub fn process_instruction(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    instruction_data: &[u8],
+) -> ProgramResult {
+    // First byte is the instruction discriminator
+    match instruction_data.first() {
+        Some(0) => {
+            msg!("Manual Initialize Instruction");
+            let mut offset = 1;
+            if instruction_data.len() < 1 + 32*3 + 8*5 {
+                msg!("Instruction too short for Initialize: {} bytes", instruction_data.len());
                 return Err(ProgramError::InvalidInstructionData);
             }
-            
+
             // Extract public keys
-            let admin = Pubkey::new(&instruction_data[1..33]);
-            let yot_mint = Pubkey::new(&instruction_data[33..65]);
-            let yos_mint = Pubkey::new(&instruction_data[65..97]);
-            
-            // Extract rates
-            let lp_contribution_rate = u64::from_le_bytes(instruction_data[97..105].try_into().unwrap());
-            let admin_fee_rate = u64::from_le_bytes(instruction_data[105..113].try_into().unwrap());
-            let yos_cashback_rate = u64::from_le_bytes(instruction_data[113..121].try_into().unwrap());
-            let swap_fee_rate = u64::from_le_bytes(instruction_data[121..129].try_into().unwrap());
-            let referral_rate = u64::from_le_bytes(instruction_data[129..137].try_into().unwrap());
-            
-            Ok(SwapInstruction::Initialize {
+            let admin = Pubkey::new(&instruction_data[offset..offset + 32]);
+            offset += 32;
+            let yot_mint = Pubkey::new(&instruction_data[offset..offset + 32]);
+            offset += 32;
+            let yos_mint = Pubkey::new(&instruction_data[offset..offset + 32]);
+            offset += 32;
+
+            // Extract rates (all u64 in little-endian)
+            let lp_contribution_rate = u64::from_le_bytes(
+                instruction_data[offset..offset + 8].try_into().unwrap(),
+            );
+            offset += 8;
+            let admin_fee_rate = u64::from_le_bytes(
+                instruction_data[offset..offset + 8].try_into().unwrap(),
+            );
+            offset += 8;
+            let yos_cashback_rate = u64::from_le_bytes(
+                instruction_data[offset..offset + 8].try_into().unwrap(),
+            );
+            offset += 8;
+            let swap_fee_rate = u64::from_le_bytes(
+                instruction_data[offset..offset + 8].try_into().unwrap(),
+            );
+            offset += 8;
+            let referral_rate = u64::from_le_bytes(
+                instruction_data[offset..offset + 8].try_into().unwrap(),
+            );
+
+            msg!("Parsed Initialize params:");
+            msg!("Admin: {}", admin);
+            msg!("YOT Mint: {}", yot_mint);
+            msg!("YOS Mint: {}", yos_mint);
+            msg!("Rates: LP {} | Fee {} | Cashback {} | Swap {} | Referral {}",
+                lp_contribution_rate,
+                admin_fee_rate,
+                yos_cashback_rate,
+                swap_fee_rate,
+                referral_rate);
+
+            // Call the initialize handler with the parsed parameters
+            process_initialize(
+                program_id,
+                accounts,
                 admin,
                 yot_mint,
                 yos_mint,
@@ -120,91 +122,36 @@ fn parse_instruction_data(instruction_data: &[u8]) -> Result<SwapInstruction, Pr
                 yos_cashback_rate,
                 swap_fee_rate,
                 referral_rate,
-            })
+            )
         },
         
-        // Swap
-        1 => {
-            // Swap instruction needs 17 bytes:
-            // 1 (discriminator) + 8 (amount_in) + 8 (min_amount_out)
-            if instruction_data.len() != 17 {
-                msg!("Invalid Swap instruction data length: {}", instruction_data.len());
+        Some(1) => {
+            msg!("Manual Swap Instruction");
+            if instruction_data.len() < 1 + 8 + 8 {
+                msg!("Instruction too short for Swap: {} bytes", instruction_data.len());
                 return Err(ProgramError::InvalidInstructionData);
             }
             
-            // Extract amount_in and min_amount_out
+            // Extract swap parameters
             let amount_in = u64::from_le_bytes(instruction_data[1..9].try_into().unwrap());
             let min_amount_out = u64::from_le_bytes(instruction_data[9..17].try_into().unwrap());
             
-            Ok(SwapInstruction::Swap {
-                amount_in,
-                min_amount_out,
-            })
-        },
-        
-        // CloseProgram
-        2 => {
-            // CloseProgram instruction just has a discriminator
-            if instruction_data.len() != 1 {
-                msg!("Invalid CloseProgram instruction data length: {}", instruction_data.len());
-                return Err(ProgramError::InvalidInstructionData);
-            }
+            msg!("Swap params: Amount In: {}, Min Out: {}", amount_in, min_amount_out);
             
-            Ok(SwapInstruction::CloseProgram)
+            // Call the swap handler with the parsed parameters
+            process_swap(program_id, accounts, amount_in, min_amount_out)
         },
         
-        // Invalid discriminator
+        Some(2) => {
+            msg!("Manual CloseProgram Instruction");
+            // Call the close program handler
+            process_close_program(program_id, accounts)
+        },
+        
         _ => {
-            msg!("Invalid instruction discriminator: {}", discriminator);
+            msg!("Unknown instruction discriminator");
             Err(ProgramError::InvalidInstructionData)
         }
-    }
-}
-
-// Process the program instruction
-pub fn process_instruction(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
-    instruction_data: &[u8],
-) -> ProgramResult {
-    // Parse the instruction using our manual parser instead of Borsh
-    let instruction = parse_instruction_data(instruction_data)?;
-    
-    // Match the instruction to the appropriate handler
-    match instruction {
-        SwapInstruction::Initialize {
-            admin,
-            yot_mint,
-            yos_mint,
-            lp_contribution_rate,
-            admin_fee_rate,
-            yos_cashback_rate,
-            swap_fee_rate,
-            referral_rate,
-        } => process_initialize(
-            program_id,
-            accounts,
-            admin,
-            yot_mint,
-            yos_mint,
-            lp_contribution_rate,
-            admin_fee_rate,
-            yos_cashback_rate,
-            swap_fee_rate,
-            referral_rate,
-        ),
-        
-        SwapInstruction::Swap {
-            amount_in,
-            min_amount_out,
-        } => process_swap(
-            program_id, 
-            accounts, 
-            amount_in, 
-            min_amount_out
-        ),
-        
-        SwapInstruction::CloseProgram => process_close_program(program_id, accounts),
     }
 }
 

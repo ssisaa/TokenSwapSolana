@@ -1,0 +1,87 @@
+
+// Multihub Swap V4 - Manual Byte Parsing Mode (no Borsh)
+use solana_program::{
+    account_info::{next_account_info, AccountInfo},
+    entrypoint,
+    entrypoint::ProgramResult,
+    msg,
+    program_error::ProgramError,
+    pubkey::Pubkey,
+};
+
+entrypoint!(process_instruction);
+
+pub fn process_instruction(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    instruction_data: &[u8],
+) -> ProgramResult {
+    match instruction_data.first() {
+        Some(0) => {
+            msg!("Manual Initialize Instruction");
+            let mut offset = 1;
+            if instruction_data.len() < 1 + 32 * 3 + 8 * 5 {
+                msg!("Instruction too short for Initialize");
+                return Err(ProgramError::InvalidInstructionData);
+            }
+
+            let admin = Pubkey::new(&instruction_data[offset..offset + 32]);
+            offset += 32;
+            let yot_mint = Pubkey::new(&instruction_data[offset..offset + 32]);
+            offset += 32;
+            let yos_mint = Pubkey::new(&instruction_data[offset..offset + 32]);
+            offset += 32;
+
+            let lp_contribution_rate = u64::from_le_bytes(
+                instruction_data[offset..offset + 8].try_into().unwrap(),
+            );
+            offset += 8;
+            let admin_fee_rate = u64::from_le_bytes(
+                instruction_data[offset..offset + 8].try_into().unwrap(),
+            );
+            offset += 8;
+            let yos_cashback_rate = u64::from_le_bytes(
+                instruction_data[offset..offset + 8].try_into().unwrap(),
+            );
+            offset += 8;
+            let swap_fee_rate = u64::from_le_bytes(
+                instruction_data[offset..offset + 8].try_into().unwrap(),
+            );
+            offset += 8;
+            let referral_rate = u64::from_le_bytes(
+                instruction_data[offset..offset + 8].try_into().unwrap(),
+            );
+
+            msg!("Parsed admin: {}", admin);
+            msg!("YOT Mint: {}", yot_mint);
+            msg!("YOS Mint: {}", yos_mint);
+            msg!("Rates: LP {} | Fee {} | Cashback {} | Swap {} | Referral {}",
+                lp_contribution_rate,
+                admin_fee_rate,
+                yos_cashback_rate,
+                swap_fee_rate,
+                referral_rate);
+
+            Ok(())
+        }
+        Some(1) => {
+            msg!("Manual Swap Instruction");
+            if instruction_data.len() < 1 + 8 + 8 {
+                msg!("Instruction too short for Swap");
+                return Err(ProgramError::InvalidInstructionData);
+            }
+            let amount_in = u64::from_le_bytes(instruction_data[1..9].try_into().unwrap());
+            let min_amount_out = u64::from_le_bytes(instruction_data[9..17].try_into().unwrap());
+            msg!("Amount In: {}, Min Out: {}", amount_in, min_amount_out);
+            Ok(())
+        }
+        Some(2) => {
+            msg!("Manual CloseProgram Instruction");
+            Ok(())
+        }
+        _ => {
+            msg!("Unknown instruction");
+            Err(ProgramError::InvalidInstructionData)
+        }
+    }
+}

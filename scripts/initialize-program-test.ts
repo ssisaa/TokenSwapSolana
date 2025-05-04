@@ -1,152 +1,225 @@
+/**
+ * MultihubSwap V4 Program Initialization Test
+ * 
+ * This script tests initializing the MultihubSwap V4 program with manual buffer serialization.
+ * It confirms that the program can be properly initialized with our new buffer-based serialization approach.
+ */
+
 import {
   Connection,
   Keypair,
   PublicKey,
-  sendAndConfirmTransaction,
-  SystemProgram,
   Transaction,
-  TransactionInstruction,
-  LAMPORTS_PER_SOL,
-} from "@solana/web3.js";
-import * as fs from 'fs';
-import { 
-  buildInitializeInstruction,
-  buildSwapInstruction,
-  buildCloseProgramInstruction,
-  MULTIHUB_SWAP_PROGRAM_ID,
-  YOT_TOKEN_MINT,
-  YOS_TOKEN_MINT
-} from "../client/src/lib/multihub-contract-v3";
+  SystemProgram,
+  sendAndConfirmTransaction,
+  LAMPORTS_PER_SOL
+} from '@solana/web3.js';
+import fs from 'fs';
+import path from 'path';
 
-/**
- * This script tests the initialization of the multihub swap program
- * using our direct buffer serialization approach
- */
-async function main() {
-  console.log("Starting MultihubSwap V3 program initialization test...");
+// Configuration
+const MULTIHUB_PROGRAM_ID = new PublicKey('Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L'); // Will be replaced by deployment script
+const YOT_MINT = new PublicKey('2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF');
+const YOS_MINT = new PublicKey('GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n');
+const ADMIN_WALLET = new PublicKey('AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ');
 
+// Constants (in basis points)
+const LP_CONTRIBUTION_RATE = 2000n; // 20%
+const ADMIN_FEE_RATE = 10n;         // 0.1%
+const YOS_CASHBACK_RATE = 300n;     // 3%
+const SWAP_FEE_RATE = 30n;          // 0.3%
+const REFERRAL_RATE = 50n;          // 0.5%
+
+// Find the program state PDA
+function findProgramStateAddress(): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('state')],
+    MULTIHUB_PROGRAM_ID
+  );
+}
+
+// Find the program authority PDA
+function findProgramAuthorityAddress(): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('authority')],
+    MULTIHUB_PROGRAM_ID
+  );
+}
+
+// Build the initialize instruction buffer manually
+function buildInitializeInstruction({
+  admin,
+  yotMint,
+  yosMint,
+  lpContributionRate,
+  adminFeeRate,
+  yosCashbackRate,
+  swapFeeRate,
+  referralRate
+}: {
+  admin: PublicKey;
+  yotMint: PublicKey;
+  yosMint: PublicKey;
+  lpContributionRate: bigint;
+  adminFeeRate: bigint;
+  yosCashbackRate: bigint;
+  swapFeeRate: bigint;
+  referralRate: bigint;
+}): Buffer {
+  // Instruction variant discriminator: 0 = Initialize
+  const discriminator = Buffer.from([0]);
+  
+  // Calculate total buffer size: 1 (discriminator) + 32*3 (pubkeys) + 8*5 (u64 rates)
+  const buffer = Buffer.alloc(1 + 32*3 + 8*5);
+  
+  // Fill the buffer
+  let offset = 0;
+  
+  // Write discriminator
+  discriminator.copy(buffer, offset);
+  offset += 1;
+  
+  // Write admin public key
+  admin.toBuffer().copy(buffer, offset);
+  offset += 32;
+  
+  // Write YOT mint public key
+  yotMint.toBuffer().copy(buffer, offset);
+  offset += 32;
+  
+  // Write YOS mint public key
+  yosMint.toBuffer().copy(buffer, offset);
+  offset += 32;
+  
+  // Write rates in little-endian format
+  buffer.writeBigUInt64LE(lpContributionRate, offset);
+  offset += 8;
+  
+  buffer.writeBigUInt64LE(adminFeeRate, offset);
+  offset += 8;
+  
+  buffer.writeBigUInt64LE(yosCashbackRate, offset);
+  offset += 8;
+  
+  buffer.writeBigUInt64LE(swapFeeRate, offset);
+  offset += 8;
+  
+  buffer.writeBigUInt64LE(referralRate, offset);
+  
+  return buffer;
+}
+
+// Main function to initialize the program
+async function initializeProgram() {
   try {
-    // Create a connection to Solana devnet
-    const connection = new Connection("https://api.devnet.solana.com", "confirmed");
-    console.log("Connected to Solana devnet");
+    console.log('Starting MultihubSwap V4 initialization test...');
 
-    // Load the admin wallet from a keypair file or generate one for testing
-    let adminKeypair: Keypair;
-    
+    // Load the payer's keypair
+    let payer: Keypair;
     try {
-      // Try to load from file (for reproducible tests)
-      const keypairData = JSON.parse(fs.readFileSync('./admin-keypair.json', 'utf-8'));
-      adminKeypair = Keypair.fromSecretKey(new Uint8Array(keypairData));
-      console.log("Loaded admin keypair from file");
+      // First try to use a keypair file if it exists
+      const HOME = process.env.HOME || '';
+      const keypairPath = path.join(HOME, '.config/solana/id.json');
+      const keypairData = JSON.parse(fs.readFileSync(keypairPath, 'utf-8'));
+      payer = Keypair.fromSecretKey(new Uint8Array(keypairData));
     } catch (err) {
-      // If file doesn't exist, generate a new keypair
-      console.log("No admin keypair file found, generating new keypair");
-      adminKeypair = Keypair.generate();
-      
-      // Save keypair for future use
-      fs.writeFileSync(
-        './admin-keypair.json', 
-        JSON.stringify(Array.from(adminKeypair.secretKey)), 
-        'utf-8'
-      );
-      console.log("Generated and saved new admin keypair");
+      // If no keypair file, generate a new one
+      console.log('No keypair found, generating a new one');
+      payer = Keypair.generate();
     }
 
-    // Check admin account balance
-    const balance = await connection.getBalance(adminKeypair.publicKey);
-    console.log(`Admin account balance: ${balance / LAMPORTS_PER_SOL} SOL`);
+    console.log('Using payer address:', payer.publicKey.toBase58());
 
-    // Request airdrop if balance is too low
-    if (balance < 1 * LAMPORTS_PER_SOL) {
-      console.log("Requesting airdrop of 2 SOL...");
-      const airdropSig = await connection.requestAirdrop(
-        adminKeypair.publicKey, 
-        2 * LAMPORTS_PER_SOL
-      );
-      await connection.confirmTransaction(airdropSig);
-      console.log("Airdrop successful");
-      
-      // Check new balance
-      const newBalance = await connection.getBalance(adminKeypair.publicKey);
-      console.log(`New admin account balance: ${newBalance / LAMPORTS_PER_SOL} SOL`);
+    // Connect to Solana devnet
+    const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+
+    // Check the payer's balance
+    const balance = await connection.getBalance(payer.publicKey);
+    console.log(`Payer balance: ${balance / LAMPORTS_PER_SOL} SOL`);
+
+    if (balance < 0.1 * LAMPORTS_PER_SOL) {
+      console.log('Requesting airdrop for the payer...');
+      const signature = await connection.requestAirdrop(payer.publicKey, LAMPORTS_PER_SOL);
+      await connection.confirmTransaction(signature, 'confirmed');
+      console.log(`Airdrop confirmed! New balance: ${(await connection.getBalance(payer.publicKey)) / LAMPORTS_PER_SOL} SOL`);
     }
 
-    // Find program addresses
-    const programId = new PublicKey(MULTIHUB_SWAP_PROGRAM_ID);
-    const [programState] = PublicKey.findProgramAddressSync(
-      [Buffer.from("state")], 
-      programId
-    );
-    const [programAuthority] = PublicKey.findProgramAddressSync(
-      [Buffer.from("authority")], 
-      programId
-    );
+    // Derive the program state and authority PDAs
+    const [programState, programStateBump] = findProgramStateAddress();
+    const [programAuthority, programAuthorityBump] = findProgramAuthorityAddress();
 
-    console.log("Program ID:", programId.toString());
-    console.log("Program State PDA:", programState.toString());
-    console.log("Program Authority PDA:", programAuthority.toString());
-    console.log("YOT Mint:", YOT_TOKEN_MINT);
-    console.log("YOS Mint:", YOS_TOKEN_MINT);
+    console.log('Program ID:', MULTIHUB_PROGRAM_ID.toBase58());
+    console.log('Program State PDA:', programState.toBase58());
+    console.log('Program Authority PDA:', programAuthority.toBase58());
 
-    // Create initialize instruction with our buffer serialization
-    console.log("Creating initialize instruction...");
-    const instructionData = buildInitializeInstruction({
-      admin: adminKeypair.publicKey,
-      yotMint: new PublicKey(YOT_TOKEN_MINT),
-      yosMint: new PublicKey(YOS_TOKEN_MINT),
-      rates: {
-        lp: BigInt(2000),       // 20% LP contribution
-        fee: BigInt(10),        // 0.1% admin fee
-        cashback: BigInt(300),  // 3% YOS cashback
-        swap: BigInt(30),       // 0.3% swap fee
-        referral: BigInt(50)    // 0.5% referral fee
-      }
+    // Build the initialize instruction data
+    const initData = buildInitializeInstruction({
+      admin: ADMIN_WALLET,
+      yotMint: YOT_MINT,
+      yosMint: YOS_MINT,
+      lpContributionRate: LP_CONTRIBUTION_RATE,
+      adminFeeRate: ADMIN_FEE_RATE,
+      yosCashbackRate: YOS_CASHBACK_RATE,
+      swapFeeRate: SWAP_FEE_RATE,
+      referralRate: REFERRAL_RATE
     });
 
-    // Create the transaction instruction
-    const initIx = new TransactionInstruction({
-      programId,
+    console.log(`Initialize instruction data created (${initData.length} bytes)`);
+    console.log('First byte (discriminator):', initData[0]);
+
+    // Create a new transaction with the initialization instruction
+    const transaction = new Transaction().add({
       keys: [
-        { pubkey: adminKeypair.publicKey, isSigner: true, isWritable: true },
+        { pubkey: payer.publicKey, isSigner: true, isWritable: true },
         { pubkey: programState, isSigner: false, isWritable: true },
         { pubkey: programAuthority, isSigner: false, isWritable: false },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         { pubkey: new PublicKey('SysvarRent111111111111111111111111111111111'), isSigner: false, isWritable: false },
       ],
-      data: instructionData
+      programId: MULTIHUB_PROGRAM_ID,
+      data: initData,
     });
 
-    // Add to transaction
-    const tx = new Transaction().add(initIx);
+    console.log('Transaction created, simulating...');
     
-    // Simulate before sending
-    console.log("Simulating transaction...");
-    const simulation = await connection.simulateTransaction(tx, [adminKeypair]);
+    // Simulate the transaction first
+    const simulation = await connection.simulateTransaction(transaction);
     
     if (simulation.value.err) {
-      console.error("Simulation failed:", simulation.value.err);
-      console.log("Simulation logs:", simulation.value.logs);
-      throw new Error("Transaction simulation failed");
+      console.error('Simulation failed:', simulation.value.err);
+      console.log('Logs:', simulation.value.logs);
+      throw new Error('Transaction simulation failed');
+    } else {
+      console.log('Simulation successful!');
+      console.log('Logs:', simulation.value.logs);
     }
     
-    console.log("Simulation successful");
-    console.log("Simulation logs:", simulation.value.logs);
-
-    // Send and confirm transaction
-    console.log("Sending transaction...");
-    const signature = await sendAndConfirmTransaction(
-      connection,
-      tx,
-      [adminKeypair]
-    );
+    console.log('Sending transaction...');
+    const signature = await sendAndConfirmTransaction(connection, transaction, [payer]);
+    console.log('Transaction confirmed!');
+    console.log('Signature:', signature);
+    console.log('MultihubSwap V4 program initialized successfully!');
     
-    console.log("✅ Transaction successful!");
-    console.log("Transaction signature:", signature);
-    console.log("Program initialized successfully");
-    
+    return {
+      success: true,
+      signature,
+      programState: programState.toBase58(),
+    };
   } catch (error) {
-    console.error("Error:", error);
+    console.error('Error initializing MultihubSwap V4 program:', error);
+    return {
+      success: false,
+      error,
+    };
   }
 }
 
-main();
+// If directly executed
+if (require.main === module) {
+  initializeProgram().then((result) => {
+    console.log('Initialization result:', result);
+    process.exit(result.success ? 0 : 1);
+  });
+}
+
+export { initializeProgram, buildInitializeInstruction };
