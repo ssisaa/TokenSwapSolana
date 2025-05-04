@@ -4,7 +4,14 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Loader2 } from 'lucide-react';
-import { findProgramStateAddress, findProgramAuthorityAddress, MULTIHUB_SWAP_PROGRAM_ID, YOT_TOKEN_MINT, YOS_TOKEN_MINT } from '../lib/multihub-contract-v3';
+import { 
+  findProgramStateAddress, 
+  findProgramAuthorityAddress, 
+  verifyProgramAuthority,
+  MULTIHUB_SWAP_PROGRAM_ID, 
+  YOT_TOKEN_MINT, 
+  YOS_TOKEN_MINT 
+} from '../lib/multihub-contract-v3';
 import { useMultiWallet } from '@/context/MultiWalletContext';
 import { DEVNET_ENDPOINT } from '@/lib/multihub-integration-v3';
 
@@ -12,8 +19,10 @@ export default function MultihubV3DebugPanel() {
   const { wallet, connected } = useMultiWallet();
   const connection = new Connection(DEVNET_ENDPOINT);
   const [loading, setLoading] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [pdaInfo, setPdaInfo] = useState<any>(null);
   const [programInfo, setProgramInfo] = useState<any>(null);
+  const [verificationResult, setVerificationResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Check PDAs and program info when wallet is connected
@@ -77,6 +86,33 @@ export default function MultihubV3DebugPanel() {
     }
   }, [connected]);
   
+  // Verify program authority to fix "InvalidAccountData" error
+  const verifyAuthority = async () => {
+    if (!wallet.publicKey) return;
+    
+    setVerifying(true);
+    setVerificationResult(null);
+    setError(null);
+    
+    try {
+      console.log("Running program authority verification...");
+      const result = await verifyProgramAuthority(connection, wallet);
+      
+      if (result) {
+        setVerificationResult("Program authority successfully verified and funded if needed.");
+        // Refresh the program info to show updated balance
+        checkProgramSetup();
+      } else {
+        setVerificationResult("Program authority verification failed. This may cause swap failures.");
+      }
+    } catch (err: any) {
+      console.error("Authority verification error:", err);
+      setError(`Authority verification error: ${err.message}`);
+    } finally {
+      setVerifying(false);
+    }
+  };
+  
   // Format bytes as a readable size
   const formatBytes = (bytes: number): string => {
     if (bytes === 0) return '0 B';
@@ -100,19 +136,36 @@ export default function MultihubV3DebugPanel() {
         
         {connected && (
           <>
-            <Button 
-              onClick={checkProgramSetup} 
-              disabled={loading}
-              variant="outline"
-              className="mb-4"
-            >
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Refresh Program Info
-            </Button>
+            <div className="flex flex-wrap gap-2 mb-4">
+              <Button 
+                onClick={checkProgramSetup} 
+                disabled={loading || verifying}
+                variant="outline"
+              >
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Refresh Program Info
+              </Button>
+              
+              <Button 
+                onClick={verifyAuthority} 
+                disabled={verifying || loading}
+                variant="default"
+                className={pdaInfo?.authorityBalanceSOL < 0.01 ? "bg-red-600 hover:bg-red-700" : ""}
+              >
+                {verifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {pdaInfo?.authorityBalanceSOL < 0.01 ? "Fund & Verify Authority" : "Verify Authority"}
+              </Button>
+            </div>
             
             {error && (
               <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
                 {error}
+              </div>
+            )}
+            
+            {verificationResult && (
+              <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                {verificationResult}
               </div>
             )}
             
@@ -180,6 +233,17 @@ export default function MultihubV3DebugPanel() {
               <div className="flex justify-center items-center py-4">
                 <Loader2 className="mr-2 h-6 w-6 animate-spin" />
                 <span>Loading program information...</span>
+              </div>
+            )}
+            
+            {verifying && (
+              <div className="flex justify-center items-center py-4 bg-blue-50 rounded-lg border border-blue-300 mt-4">
+                <Loader2 className="mr-2 h-6 w-6 animate-spin text-blue-600" />
+                <span className="text-blue-800">
+                  Verifying program authority and funding if needed...
+                  <br />
+                  <span className="text-xs">This prevents the "InvalidAccountData" error at index 2</span>
+                </span>
               </div>
             )}
           </>

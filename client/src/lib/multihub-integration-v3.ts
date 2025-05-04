@@ -116,6 +116,21 @@ export async function performMultiHubSwap(
   
   const connection = new Connection(DEVNET_ENDPOINT);
   
+  // Run the program authority verification to prevent InvalidAccountData error at index 2
+  try {
+    console.log("Verifying program authority before swap to prevent InvalidAccountData error...");
+    const authorityVerified = await MultihubSwapV3.verifyProgramAuthority(connection, wallet);
+    
+    if (!authorityVerified) {
+      console.warn("Program authority verification failed - attempting swap anyway but expect possible failures");
+    } else {
+      console.log("Program authority successfully verified and funded");
+    }
+  } catch (err) {
+    console.error("Error during program authority verification:", err);
+    // Continue with swap attempt even if verification fails
+  }
+  
   // Convert token info to PublicKey objects
   const inputMint = new PublicKey(tokenFrom.address);
   const outputMint = new PublicKey(tokenTo.address);
