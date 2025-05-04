@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useMultiWallet } from '@/context/MultiWalletContext';
+import { useConnection } from '@/hooks/useConnection';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Card, 
@@ -16,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { PublicKey, SystemProgram } from '@solana/web3.js';
-import { executeMultiHubSwap, initializeMultiHubSwap } from '@/lib/multihub-client-final';
+import { performSwap as executeMultiHubSwap, initializeProgram as initializeMultiHubSwap } from '@/lib/multihub-contract-v3';
 
 // Token definitions
 const TOKENS = [
@@ -207,15 +208,35 @@ const FixedSwapComponent: React.FC = () => {
       // Enhanced error handling with specific messages
       let errorMsg = "Failed to execute swap: ";
       
-      if (error.message.includes("Custom program error: 0x")) {
+      // Check for program not having enough tokens (our added validation)
+      if (error.message.includes("Program doesn't have enough") || 
+          error.message.includes("Program doesn't have a")) {
+        // Use the error message directly as it's already descriptive
+        errorMsg = error.message;
+      }
+      // Check for insufficient funds error
+      else if (error.message.includes("Insufficient") || 
+               error.message.includes("insufficient funds")) {
+        errorMsg = error.message;
+      }
+      // Handle custom program errors
+      else if (error.message.includes("Custom program error: 0x")) {
         // Extract specific error codes
         if (error.message.includes("Custom program error: 0xb") || 
             error.message.includes("Custom program error: 0x11")) {
           errorMsg += "Invalid parameter or account. Check that all required token accounts exist.";
+        } else if (error.message.includes("InstructionError: Custom(4)")) {
+          errorMsg += "InsufficientFunds error. The program may not have enough tokens to complete this swap.";
         } else {
           errorMsg = error.message;
         }
-      } else {
+      } 
+      // Handle simulation errors that mention insufficient funds
+      else if (error.message.includes("Transaction simulation failed") && 
+               error.message.includes("InsufficientFunds")) {
+        errorMsg += "Program account lacks sufficient funds. Try swapping YOT to SOL first to fund the program.";
+      }
+      else {
         errorMsg = error.message;
       }
       

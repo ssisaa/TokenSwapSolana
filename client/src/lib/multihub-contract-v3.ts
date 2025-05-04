@@ -308,12 +308,17 @@ export async function initializeProgram(
 /**
  * Ensure a token account exists, or create it if it doesn't, and return actual balance
  */
+type TokenAccountInfo = {
+  address: PublicKey;
+  balance: bigint;
+};
+
 async function ensureTokenAccount(
   connection: Connection,
   wallet: any,
   mint: PublicKey,
   transaction: Transaction
-): Promise<{ address: PublicKey, balance: bigint }> {
+): Promise<TokenAccountInfo> {
   try {
     // Handle SOL separately since it's not a token account
     if (mint.toString() === 'So11111111111111111111111111111111111111112' || 
@@ -376,9 +381,9 @@ async function ensureTokenAccount(
         address: tokenAddress,
         balance: accountInfo.amount
       };
-    } catch (balanceErr) {
+    } catch (balanceErr: any) {
       // Return zero balance if we can't get it yet
-      console.warn('Unable to get account balance, assuming zero:', balanceErr.message);
+      console.warn('Unable to get account balance, assuming zero:', balanceErr?.message || 'Unknown error');
       return {
         address: tokenAddress,
         balance: BigInt(0)
@@ -565,15 +570,34 @@ export async function performSwap(
       // Continue anyway as this may not be fatal
     }
     
+    // Check user token account balances and provide detailed logs
     console.log('Token accounts for program operation:', {
-      tokenFromAccount: tokenFromAccount.toBase58(),
-      tokenToAccount: tokenToAccount.toBase58(),
+      tokenFromAccount: tokenFromAccount.address.toBase58(),
+      tokenFromBalance: tokenFromAccount.balance.toString(),
+      tokenToAccount: tokenToAccount.address.toBase58(),
       tokenFromMintATA: tokenFromMintATA.toBase58(),
       tokenToMintATA: tokenToMintATA.toBase58(),
-      yosTokenAccount: yosTokenAccount.toBase58(),
+      yosTokenAccount: yosTokenAccount.address.toBase58(),
       yosTokenProgramATA: yosTokenProgramATA.toBase58(),
       programAuthorityAddress: programAuthorityAddress.toBase58()
     });
+    
+    // Verify that user has sufficient balance for the swap
+    if (!tokenFromMint.equals(new PublicKey("So11111111111111111111111111111111111111112"))) {
+      // For token transfers, check token account balance
+      const rawAmountNeeded = BigInt(amountInLamports);
+      if (tokenFromAccount.balance < rawAmountNeeded) {
+        throw new Error(`Insufficient balance. You have ${tokenFromAccount.balance.toString()} ${tokenFromMint.toString()} tokens, but need ${rawAmountNeeded.toString()}.`);
+      }
+    } else {
+      // For SOL transfers, check wallet SOL balance
+      const solBalance = await connection.getBalance(wallet.publicKey);
+      // We need the transfer amount plus extra for transaction fees (0.001 SOL should be enough)
+      const neededAmount = amountInLamports + 1000000; // amount + 0.001 SOL for fees
+      if (solBalance < neededAmount) {
+        throw new Error(`Insufficient SOL balance. You have ${solBalance / 1_000_000_000} SOL, but need at least ${neededAmount / 1_000_000_000} SOL (including fees).`);
+      }
+    }
     
     // Add token mint accounts to the transaction
     // Including the mint accounts is often required for proper validation
@@ -595,9 +619,9 @@ export async function performSwap(
         { pubkey: programAuthorityAddress, isSigner: false, isWritable: true }, // Program authority for token transfers - CRITICAL: must be writable!
         
         // User token accounts
-        { pubkey: tokenFromAccount, isSigner: false, isWritable: true }, // User's source token account
-        { pubkey: tokenToAccount, isSigner: false, isWritable: true }, // User's destination token account
-        { pubkey: yosTokenAccount, isSigner: false, isWritable: true }, // User's YOS token account for cashback
+        { pubkey: tokenFromAccount.address, isSigner: false, isWritable: true }, // User's source token account
+        { pubkey: tokenToAccount.address, isSigner: false, isWritable: true }, // User's destination token account
+        { pubkey: yosTokenAccount.address, isSigner: false, isWritable: true }, // User's YOS token account for cashback
         
         // Program token accounts
         { pubkey: tokenFromMintATA, isSigner: false, isWritable: true }, // Program's token account for source token
