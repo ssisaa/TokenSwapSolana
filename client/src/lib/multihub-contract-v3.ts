@@ -146,14 +146,26 @@ export function buildCloseProgramInstruction(): Buffer {
 }
 
 /**
+ * CRITICAL FIX: The program was deployed with a hardcoded program ID that is different
+ * from what we are using in the client. This causes PDA mismatch and InvalidAccountData errors.
+ * 
+ * This is the hardcoded program ID from the deployed Rust program
+ */
+export const HARDCODED_PROGRAM_ID = "Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L";
+
+/**
  * Find the program's authority PDA
  * From multihub_swap.rs: let (authority_pubkey, authority_bump_seed) = Pubkey::find_program_address(&[b"authority"], program_id);
+ * 
+ * CRITICAL FIX: We must derive PDAs using the hardcoded program ID that's in the Rust code
+ * even though we're calling a different program ID. This is to ensure the PDAs match.
  */
 export function findProgramAuthorityAddress(): [PublicKey, number] {
-  // Important: Use the correct, deployed program ID
+  // Important: Use the hardcoded program ID for PDA derivation 
+  // This may be different from the actual program ID we call
   return PublicKey.findProgramAddressSync(
     [Buffer.from('authority')],
-    new PublicKey(MULTIHUB_SWAP_PROGRAM_ID)
+    new PublicKey(HARDCODED_PROGRAM_ID) // Use hardcoded ID for PDA derivation
   );
 }
 
@@ -436,12 +448,16 @@ export async function verifyProgramAuthority(
 /**
  * Find the program's state PDA
  * From multihub_swap_v3.rs: Pubkey::find_program_address(&[b"state"], program_id)
+ * 
+ * CRITICAL FIX: We must derive PDAs using the hardcoded program ID that's in the Rust code
+ * even though we're calling a different program ID. This is to ensure the PDAs match.
  */
 export function findProgramStateAddress(): [PublicKey, number] {
-  // Use the currently deployed program ID
+  // Important: Use the hardcoded program ID for PDA derivation
+  // This may be different from the actual program ID we call
   return PublicKey.findProgramAddressSync(
     [Buffer.from('state')],
-    new PublicKey(MULTIHUB_SWAP_PROGRAM_ID)
+    new PublicKey(HARDCODED_PROGRAM_ID) // Use hardcoded ID for PDA derivation
   );
 }
 
