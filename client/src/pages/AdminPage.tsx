@@ -12,6 +12,7 @@ import AdminStatistics from "@/components/admin/AdminStatistics";
 import AdminTransactions from "@/components/admin/AdminTransactions";
 import FundProgramAccounts from "@/components/admin/FundProgramAccounts";
 import AdminYieldDistribution from "@/components/admin/AdminYieldDistribution";
+import ProgramSetupPanel from "@/components/MultiHubSwap/ProgramSetupPanel";
 
 export default function AdminPage() {
   const { admin, isLoading, logoutMutation } = useAdminAuth();
@@ -93,6 +94,9 @@ export default function AdminPage() {
 
               {/* Added Program Funding Component */}
               <FundProgramAccounts />
+              
+              {/* Program Token Account Setup for SOL→YOT swaps */}
+              <ProgramSetupPanel />
               
               {/* Manual Yield Distribution Component */}
               <AdminYieldDistribution />
