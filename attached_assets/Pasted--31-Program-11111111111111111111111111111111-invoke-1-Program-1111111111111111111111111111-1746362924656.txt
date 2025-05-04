@@ -1,0 +1,27 @@
+
+(31) ['Program 11111111111111111111111111111111 invoke [1]', 'Program 11111111111111111111111111111111 success', 'Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL invoke [1]', 'Program log: Create', 'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]', 'Program log: Instruction: GetAccountDataSize', 'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 1569 of 397406 compute units', 'Program return: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA pQAAAAAAAAA=', 'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success', 'Program 11111111111111111111111111111111 invoke [2]', 'Program 11111111111111111111111111111111 success', 'Program log: Initialize the associated token account', 'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]', 'Program log: Instruction: InitializeImmutableOwner', 'Program log: Please upgrade to SPL Token 2022 for immutable owner support', 'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 1405 of 390819 compute units', 'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success', 'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]', 'Program log: Instruction: InitializeAccount3', 'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 3158 of 386936 compute units', 'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success', 'Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL consumed 19376 of 402850 compute units', 'Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL success', 'Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE invoke [1]', 'Program log: Manual Swap Instruction', 'Program log: Swap params: Amount In: 500000000, Min Out: 8029326000000000', 'Program log: Starting token swap', 'Program log: Amount in: 500000000', 'Program log: Min amount out: 8029326000000000', 'Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE consumed 14576 of 383474 compute units', 'Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE failed: invalid account data for instruction']
+multihub-contract-v3.ts:790 Swap simulation failed: 
+{InstructionError: Array(2)}
+performSwap	@	multihub-contract-v3.ts:790
+await in performSwap		
+performMultiHubSwap	@	multihub-integration-v3.ts:149
+await in performMultiHubSwap		
+handleExecuteSwap	@	FixedSwapPage.tsx:191
+multihub-contract-v3.ts:791 Simulation error details: {"InstructionError":[2,"InvalidAccountData"]}
+performSwap	@	multihub-contract-v3.ts:791
+await in performSwap		
+performMultiHubSwap	@	multihub-integration-v3.ts:149
+await in performMultiHubSwap		
+handleExecuteSwap	@	FixedSwapPage.tsx:191
+multihub-contract-v3.ts:805 Error in swap function: Error: Simulation failed: {"InstructionError":[2,"InvalidAccountData"]}
+    at Object.performSwap (multihub-contract-v3.ts:792:13)
+    at async handleExecuteSwap (FixedSwapPage.tsx:191:23)
+performSwap	@	multihub-contract-v3.ts:805
+await in performSwap		
+performMultiHubSwap	@	multihub-integration-v3.ts:149
+await in performMultiHubSwap		
+handleExecuteSwap	@	FixedSwapPage.tsx:191
+FixedSwapPage.tsx:212 Swap failed: Error: Simulation failed: {"InstructionError":[2,"InvalidAccountData"]}
+    at Object.performSwap (multihub-contract-v3.ts:792:13)
+    at async handleExecuteSwap (FixedSwapPage.tsx:191:23)
+handleExecuteSwap	@	FixedSwapPage.tsx:212

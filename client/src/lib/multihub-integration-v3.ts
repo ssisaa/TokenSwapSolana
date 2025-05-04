@@ -145,7 +145,75 @@ export async function performMultiHubSwap(
   
   console.log(`Using token decimals - From: ${tokenFromDecimals}, To: ${tokenToDecimals}`);
   
-  // Now perform the actual swap
+  // Check if the program state is initialized before attempting a swap
+  try {
+    // Get program state address
+    const [programStateAddress] = MultihubSwapV3.findProgramStateAddress();
+    
+    // Check if the state account exists and has data
+    const programStateAccount = await connection.getAccountInfo(programStateAddress);
+    if (!programStateAccount || !programStateAccount.data || programStateAccount.data.length === 0) {
+      console.error('Program state account is not initialized. Attempting to initialize...');
+      
+      // Attempt to initialize the program first
+      try {
+        const initSignature = await initializeMultihubSwapV3(wallet);
+        console.log('Program successfully initialized:', initSignature);
+        console.log('Please try your swap again in a few seconds.');
+        throw new Error('Program needed initialization. We\'ve set it up for you. Please try your swap again.');
+      } catch (initError: any) {
+        if (initError.message.includes('We\'ve set it up for you')) {
+          throw initError; // Re-throw our custom message
+        }
+        console.error('Failed to auto-initialize program:', initError);
+        throw new Error('Program is not initialized. Please visit the admin page to initialize it first.');
+      }
+    }
+    
+    // Now check if the program has enough token balances to complete the swap
+    // Especially important for SOL -> YOT swaps
+    if (tokenFrom.symbol === 'SOL' && tokenTo.symbol === 'YOT') {
+      // For SOL -> YOT swaps, need to check if program has YOT tokens
+      const [programAuthorityAddress] = MultihubSwapV3.findProgramAuthorityAddress();
+      
+      try {
+        // Check YOT balance in program's token account
+        const yotMint = new PublicKey(tokenTo.address);
+        const tokenAccountAddress = await getAssociatedTokenAddress(
+          yotMint,
+          programAuthorityAddress,
+          true // allowOwnerOffCurve for PDAs
+        );
+        
+        // See if token account exists by getting its balance
+        try {
+          const balance = await connection.getTokenAccountBalance(tokenAccountAddress);
+          const availableYOT = parseFloat(balance.value.uiAmount?.toString() || '0');
+          
+          // We need at least 110% of the expected output amount (being conservative)
+          const minNeeded = swapEstimate.outAmount * 1.1;
+          if (availableYOT < minNeeded) {
+            console.error(`Program only has ${availableYOT} YOT but needs at least ${minNeeded} YOT for this swap`);
+            throw new Error(`The swap program doesn't have enough YOT tokens to complete this swap. Please try a smaller amount or try YOT → SOL swap direction first to fund the program, or visit the admin page to fund the program with YOT tokens.`);
+          }
+        } catch (balanceError) {
+          console.error('Error getting program YOT balance:', balanceError);
+          throw new Error('Program YOT token account not found or has no balance. Please visit the admin page to set up and fund the program with YOT tokens.');
+        }
+      } catch (error) {
+        console.error('Error checking program token accounts:', error);
+        throw error;
+      }
+    }
+  } catch (stateCheckError: any) {
+    // Only re-throw if it's not our custom error about needing to try again
+    if (stateCheckError.message && !stateCheckError.message.includes('We\'ve set it up for you')) {
+      console.error('Error checking program state:', stateCheckError);
+    }
+    throw stateCheckError;
+  }
+  
+  // Now perform the actual swap with improved slippage calculation
   return MultihubSwapV3.performSwap(
     connection,
     wallet,
