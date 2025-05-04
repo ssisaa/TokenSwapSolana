@@ -430,7 +430,71 @@ export async function fundProgramAuthority(
  * Fund the program YOT token account to ensure it has enough YOT for swaps
  * This is needed because the program needs YOT tokens to provide liquidity for SOL→YOT swaps
  */
-export async function fundProgramYotAccount(
+
+// Export check function for the Program YOT token account
+export async function checkProgramYotAccount(connection: Connection): Promise<{
+  exists: boolean;
+  accountAddress: string;
+  balance?: number;
+  error?: string;
+}> {
+  try {
+    // Get program authority PDA address
+    const [programAuthorityAddress] = findProgramAuthorityAddress();
+    
+    // Get YOT mint address
+    const yotMint = new PublicKey(YOT_TOKEN_MINT);
+    
+    // Get program YOT token account address
+    const programYotAccount = await getAssociatedTokenAddress(
+      yotMint,
+      programAuthorityAddress,
+      true // allowOwnerOffCurve for PDAs
+    );
+    
+    console.log(`Checking program YOT account: ${programYotAccount.toString()}`);
+    
+    // Check if account exists
+    try {
+      const accountInfo = await getAccount(connection, programYotAccount);
+      console.log('Program YOT account exists:', accountInfo);
+      
+      // Get balance in YOT (UI amount)
+      const balanceRaw = Number(accountInfo.amount);
+      const balanceUI = balanceRaw / 1_000_000_000; // YOT has 9 decimals
+      
+      return {
+        exists: true,
+        accountAddress: programYotAccount.toString(),
+        balance: balanceUI
+      };
+    } catch (error) {
+      console.log('Program YOT account does not exist or error:', error);
+      return {
+        exists: false,
+        accountAddress: programYotAccount.toString(),
+        error: 'Account does not exist or is not a valid token account'
+      };
+    }
+  } catch (error) {
+    console.error('Error checking program YOT account:', error);
+    return {
+      exists: false,
+      accountAddress: 'Unknown',
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Fund the program's YOT token account with tokens
+ * This function creates the account if it doesn't exist and sends YOT tokens to it
+ * @param connection Solana connection
+ * @param wallet Connected wallet
+ * @param amountYOT Amount of YOT to send to the program
+ * @returns Transaction signature
+ */
+async function fundProgramYotAccount(
   connection: Connection,
   wallet: any,
   amountYOT: number = 100000 // Default to 100,000 YOT tokens
