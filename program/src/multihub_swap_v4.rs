@@ -337,7 +337,7 @@ pub fn process_swap(
     // Admin fee: 0.1% of amount_in
     let admin_fee_amount = (amount_in * program_state.admin_fee_rate) / 10000;
     
-    // YOS cashback: 3% of amount_in
+    // YOS cashback: 5% of amount_in
     let yos_cashback_amount = (amount_in * program_state.yos_cashback_rate) / 10000;
     
     // Swap fee: 0.3% of amount_in

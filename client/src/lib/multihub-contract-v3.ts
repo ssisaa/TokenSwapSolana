@@ -520,8 +520,9 @@ export async function performSwap(
       } catch (err: any) {
         // If account doesn't exist yet, we definitely can't do a SOL->YOT swap
         if (err?.message?.includes("could not find account")) {
-          console.error(`⚠️ CRITICAL: Program ${tokenToMint.toString()} account doesn't exist yet!`);
-          throw new Error(`Program doesn't have a ${tokenToMint.toString()} account yet. Please try YOT->SOL direction first to fund the program.`);
+          console.error(`⚠️ CRITICAL: Program token account for ${tokenToMint.toString()} doesn't exist yet!`);
+          console.error(`⚠️ Missing account address: ${tokenToMintATA.toString()}`);
+          throw new Error(`Program doesn't have a token account for ${tokenToMint.toString()} yet. Please try YOT->SOL direction first to fund the program.`);
         }
         console.warn('Error checking program token balance:', err);
       }

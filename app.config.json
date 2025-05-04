@@ -42,7 +42,7 @@
     "swap": {
       "liquidityContributionRate": 2000,
       "adminFeeRate": 10,
-      "yosCashbackRate": 300,
+      "yosCashbackRate": 500,
       "swapFeeRate": 30,
       "referralRate": 50,
       "pdaFundingFee": 0.000005
