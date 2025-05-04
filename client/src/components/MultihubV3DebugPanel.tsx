@@ -140,7 +140,7 @@ export default function MultihubV3DebugPanel() {
         <div className="flex flex-wrap gap-4 mb-4">
           <Button 
             onClick={runDebugInfo}
-            disabled={!walletContext.publicKey || isDebugLoading}
+            disabled={!publicKey || isDebugLoading}
             className="bg-blue-600 hover:bg-blue-700"
           >
             {isDebugLoading && <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />}
@@ -149,7 +149,7 @@ export default function MultihubV3DebugPanel() {
           
           <Button
             onClick={verifyProgramAuthority}
-            disabled={!walletContext.publicKey || isVerifyLoading}
+            disabled={!publicKey || isVerifyLoading}
             className="bg-green-600 hover:bg-green-700"
           >
             {isVerifyLoading && <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />}
@@ -171,7 +171,7 @@ export default function MultihubV3DebugPanel() {
       
       <CardFooter className="flex justify-between">
         <p className="text-xs text-gray-500">
-          Connected Wallet: {walletContext.publicKey ? walletContext.publicKey.toString() : "Not connected"}
+          Connected Wallet: {publicKey ? publicKey.toString() : "Not connected"}
         </p>
       </CardFooter>
     </Card>

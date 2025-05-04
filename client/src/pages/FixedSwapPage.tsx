@@ -13,6 +13,7 @@ import { SOL_SYMBOL, YOT_SYMBOL } from "@/lib/constants";
 import MultihubIntegrationV3 from "@/lib/multihub-integration-v3";
 import { TokenInfo, getTokenBySymbol } from "@/lib/token-search-api";
 import { SwapEstimate, SwapProvider } from "@/lib/multi-hub-swap";
+import MultihubV3DebugPanel from "@/components/MultihubV3DebugPanel";
 
 // Constants
 const CONTRIBUTION_PERCENT = 20;
@@ -263,6 +264,7 @@ export default function FixedSwapPage() {
   
   return (
     <div className="container max-w-5xl mx-auto py-8">
+      {connected && <MultihubV3DebugPanel />}
       <Card className="mb-6 overflow-hidden bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
