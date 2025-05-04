@@ -202,6 +202,73 @@ export default function MultihubV3DebugPanel() {
       setIsVerifyLoading(false);
     }
   };
+  
+  // Function to verify program token accounts
+  const verifyTokenAccounts = async () => {
+    if (!connection) return;
+    
+    setIsTokenAccountsLoading(true);
+    setTokenAccountsResult(null);
+    
+    try {
+      // Override console.log to capture output
+      const originalConsoleLog = console.log;
+      const logs: string[] = [];
+      
+      console.log = (...args) => {
+        logs.push(args.join(' '));
+        originalConsoleLog(...args);
+      };
+      
+      // Run the token account verification function from MultihubIntegrationV3
+      const result = await MultihubIntegrationV3.verifyProgramTokenAccounts(connection);
+      
+      // Restore console.log
+      console.log = originalConsoleLog;
+      
+      // Update tokenAccountsResult state
+      setTokenAccountsResult({
+        programAuthorityAddress: result.programAuthorityAddress.toString(),
+        yotAccount: {
+          address: result.yotAccount.address.toString(),
+          exists: result.yotAccount.exists,
+          balance: result.yotAccount.balance,
+        },
+        yosAccount: {
+          address: result.yosAccount.address.toString(),
+          exists: result.yosAccount.exists,
+          balance: result.yosAccount.balance,
+        },
+        solAccount: {
+          address: result.solAccount.address.toString(),
+          exists: result.solAccount.exists,
+          balance: result.solAccount.balance,
+        },
+      });
+      
+      // Update debug info with new logs
+      setDebugInfo(prevLogs => {
+        const newLogs = prevLogs ? prevLogs + '\n\n=== TOKEN ACCOUNTS VERIFICATION ===\n' : '=== TOKEN ACCOUNTS VERIFICATION ===\n';
+        return newLogs + logs.join('\n') + '\n' + JSON.stringify(result, null, 2);
+      });
+      
+      toast({
+        title: "Token Accounts Verification Complete",
+        description: "Program token accounts have been verified",
+      });
+    } catch (error) {
+      console.error("Error verifying token accounts:", error);
+      setDebugInfo(prevLogs => prevLogs + `\n\nError verifying token accounts: ${error instanceof Error ? error.message : String(error)}`);
+      
+      toast({
+        title: "Token Accounts Verification Failed",
+        description: "Failed to verify program token accounts",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTokenAccountsLoading(false);
+    }
+  };
 
   return (
     <Card className="w-full mb-6">
@@ -249,6 +316,15 @@ export default function MultihubV3DebugPanel() {
             {isVerifyLoading && <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />}
             Verify & Fund Program Authority
           </Button>
+          
+          <Button
+            onClick={verifyTokenAccounts}
+            disabled={isTokenAccountsLoading}
+            className="bg-purple-600 hover:bg-purple-700"
+          >
+            {isTokenAccountsLoading && <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />}
+            Verify Token Accounts
+          </Button>
         </div>
         
         {stateCheckResult && (
@@ -295,6 +371,86 @@ export default function MultihubV3DebugPanel() {
                     </div>
                   </>
                 )}
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {tokenAccountsResult && (
+          <Alert className="mb-4 bg-gray-50 dark:bg-gray-900">
+            <AlertTitle className="flex items-center">
+              Program Token Accounts Status
+              <Badge className="ml-2 bg-blue-500" variant="outline">
+                <InfoIcon className="h-3 w-3 mr-1" /> Error Prevention
+              </Badge>
+            </AlertTitle>
+            <p className="text-xs text-amber-600 mt-1 mb-2">
+              This verification checks for token accounts that must exist to avoid the "InvalidAccountData" error during swaps.
+              The most critical account is the YOT token account, which must exist and have sufficient balance for SOL→YOT swaps to work.
+            </p>
+            <AlertDescription>
+              <div className="text-xs mt-2 space-y-4">
+                <div>
+                  <p className="font-semibold mb-1">Program Authority: </p>
+                  <p className="text-gray-600 break-all">{tokenAccountsResult.programAuthorityAddress}</p>
+                </div>
+                
+                <div>
+                  <div className="flex items-center mb-1">
+                    <p className="font-semibold">YOT Token Account: </p>
+                    {tokenAccountsResult.yotAccount.exists ? (
+                      <Badge className="ml-2 bg-green-500" variant="outline">
+                        <CircleCheck className="h-3 w-3 mr-1" /> Exists
+                      </Badge>
+                    ) : (
+                      <Badge className="ml-2 bg-red-500" variant="outline">
+                        <AlertTriangle className="h-3 w-3 mr-1" /> Missing
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-gray-600 break-all">{tokenAccountsResult.yotAccount.address}</p>
+                  {tokenAccountsResult.yotAccount.exists && (
+                    <p className="mt-1 font-medium">Balance: {tokenAccountsResult.yotAccount.balance?.toLocaleString()} YOT</p>
+                  )}
+                </div>
+                
+                <div>
+                  <div className="flex items-center mb-1">
+                    <p className="font-semibold">YOS Token Account: </p>
+                    {tokenAccountsResult.yosAccount.exists ? (
+                      <Badge className="ml-2 bg-green-500" variant="outline">
+                        <CircleCheck className="h-3 w-3 mr-1" /> Exists
+                      </Badge>
+                    ) : (
+                      <Badge className="ml-2 bg-red-500" variant="outline">
+                        <AlertTriangle className="h-3 w-3 mr-1" /> Missing
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-gray-600 break-all">{tokenAccountsResult.yosAccount.address}</p>
+                  {tokenAccountsResult.yosAccount.exists && (
+                    <p className="mt-1 font-medium">Balance: {tokenAccountsResult.yosAccount.balance?.toLocaleString()} YOS</p>
+                  )}
+                </div>
+                
+                <div>
+                  <div className="flex items-center mb-1">
+                    <p className="font-semibold">SOL Token Account: </p>
+                    {tokenAccountsResult.solAccount.exists ? (
+                      <Badge className="ml-2 bg-green-500" variant="outline">
+                        <CircleCheck className="h-3 w-3 mr-1" /> Exists
+                      </Badge>
+                    ) : (
+                      <Badge className="ml-2 bg-amber-500" variant="outline">
+                        <AlertTriangle className="h-3 w-3 mr-1" /> Native SOL
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-gray-600 break-all">{tokenAccountsResult.solAccount.address}</p>
+                  {tokenAccountsResult.solAccount.exists && (
+                    <p className="mt-1 font-medium">Balance: {tokenAccountsResult.solAccount.balance?.toLocaleString()} SOL</p>
+                  )}
+                </div>
               </div>
             </AlertDescription>
           </Alert>
