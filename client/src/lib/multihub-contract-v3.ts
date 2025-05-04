@@ -349,6 +349,20 @@ export async function performSwap(
     const { blockhash } = await connection.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
     
+    // Get program addresses first so we can fund the authority
+    const [programStateAddress, swapStateBump] = findProgramStateAddress();
+    const [programAuthorityAddress, swapAuthorityBump] = findProgramAuthorityAddress();
+    
+    // Add a small SOL transfer to fund the Program Authority with SOL
+    // This helps prevent InsufficientFunds error when using the PDA for token operations
+    console.log(`Adding funding instruction for Program Authority: ${programAuthorityAddress.toString()}`);
+    const fundingInstruction = SystemProgram.transfer({
+      fromPubkey: wallet.publicKey,
+      toPubkey: programAuthorityAddress,
+      lamports: 10000, // 0.00001 SOL (10,000 lamports) for program operations
+    });
+    transaction.add(fundingInstruction);
+    
     // Ensure token accounts exist
     const tokenFromAccount = await ensureTokenAccount(
       connection, 
@@ -372,9 +386,7 @@ export async function performSwap(
       transaction
     );
     
-    // Get program addresses
-    const [programStateAddress, swapStateBump] = findProgramStateAddress();
-    const [programAuthorityAddress, swapAuthorityBump] = findProgramAuthorityAddress();
+    // Program addresses already obtained above
     
     // Create a direct buffer encoding for the Rust-side SwapInstruction enum
     // The Swap variant has amount_in and min_amount_out fields
