@@ -45,7 +45,7 @@ export async function fundProgramYosAccount(wallet: any, amountToSend = 3.0) {
   
   console.log('IMPORTANT: Program YOS token account (PDA owned):', programYosTokenAccount.toString());
   console.log('This is the correct account that the program will use for harvesting');
-  console.log('NOTE: This is different from the old hardcoded account BLz2mfhb9qoPAtKuFNVfrj9uTEyChHKKbZsniS1eRaUB');
+  console.log('NOTE: This is dynamically derived from the program ID in app.config.json');
   
   // Check if program token account exists
   const programAccountInfo = await connection.getAccountInfo(programYosTokenAccount);
