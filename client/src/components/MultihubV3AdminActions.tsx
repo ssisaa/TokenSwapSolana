@@ -9,6 +9,7 @@ import { Loader2 } from 'lucide-react';
 import MultihubV3DebugPanel from './MultihubV3DebugPanel';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Connection, clusterApiUrl } from '@solana/web3.js';
 
 interface MultihubV3AdminActionsProps {
   wallet: any;
@@ -85,6 +86,76 @@ export function MultihubV3AdminActions({ wallet }: MultihubV3AdminActionsProps) 
     }
   };
   
+  const handleFundAuthority = async () => {
+    if (!wallet?.publicKey) {
+      toast({
+        title: 'Wallet not connected',
+        description: 'Please connect your wallet first.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    try {
+      setIsFunding(true);
+      
+      // Convert input value to number
+      const amountToSend = parseFloat(fundAmount);
+      
+      // Validate amount
+      if (isNaN(amountToSend) || amountToSend <= 0) {
+        toast({
+          title: 'Invalid amount',
+          description: 'Please enter a valid SOL amount greater than 0.',
+          variant: 'destructive',
+        });
+        setIsFunding(false);
+        return;
+      }
+      
+      toast({
+        title: 'Preparing Transaction',
+        description: 'Please approve the transaction in your wallet...',
+      });
+      
+      // Create a Solana connection to the devnet
+      const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+      
+      // Fund the program authority account
+      const signature = await fundProgramAuthority(
+        connection,
+        wallet,
+        amountToSend
+      );
+      
+      toast({
+        title: 'Program Authority Funded Successfully',
+        description: `Sent ${amountToSend} SOL to program authority. Transaction: ${signature.slice(0, 8)}...${signature.slice(-8)}`,
+      });
+      
+      // Link to Solana Explorer
+      const explorerUrl = `https://explorer.solana.com/tx/${signature}?cluster=devnet`;
+      window.open(explorerUrl, '_blank');
+      
+    } catch (error: any) {
+      console.error('Failed to fund program authority:', error);
+      
+      // Extract meaningful error message
+      let errorMessage = error.message || 'Unknown error';
+      if (errorMessage.includes('User rejected')) {
+        errorMessage = 'Transaction was rejected by the user.';
+      }
+      
+      toast({
+        title: 'Failed to fund program authority',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsFunding(false);
+    }
+  };
+
   const handleClose = async () => {
     if (!wallet?.publicKey) {
       toast({
@@ -196,6 +267,48 @@ export function MultihubV3AdminActions({ wallet }: MultihubV3AdminActionsProps) 
                 'Initialize Program'
               )}
             </Button>
+          </div>
+          
+          <Separator />
+          
+          <div>
+            <h3 className="font-medium mb-1">Fund Program Authority</h3>
+            <p className="text-sm text-muted-foreground mb-2">
+              Fund the program authority to fix "InsufficientFunds" errors in swap operations
+            </p>
+            <div className="flex items-center space-x-2 mb-2">
+              <Label htmlFor="fundAmount" className="sr-only">
+                Amount (SOL)
+              </Label>
+              <Input
+                id="fundAmount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={fundAmount}
+                onChange={(e) => setFundAmount(e.target.value)}
+                placeholder="SOL amount"
+                className="w-full"
+              />
+            </div>
+            <Button 
+              onClick={handleFundAuthority}
+              disabled={isFunding}
+              variant="outline"
+              className="w-full bg-amber-100 hover:bg-amber-200 border-amber-300"
+            >
+              {isFunding ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Funding...
+                </>
+              ) : (
+                'Fund Program Authority'
+              )}
+            </Button>
+            <p className="text-xs text-muted-foreground mt-1">
+              This action sends SOL to the program authority account to allow it to create token accounts and perform swaps.
+            </p>
           </div>
           
           <Separator />
