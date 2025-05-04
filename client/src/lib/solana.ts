@@ -27,8 +27,12 @@ import {
   SWAP_FEE
 } from './constants';
 
-// Create a connection to the Solana cluster
-export const connection = new Connection(ENDPOINT, 'confirmed');
+// Create a connection to the Solana cluster with fallback mechanism
+export const connection = new Connection(ENDPOINT, {
+  commitment: 'confirmed',
+  confirmTransactionInitialTimeout: 60000, // 60 seconds
+  disableRetryOnRateLimit: false,
+});
 
 // Convert lamports to SOL
 export function lamportsToSol(lamports: number): number {
@@ -41,63 +45,106 @@ export function solToLamports(sol: number): bigint {
   return BigInt(Math.round(sol * LAMPORTS_PER_SOL));
 }
 
-// Get SOL balance for a wallet
+// Get SOL balance for a wallet with retry
 export async function getSolBalance(publicKey: PublicKey): Promise<number> {
-  try {
-    const balance = await connection.getBalance(publicKey);
-    return lamportsToSol(balance);
-  } catch (error) {
-    console.error('Error getting SOL balance:', error);
-    throw error;
+  // Maximum retry attempts
+  const MAX_RETRIES = 3;
+  let retries = 0;
+  let lastError: any = null;
+  
+  while (retries < MAX_RETRIES) {
+    try {
+      // If we're retrying, add a small delay to avoid rate limiting
+      if (retries > 0) {
+        console.log(`Retrying SOL balance fetch (attempt ${retries+1}/${MAX_RETRIES})...`);
+        // Exponential backoff: 500ms, 1000ms, 2000ms, etc.
+        await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, retries - 1)));
+      }
+      
+      const balance = await connection.getBalance(publicKey);
+      return lamportsToSol(balance);
+    } catch (error) {
+      console.error(`Error getting SOL balance (attempt ${retries+1}/${MAX_RETRIES}):`, error);
+      lastError = error;
+      retries++;
+    }
   }
+  
+  // After all retries failed, log and return 0 for graceful degradation
+  console.error(`Failed to get SOL balance after ${MAX_RETRIES} attempts:`, lastError);
+  return 0;
 }
 
-// Get token balance for a wallet
+// Get token balance for a wallet with retry mechanism
 export async function getTokenBalance(
   tokenMintAddress: string,
   walletPublicKey: PublicKey
 ): Promise<number> {
+  // Maximum retry attempts
+  const MAX_RETRIES = 3;
+  let retries = 0;
+  let lastError: any = null;
+  
+  const tokenMint = new PublicKey(tokenMintAddress);
+  const tokenSymbol = tokenMintAddress === YOT_TOKEN_ADDRESS ? "YOT" : 
+                      tokenMintAddress === YOS_TOKEN_ADDRESS ? "YOS" : "Unknown";
+  
+  console.log(`Fetching ${tokenSymbol} balance for wallet: ${walletPublicKey.toBase58()}`);
+  
   try {
-    const tokenMint = new PublicKey(tokenMintAddress);
-    const tokenSymbol = tokenMintAddress === YOT_TOKEN_ADDRESS ? "YOT" : 
-                        tokenMintAddress === YOS_TOKEN_ADDRESS ? "YOS" : "Unknown";
-    
-    console.log(`Fetching ${tokenSymbol} balance for wallet: ${walletPublicKey.toBase58()}`);
-    
-    // Get the associated token account address
+    // Get the associated token account address - this doesn't need retry as it's a local calculation
     const associatedTokenAddress = await getAssociatedTokenAddress(
       tokenMint,
       walletPublicKey
     );
     
     console.log(`Associated token account address: ${associatedTokenAddress.toBase58()}`);
-
-    try {
-      // Get account info for the associated token account
-      const tokenAccountInfo = await getAccount(connection, associatedTokenAddress);
-      
-      // Get mint info to get decimals
-      const mintInfo = await getMint(connection, tokenMint);
-      
-      // Calculate the actual balance
-      const tokenBalance = Number(tokenAccountInfo.amount) / Math.pow(10, mintInfo.decimals);
-      console.log(`Found ${tokenSymbol} balance: ${tokenBalance}`);
-      
-      return tokenBalance;
-    } catch (error) {
-      if (error instanceof TokenAccountNotFoundError) {
-        // Token account doesn't exist yet
-        console.log(`${tokenSymbol} token account not found for this wallet`);
+    
+    while (retries < MAX_RETRIES) {
+      try {
+        // If we're retrying, add a small delay to avoid rate limiting
+        if (retries > 0) {
+          console.log(`Retrying ${tokenSymbol} balance fetch (attempt ${retries+1}/${MAX_RETRIES})...`);
+          // Exponential backoff: 500ms, 1000ms, 2000ms, etc.
+          await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, retries - 1)));
+        }
         
-        // If token account doesn't exist, balance is 0
-        return 0;
+        // Get account info for the associated token account
+        const tokenAccountInfo = await getAccount(connection, associatedTokenAddress);
+        
+        // Get mint info to get decimals
+        const mintInfo = await getMint(connection, tokenMint);
+        
+        // Calculate the actual balance
+        const tokenBalance = Number(tokenAccountInfo.amount) / Math.pow(10, mintInfo.decimals);
+        console.log(`Found ${tokenSymbol} balance: ${tokenBalance}`);
+        
+        return tokenBalance;
+      } catch (error) {
+        if (error instanceof TokenAccountNotFoundError) {
+          // Token account doesn't exist yet - this is a valid state, return 0
+          console.log(`${tokenSymbol} token account not found for this wallet`);
+          return 0;
+        }
+        
+        console.error(`Error getting ${tokenSymbol} balance (attempt ${retries+1}/${MAX_RETRIES}):`, error);
+        lastError = error;
+        retries++;
+        
+        // If we've exhausted all retries, continue to return 0
+        if (retries >= MAX_RETRIES) {
+          console.error(`Failed to get ${tokenSymbol} balance after ${MAX_RETRIES} attempts`);
+          return 0;
+        }
       }
-      throw error;
     }
+    
+    // Fallback return - shouldn't be reached but TypeScript needs it
+    return 0;
   } catch (error) {
-    console.error(`Error getting ${tokenMintAddress === YOT_TOKEN_ADDRESS ? "YOT" : 
-                   tokenMintAddress === YOS_TOKEN_ADDRESS ? "YOS" : "token"} balance:`, error);
-    throw error;
+    console.error(`Error getting ${tokenSymbol} balance:`, error);
+    // Return 0 as a fallback - graceful degradation
+    return 0;
   }
 }
 

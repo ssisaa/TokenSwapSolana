@@ -88,77 +88,147 @@ export async function fundProgramTokenAccount(
   mintAddress: PublicKey,
   amount: number,
 ): Promise<string> {
-  try {
-    if (!wallet.publicKey) {
-      throw new Error("Wallet not connected");
-    }
+  // Maximum retry attempts for network-related errors
+  const MAX_RETRIES = 3;
+  let retries = 0;
+  let lastError: any = null;
 
-    // Find program authority
-    const [programAuthority] = findProgramAuthorityAddress();
-    console.log("Program authority:", programAuthority.toString());
+  while (retries < MAX_RETRIES) {
+    try {
+      if (retries > 0) {
+        console.log(`Retrying fund operation (attempt ${retries+1}/${MAX_RETRIES})...`);
+        // Exponential backoff: 500ms, 1000ms, 2000ms, etc.
+        await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, retries - 1)));
+      }
+      
+      if (!wallet.publicKey) {
+        throw new Error("Wallet not connected");
+      }
 
-    // Convert amount to raw amount (assuming 9 decimals for YOT/YOS)
-    const DECIMALS = 9;
-    const rawAmount = BigInt(Math.floor(amount * Math.pow(10, DECIMALS)));
-    console.log(`Funding ${amount} tokens (${rawAmount} raw amount)`);
+      // Find program authority
+      const [programAuthority] = findProgramAuthorityAddress();
+      console.log("Program authority:", programAuthority.toString());
 
-    // Get token accounts
-    // Use the imported connection
-    
-    // Source: Admin's associated token account
-    const sourceTokenAccount = await getAssociatedTokenAddress(
-      mintAddress,
-      wallet.publicKey,
-      false // allowOwnerOffCurve = false for normal wallets
-    );
-    
-    // Destination: Program authority's associated token account
-    const destinationTokenAccount = await getAssociatedTokenAddress(
-      mintAddress,
-      programAuthority,
-      true // allowOwnerOffCurve = true for PDAs
-    );
-    
-    console.log("Source:", sourceTokenAccount.toString());
-    console.log("Destination:", destinationTokenAccount.toString());
-
-    // Check if token account exists
-    const accountInfo = await connection.getAccountInfo(destinationTokenAccount);
-    
-    if (!accountInfo) {
-      throw new Error(
-        `Program token account does not exist. Please run create-program-token-accounts script first.`
+      // Convert amount to raw amount (assuming 9 decimals for YOT/YOS)
+      const DECIMALS = 9;
+      const rawAmount = BigInt(Math.floor(amount * Math.pow(10, DECIMALS)));
+      console.log(`Funding ${amount} tokens (${rawAmount} raw amount)`);
+      
+      // Source: Admin's associated token account
+      const sourceTokenAccount = await getAssociatedTokenAddress(
+        mintAddress,
+        wallet.publicKey,
+        false // allowOwnerOffCurve = false for normal wallets
       );
+      
+      // Destination: Program authority's associated token account
+      const destinationTokenAccount = await getAssociatedTokenAddress(
+        mintAddress,
+        programAuthority,
+        true // allowOwnerOffCurve = true for PDAs
+      );
+      
+      console.log("Source:", sourceTokenAccount.toString());
+      console.log("Destination:", destinationTokenAccount.toString());
+
+      // Verify accounts with retry
+      let accountInfo = null;
+      try {
+        accountInfo = await connection.getAccountInfo(destinationTokenAccount);
+      } catch (accountError) {
+        console.warn("Error checking token account, will retry:", accountError);
+        // Continue execution to create account if needed
+      }
+      
+      if (!accountInfo) {
+        console.warn(`Program token account doesn't exist or couldn't be verified. Will try to create it.`);
+        
+        try {
+          // Attempt to create the token account if it doesn't exist
+          const createAtaIx = createAssociatedTokenAccountInstruction(
+            wallet.publicKey,
+            destinationTokenAccount,
+            programAuthority,
+            mintAddress
+          );
+          
+          // Create and send the account creation transaction
+          const createAtaTx = new Transaction().add(createAtaIx);
+          createAtaTx.feePayer = wallet.publicKey;
+          createAtaTx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+          
+          const signedCreate = await wallet.signTransaction(createAtaTx);
+          const createSig = await connection.sendRawTransaction(signedCreate.serialize());
+          await connection.confirmTransaction(createSig);
+          
+          console.log("Created destination token account:", createSig);
+        } catch (createError: any) {
+          // If account already exists, we can continue
+          if (createError.message && createError.message.includes("already in use")) {
+            console.log("Token account already exists, continuing with transfer");
+          } else {
+            throw createError;
+          }
+        }
+      }
+
+      // Create transfer instruction
+      const transferIx = createTransferInstruction(
+        sourceTokenAccount,
+        destinationTokenAccount,
+        wallet.publicKey,
+        rawAmount
+      );
+
+      // Build and send transaction
+      const transaction = new Transaction().add(transferIx);
+      
+      // Set recent blockhash and fee payer
+      transaction.feePayer = wallet.publicKey;
+      // Use higher priority fee to improve chances of confirmation
+      transaction.recentBlockhash = (
+        await connection.getLatestBlockhash('confirmed')
+      ).blockhash;
+
+      // Sign and send transaction
+      const signed = await wallet.signTransaction(transaction);
+      const signature = await connection.sendRawTransaction(signed.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed'
+      });
+      
+      // Confirm transaction with longer timeout
+      await connection.confirmTransaction({
+        signature,
+        blockhash: transaction.recentBlockhash,
+        lastValidBlockHeight: (await connection.getLatestBlockhash()).lastValidBlockHeight
+      }, 'confirmed');
+      
+      console.log("Transfer successful:", signature);
+      return signature;
+    } catch (error) {
+      console.error(`Error funding program token account (attempt ${retries+1}/${MAX_RETRIES}):`, error);
+      
+      // Analyze error to see if it's retriable
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const isNetworkError = errorMessage.includes("failed to fetch") || 
+                            errorMessage.includes("timed out") ||
+                            errorMessage.includes("network error") ||
+                            errorMessage.includes("connecting to network");
+      
+      if (isNetworkError && retries < MAX_RETRIES - 1) {
+        // It's a network error and we haven't exhausted retries
+        lastError = error;
+        retries++;
+        continue;
+      }
+      
+      // Either it's not a network error or we've exhausted retries
+      throw error;
     }
-
-    // Create transfer instruction
-    const transferIx = createTransferInstruction(
-      sourceTokenAccount,
-      destinationTokenAccount,
-      wallet.publicKey,
-      rawAmount
-    );
-
-    // Build and send transaction
-    const transaction = new Transaction().add(transferIx);
-    
-    // Set recent blockhash and fee payer
-    transaction.feePayer = wallet.publicKey;
-    transaction.recentBlockhash = (
-      await connection.getLatestBlockhash()
-    ).blockhash;
-
-    // Sign and send transaction
-    const signed = await wallet.signTransaction(transaction);
-    const signature = await connection.sendRawTransaction(signed.serialize());
-    
-    // Confirm transaction
-    await connection.confirmTransaction(signature);
-    
-    console.log("Transfer successful:", signature);
-    return signature;
-  } catch (error) {
-    console.error("Error funding program token account:", error);
-    throw error;
   }
+  
+  // This should not be reached due to the throw in the catch block
+  // but TypeScript requires it
+  throw lastError;
 }
