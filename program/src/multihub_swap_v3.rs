@@ -15,7 +15,7 @@ use solana_program::{
 use spl_token::{instruction as token_instruction, state::Account as TokenAccount};
 
 // Define the program ID here (will be replaced during deployment)
-solana_program::declare_id!("Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L");
+solana_program::declare_id!("SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE");
 
 // Instructions supported by this program
 #[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq)]
