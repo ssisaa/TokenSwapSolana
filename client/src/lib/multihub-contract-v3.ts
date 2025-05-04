@@ -832,82 +832,108 @@ type TokenAccountInfo = {
   balance: bigint;
 };
 
+/**
+ * CRITICAL FIX: Enhanced token account creation with robust validity checking
+ * This function ensures token accounts exist and are properly validated
+ * The previous implementation was vulnerable to "InvalidAccountData" errors
+ */
 async function ensureTokenAccount(
   connection: Connection,
   wallet: any,
   mint: PublicKey,
   transaction: Transaction
 ): Promise<TokenAccountInfo> {
+  console.log(`Ensuring token account exists for mint: ${mint.toString()}`);
+  
   try {
-    // Handle SOL separately since it's not a token account
+    // SPECIAL CASE: Handle SOL separately since it's not a token account
     if (mint.toString() === 'So11111111111111111111111111111111111111112' || 
         mint.toString() === SystemProgram.programId.toString()) {
       
-      const solBalance = await connection.getBalance(wallet.publicKey);
-      console.log(`SOL balance: ${solBalance / 1_000_000_000} SOL`);
-      return { 
-        address: wallet.publicKey, 
-        balance: BigInt(solBalance) 
-      };
+      // For SOL, just use the wallet public key and get the balance
+      try {
+        const solBalance = await connection.getBalance(wallet.publicKey);
+        console.log(`SOL balance: ${solBalance / 1_000_000_000} SOL`);
+        return { 
+          address: wallet.publicKey, 
+          balance: BigInt(solBalance) 
+        };
+      } catch (solErr) {
+        console.error('Error getting SOL balance:', solErr);
+        return {
+          address: wallet.publicKey,
+          balance: BigInt(0) // Default to zero if we can't get the balance
+        };
+      }
     }
     
-    // For other tokens, use getOrCreateAssociatedTokenAccount for maximum compatibility
-    const tokenAccount = await getOrCreateAssociatedTokenAccount(
-      connection,
-      wallet, // Payer for account creation
+    // CRITICAL FIX: First, get the expected ATA address without creating it
+    const ataAddress = await getAssociatedTokenAddress(
       mint,
-      wallet.publicKey // Owner of the token account
+      wallet.publicKey,
+      false // Don't allow off-curve
     );
     
-    console.log(`Token account for ${mint.toString()}: ${tokenAccount.address.toString()}`);
-    console.log(`Balance: ${tokenAccount.amount.toString()} (Owner: ${tokenAccount.owner.toString()})`);
+    console.log(`Expected ATA address for mint ${mint.toString()}: ${ataAddress.toString()}`);
     
-    return {
-      address: tokenAccount.address,
-      balance: tokenAccount.amount
-    };
-  } catch (err: any) {
-    console.error(`Error ensuring token account for mint ${mint.toString()}:`, err);
+    // Check if the account exists BEFORE trying to use getOrCreateAssociatedTokenAccount
+    // This helps avoid inconsistent states that can cause "InvalidAccountData" errors
+    const accountInfo = await connection.getAccountInfo(ataAddress);
     
-    // Fallback to the old method if getOrCreateAssociatedTokenAccount fails
-    console.log('Falling back to basic account creation...');
-    
-    // Get the associated token address for the wallet
-    const tokenAddress = await getAssociatedTokenAddress(
-      mint,
-      wallet.publicKey
-    );
-    
-    // Check if the account exists
-    const accountInfo = await connection.getAccountInfo(tokenAddress);
-    
-    // If account doesn't exist, create it
     if (!accountInfo) {
-      console.log('Creating token account for mint:', mint.toString());
+      console.log(`Token account for ${mint.toString()} does not exist. Creating it now...`);
+      
+      // CRITICAL FIX: Add explicit creation instruction with proper parameters
       const createAtaIx = createAssociatedTokenAccountInstruction(
-        wallet.publicKey,
-        tokenAddress,
-        wallet.publicKey,
-        mint
+        wallet.publicKey, // Payer
+        ataAddress,       // ATA address
+        wallet.publicKey, // Owner
+        mint             // Mint
       );
+      
       transaction.add(createAtaIx);
-    }
-    
-    try {
-      // Get token balance if possible
-      const accountInfo = await getAccount(connection, tokenAddress);
+      console.log(`Added instruction to create token account for ${mint.toString()}`);
+      
+      // Since we just created the account, we return the address with zero balance
+      // The transaction will create it when it executes
       return {
-        address: tokenAddress,
-        balance: accountInfo.amount
-      };
-    } catch (balanceErr: any) {
-      // Return zero balance if we can't get it yet
-      console.warn('Unable to get account balance, assuming zero:', balanceErr?.message || 'Unknown error');
-      return {
-        address: tokenAddress,
+        address: ataAddress,
         balance: BigInt(0)
       };
     }
+    
+    // Account exists, so we can safely try to get its token info
+    try {
+      console.log(`Token account exists. Getting token info for ${ataAddress.toString()}`);
+      const tokenAccountInfo = await getAccount(connection, ataAddress);
+      
+      console.log(`Token account for ${mint.toString()}: ${tokenAccountInfo.address.toString()}`);
+      console.log(`Balance: ${tokenAccountInfo.amount.toString()} (Owner: ${tokenAccountInfo.owner.toString()})`);
+      
+      // VALIDATION CHECK: Ensure this is really the correct token account
+      if (!tokenAccountInfo.mint.equals(mint)) {
+        console.error('ERROR: Token account mint mismatch!');
+        console.error(`Expected: ${mint.toString()}, Got: ${tokenAccountInfo.mint.toString()}`);
+        throw new Error(`Token account mint mismatch for ${ataAddress.toString()}`);
+      }
+      
+      return {
+        address: tokenAccountInfo.address,
+        balance: tokenAccountInfo.amount
+      };
+    } catch (tokenErr) {
+      console.warn(`Error getting token account data for existing account: ${tokenErr}`);
+      console.warn('Assuming this is a newly created account with zero balance');
+      
+      // Return the address with zero balance even if we can't get the token info yet
+      return {
+        address: ataAddress,
+        balance: BigInt(0)
+      };
+    }
+  } catch (err) {
+    console.error(`Unexpected error ensuring token account for mint ${mint.toString()}:`, err);
+    throw new Error(`Failed to ensure token account: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
