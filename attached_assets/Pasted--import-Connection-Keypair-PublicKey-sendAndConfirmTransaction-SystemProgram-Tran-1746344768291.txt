@@ -1,0 +1,76 @@
+
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  sendAndConfirmTransaction,
+  SystemProgram,
+  Transaction,
+  TransactionInstruction,
+  LAMPORTS_PER_SOL,
+} from "@solana/web3.js";
+import { buildInitializeInstruction } from "./buildInitializeInstruction";
+import { buildSwapInstruction, buildCloseProgramInstruction } from "./buildSwapAndCloseInstructions";
+
+(async () => {
+  const connection = new Connection("https://api.devnet.solana.com", "confirmed");
+  const payer = Keypair.generate();
+
+  // Airdrop SOL to payer
+  const airdropSig = await connection.requestAirdrop(payer.publicKey, 2 * LAMPORTS_PER_SOL);
+  await connection.confirmTransaction(airdropSig);
+
+  // Replace these with actual Devnet deployed accounts
+  const programId = new PublicKey("Your_Program_ID_Here");
+  const admin = payer.publicKey;
+  const yotMint = new PublicKey("Your_YOT_Mint_Here");
+  const yosMint = new PublicKey("Your_YOS_Mint_Here");
+
+  const [programState] = await PublicKey.findProgramAddressSync([Buffer.from("state")], programId);
+  const [programAuthority] = await PublicKey.findProgramAddressSync([Buffer.from("authority")], programId);
+
+  // === Initialize ===
+  const initIx = new TransactionInstruction({
+    programId,
+    keys: [
+      { pubkey: payer.publicKey, isSigner: true, isWritable: true },
+      { pubkey: programState, isSigner: false, isWritable: true },
+      { pubkey: programAuthority, isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      { pubkey: PublicKey.default, isSigner: false, isWritable: false }, // Rent sysvar placeholder
+    ],
+    data: buildInitializeInstruction({
+      admin,
+      yotMint,
+      yosMint,
+      rates: {
+        lp: 2000n,
+        fee: 10n,
+        cashback: 300n,
+        swap: 30n,
+        referral: 50n,
+      },
+    }),
+  });
+
+  // === Swap ===
+  const swapIx = new TransactionInstruction({
+    programId,
+    keys: [], // Fill with required accounts from your contract
+    data: buildSwapInstruction({
+      amountIn: 1_000_000n,
+      minAmountOut: 900_000n,
+    }),
+  });
+
+  // === Close ===
+  const closeIx = new TransactionInstruction({
+    programId,
+    keys: [], // Fill with admin, state, authority, system_program
+    data: buildCloseProgramInstruction(),
+  });
+
+  const tx = new Transaction().add(initIx /*, swapIx, closeIx */);
+  const sig = await sendAndConfirmTransaction(connection, tx, [payer]);
+  console.log("✅ Transaction sent:", sig);
+})();

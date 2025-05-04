@@ -183,9 +183,7 @@ export async function initializeProgram(
     console.log('Swap Fee Rate:', SWAP_FEE_RATE);
     console.log('Referral Rate:', REFERRAL_RATE);
     
-    // USING IMPROVED DIRECT BUFFER SERIALIZATION
-    // Using the function pattern provided by the user with exact field offsets
-    
+    // Create the instruction data using our improved direct buffer serialization
     const instructionData = buildInitializeInstruction({
       admin: wallet.publicKey,
       yotMint: new PublicKey(YOT_TOKEN_MINT),
@@ -198,55 +196,6 @@ export async function initializeProgram(
         referral: BigInt(REFERRAL_RATE)
       }
     });
-    
-    // Helper function to build the initialize instruction buffer
-    function buildInitializeInstruction({
-      admin,
-      yotMint,
-      yosMint,
-      rates,
-    }: {
-      admin: PublicKey;
-      yotMint: PublicKey;
-      yosMint: PublicKey;
-      rates: {
-        lp: bigint;
-        fee: bigint;
-        cashback: bigint;
-        swap: bigint;
-        referral: bigint;
-      };
-    }): Buffer {
-      const discriminator = Buffer.from([0]); // enum variant for Initialize
-      const buffer = Buffer.concat([
-        discriminator,
-        admin.toBuffer(),
-        yotMint.toBuffer(),
-        yosMint.toBuffer(),
-        Buffer.alloc(8), // lp
-        Buffer.alloc(8), // fee
-        Buffer.alloc(8), // cashback
-        Buffer.alloc(8), // swap
-        Buffer.alloc(8), // referral
-      ]);
-    
-      // Calculate offsets carefully considering the discriminator byte
-      // Layout is: [discriminator(1)][admin(32)][yot_mint(32)][yos_mint(32)][lp(8)][fee(8)][cashback(8)][swap(8)][referral(8)]
-      const discriminatorSize = 1;
-      const publicKeySize = 32;
-      const uint64Size = 8;
-      
-      // Base offset starts after discriminator + 3 public keys
-      const baseOffset = discriminatorSize + (publicKeySize * 3);
-      
-      buffer.writeBigUInt64LE(rates.lp, baseOffset);
-      buffer.writeBigUInt64LE(rates.fee, baseOffset + uint64Size);
-      buffer.writeBigUInt64LE(rates.cashback, baseOffset + (uint64Size * 2));
-      buffer.writeBigUInt64LE(rates.swap, baseOffset + (uint64Size * 3));
-      buffer.writeBigUInt64LE(rates.referral, baseOffset + (uint64Size * 4));
-    
-      return buffer;
-    }
     
     console.log('Using direct byte serialization for Initialize instruction');
     console.log('Initialize instruction data length:', instructionData.length);
@@ -387,30 +336,11 @@ export async function performSwap(
     console.log(`Converting ${amountIn} tokens to ${amountInLamports} lamports`);
     console.log(`Converting ${minAmountOut} min output to ${minAmountOutLamports} lamports`);
     
-    // Create the swap instruction data using direct serialization
-    // to match the Rust structure exactly
-    
-    // Helper function to build swap instruction buffer
-    function buildSwapInstruction(amountIn: number, minAmountOut: number): Buffer {
-      // Layout is: [discriminator(1)][amount_in(8)][min_amount_out(8)]
-      
-      // Create buffer with appropriate size
-      const buffer = Buffer.alloc(1 + 8 + 8);
-      
-      // Write enum discriminator for Swap (1)
-      buffer[0] = 1;
-      
-      // Write amount in (8 bytes, u64)
-      buffer.writeBigUInt64LE(BigInt(amountIn), 1);
-      
-      // Write min amount out (8 bytes, u64)
-      buffer.writeBigUInt64LE(BigInt(minAmountOut), 1 + 8);
-      
-      return buffer;
-    }
-    
-    // Build the instruction data
-    const instructionData = buildSwapInstruction(amountInLamports, minAmountOutLamports);
+    // Create the swap instruction data using our improved direct buffer serialization approach
+    const instructionData = buildSwapInstruction({
+      amountIn: BigInt(amountInLamports),
+      minAmountOut: BigInt(minAmountOutLamports)
+    });
     
     console.log('Using direct buffer encoding for Swap instruction');
     console.log('Swap instruction data length:', instructionData.length);
@@ -583,15 +513,7 @@ export async function closeProgram(
     const [programStateAddress, closeProgramStateBump] = findProgramStateAddress();
     const [programAuthorityAddress, closeProgramAuthorityBump] = findProgramAuthorityAddress();
     
-    // Create the close program instruction data using direct serialization
-    
-    // Helper function to build close program instruction
-    function buildCloseProgramInstruction(): Buffer {
-      // CloseProgram variant only needs the enum discriminator (2)
-      return Buffer.from([2]);
-    }
-    
-    // Build the instruction data
+    // Create the close program instruction data using our improved direct buffer serialization
     const instructionData = buildCloseProgramInstruction();
     
     console.log('Using direct buffer encoding for CloseProgram instruction');
