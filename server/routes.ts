@@ -846,23 +846,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get a connection from the connection manager
       const conn = getConnection();
       
-      // Step 1: Get SOL balance using ConnectionManager for reliability
+      // Step 1: Get SOL balance with retry mechanism
       try {
         const poolSolAccount = new PublicKey(POOL_SOL_ACCOUNT);
         
-        // Import and use the client-side ConnectionManager for reliable network operations
-        const { connectionManager } = require("../client/src/lib/connection-manager");
-        
-        // Use ConnectionManager's executeWithFallback to handle retries and failover automatically
-        solBalance = await connectionManager.executeWithFallback(
-          connection => connection.getBalance(poolSolAccount),
-          3, // max retries
-          500  // initial delay in ms
-        );
-        
-        console.log(`Fetched SOL balance: ${solBalance / LAMPORTS_PER_SOL} SOL`);
+        // First attempt
+        try {
+          solBalance = await conn.getBalance(poolSolAccount);
+          console.log(`Fetched SOL balance: ${solBalance / LAMPORTS_PER_SOL} SOL`);
+        } catch (firstError) {
+          console.error('Error on first SOL balance attempt, retrying:', firstError);
+          
+          // Retry with a fresh connection after a delay
+          await new Promise(resolve => setTimeout(resolve, 500));
+          const freshConn = getConnection();
+          solBalance = await freshConn.getBalance(poolSolAccount);
+          console.log(`Retry successful, SOL balance: ${solBalance / LAMPORTS_PER_SOL} SOL`);
+        }
       } catch (solError) {
-        console.error('Error fetching SOL balance even with ConnectionManager:', solError);
+        console.error('Error fetching SOL balance after retry:', solError);
       }
       
       // Step 2: Get YOT balance using ConnectionManager for reliability
@@ -873,17 +875,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.log(`Using direct YOT token account: ${yotTokenAccount.toString()}`);
         
-        // Get the client-side ConnectionManager that's already imported
-        const { connectionManager } = require("../client/src/lib/connection-manager");
+        // We'll use our existing connection
         
-        // Use ConnectionManager for reliable network operations
-        const tokenAccountInfo = await connectionManager.executeWithFallback(
-          async (connection) => await getAccount(connection, yotTokenAccount)
-        );
-        
-        const mintInfo = await connectionManager.executeWithFallback(
-          async (connection) => await getMint(connection, yotTokenMint)
-        );
+        // Get token account info with retry logic
+        const tokenAccountInfo = await getAccount(conn, yotTokenAccount);
+        const mintInfo = await getMint(conn, yotTokenMint);
         
         yotBalance = Number(tokenAccountInfo.amount) / Math.pow(10, mintInfo.decimals);
         console.log(`Fetched YOT balance: ${yotBalance} YOT`);
@@ -891,7 +887,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error('Error getting YOT balance:', yotError);
       }
       
-      // Step 3: Get YOS balance using ConnectionManager for reliability
+      // Step 3: Get YOS balance from direct token account
       try {
         // Use the direct YOS token account instead of deriving from mint
         const yosTokenAccount = new PublicKey(YOS_TOKEN_ACCOUNT);
@@ -899,17 +895,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.log(`Using direct YOS token account: ${yosTokenAccount.toString()}`);
         
-        // Get the client-side ConnectionManager that's already imported
-        const { connectionManager } = require("../client/src/lib/connection-manager");
-        
-        // Use ConnectionManager for reliable network operations
-        const tokenAccountInfo = await connectionManager.executeWithFallback(
-          async (connection) => await getAccount(connection, yosTokenAccount)
-        );
-        
-        const mintInfo = await connectionManager.executeWithFallback(
-          async (connection) => await getMint(connection, yosTokenMint)
-        );
+        // Get token account info with retry logic
+        const tokenAccountInfo = await getAccount(conn, yosTokenAccount);
+        const mintInfo = await getMint(conn, yosTokenMint);
         
         yosBalance = Number(tokenAccountInfo.amount) / Math.pow(10, mintInfo.decimals);
         console.log(`Fetched YOS balance: ${yosBalance} YOS`);

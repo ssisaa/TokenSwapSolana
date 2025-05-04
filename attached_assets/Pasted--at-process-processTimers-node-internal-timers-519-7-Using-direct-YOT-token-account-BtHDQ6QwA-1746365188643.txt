@@ -1,0 +1,39 @@
+    at process.processTimers (node:internal/timers:519:7)
+Using direct YOT token account: BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE
+Error getting YOT balance: ReferenceError: require is not defined
+    at Timeout.sendPoolData (/home/runner/workspace/server/routes.ts:877:39)
+    at listOnTimeout (node:internal/timers:581:17)
+    at process.processTimers (node:internal/timers:519:7)
+Using direct YOS token account: 5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz
+YOS token account may not exist yet or error occurred: ReferenceError: require is not defined
+    at Timeout.sendPoolData (/home/runner/workspace/server/routes.ts:903:39)
+    at listOnTimeout (node:internal/timers:581:17)
+    at process.processTimers (node:internal/timers:519:7)
+Error fetching SOL balance even with ConnectionManager: ReferenceError: require is not defined
+    at Timeout.sendPoolData (/home/runner/workspace/server/routes.ts:854:39)
+    at listOnTimeout (node:internal/timers:581:17)
+    at process.processTimers (node:internal/timers:519:7)
+Using direct YOT token account: BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE
+Error getting YOT balance: ReferenceError: require is not defined
+    at Timeout.sendPoolData (/home/runner/workspace/server/routes.ts:877:39)
+    at listOnTimeout (node:internal/timers:581:17)
+    at process.processTimers (node:internal/timers:519:7)
+Using direct YOS token account: 5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz
+YOS token account may not exist yet or error occurred: ReferenceError: require is not defined
+    at Timeout.sendPoolData (/home/runner/workspace/server/routes.ts:903:39)
+    at listOnTimeout (node:internal/timers:581:17)
+    at process.processTimers (node:internal/timers:519:7)
+Error fetching SOL balance even with ConnectionManager: ReferenceError: require is not defined
+    at Timeout.sendPoolData (/home/runner/workspace/server/routes.ts:854:39)
+    at listOnTimeout (node:internal/timers:581:17)
+    at process.processTimers (node:internal/timers:519:7)
+Using direct YOT token account: BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE
+Error getting YOT balance: ReferenceError: require is not defined
+    at Timeout.sendPoolData (/home/runner/workspace/server/routes.ts:877:39)
+    at listOnTimeout (node:internal/timers:581:17)
+    at process.processTimers (node:internal/timers:519:7)
+Using direct YOS token account: 5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz
+YOS token account may not exist yet or error occurred: ReferenceError: require is not defined
+    at Timeout.sendPoolData (/home/runner/workspace/server/routes.ts:903:39)
+    at listOnTimeout (node:internal/timers:581:17)
+    at process.processTimers (node:internal/timers:519:7)
