@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { ClipboardIcon } from "lucide-react";
 import { useTransactions } from "@/hooks/useTransactions";
@@ -23,6 +23,24 @@ interface ProcessedTransaction {
 export default function TransactionHistory() {
   const { connected, wallet } = useWallet();
   const { transactions, loading, error, fetchTransactions } = useTransactions();
+  
+  // Add refreshing state to show when we're auto-refreshing
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Function to manually refresh transactions
+  const refreshTransactions = async () => {
+    if (!connected || !wallet?.publicKey) return;
+    
+    setRefreshing(true);
+    try {
+      await fetchTransactions(wallet.publicKey.toString());
+    } catch (e) {
+      console.error("Failed to refresh transactions:", e);
+    } finally {
+      // Reset refreshing state after a short delay for better UX
+      setTimeout(() => setRefreshing(false), 1000);
+    }
+  };
 
   useEffect(() => {
     if (connected && wallet?.publicKey) {
