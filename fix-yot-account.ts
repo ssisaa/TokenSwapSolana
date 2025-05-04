@@ -12,9 +12,15 @@ import {
 import fs from 'fs';
 import path from 'path';
 
-// Constants
-const YOT_TOKEN_MINT = new PublicKey("2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF");
-const PROGRAM_ID = new PublicKey("SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE"); // V4 Program
+// Import config to get program ID and token address
+import { 
+  getMultiHubProgramPublicKey, 
+  getTokenPublicKey 
+} from './client/src/lib/config';
+
+// Constants from centralized configuration
+const YOT_TOKEN_MINT = getTokenPublicKey('YOT');
+const PROGRAM_ID = getMultiHubProgramPublicKey('v4'); // V4 Program
 
 // Find program authority PDA
 function findProgramAuthorityAddress(): [PublicKey, number] {

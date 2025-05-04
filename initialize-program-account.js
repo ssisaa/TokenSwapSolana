@@ -4,11 +4,15 @@
 const { Connection, PublicKey, Keypair } = require('@solana/web3.js');
 const { getOrCreateAssociatedTokenAccount, createTransferInstruction } = require('@solana/spl-token');
 const fs = require('fs');
+const path = require('path');
 
-// YOT token mint
-const YOT_TOKEN_MINT = new PublicKey('2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF');
-// Program ID - V4 Program
-const PROGRAM_ID = new PublicKey('SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE');
+// Load configuration from app.config.json
+const appConfig = JSON.parse(fs.readFileSync(path.join(__dirname, 'app.config.json'), 'utf8'));
+
+// YOT token mint from config
+const YOT_TOKEN_MINT = new PublicKey(appConfig.tokens.YOT);
+// Program ID - V4 Program from config
+const PROGRAM_ID = new PublicKey(appConfig.programs.multiHub.v4);
 
 // Find program authority PDA
 function findProgramAuthorityAddress() {

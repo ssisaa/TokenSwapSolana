@@ -1,12 +1,17 @@
 // Simple script to create a YOT token account for the V4 program
-// No dependencies on other files
+// Requires app.config.json for program IDs and token addresses
 
 const { Connection, PublicKey, Keypair, Transaction } = require('@solana/web3.js');
 const { getOrCreateAssociatedTokenAccount, createTransferInstruction } = require('@solana/spl-token');
+const fs = require('fs');
+const path = require('path');
 
-// STEP 1: Set up constants
-const YOT_TOKEN_MINT = new PublicKey("2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF");
-const PROGRAM_ID = new PublicKey("SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE"); // V4
+// STEP 1: Load configuration
+const appConfig = JSON.parse(fs.readFileSync(path.join(__dirname, 'app.config.json'), 'utf8'));
+
+// Set up constants from config
+const YOT_TOKEN_MINT = new PublicKey(appConfig.tokens.YOT);
+const PROGRAM_ID = new PublicKey(appConfig.programs.multiHub.v4); // V4
 const ADMIN_PUBLIC_KEY = new PublicKey("AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ");
 
 // STEP 2: Find the program authority PDA (same for any script)
