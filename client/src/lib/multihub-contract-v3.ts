@@ -224,6 +224,15 @@ export async function initializeProgram(
     const [programStateAddress, stateBump] = findProgramStateAddress();
     const [programAuthorityAddress, authorityBump] = findProgramAuthorityAddress();
     
+    // Add a SOL transfer to fund the Program Authority with SOL to prevent InsufficientFunds errors
+    console.log(`Adding funding instruction for Program Authority: ${programAuthorityAddress.toString()}`);
+    const fundingInstruction = SystemProgram.transfer({
+      fromPubkey: wallet.publicKey,
+      toPubkey: programAuthorityAddress,
+      lamports: 1000000, // 0.001 SOL (1,000,000 lamports) for program operations
+    });
+    transaction.add(fundingInstruction);
+    
     console.log('Creating initialize instruction with:');
     console.log('Admin:', wallet.publicKey.toBase58());
     console.log('YOT Mint:', YOT_TOKEN_MINT);
@@ -258,7 +267,7 @@ export async function initializeProgram(
       keys: [
         { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // payer_account
         { pubkey: programStateAddress, isSigner: false, isWritable: true }, // program_state_account
-        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }, // program_authority_account
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: true }, // program_authority_account - must be writable!
         { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false }, // system_program_account
         { pubkey: new PublicKey('SysvarRent111111111111111111111111111111111'), isSigner: false, isWritable: false }, // rent_sysvar_account
       ],
@@ -359,7 +368,7 @@ export async function performSwap(
     const fundingInstruction = SystemProgram.transfer({
       fromPubkey: wallet.publicKey,
       toPubkey: programAuthorityAddress,
-      lamports: 10000, // 0.00001 SOL (10,000 lamports) for program operations
+      lamports: 1000000, // 0.001 SOL (1,000,000 lamports) for program operations - increased to ensure sufficient funds
     });
     transaction.add(fundingInstruction);
     
@@ -498,7 +507,7 @@ export async function performSwap(
         // User accounts
         { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // User wallet
         { pubkey: programStateAddress, isSigner: false, isWritable: true }, // Program state for updating
-        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }, // Program authority for token transfers
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: true }, // Program authority for token transfers - CRITICAL: must be writable!
         
         // User token accounts
         { pubkey: tokenFromAccount, isSigner: false, isWritable: true }, // User's source token account
@@ -574,6 +583,15 @@ export async function closeProgram(
     const [programStateAddress, closeProgramStateBump] = findProgramStateAddress();
     const [programAuthorityAddress, closeProgramAuthorityBump] = findProgramAuthorityAddress();
     
+    // Add a SOL transfer to fund the Program Authority with SOL to prevent InsufficientFunds errors
+    console.log(`Adding funding instruction for Program Authority: ${programAuthorityAddress.toString()}`);
+    const fundingInstruction = SystemProgram.transfer({
+      fromPubkey: wallet.publicKey,
+      toPubkey: programAuthorityAddress,
+      lamports: 1000000, // 0.001 SOL (1,000,000 lamports) for program operations
+    });
+    transaction.add(fundingInstruction);
+    
     // Create the close program instruction data using our improved direct buffer serialization
     const instructionData = buildCloseProgramInstruction();
     
@@ -592,7 +610,7 @@ export async function closeProgram(
       keys: [
         { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // Admin account that receives the rent
         { pubkey: programStateAddress, isSigner: false, isWritable: true }, // Program state account to be closed
-        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }, // Program authority - may be needed
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: true }, // Program authority - must be writable!
         { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false }, // System Program - needed for closing accounts
       ],
       programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID),
