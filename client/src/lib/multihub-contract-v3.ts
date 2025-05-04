@@ -18,7 +18,7 @@
  * - Future-proof our instruction encoding
  */
 
-import { Connection, PublicKey, Transaction, SystemProgram } from '@solana/web3.js';
+import { Connection, PublicKey, Transaction, SystemProgram, TransactionInstruction } from '@solana/web3.js';
 import {
   getAssociatedTokenAddress,
   createAssociatedTokenAccountInstruction,
@@ -1405,7 +1405,7 @@ export async function closeProgram(
     // 1. Admin account (signer)
     // 2. Program state account (PDA)
     // 3. Program authority account (PDA used for token operations)
-    transaction.add({
+    transaction.add(new TransactionInstruction({
       keys: [
         { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // Admin account that receives the rent
         { pubkey: programStateAddress, isSigner: false, isWritable: true }, // Program state account to be closed
@@ -1414,7 +1414,7 @@ export async function closeProgram(
       ],
       programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID),
       data: Buffer.from(closeProgramData)
-    });
+    }));
     
     // Simulate the transaction to check for errors
     console.log('Simulating close program transaction...');
