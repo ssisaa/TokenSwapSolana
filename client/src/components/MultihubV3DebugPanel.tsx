@@ -160,11 +160,20 @@ export default function MultihubV3DebugPanel() {
                 onClick={verifyAuthority} 
                 disabled={verifying || loading}
                 variant="default"
-                className={pdaInfo?.authorityBalanceSOL < 0.01 ? "bg-red-600 hover:bg-red-700" : ""}
+                className={pdaInfo?.authorityBalanceSOL < 0.01 ? "bg-red-600 hover:bg-red-700" : "bg-yellow-600 hover:bg-yellow-700 text-white font-bold"}
+                size="lg"
               >
                 {verifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {pdaInfo?.authorityBalanceSOL < 0.01 ? "Fund & Verify Authority" : "Verify Authority"}
+                {pdaInfo?.authorityBalanceSOL < 0.01 ? "Fund & Verify Authority" : "Fix InvalidAccountData Error"}
               </Button>
+              
+              <div className="bg-amber-100 border-l-4 border-amber-500 p-3 mt-2 mb-2 text-sm">
+                <p className="font-bold">💡 Click "Fix InvalidAccountData Error" if you see:</p>
+                <p className="ml-2 text-red-600 font-mono text-xs whitespace-nowrap overflow-hidden">
+                  Simulation failed: &#123;"InstructionError":[2,"InvalidAccountData"]&#125;
+                </p>
+                <p className="mt-1">This verifies and funds the program authority account.</p>
+              </div>
               
               <div className="flex items-center ml-auto">
                 <div className={`w-3 h-3 rounded-full mr-2 ${
