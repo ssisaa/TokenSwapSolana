@@ -6,7 +6,7 @@ description = "Multi-Hub Swap program for Solana blockchain"
 
 # Must match the program ID in the entrypoint file
 [package.metadata.solana]
-program-id = "3cXKNjtRv8b1HVYU6vRDvmoSMHfXrWATCLFY2Y5wTsps"
+program-id = "Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L"
 
 [features]
 no-entrypoint = []
@@ -17,6 +17,7 @@ thiserror = "1.0.40"
 spl-token = { version = "3.5.0", features = ["no-entrypoint"] }
 borsh = "0.10.3"
 borsh-derive = "0.10.3"
+arrayref = "0.3.7"
 
 [lib]
 name = "multihub_swap"

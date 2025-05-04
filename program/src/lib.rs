@@ -1,6 +1,8 @@
 pub mod multihub_swap_v3;
 pub mod multihub_swap_v4;
 
+// Import arrayref crate
+use arrayref::array_ref;
 use solana_program::{
     account_info::AccountInfo, entrypoint, entrypoint::ProgramResult, pubkey::Pubkey,
 };

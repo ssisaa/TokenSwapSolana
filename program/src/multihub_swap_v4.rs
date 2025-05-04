@@ -11,8 +11,8 @@ use solana_program::{
     rent::Rent,
     system_instruction,
     sysvar::Sysvar,
-    array_ref,
 };
+use arrayref::array_ref;
 use spl_token::{instruction as token_instruction, state::Account as TokenAccount};
 
 // Define the program ID here (will be replaced during deployment)
