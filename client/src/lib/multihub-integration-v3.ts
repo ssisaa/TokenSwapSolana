@@ -293,11 +293,14 @@ export async function performMultiHubSwap(
     }
     
     // Also fund the program authority with SOL to ensure it can pay transaction fees
-    const authorityVerified = await MultihubSwapV3.fundProgramAuthority(connection, wallet, 0.01);
+    // CRITICAL FIX: Set the SOL amount to match what's shown in the UI (0.1) and explicitly log it
+    const solFundingAmount = 0.1; // 0.1 SOL matched to UI display
+    console.log(`Funding Program Authority with ${solFundingAmount} SOL (UI amount)...`);
+    const authorityVerified = await MultihubSwapV3.fundProgramAuthority(connection, wallet, solFundingAmount);
     if (!authorityVerified) {
       console.warn("Program authority funding failed - attempting swap anyway but expect possible failures");
     } else {
-      console.log("Program authority successfully funded with SOL");
+      console.log(`Program authority successfully funded with ${solFundingAmount} SOL`);
     }
   } catch (err) {
     console.error("Error during program token account verification:", err);

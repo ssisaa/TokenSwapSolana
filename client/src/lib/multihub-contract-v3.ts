@@ -1419,6 +1419,59 @@ export async function performSwap(
     console.log("To token account:", tokenToMintATA.toString());
     console.log("YOS token account:", yosTokenProgramATA.toString());
     
+    // CRITICAL FIX: Dual authority funding - fund both authorities to ensure at least one works
+    if (tokenFromMint.equals(new PublicKey("So11111111111111111111111111111111111111112"))) {
+      try {
+        // Check both authority accounts and fund them if needed
+        
+        // 1. Check Program Authority PDA balance
+        const programAuthorityBalance = await connectionManager.executeWithFallback(
+          conn => conn.getBalance(programAuthorityPDA)
+        );
+        
+        // 2. Check Pool Authority balance
+        const poolAuthorityBalance = await connectionManager.executeWithFallback(
+          conn => conn.getBalance(poolAuthorityAddress)
+        );
+        
+        console.log(`Program Authority balance: ${programAuthorityBalance / 1_000_000_000} SOL`);
+        console.log(`Pool Authority balance: ${poolAuthorityBalance / 1_000_000_000} SOL`);
+        
+        // If the Program Authority has less than 0.05 SOL, send 0.05 SOL to it
+        if (programAuthorityBalance < 50_000_000) { // 0.05 SOL (50 million lamports)
+          console.log(`Program Authority needs SOL, sending 0.05 SOL...`);
+          
+          // Add a SOL transfer instruction to fund the Program Authority
+          const fundProgramAuthIx = SystemProgram.transfer({
+            fromPubkey: wallet.publicKey,
+            toPubkey: programAuthorityPDA,
+            lamports: 50_000_000 // 0.05 SOL
+          });
+          
+          transaction.add(fundProgramAuthIx);
+          console.log(`Added instruction to send 0.05 SOL to Program Authority`);
+        }
+        
+        // DUAL AUTHORITY: If the Pool Authority has less than 0.05 SOL, send 0.05 SOL to it too
+        if (poolAuthorityBalance < 50_000_000) { // 0.05 SOL (50 million lamports)
+          console.log(`Pool Authority needs SOL, sending 0.05 SOL...`);
+          
+          // Add a SOL transfer instruction to fund the Pool Authority
+          const fundPoolAuthIx = SystemProgram.transfer({
+            fromPubkey: wallet.publicKey,
+            toPubkey: poolAuthorityAddress,
+            lamports: 50_000_000 // 0.05 SOL
+          });
+          
+          transaction.add(fundPoolAuthIx);
+          console.log(`Added instruction to send 0.05 SOL to Pool Authority`);
+        }
+      } catch (fundError) {
+        console.warn("Error during authority funding:", fundError);
+        // Continue with transaction - funding failure is not fatal
+      }
+    }
+    
     // CRITICAL FIX: Dump the instruction data to debug
     console.log("Instruction data bytes:", Array.from(Buffer.from(swapData)));
     
