@@ -23,6 +23,8 @@ import { trackSwapTransaction } from "@/lib/multihub-recovery";
 import { finalAttempt } from "@/lib/final-attempt";
 // DIRECT SWAP - Minimal implementation without account duplication
 import { directSwap } from "@/lib/direct-swap";
+// CONTRACT MATCH - Exactly follows the Rust contract account order
+import { contractMatch } from "@/lib/contract-match";
 
 // Constants
 const CONTRIBUTION_PERCENT = 20;

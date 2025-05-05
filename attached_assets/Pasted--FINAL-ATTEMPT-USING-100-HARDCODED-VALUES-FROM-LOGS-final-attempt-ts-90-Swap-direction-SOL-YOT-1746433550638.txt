@@ -1,0 +1,133 @@
+⚠️ FINAL ATTEMPT - USING 100% HARDCODED VALUES FROM LOGS
+final-attempt.ts:90 Swap direction: SOL→YOT
+final-attempt.ts:91 Amount: 200000000 raw units
+final-attempt.ts:99 Transaction fee payer: AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ
+final-attempt.ts:106 Adding SOL funding instruction for program authority
+final-attempt.ts:116 Swap data: 0100c2eb0b000000000000000000000000
+final-attempt.ts:122 ✅ VERIFYING TOKEN ACCOUNTS:
+final-attempt.ts:123 - USER_YOT_ACCOUNT: 8ufUyc9yA5j2uJqHRwxi7XZZR8gKg8dwKBg2J168yvk4 - using for token operations
+final-attempt.ts:124 - USER_YOS_ACCOUNT: 8QGzzUxJ5X88LwMW6gBd7zc5Re6FbjHhFv52oj5WMfSz - using for cashback rewards
+final-attempt.ts:172 ACCOUNT ADDRESSES FOR DEBUGGING:
+final-attempt.ts:174 [0] AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ (signer)
+final-attempt.ts:174 [1] 2sR6kFJfCa7oG9hrMWxeTK6ESir7PNZe4vky2JDiNrKC
+final-attempt.ts:174 [2] Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ
+final-attempt.ts:174 [3] 7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK
+final-attempt.ts:174 [4] 11111111111111111111111111111111
+final-attempt.ts:174 [5] 8ufUyc9yA5j2uJqHRwxi7XZZR8gKg8dwKBg2J168yvk4
+final-attempt.ts:174 [6] 8QGzzUxJ5X88LwMW6gBd7zc5Re6FbjHhFv52oj5WMfSz
+final-attempt.ts:174 [7] 7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS
+final-attempt.ts:174 [8] BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE
+final-attempt.ts:174 [9] 5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz
+final-attempt.ts:174 [10] So11111111111111111111111111111111111111112
+final-attempt.ts:174 [11] 2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF
+final-attempt.ts:174 [12] GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n
+final-attempt.ts:174 [13] TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
+final-attempt.ts:174 [14] 11111111111111111111111111111111
+final-attempt.ts:174 [15] SysvarRent111111111111111111111111111111111
+final-attempt.ts:174 [16] Eh8fHudZ4Rkb1MrzXSHRWP8SoubpBM4BhEHBmoJg17F8
+final-attempt.ts:178 Creating swap instruction with program ID: SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE
+final-attempt.ts:207 Transaction validated, sending to network...
+final-attempt.ts:210 Simulating transaction...
+final-attempt.ts:214 Simulation failed: {InstructionError: Array(2)}
+finalAttempt @ final-attempt.ts:214
+await in finalAttempt
+handleExecuteSwap @ FixedSwapPage.tsx:370
+await in handleExecuteSwap
+callCallback2 @ chunk-276SZO74.js?v=c5448800:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c5448800:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c5448800:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c5448800:3736
+executeDispatch @ chunk-276SZO74.js?v=c5448800:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c5448800:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c5448800:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c5448800:7051
+(anonymous) @ chunk-276SZO74.js?v=c5448800:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c5448800:18913
+batchedUpdates @ chunk-276SZO74.js?v=c5448800:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c5448800:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c5448800:5478
+dispatchEvent @ chunk-276SZO74.js?v=c5448800:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c5448800:5449Understand this error
+final-attempt.ts:242 Error during simulation: Transaction instruction error at index 1: InvalidAccountData
+finalAttempt @ final-attempt.ts:242
+await in finalAttempt
+handleExecuteSwap @ FixedSwapPage.tsx:370
+await in handleExecuteSwap
+callCallback2 @ chunk-276SZO74.js?v=c5448800:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c5448800:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c5448800:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c5448800:3736
+executeDispatch @ chunk-276SZO74.js?v=c5448800:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c5448800:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c5448800:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c5448800:7051
+(anonymous) @ chunk-276SZO74.js?v=c5448800:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c5448800:18913
+batchedUpdates @ chunk-276SZO74.js?v=c5448800:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c5448800:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c5448800:5478
+dispatchEvent @ chunk-276SZO74.js?v=c5448800:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c5448800:5449Understand this error
+final-attempt.ts:364 Error in finalAttempt swap: Error: Transaction simulation failed: Transaction instruction error at index 1: InvalidAccountData
+    at finalAttempt (final-attempt.ts:249:13)
+    at async handleExecuteSwap (FixedSwapPage.tsx:370:27)
+finalAttempt @ final-attempt.ts:364
+await in finalAttempt
+handleExecuteSwap @ FixedSwapPage.tsx:370
+await in handleExecuteSwap
+callCallback2 @ chunk-276SZO74.js?v=c5448800:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c5448800:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c5448800:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c5448800:3736
+executeDispatch @ chunk-276SZO74.js?v=c5448800:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c5448800:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c5448800:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c5448800:7051
+(anonymous) @ chunk-276SZO74.js?v=c5448800:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c5448800:18913
+batchedUpdates @ chunk-276SZO74.js?v=c5448800:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c5448800:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c5448800:5478
+dispatchEvent @ chunk-276SZO74.js?v=c5448800:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c5448800:5449Understand this error
+FixedSwapPage.tsx:386 FINAL ATTEMPT also failed: Error: Transaction simulation failed: Transaction instruction error at index 1: InvalidAccountData
+    at finalAttempt (final-attempt.ts:249:13)
+    at async handleExecuteSwap (FixedSwapPage.tsx:370:27)
+handleExecuteSwap @ FixedSwapPage.tsx:386
+await in handleExecuteSwap
+callCallback2 @ chunk-276SZO74.js?v=c5448800:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c5448800:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c5448800:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c5448800:3736
+executeDispatch @ chunk-276SZO74.js?v=c5448800:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c5448800:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c5448800:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c5448800:7051
+(anonymous) @ chunk-276SZO74.js?v=c5448800:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c5448800:18913
+batchedUpdates @ chunk-276SZO74.js?v=c5448800:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c5448800:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c5448800:5478
+dispatchEvent @ chunk-276SZO74.js?v=c5448800:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c5448800:5449Understand this error
+FixedSwapPage.tsx:389 Detailed error from final attempt: {}
+handleExecuteSwap @ FixedSwapPage.tsx:389
+await in handleExecuteSwap
+callCallback2 @ chunk-276SZO74.js?v=c5448800:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c5448800:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c5448800:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c5448800:3736
+executeDispatch @ chunk-276SZO74.js?v=c5448800:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c5448800:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c5448800:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c5448800:7051
+(anonymous) @ chunk-276SZO74.js?v=c5448800:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c5448800:18913
+batchedUpdates @ chunk-276SZO74.js?v=c5448800:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c5448800:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c5448800:5478
+dispatchEvent @ chunk-276SZO74.js?v=c5448800:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c5448800:5449Understand this error
+FixedSwapPage.tsx:398 Swap failed: Error: Transaction simulation failed: Transaction instruction error at index 1: InvalidAccountData
+    at finalAttempt (final-attempt.ts:249:13)
+    at async handleExecuteSwap (FixedSwapPage.tsx:370:27)
