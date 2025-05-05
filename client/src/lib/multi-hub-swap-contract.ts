@@ -55,6 +55,7 @@ export const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
 
 /**
  * Find the program state PDA
+ * CRITICAL: Seed must match the Rust program's "state" seed
  */
 export function findProgramStateAddress(): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
