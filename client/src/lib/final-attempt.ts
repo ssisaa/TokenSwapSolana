@@ -188,16 +188,41 @@ export async function finalAttempt(
       const { value } = await connection.simulateTransaction(transaction);
       if (value.err) {
         console.error('Simulation failed:', value.err);
-        throw new Error(`Simulation error: ${JSON.stringify(value.err)}`);
+        
+        // Format simulation errors in a more user-friendly way
+        let errorMessage = `Simulation error: ${JSON.stringify(value.err)}`;
+        
+        // Extract info from the error for more detailed logs
+        if (typeof value.err === 'object' && value.err !== null) {
+          if ('InstructionError' in value.err) {
+            errorMessage = `Transaction instruction error at index ${value.err.InstructionError[0]}: ${value.err.InstructionError[1]}`;
+          }
+        }
+        
+        throw new Error(errorMessage);
       }
       
       console.log('Simulation successful!');
       if (value.logs) {
-        console.log('Simulation logs:', value.logs);
+        // Only print first few logs to avoid console spam
+        const maxLogs = 20;
+        const displayLogs = value.logs.slice(0, maxLogs);
+        console.log(`Simulation logs (first ${displayLogs.length} of ${value.logs.length}):`);
+        displayLogs.forEach((log, i) => console.log(`  ${i}: ${log}`));
+        
+        if (value.logs.length > maxLogs) {
+          console.log(`  ... ${value.logs.length - maxLogs} more logs (truncated)`);
+        }
       }
     } catch (simError: any) {
       console.error('Error during simulation:', simError.message || simError);
-      throw simError;
+      
+      // Enhanced error details
+      if (simError.logs) {
+        console.error('Simulation logs from error:', simError.logs);
+      }
+      
+      throw new Error(`Transaction simulation failed: ${simError.message || JSON.stringify(simError)}`);
     }
     
     // Send the transaction
