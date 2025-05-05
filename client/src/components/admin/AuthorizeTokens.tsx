@@ -189,14 +189,14 @@ export default function AuthorizeTokens() {
             <div>Program ID: <span className="text-blue-600 dark:text-blue-400">SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE</span></div>
             <div>Program Authority PDA: <span className="text-green-600 dark:text-green-400">Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ</span></div>
             <div className="flex items-center gap-2">
-              Current Authority from Screenshot: 
-              <span className="text-yellow-600 dark:text-yellow-400">CoWdKZ7SJNtBH2FBcKwAYcYOTV7lYSgsv82JEHAufS</span>
+              Current Authority from Solscan: 
+              <span className="text-yellow-600 dark:text-yellow-400">CeuRAzZ58St8B29XKWo647CGtY7FL5qpwv8WGZUHAuA9</span>
               <Button 
                 variant="ghost" 
                 size="sm" 
                 className="h-6 px-2 font-medium text-xs"
                 onClick={() => {
-                  navigator.clipboard.writeText("CoWdKZ7SJNtBH2FBcKwAYcYOTV7lYSgsv82JEHAufS");
+                  navigator.clipboard.writeText("CeuRAzZ58St8B29XKWo647CGtY7FL5qpwv8WGZUHAuA9");
                   toast({
                     title: "Copied to clipboard",
                     description: "Authority address has been copied to clipboard",
@@ -250,9 +250,9 @@ export default function AuthorizeTokens() {
                       variant="outline" 
                       size="sm"
                       className="h-7 text-xs"
-                      onClick={() => setCustomAuthority("CoWdKZ7SJNtBH2FBcKwAYcYOTV7lYSgsv82JEHAufS")}
+                      onClick={() => setCustomAuthority("CeuRAzZ58St8B29XKWo647CGtY7FL5qpwv8WGZUHAuA9")}
                     >
-                      Use screenshot value
+                      Use Solscan value
                     </Button>
                   </div>
                 </div>
