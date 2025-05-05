@@ -39,7 +39,10 @@ export const MULTIHUB_SWAP_PROGRAM_ID = getMultiHubProgramId('v4');
 export const MULTIHUB_SWAP_PROGRAM_PUBKEY = getMultiHubProgramPublicKey('v4');
 
 // Validate and log the program ID
-console.log(`Using MultihubSwap Program ID: ${MULTIHUB_SWAP_PROGRAM_ID}`);
+console.log(`Using MultihubSwap Program ID (string): ${MULTIHUB_SWAP_PROGRAM_ID}`);
+console.log(`Using MultihubSwap Program ID (PublicKey): ${MULTIHUB_SWAP_PROGRAM_PUBKEY.toString()}`);
+console.log(`Program ID valid: ${MULTIHUB_SWAP_PROGRAM_PUBKEY !== undefined && MULTIHUB_SWAP_PROGRAM_PUBKEY !== null}`);
+console.log(`Program ID prototype: ${Object.prototype.toString.call(MULTIHUB_SWAP_PROGRAM_PUBKEY)}`);
 
 // Define essential Solana system addresses (used throughout the module)
 // Use imported constants from @solana/spl-token to ensure consistency
