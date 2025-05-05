@@ -121,6 +121,7 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
   const [withdrawLoading, setWithdrawLoading] = useState(false);
   const [slippage, setSlippage] = useState("1.0");
   const [exchangeRateDisplay, setExchangeRateDisplay] = useState("");
+  const [refreshTrigger, setRefreshTrigger] = useState(false);
 
   // Liquidity contribution state
   const [contributionInfo, setContributionInfo] = useState<{
@@ -245,6 +246,25 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
       setToAmount("");
     }
   }, [fromAmount, fromToken, toToken]);
+  
+  // Function to refresh token balances
+  const refreshBalances = async () => {
+    if (!wallet || !wallet.publicKey) return;
+    
+    try {
+      // Refresh balances for tokens the user is interested in
+      await Promise.all([
+        getTokenBalance(wallet, fromToken.address),
+        getTokenBalance(wallet, toToken.address),
+        getTokenBalance(wallet, YOT_TOKEN_ADDRESS)
+      ]);
+      
+      // Force UI update by changing state
+      setRefreshTrigger(prev => !prev);
+    } catch (error) {
+      console.error("Error refreshing balances:", error);
+    }
+  };
 
   // Execute the swap transaction
   const performSwap = async () => {

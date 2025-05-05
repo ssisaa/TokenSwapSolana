@@ -1188,10 +1188,32 @@ export async function withdrawLiquidityContribution(wallet: any): Promise<{ sign
       lastValidBlockHeight: transaction.lastValidBlockHeight!
     };
     
-    // Wait for confirmation
-    await connection.confirmTransaction(confirmationStrategy, 'confirmed');
+    // Wait for transaction confirmation and verify success
+    console.log("Waiting for withdraw contribution confirmation...");
+    const confirmationResult = await connection.confirmTransaction(confirmationStrategy, 'confirmed');
     
-    console.log("✅ Withdraw contribution transaction confirmed:", signature);
+    // CRITICAL: Check if the transaction failed on-chain
+    if (confirmationResult.value.err) {
+      console.error("Transaction failed on-chain:", confirmationResult.value.err);
+      throw new Error(`Transaction failed on-chain: ${JSON.stringify(confirmationResult.value.err)}`);
+    }
+    
+    // Double-check the transaction status
+    try {
+      const txInfo = await connection.getTransaction(signature, {commitment: 'confirmed'});
+      
+      // If meta is null or transaction has an error, throw a clear error
+      if (!txInfo || !txInfo.meta || txInfo.meta.err) {
+        const errorDetails = txInfo?.meta?.err ? JSON.stringify(txInfo.meta.err) : "Unknown failure";
+        console.error(`Transaction verification failed: ${errorDetails}`);
+        throw new Error(`Transaction verification failed: ${errorDetails}`);
+      }
+      
+      console.log("✅ Withdraw contribution transaction successfully verified:", signature);
+    } catch (error) {
+      console.error("Error verifying transaction:", error);
+      throw new Error(`Transaction may have failed. Please check explorer: ${error instanceof Error ? error.message : String(error)}`);
+    }
     
     return {
       signature,
@@ -1446,8 +1468,32 @@ export async function updateMultiHubSwapParameters(
       lastValidBlockHeight: transaction.lastValidBlockHeight!
     };
     
-    // Wait for confirmation
-    await connection.confirmTransaction(confirmationStrategy, 'confirmed');
+    // Wait for transaction confirmation and verify success
+    console.log("Waiting for parameter update confirmation...");
+    const confirmationResult = await connection.confirmTransaction(confirmationStrategy, 'confirmed');
+    
+    // CRITICAL: Check if the transaction failed on-chain
+    if (confirmationResult.value.err) {
+      console.error("Transaction failed on-chain:", confirmationResult.value.err);
+      throw new Error(`Transaction failed on-chain: ${JSON.stringify(confirmationResult.value.err)}`);
+    }
+    
+    // Double-check the transaction status
+    try {
+      const txInfo = await connection.getTransaction(signature, {commitment: 'confirmed'});
+      
+      // If meta is null or transaction has an error, throw a clear error
+      if (!txInfo || !txInfo.meta || txInfo.meta.err) {
+        const errorDetails = txInfo?.meta?.err ? JSON.stringify(txInfo.meta.err) : "Unknown failure";
+        console.error(`Transaction verification failed: ${errorDetails}`);
+        throw new Error(`Transaction verification failed: ${errorDetails}`);
+      }
+      
+      console.log("✅ Parameter update transaction successfully verified:", signature);
+    } catch (error) {
+      console.error("Error verifying transaction:", error);
+      throw new Error(`Transaction may have failed. Please check explorer: ${error instanceof Error ? error.message : String(error)}`);
+    }
     
     console.log("Parameters updated successfully:", {
       signature,
