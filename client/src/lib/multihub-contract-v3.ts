@@ -1051,6 +1051,7 @@ async function ensureTokenAccount(
 /**
  * Perform a token swap using the multihub swap V3 program
  * This improved version uses ConnectionManager for reliable network operations
+ * ENHANCED: Includes transaction recovery system for failed swaps
  */
 export async function performSwap(
   connection: Connection,
@@ -1815,13 +1816,15 @@ export async function performSwap(
         // Pool Authority is the actual owner of token accounts
         { pubkey: poolAuthorityAddress, isSigner: false, isWritable: true }, // Pool Authority [3]
         
-        // CRITICAL FIX: Enhanced token account validation for user token accounts
-        // Add explicit logging to help debug token account issues
+        // CRITICAL FIX: For SOL swaps, use wallet.publicKey as the FROM account
+        // This is because SOL is directly held in the wallet, not in a token account
         { 
-          pubkey: tokenFromAccount.address, 
-          isSigner: false, 
+          pubkey: tokenFromMint.equals(new PublicKey("So11111111111111111111111111111111111111112")) 
+            ? wallet.publicKey // For SOL, use wallet address directly 
+            : tokenFromAccount.address, // For other tokens, use token account
+          isSigner: tokenFromMint.equals(new PublicKey("So11111111111111111111111111111111111111112")),
           isWritable: true 
-        }, // User's source token account [4]
+        }, // User's source token account (or wallet for SOL) [4]
         { 
           pubkey: tokenToAccount.address, 
           isSigner: false, 
@@ -1970,6 +1973,31 @@ export async function performSwap(
       throw new Error(`Transaction simulation error: ${simError.message}`);
     }
     
+    // Import the transaction recovery system
+    let cleanupTracker: (() => void) | null = null;
+    try {
+      // Import the transaction recovery system
+      const { trackSwapTransaction, recordFailedTransaction } = await import('./multihub-recovery');
+      
+      // Start tracking this swap transaction for potential recovery
+      const tokenInAddress = tokenFromMint.toString();
+      const tokenOutAddress = tokenToMint.toString();
+      const amountValue = typeof amountIn === 'bigint' ? Number(amountIn) / 1e9 : amountIn;
+      
+      // Track the transaction for potential recovery
+      cleanupTracker = trackSwapTransaction(
+        wallet.publicKey,
+        tokenInAddress,
+        tokenOutAddress,
+        amountValue
+      );
+      
+      console.log('Transaction is being tracked for potential recovery if it fails');
+    } catch (trackerError) {
+      console.warn('Failed to initialize transaction recovery tracker:', trackerError);
+      // Continue anyway - recovery is a nice-to-have, not critical for the swap
+    }
+      
     // Send the transaction
     console.log('Sending swap transaction...');
     try {
@@ -1982,10 +2010,54 @@ export async function performSwap(
       );
       
       console.log('Swap transaction confirmed:', signature);
+      
+      // Clear the transaction tracker since it succeeded
+      if (cleanupTracker) {
+        cleanupTracker();
+      }
+      
       return signature;
     } catch (sendError) {
       console.error('Error sending swap transaction:', sendError);
-      throw new Error(`Failed to send swap transaction: ${sendError.message}`);
+      
+      // Record the failed transaction for recovery
+      try {
+        const { recordFailedTransaction } = await import('./multihub-recovery');
+        
+        // Only record certain types of errors that indicate SOL/tokens might have been deducted
+        // These are the errors where the transaction was actually sent to the blockchain
+        const errorMessage = sendError.message?.toLowerCase() || '';
+        
+        const wasActuallySent = 
+          errorMessage.includes('timeout') || 
+          errorMessage.includes('blockhash not found') ||
+          errorMessage.includes('invalid account data') ||
+          errorMessage.includes('insufficient funds');
+        
+        if (wasActuallySent) {
+          // Get the error signature if available
+          const signature = sendError.signature || 'unknown_signature';
+          
+          recordFailedTransaction(
+            wallet.publicKey,
+            signature,
+            tokenFromMint.toString(),
+            tokenToMint.toString(),
+            typeof amountIn === 'bigint' ? Number(amountIn) / 1e9 : amountIn
+          );
+          
+          console.log('Transaction recorded for potential recovery:', signature);
+        }
+      } catch (recoveryError) {
+        console.warn('Failed to record transaction for recovery:', recoveryError);
+      }
+      
+      // Clear the transaction tracker
+      if (cleanupTracker) {
+        cleanupTracker();
+      }
+      
+      throw new Error(`Failed to send swap transaction: ${sendError.message}. You can check the Transaction Recovery tab to recover your funds if they were deducted.`);
     }
   } catch (error) {
     console.error('Error in swap function:', error);
