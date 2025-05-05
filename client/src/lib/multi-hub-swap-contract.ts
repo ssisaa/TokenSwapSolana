@@ -378,14 +378,39 @@ export async function distributeWeeklyYosReward(
 
     // Find program controlled accounts
     const [liquidityContributionAddress] = findLiquidityContributionAddress(userPublicKey);
-
-    // Create the instruction data - simple direct approach with byte value 5
-    // This must match the CLAIM_WEEKLY_REWARD_IX value in the Rust program
-    const data = Buffer.from([5]); // Direct byte for CLAIM_WEEKLY_REWARD_IX
     
-    console.log("CLAIM_WEEKLY_REWARD instruction data:", data.toString("hex"));
+    // Find program authority (for signing token mints)
+    const [programAuthorityAddress] = PublicKey.findProgramAddressSync(
+      [Buffer.from("authority")],
+      program
+    );
+    
+    // Get the program state account
+    const [programStateAccount] = PublicKey.findProgramAddressSync(
+      [Buffer.from("state")],
+      program
+    );
 
-    // Create the instruction with modified account list for auto-distribution
+    // Create the instruction data - direct byte approach
+    // This must match what's in the Rust program in match instruction_data.first()
+    const data = Buffer.from([5]); // 5 for CLAIM_WEEKLY_REWARD_IX
+    
+    console.log("CLAIM_WEEKLY_REWARD instruction preparation:");
+    console.log("- Instruction data:", data.toString("hex"));
+    console.log("- Program ID:", program.toString());
+    
+    // Log all accounts for debugging purposes
+    console.log("CLAIM_WEEKLY_REWARD accounts:");
+    console.log("1. admin: ", adminPublicKey.toString(), "(signer)");
+    console.log("2. user: ", userPublicKey.toString());
+    console.log("3. liquidity_contribution: ", liquidityContributionAddress.toString());
+    console.log("4. yos_mint: ", yosMint.toString());
+    console.log("5. user_yos: ", userYosAccount.toString());
+    console.log("6. token_program: ", TOKEN_PROGRAM_ID.toString());
+    console.log("7. program_authority: ", programAuthorityAddress.toString());
+    console.log("8. program_state: ", programStateAccount.toString());
+
+    // Create the instruction with proper account list matching the Rust code
     const instruction = new TransactionInstruction({
       keys: [
         { pubkey: adminPublicKey, isSigner: true, isWritable: true },
@@ -393,7 +418,9 @@ export async function distributeWeeklyYosReward(
         { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true },
         { pubkey: yosMint, isSigner: false, isWritable: true },
         { pubkey: userYosAccount, isSigner: false, isWritable: true },
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false },
+        { pubkey: programStateAccount, isSigner: false, isWritable: true }
       ],
       programId: program,
       data
@@ -467,25 +494,51 @@ export async function withdrawLiquidityContribution(wallet: any): Promise<{ sign
     // Find program controlled accounts
     const [liquidityContributionAddress] = findLiquidityContributionAddress(userPublicKey);
     const [liquidityYotAddress] = findLiquidityTokenAddress(yotMint);
+    
+    // Find program authority (for signing token transfers)
+    const [programAuthorityAddress] = PublicKey.findProgramAddressSync(
+      [Buffer.from("authority")],
+      program
+    );
+    
+    // Get the program state account
+    const [programStateAccount] = PublicKey.findProgramAddressSync(
+      [Buffer.from("state")],
+      program
+    );
 
     // Get the current contribution amount before withdrawal
     const liquidityContributionInfo = await getLiquidityContributionInfo(userPublicKey.toString());
     const withdrawnAmount = liquidityContributionInfo.contributedAmount;
 
-    // Create the instruction data - simple direct approach with byte value 6
-    // This must match the WITHDRAW_CONTRIBUTION_IX value in the Rust program
-    const data = Buffer.from([6]); // Direct byte for WITHDRAW_CONTRIBUTION_IX
+    // Create the instruction data - direct byte approach matching Rust code
+    // This must match what's in the Rust program in match instruction_data.first()
+    const data = Buffer.from([6]); // 6 for WITHDRAW_CONTRIBUTION_IX
     
-    console.log("WITHDRAW_CONTRIBUTION instruction data:", data.toString("hex"));
+    console.log("WITHDRAW_CONTRIBUTION instruction preparation:");
+    console.log("- Instruction data:", data.toString("hex"));
+    console.log("- Program ID:", program.toString());
+    
+    // Log all accounts for debugging purposes
+    console.log("WITHDRAW_CONTRIBUTION accounts:");
+    console.log("1. user: ", userPublicKey.toString(), "(signer)");
+    console.log("2. liquidity_contribution: ", liquidityContributionAddress.toString());
+    console.log("3. liquidity_yot: ", liquidityYotAddress.toString());
+    console.log("4. user_yot: ", userYotAccount.toString());
+    console.log("5. token_program: ", TOKEN_PROGRAM_ID.toString());
+    console.log("6. program_authority: ", programAuthorityAddress.toString());
+    console.log("7. program_state: ", programStateAccount.toString());
 
-    // Create the instruction
+    // Create the instruction with proper account list matching the Rust code
     const instruction = new TransactionInstruction({
       keys: [
         { pubkey: userPublicKey, isSigner: true, isWritable: true },
         { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true },
         { pubkey: liquidityYotAddress, isSigner: false, isWritable: true },
         { pubkey: userYotAccount, isSigner: false, isWritable: true },
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false },
+        { pubkey: programStateAccount, isSigner: false, isWritable: true }
       ],
       programId: program,
       data
@@ -668,26 +721,59 @@ export async function updateMultiHubSwapParameters(
     const swapFeeBps = Math.round(swapFeeRate * 100);
     const referralBps = Math.round(referralRate * 100);
     
-    // Create instruction data
+    // Create instruction data - consistent with how we format the other functions
     // First byte is instruction discriminator (3 for UPDATE_PARAMETERS_IX)
-    // This must match the value in the Rust program
+    // This must match the value in the Rust program's match statement
     const data = Buffer.alloc(1 + 5 * 8); // 1 byte discrim + 5 u64 values (8 bytes each)
-    data.writeUInt8(3, 0); // UPDATE_PARAMETERS_IX instruction
     
-    console.log("UPDATE_PARAMETERS instruction data (hex):", data.toString("hex"));
+    // Set discriminator as first byte - must be 3 for UPDATE_PARAMETERS_IX
+    data[0] = 3;
     
-    // Write the parameters as u64 values
-    data.writeBigUInt64LE(BigInt(lpContributionBps), 1);
-    data.writeBigUInt64LE(BigInt(adminFeeBps), 9);
-    data.writeBigUInt64LE(BigInt(yosCashbackBps), 17);
-    data.writeBigUInt64LE(BigInt(swapFeeBps), 25);
-    data.writeBigUInt64LE(BigInt(referralBps), 33);
+    // Write the parameters as u64 values - explicit little-endian
+    const params = [
+      BigInt(lpContributionBps),
+      BigInt(adminFeeBps),
+      BigInt(yosCashbackBps),
+      BigInt(swapFeeBps), 
+      BigInt(referralBps)
+    ];
+    
+    // Pack each parameter as little-endian u64
+    for (let i = 0; i < params.length; i++) {
+      const paramBuffer = Buffer.alloc(8);
+      paramBuffer.writeBigUInt64LE(params[i], 0);
+      paramBuffer.copy(data, 1 + (i * 8));
+    }
+    
+    console.log("UPDATE_PARAMETERS instruction preparation:");
+    console.log("- Instruction data (hex):", data.toString("hex"));
+    console.log("- First byte (discriminator):", data[0]);
+    console.log("- Parameters (basis points):", {
+      lpContributionBps,
+      adminFeeBps,
+      yosCashbackBps,
+      swapFeeBps,
+      referralBps
+    });
+    
+    // Get the program authority PDA
+    const [programAuthorityAddress] = PublicKey.findProgramAddressSync(
+      [Buffer.from("authority")],
+      new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
+    );
+    
+    // Log all accounts for debugging purposes
+    console.log("UPDATE_PARAMETERS accounts:");
+    console.log("1. admin: ", wallet.publicKey.toString(), "(signer)");
+    console.log("2. program_state: ", programState.toString());
+    console.log("3. program_authority: ", programAuthorityAddress.toString());
     
     // Create instruction
     const instruction = new TransactionInstruction({
       keys: [
         { pubkey: wallet.publicKey, isSigner: true, isWritable: false },
-        { pubkey: programState, isSigner: false, isWritable: true }
+        { pubkey: programState, isSigner: false, isWritable: true },
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }
       ],
       programId: new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID),
       data
