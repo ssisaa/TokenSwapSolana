@@ -88,13 +88,14 @@ export function findLiquidityTokenAddress(tokenMint: PublicKey): [PublicKey, num
 
 /**
  * Find the liquidity contribution account for a user
- * CRITICAL: Must use "contrib" seed to match Rust program
+ * CRITICAL: Must use "liq" seed to match Rust program exactly
+ * Rust: Pubkey::find_program_address(&[b"liq", user.as_ref()], program_id)
  */
 export function findLiquidityContributionAddress(userWallet: PublicKey): [PublicKey, number] {
-  // IMPORTANT: Use "contrib" seed to match Rust program exactly
-  // This critical detail was missed in previous implementation
+  // CRITICAL FIX: Use "liq" seed to match Rust program exactly
+  // This was identified from Rust code: `&[b"liq", user.as_ref()]`
   return PublicKey.findProgramAddressSync(
-    [Buffer.from("contrib"), userWallet.toBuffer()],
+    [Buffer.from("liq"), userWallet.toBuffer()],
     new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
   );
 }
@@ -273,6 +274,13 @@ export async function buyAndDistribute(
     console.log("10. rent_sysvar: ", SYSVAR_RENT_PUBKEY.toString());
     console.log("11. program_state: ", programStateAccount.toString(), "(CRITICAL)");
     console.log("12. program_authority: ", programAuthorityAddress.toString(), "(ADDED)");
+    
+    // Debug the actual buffer being sent to the program
+    console.log("Final instruction data breakdown:");
+    console.log("- Full buffer (hex):", instructionData.toString('hex'));
+    console.log("- Full buffer (bytes):", Array.from(instructionData));
+    console.log("- Discriminator (first byte):", instructionData[0]);
+    console.log("- Amount bytes (little-endian u64):", Array.from(instructionData.slice(1, 9)));
     
     const instruction = new TransactionInstruction({
       keys: [
