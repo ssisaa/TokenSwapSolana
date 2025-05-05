@@ -1,3 +1,8 @@
+// Updated multi_hub_swap.rs with enhanced debugging
+// Version 1.1 - May 5, 2025
+// This file contains fixes for the "Unknown instruction discriminator" error
+// and improved logging for buy_and_distribute and other functions
+
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
