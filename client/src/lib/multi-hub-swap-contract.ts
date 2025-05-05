@@ -245,20 +245,10 @@ export async function buyAndDistribute(
       program
     );
     
-    // CRITICAL ADD PROGRAM AUTHORITY to match Rust process_buy_and_distribute function
-    // From lines ~500-510 in multi_hub_swap.rs, we see:
-    // let user = next_account_info(accounts_iter)?; // 1
-    // let vault_yot = next_account_info(accounts_iter)?; // 2 
-    // let user_yot = next_account_info(accounts_iter)?; // 3
-    // let liquidity_yot = next_account_info(accounts_iter)?; // 4
-    // let yos_mint = next_account_info(accounts_iter)?; // 5
-    // let user_yos = next_account_info(accounts_iter)?; // 6
-    // let liquidity_contribution_account = next_account_info(accounts_iter)?; // 7
-    // let token_program = next_account_info(accounts_iter)?; // 8
-    // let system_program = next_account_info(accounts_iter)?; // 9
-    // let rent_sysvar = next_account_info(accounts_iter)?; // 10
-    // let program_state_account = next_account_info(accounts_iter)?; // 11
-    // +++ We might be missing program_authority which is found later in execution
+    // CRITICAL CORRECTION: Analyzing the process_buy_and_distribute function in the Rust code
+    // shows that it only expects 11 accounts, not 12.
+    // The program_authority is derived inside the function as needed (lines 631-634)
+    // No need to include it as an explicit account in the transaction
     
     // Log all accounts for debugging purposes
     console.log("FINAL ACCOUNTS FOR INSTRUCTION:");
@@ -273,7 +263,6 @@ export async function buyAndDistribute(
     console.log("9. system_program: ", SystemProgram.programId.toString());
     console.log("10. rent_sysvar: ", SYSVAR_RENT_PUBKEY.toString());
     console.log("11. program_state: ", programStateAccount.toString(), "(CRITICAL)");
-    console.log("12. program_authority: ", programAuthorityAddress.toString(), "(ADDED)");
     
     // Debug the actual buffer being sent to the program
     console.log("Final instruction data breakdown:");
@@ -294,8 +283,8 @@ export async function buyAndDistribute(
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
-        { pubkey: programStateAccount, isSigner: false, isWritable: true }, // Make sure this is writable!
-        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false } // Added program authority
+        { pubkey: programStateAccount, isSigner: false, isWritable: true } // Make sure this is writable!
+        // Removing the program_authority account as it's not expected by the Rust program
       ],
       programId: program,
       data: instructionData
