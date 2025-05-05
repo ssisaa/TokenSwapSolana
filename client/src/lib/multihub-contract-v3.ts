@@ -828,7 +828,7 @@ export async function initializeProgram(
         { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false }, // system_program_account
         { pubkey: new PublicKey('SysvarRent111111111111111111111111111111111'), isSigner: false, isWritable: false }, // rent_sysvar_account
       ],
-      programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID), // Using program ID from config
+      programId: MULTIHUB_SWAP_PROGRAM_PUBKEY, // Using PublicKey object from config
       data: instructionData
     });
     
@@ -1064,7 +1064,7 @@ async function ensureTokenAccount(
 /**
  * Export getMultiHubProgramID for other modules
  */
-export { getMultiHubProgramID };
+export { getMultiHubProgramId };
 
 /**
  * Perform a token swap using the multihub swap V3 program
@@ -1079,12 +1079,13 @@ export async function performSwap(
   minAmountOut: number | bigint
 ): Promise<string> {
   // CRITICAL VALIDATE PROGRAM ID: Verify program ID is valid before proceeding
-  const programId = getMultiHubProgramID();
-  if (!programId || typeof programId !== 'string' || programId.length < 32) {
+  // Use the PublicKey object directly instead of string
+  const programId = MULTIHUB_SWAP_PROGRAM_PUBKEY;
+  if (!programId) {
     console.error(`Invalid program ID: ${programId}`);
     throw new Error(`Invalid program ID. This is likely a configuration error. Please refresh the page and try again.`);
   }
-  console.log(`Verified MultihubSwap Program ID: ${programId}`);
+  console.log(`Verified MultihubSwap Program ID: ${programId.toString()}`);
   
   try {
     console.log("Starting swap using ConnectionManager for reliable network operations");
@@ -1891,7 +1892,7 @@ export async function performSwap(
         { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false }, // System program [14]
         { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, // Rent sysvar [15]
       ],
-      programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID), // Using program ID from config
+      programId: MULTIHUB_SWAP_PROGRAM_PUBKEY, // Using PublicKey object from config
       data: Buffer.from(swapData)
     }));
     
@@ -2232,7 +2233,7 @@ export async function closeProgram(
         { pubkey: poolAuthorityAddress, isSigner: false, isWritable: true }, // CRITICAL FIX: Pool Authority for token accounts
         { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false }, // System Program - needed for closing accounts
       ],
-      programId: new PublicKey(MULTIHUB_SWAP_PROGRAM_ID), // Using program ID from config
+      programId: MULTIHUB_SWAP_PROGRAM_PUBKEY, // Using PublicKey object from config
       data: Buffer.from(closeProgramData)
     }));
     
