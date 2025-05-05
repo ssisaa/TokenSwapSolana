@@ -327,8 +327,13 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
         });
 
         // Refresh contribution info after successful swap
-        const info = await getLiquidityContributionInfo(wallet.publicKey.toString());
-        setContributionInfo(info);
+        try {
+          const info = await getLiquidityContributionInfo(wallet.publicKey.toString());
+          setContributionInfo(info);
+        } catch (err) {
+          console.error("Error refreshing contribution info:", err);
+          // Continue without refreshing - don't break the UI on this error
+        }
       } else {
         toast({
           title: "Swap successful!",
@@ -349,6 +354,14 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
             </div>
           ),
         });
+      }
+      
+      // Refresh token balances after successful swap
+      try {
+        await refreshBalances();
+      } catch (err) {
+        console.error("Error refreshing balances after swap:", err);
+        // Continue without refreshing - don't break the UI on this error
       }
     } catch (error: any) {
       toast({

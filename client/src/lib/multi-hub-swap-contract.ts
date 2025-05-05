@@ -768,9 +768,41 @@ export async function buyAndDistribute(
     });
 
     // FIXED IMPLEMENTATION FOR TRANSACTION HANDLING
-    // Use our new createAndSignTransaction function to properly structure the transaction
+    // Create transaction with proper structure to avoid numRequiredSignatures error
     console.log("Using improved transaction handling to fix numRequiredSignatures error");
-    const transaction = await createAndSignTransaction(wallet, instruction, connection);
+    
+    // CRITICAL FIX: For SOL transfers, add an explicit System Program transfer
+    // This ensures the wallet shows the correct amount being deducted (-0.2 SOL)
+    const transaction = new Transaction();
+    
+    // STEP 1: Set blockhash and fee payer FIRST (before adding instructions)
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+    transaction.recentBlockhash = blockhash;
+    transaction.lastValidBlockHeight = lastValidBlockHeight;
+    transaction.feePayer = wallet.publicKey;
+    
+    // STEP 2: Add compute budget instructions
+    const computeUnits = ComputeBudgetProgram.setComputeUnitLimit({
+      units: 1000000 // High value for complex transactions
+    });
+    
+    const priorityFee = ComputeBudgetProgram.setComputeUnitPrice({
+      microLamports: 1_000_000 // Higher priority fee
+    });
+    
+    // STEP 3: Add explicit SOL transfer instruction
+    // This ensures the wallet shows the correct amount being transferred
+    const transferInstruction = SystemProgram.transfer({
+      fromPubkey: wallet.publicKey,
+      toPubkey: new PublicKey(solanaConfig.pool.authority), // Send to pool authority
+      lamports: rawAmount // Use the same amount as the program instruction
+    });
+    
+    // STEP 4: Add all instructions in order
+    transaction.add(computeUnits);
+    transaction.add(priorityFee);
+    transaction.add(transferInstruction); // Add the SOL transfer instruction first
+    transaction.add(instruction); // Then add our program instruction
     
     // CRITICAL: Simulate the transaction before requesting wallet signature
     // This prevents the wallet from showing a red error screen
@@ -812,10 +844,32 @@ export async function buyAndDistribute(
       lastValidBlockHeight: transaction.lastValidBlockHeight!
     };
     
-    // Wait for transaction confirmation
-    await connection.confirmTransaction(confirmationStrategy, 'confirmed');
+    // Wait for transaction confirmation and verify success
+    console.log("Waiting for transaction confirmation...");
+    const confirmationResult = await connection.confirmTransaction(confirmationStrategy, 'confirmed');
     
-    console.log("✅ Buy and distribute transaction confirmed:", signature);
+    // CRITICAL: Check if the transaction failed on-chain
+    if (confirmationResult.value.err) {
+      console.error("Transaction failed on-chain:", confirmationResult.value.err);
+      throw new Error(`Transaction failed on-chain: ${JSON.stringify(confirmationResult.value.err)}`);
+    }
+    
+    // Double-check the transaction status
+    try {
+      const txInfo = await connection.getTransaction(signature, {commitment: 'confirmed'});
+      
+      // If meta is null or transaction has an error, throw a clear error
+      if (!txInfo || !txInfo.meta || txInfo.meta.err) {
+        const errorDetails = txInfo?.meta?.err ? JSON.stringify(txInfo.meta.err) : "Unknown failure";
+        console.error(`Transaction verification failed: ${errorDetails}`);
+        throw new Error(`Transaction verification failed: ${errorDetails}`);
+      }
+      
+      console.log("✅ Buy and distribute transaction successfully verified:", signature);
+    } catch (error) {
+      console.error("Error verifying transaction:", error);
+      throw new Error(`Transaction may have failed. Please check explorer: ${error.message}`);
+    }
     
     return signature;
   } catch (error) {
@@ -969,10 +1023,32 @@ export async function distributeWeeklyYosReward(
       lastValidBlockHeight: transaction.lastValidBlockHeight!
     };
     
-    // Wait for confirmation
-    await connection.confirmTransaction(confirmationStrategy, 'confirmed');
+    // Wait for transaction confirmation and verify success
+    console.log("Waiting for reward distribution confirmation...");
+    const confirmationResult = await connection.confirmTransaction(confirmationStrategy, 'confirmed');
     
-    console.log("✅ Reward distribution transaction confirmed:", signature);
+    // CRITICAL: Check if the transaction failed on-chain
+    if (confirmationResult.value.err) {
+      console.error("Transaction failed on-chain:", confirmationResult.value.err);
+      throw new Error(`Transaction failed on-chain: ${JSON.stringify(confirmationResult.value.err)}`);
+    }
+    
+    // Double-check the transaction status
+    try {
+      const txInfo = await connection.getTransaction(signature, {commitment: 'confirmed'});
+      
+      // If meta is null or transaction has an error, throw a clear error
+      if (!txInfo || !txInfo.meta || txInfo.meta.err) {
+        const errorDetails = txInfo?.meta?.err ? JSON.stringify(txInfo.meta.err) : "Unknown failure";
+        console.error(`Transaction verification failed: ${errorDetails}`);
+        throw new Error(`Transaction verification failed: ${errorDetails}`);
+      }
+      
+      console.log("✅ Reward distribution transaction successfully verified:", signature);
+    } catch (error) {
+      console.error("Error verifying transaction:", error);
+      throw new Error(`Transaction may have failed. Please check explorer: ${error.message}`);
+    }
     
     // Calculate the distributed reward amount (from config - 100% APR means 1.92% weekly)
     const weeklyRewardRate = solanaConfig.multiHubSwap.rewards.weeklyRewardRate / 100; // Convert from percentage to decimal
