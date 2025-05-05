@@ -379,10 +379,22 @@ export async function performMultiHubSwap(
   console.log(`Performing swap with original amount: ${amountIn} (${Number(amountIn) / 1e9} tokens)`);
   
   // Ensure the estimate is a valid number to avoid transaction failures due to NaN or infinity
-  const minAmountOut = Number.isFinite(swapEstimate.outAmount) 
-    ? Math.floor(swapEstimate.outAmount * 0.99) // Allow 1% slippage
-    : 0;
-    
+  // Use BigInt for large numbers to prevent numeric overflow
+  
+  // Convert to number, apply slippage, then convert back to BigInt
+  let minAmountOut: bigint;
+  
+  if (typeof swapEstimate.outAmount === 'bigint') {
+    // If it's already a BigInt, apply a 1% slippage directly
+    minAmountOut = swapEstimate.outAmount * BigInt(99) / BigInt(100);
+  } else if (Number.isFinite(swapEstimate.outAmount)) {
+    // Convert from number with 1% slippage
+    minAmountOut = BigInt(Math.floor(Number(swapEstimate.outAmount) * 0.99));
+  } else {
+    // Fallback to zero if there's an issue
+    minAmountOut = BigInt(0);
+  }
+  
   console.log(`Minimum amount out: ${minAmountOut} (${Number(minAmountOut) / 1e9} tokens)`);
   
   // Now perform the actual swap with improved slippage calculation and exact amounts

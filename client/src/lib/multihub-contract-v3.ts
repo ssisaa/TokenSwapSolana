@@ -153,12 +153,28 @@ export function buildSwapInstruction({
   discriminator.copy(buffer, offset);
   offset += 1;
   
+  // CRITICAL FIX: Check for integer overflow and cap at maximum u64 value
+  // Maximum u64 value is 2^64-1 = 18446744073709551615
+  const MAX_U64 = BigInt("18446744073709551615");
+  
+  // Cap amounts to prevent overflow
+  const safeAmountIn = amountIn > MAX_U64 ? MAX_U64 : amountIn;
+  const safeMinAmountOut = minAmountOut > MAX_U64 ? MAX_U64 : minAmountOut;
+  
+  if (amountIn !== safeAmountIn) {
+    console.warn(`WARNING: Amount in (${amountIn}) exceeds maximum u64 value, capping at ${MAX_U64}`);
+  }
+  
+  if (minAmountOut !== safeMinAmountOut) {
+    console.warn(`WARNING: Min amount out (${minAmountOut}) exceeds maximum u64 value, capping at ${MAX_U64}`);
+  }
+  
   // Write amountIn as LE u64 (8 bytes)
-  buffer.writeBigUInt64LE(amountIn, offset);
+  buffer.writeBigUInt64LE(safeAmountIn, offset);
   offset += 8;
   
   // Write minAmountOut as LE u64 (8 bytes)
-  buffer.writeBigUInt64LE(minAmountOut, offset);
+  buffer.writeBigUInt64LE(safeMinAmountOut, offset);
   
   // CRITICAL FIX: Verify the buffer contains exactly what we expect
   const verifyBuffer = Buffer.from(buffer);
@@ -168,11 +184,11 @@ export function buildSwapInstruction({
   
   console.log("Verifying instruction data:");
   console.log(`- Discriminator: ${verifyDiscriminator} (should be 1)`);
-  console.log(`- AmountIn: ${verifyAmountIn.toString()} (should match ${amountIn.toString()})`);
-  console.log(`- MinAmountOut: ${verifyMinAmountOut.toString()} (should match ${minAmountOut.toString()})`);
+  console.log(`- AmountIn: ${verifyAmountIn.toString()} (should match ${safeAmountIn.toString()})`);
+  console.log(`- MinAmountOut: ${verifyMinAmountOut.toString()} (should match ${safeMinAmountOut.toString()})`);
   console.log(`- Total data size: ${buffer.length} bytes (should be 17)`);
   
-  if (verifyDiscriminator !== 1 || verifyAmountIn !== amountIn || verifyMinAmountOut !== minAmountOut) {
+  if (verifyDiscriminator !== 1 || verifyAmountIn !== safeAmountIn || verifyMinAmountOut !== safeMinAmountOut) {
     console.error("CRITICAL ERROR: Instruction data verification failed!");
   }
   
