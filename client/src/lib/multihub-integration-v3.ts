@@ -249,7 +249,7 @@ export async function performMultiHubSwap(
   wallet: any,
   tokenFrom: TokenInfo,
   tokenTo: TokenInfo,
-  amountIn: number,
+  amountIn: number | bigint,
   swapEstimate: SwapEstimate,
   provider: SwapProvider = SwapProvider.Contract
 ): Promise<string> {

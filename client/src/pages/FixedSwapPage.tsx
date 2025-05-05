@@ -222,21 +222,23 @@ export default function FixedSwapPage() {
         if (fromToken === SOL_SYMBOL && toToken === YOT_SYMBOL) {
           // Swapping SOL to YOT
           console.log("Executing SOL to YOT swap with MultihubIntegrationV3");
+          // Pass the BigInt value directly - performMultiHubSwap now accepts number | bigint
           signature = await MultihubIntegrationV3.performMultiHubSwap(
             wallet,
             solTokenInfo,
             yotTokenInfo,
-            rawFromAmount, // CRITICAL FIX: Use raw amount that matches what the UI shows
+            rawFromAmount, // Using BigInt value directly, which is now supported
             swapEstimate
           );
         } else {
           // Swapping YOT to SOL
           console.log("Executing YOT to SOL swap with MultihubIntegrationV3");
+          // Pass the BigInt value directly - performMultiHubSwap now accepts number | bigint
           signature = await MultihubIntegrationV3.performMultiHubSwap(
             wallet,
             yotTokenInfo,
             solTokenInfo,
-            rawFromAmount, // CRITICAL FIX: Use raw amount that matches what the UI shows
+            rawFromAmount, // Using BigInt value directly, which is now supported
             swapEstimate
           );
         }
