@@ -356,20 +356,36 @@ export async function buyAndDistribute(
       cashbackPortion: amountIn * 0.05,
     });
 
-    // Create and sign transaction
-    const transaction = new Transaction().add(instruction);
+    // Create transaction with compute budget - critical for complex operations
+    const transaction = createTransactionWithComputeBudget(instruction);
     
     // Set recent blockhash and fee payer
     transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
     transaction.feePayer = userPublicKey;
 
-    // Sign and send transaction
+    // Sign transaction
     const signedTransaction = await wallet.signTransaction(transaction);
+
+    // 🔍 SIMULATE before sending - critical for debugging
+    const { value: simResult } = await connection.simulateTransaction(signedTransaction, {
+      sigVerify: true,
+      replaceRecentBlockhash: true
+    });
+
+    if (simResult.err) {
+      console.error("❌ Simulation failed");
+      console.error("Logs:", simResult.logs);
+      throw new Error("Simulation failed. See logs above.");
+    }
+
+    console.log("✅ Simulation successful with logs:");
+    console.log(simResult.logs);
+
+    // If simulation was successful, send the real transaction
     const signature = await connection.sendRawTransaction(signedTransaction.serialize());
-    
     await connection.confirmTransaction(signature, 'confirmed');
     
-    console.log("Buy and distribute transaction confirmed:", signature);
+    console.log("✅ Buy and distribute transaction confirmed:", signature);
     
     return signature;
   } catch (error) {
@@ -483,20 +499,36 @@ export async function distributeWeeklyYosReward(
       data
     });
 
-    // Create and sign transaction
-    const transaction = new Transaction().add(instruction);
+    // Create transaction with compute budget - critical for complex operations
+    const transaction = createTransactionWithComputeBudget(instruction);
     
     // Set recent blockhash and fee payer
     transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
     transaction.feePayer = adminPublicKey;
 
-    // Sign and send transaction
+    // Sign transaction
     const signedTransaction = await adminWallet.signTransaction(transaction);
+
+    // 🔍 SIMULATE before sending - critical for debugging
+    const { value: simResult } = await connection.simulateTransaction(signedTransaction, {
+      sigVerify: true,
+      replaceRecentBlockhash: true
+    });
+
+    if (simResult.err) {
+      console.error("❌ Simulation failed");
+      console.error("Logs:", simResult.logs);
+      throw new Error("Simulation failed. See logs above.");
+    }
+
+    console.log("✅ Simulation successful with logs:");
+    console.log(simResult.logs);
+
+    // If simulation was successful, send the real transaction
     const signature = await connection.sendRawTransaction(signedTransaction.serialize());
-    
     await connection.confirmTransaction(signature, 'confirmed');
     
-    console.log("Reward distribution transaction confirmed:", signature);
+    console.log("✅ Reward distribution transaction confirmed:", signature);
     
     // Calculate the distributed reward amount (from config - 100% APR means 1.92% weekly)
     const weeklyRewardRate = solanaConfig.multiHubSwap.rewards.weeklyRewardRate / 100; // Convert from percentage to decimal
@@ -608,20 +640,36 @@ export async function withdrawLiquidityContribution(wallet: any): Promise<{ sign
       data
     });
 
-    // Create and sign transaction
-    const transaction = new Transaction().add(instruction);
+    // Create transaction with compute budget - critical for complex operations
+    const transaction = createTransactionWithComputeBudget(instruction);
     
     // Set recent blockhash and fee payer
     transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
     transaction.feePayer = userPublicKey;
 
-    // Sign and send transaction
+    // Sign transaction
     const signedTransaction = await wallet.signTransaction(transaction);
+
+    // 🔍 SIMULATE before sending - critical for debugging
+    const { value: simResult } = await connection.simulateTransaction(signedTransaction, {
+      sigVerify: true,
+      replaceRecentBlockhash: true
+    });
+
+    if (simResult.err) {
+      console.error("❌ Simulation failed");
+      console.error("Logs:", simResult.logs);
+      throw new Error("Simulation failed. See logs above.");
+    }
+
+    console.log("✅ Simulation successful with logs:");
+    console.log(simResult.logs);
+
+    // If simulation was successful, send the real transaction
     const signature = await connection.sendRawTransaction(signedTransaction.serialize());
-    
     await connection.confirmTransaction(signature, 'confirmed');
     
-    console.log("Withdraw contribution transaction confirmed:", signature);
+    console.log("✅ Withdraw contribution transaction confirmed:", signature);
     
     return {
       signature,
@@ -849,15 +897,33 @@ export async function updateMultiHubSwapParameters(
       data
     });
     
-    // Create and send transaction
-    const transaction = new Transaction().add(instruction);
+    // Create transaction with compute budget - critical for complex operations
+    const transaction = createTransactionWithComputeBudget(instruction);
+    
+    // Set recent blockhash and fee payer
     transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
     transaction.feePayer = wallet.publicKey;
-    
-    // Sign and send transaction
+
+    // Sign transaction
     const signedTransaction = await wallet.signTransaction(transaction);
+
+    // 🔍 SIMULATE before sending - critical for debugging
+    const { value: simResult } = await connection.simulateTransaction(signedTransaction, {
+      sigVerify: true,
+      replaceRecentBlockhash: true
+    });
+
+    if (simResult.err) {
+      console.error("❌ Simulation failed");
+      console.error("Logs:", simResult.logs);
+      throw new Error("Simulation failed. See logs above.");
+    }
+
+    console.log("✅ Simulation successful with logs:");
+    console.log(simResult.logs);
+
+    // If simulation was successful, send the real transaction
     const signature = await connection.sendRawTransaction(signedTransaction.serialize());
-    
     await connection.confirmTransaction(signature, 'confirmed');
     
     console.log("Parameters updated successfully:", {
