@@ -83,6 +83,12 @@ export default function AuthorizeTokens() {
         }
       }
       
+      console.log("Setting program as mint authority with params:", { 
+        useCustomAuthority, 
+        customAuthorityValue,
+        walletConnected: !!wallet
+      });
+      
       const result = await setProgramAsMintAuthority(wallet, customAuthorityValue);
       
       if (result.success) {
@@ -99,9 +105,17 @@ export default function AuthorizeTokens() {
         // Refresh the status
         await handleCheckAuthority();
       } else {
+        // Create a more descriptive error message
+        let errorDescription = result.error || "An error occurred while setting the mint authority";
+        
+        // Add detailed information if available
+        if (result.details) {
+          errorDescription += `\n\nDetails:\n- Current authority: ${result.details.currentAuthority}\n- Target mint: ${result.details.targetMint}\n- New authority: ${result.details.newAuthority}`;
+        }
+        
         toast({
           title: "Failed to Set Authority",
-          description: result.error || "An error occurred while setting the mint authority",
+          description: errorDescription,
           variant: "destructive",
         });
       }

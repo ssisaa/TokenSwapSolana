@@ -96,16 +96,61 @@ export async function setProgramAsMintAuthority(wallet: any, overrideAuthority?:
     console.log("- Fee payer:", adminPublicKey.toString());
     console.log("- Using universal transaction helper for cross-wallet compatibility");
     
+    // Improve error reporting by adding more detailed logs
+    console.log("Sending transaction with the following parameters:");
+    console.log("- Current authority:", currentAuthorityKey.toString());
+    console.log("- Target mint:", yosMint.toString());
+    console.log("- New authority:", programAuthority.toString());
+    
     // Use the universal transaction helper to handle different wallet types
-    const signature = await sendTransaction(wallet, transaction, connection);
-    
-    console.log("✅ Successfully set program authority PDA as mint authority for YOS token");
-    console.log("Transaction signature:", signature);
-    
-    return { success: true, signature };
+    try {
+      const signature = await sendTransaction(wallet, transaction, connection);
+      
+      console.log("✅ Successfully set program authority PDA as mint authority for YOS token");
+      console.log("Transaction signature:", signature);
+      
+      return { success: true, signature };
+    } catch (sendError: any) {
+      console.error("Transaction failed during sending:", sendError);
+      // Try to get more detailed error information
+      let errorMsg = sendError.message || "Unknown error";
+      if (sendError.logs) {
+        console.error("Transaction logs:", sendError.logs);
+        errorMsg += "\nLogs: " + sendError.logs.join('\n');
+      }
+      
+      return { 
+        success: false, 
+        error: errorMsg,
+        details: {
+          currentAuthority: currentAuthorityKey.toString(),
+          targetMint: yosMint.toString(),
+          newAuthority: programAuthority.toString()
+        }
+      };
+    }
   } catch (error: any) {
     console.error("Failed to set program as mint authority:", error);
-    return { success: false, error: error.message };
+    
+    // Add more detailed error information if available
+    let details = undefined;
+    
+    // Try to extract PublicKey values from the current scope
+    try {
+      details = {
+        currentAuthority: currentAuthorityKey?.toString() || "unknown",
+        targetMint: yosMint?.toString() || "unknown",
+        newAuthority: programAuthority?.toString() || "unknown"
+      };
+    } catch (detailsError) {
+      console.error("Could not extract detailed error information:", detailsError);
+    }
+    
+    return { 
+      success: false, 
+      error: error.message,
+      details
+    };
   }
 }
 
