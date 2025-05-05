@@ -15,16 +15,26 @@ import {
   createMintToInstruction,
 } from '@solana/spl-token';
 import { Buffer } from 'buffer';
-import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, ENDPOINT, ADMIN_WALLET_ADDRESS } from './constants';
+import { ADMIN_WALLET_ADDRESS } from './constants';
+
+// Import configuration from dedicated config file to prevent conflicts
+import {
+  MULTI_HUB_SWAP_CONFIG,
+  YOT_TOKEN_ADDRESS,
+  YOS_TOKEN_ADDRESS,
+  SOLANA_RPC_URL,
+  INSTRUCTION_DISCRIMINATORS,
+  percentageToBasisPoints
+} from './multi-hub-config';
 
 // Program ID from the deployed Solana program
-export const MULTI_HUB_SWAP_PROGRAM_ID = 'SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE';
+export const MULTI_HUB_SWAP_PROGRAM_ID = MULTI_HUB_SWAP_CONFIG.programId;
 
 // Program State PDA 
-export const MULTI_HUB_SWAP_PROGRAM_STATE = 'Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ';
+export const MULTI_HUB_SWAP_PROGRAM_STATE = MULTI_HUB_SWAP_CONFIG.programState;
 
 // Connection to Solana network
-export const connection = new Connection(ENDPOINT, 'confirmed');
+export const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
 
 // Instruction discriminators for the program
 const BUY_AND_DISTRIBUTE_DISCRIMINATOR = Buffer.from([97, 208, 4, 103, 223, 94, 26, 42]);
