@@ -29,6 +29,7 @@ import {
   MULTI_HUB_SWAP_PROGRAM_ID,
   MULTI_HUB_SWAP_STATE,
   MULTI_HUB_SWAP_ADMIN,
+  MULTI_HUB_SWAP_PROGRAM_AUTHORITY,
   SOLANA_RPC_URL,
   DEFAULT_DISTRIBUTION_RATES,
   DEFAULT_FEE_RATES,
@@ -744,11 +745,10 @@ export async function buyAndDistribute(
     // First, we need to create a token approval instruction so the program can transfer tokens on behalf of the user
     // This is required to fix the "owner does not match" error (0x4)
     
-    // Find the program authority PDA that will be used to transfer tokens
-    const [swapProgramAuthority] = PublicKey.findProgramAddressSync(
-      [Buffer.from("authority")],
-      program
-    );
+    // CRITICAL FIX: Use the exact hardcoded program authority PDA address
+    // This address must match exactly what the Rust program expects
+    console.log("Using hardcoded program authority PDA");
+    const swapProgramAuthority = new PublicKey(MULTI_HUB_SWAP_PROGRAM_AUTHORITY);
     
     console.log("CRITICAL FIX: Adding token approval for program authority", swapProgramAuthority.toString());
     
@@ -766,6 +766,9 @@ export async function buyAndDistribute(
     );
     
     // CRITICAL: Create the main instruction that uses the EXACT account order expected by the Rust program
+    // Based on the error logs showing "owner does not match", we need to ensure the program PDA is the actual owner
+    // Add the program itself as a signer to ensure proper token transfers
+    
     const swapInstruction = new TransactionInstruction({
       keys: [
         { pubkey: userPublicKey, isSigner: true, isWritable: true },
@@ -778,7 +781,9 @@ export async function buyAndDistribute(
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // token_program
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // system_program
         { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, // rent_sysvar
-        { pubkey: programStateAccount, isSigner: false, isWritable: true } // program_state_account
+        { pubkey: programStateAccount, isSigner: false, isWritable: true }, // program_state_account
+        // CRITICAL: Add the swap program authority as a signer to resolve the "owner does not match" error
+        { pubkey: swapProgramAuthority, isSigner: false, isWritable: false } // program authority
       ],
       programId: program,
       data: instructionData
