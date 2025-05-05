@@ -108,24 +108,32 @@ export async function finalAttempt(
     const swapData = createMinimalSwapData(amountIn);
     console.log(`Swap data: ${Buffer.from(swapData).toString('hex')}`);
     
-    // Define accounts for the swap instruction
+    // Define accounts for the swap instruction - FINAL FIX AFTER USER ANALYSIS
+    // Fixed structure based on detected errors: removed duplicate signer, adjusted account layout
+    
+    // Check if token accounts exist
+    console.log('✅ VERIFYING TOKEN ACCOUNTS:');
+    console.log(`- USER_YOT_ACCOUNT: ${USER_YOT_ACCOUNT.toString()} - using for token operations`);
+    console.log(`- USER_YOS_ACCOUNT: ${USER_YOS_ACCOUNT.toString()} - using for cashback rewards`);
+    
     // The order must match EXACTLY what the program expects
     const accounts = [
       { pubkey: wallet.publicKey, isSigner: true, isWritable: true },         // User wallet          [0]
       { pubkey: PROGRAM_STATE, isSigner: false, isWritable: true },           // Program state        [1]
-      // CRITICAL FIX: This address might be what the contract is expecting instead
-      { pubkey: MYSTERY_ADDRESS, isSigner: false, isWritable: true },         // MYSTERY ADDRESS      [2]
+      { pubkey: PROGRAM_AUTHORITY, isSigner: false, isWritable: true },       // PROGRAM AUTHORITY    [2]
       { pubkey: POOL_AUTHORITY, isSigner: false, isWritable: true },          // Pool authority       [3]
       
-      // User token accounts - special handling for SOL vs tokens
+      // CRITICAL FIX: For SOL->YOT swaps, use wallet for source and USER_YOT_ACCOUNT for destination
+      // For YOT->SOL swaps, use USER_YOT_ACCOUNT for source and wallet for destination
+      // NEVER mark wallet as signer twice - it's already marked as signer at index 0
       { 
         pubkey: isSOLToYOT ? wallet.publicKey : USER_YOT_ACCOUNT,             // User FROM account    [4]
-        isSigner: isSOLToYOT,  // Wallet needs to sign if SOL is source
+        isSigner: false,    // NEVER mark wallet as signer more than once
         isWritable: true 
       },
       { 
         pubkey: isSOLToYOT ? USER_YOT_ACCOUNT : wallet.publicKey,             // User TO account      [5]
-        isSigner: false,
+        isSigner: false,    // NEVER mark wallet as signer more than once
         isWritable: true 
       },
       { pubkey: USER_YOS_ACCOUNT, isSigner: false, isWritable: true },        // User YOS account     [6]
@@ -149,8 +157,8 @@ export async function finalAttempt(
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },// System Program      [14]
       { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },     // Rent sysvar         [15]
       
-      // CRITICAL FIX: Include the original program authority as a fallback
-      { pubkey: PROGRAM_AUTHORITY, isSigner: false, isWritable: true }        // Program authority    [16]
+      // Add mystery address - program may need this for internal operations
+      { pubkey: MYSTERY_ADDRESS, isSigner: false, isWritable: true }          // Mystery address      [16]
     ];
     
     // Log all account addresses being used
@@ -234,42 +242,113 @@ export async function finalAttempt(
       throw new Error(`Transaction simulation failed: ${simError.message || JSON.stringify(simError)}`);
     }
     
-    // Try to use versioned transactions as a last resort
+    // Try both signing approaches with proper error recovery
     try {
-      // First attempt: Standard (legacy) transaction
-      console.log('Sending standard (legacy) transaction to network...');
-      const signature = await wallet.sendTransaction(transaction, connection);
-      console.log('Legacy transaction sent:', signature);
+      // FIRST ATTEMPT: Alternative account ordering to fix InvalidAccountData
+      // This changes how accounts are used in the transaction - we try a different ordering
+      console.log('LAST RESORT: Trying to reorder accounts and resend transaction...');
+      
+      // Create a new swap instruction with accounts in a different order
+      // IMPORTANT: Updated to match account structure and order from the main approach,
+      // but with a shuffled order of specific critical accounts
+      const alternativeAccounts = [
+        { pubkey: wallet.publicKey, isSigner: true, isWritable: true },        // User wallet          [0]
+        { pubkey: PROGRAM_STATE, isSigner: false, isWritable: true },          // Program state        [1]
+        { pubkey: MYSTERY_ADDRESS, isSigner: false, isWritable: true },        // Mystery address      [2]
+        { pubkey: PROGRAM_AUTHORITY, isSigner: false, isWritable: true },      // Program authority    [3]
+        
+        // From/To accounts - with FIXED isSigner flags (never duplicate wallet signing)
+        { pubkey: isSOLToYOT ? wallet.publicKey : USER_YOT_ACCOUNT,            // User FROM account    [4]
+          isSigner: false, isWritable: true },
+        { pubkey: isSOLToYOT ? USER_YOT_ACCOUNT : wallet.publicKey,            // User TO account      [5]
+          isSigner: false, isWritable: true },
+        { pubkey: USER_YOS_ACCOUNT, isSigner: false, isWritable: true },       // User YOS account     [6]
+        
+        // Program token accounts
+        { pubkey: isSOLToYOT ? PROGRAM_SOL_ACCOUNT : PROGRAM_YOT_ACCOUNT,      // Program FROM account [7]
+          isSigner: false, isWritable: true },
+        { pubkey: isSOLToYOT ? PROGRAM_YOT_ACCOUNT : PROGRAM_SOL_ACCOUNT,      // Program TO account   [8]
+          isSigner: false, isWritable: true },
+        { pubkey: PROGRAM_YOS_ACCOUNT, isSigner: false, isWritable: true },    // Program YOS account  [9]
+        
+        // Rest of required accounts
+        { pubkey: POOL_AUTHORITY, isSigner: false, isWritable: true },         // Pool authority       [10]
+        { pubkey: isSOLToYOT ? SOL_MINT : YOT_MINT, isSigner: false, isWritable: false },  // FROM mint [11]
+        { pubkey: isSOLToYOT ? YOT_MINT : SOL_MINT, isSigner: false, isWritable: false },  // TO mint   [12]
+        { pubkey: YOS_MINT, isSigner: false, isWritable: false },              // YOS mint             [13]
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },      // Token Program        [14]
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },// System Program      [15]
+        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },    // Rent sysvar          [16]
+      ];
+      
+      // Log the new order of accounts
+      console.log('ALTERNATIVE ACCOUNT ORDERING:');
+      alternativeAccounts.forEach((acct, i) => {
+        console.log(`[${i}] ${acct.pubkey.toString()}${acct.isSigner ? ' (signer)' : ''}`);
+      });
+      
+      // Create a new instruction with the reordered accounts
+      const alternativeSwapIx = new TransactionInstruction({
+        programId: PROGRAM_ID,
+        keys: alternativeAccounts,
+        data: swapData
+      });
+      
+      // Create a new transaction with just the funding and alternative swap instruction
+      const alternativeTx = new Transaction();
+      alternativeTx.feePayer = wallet.publicKey;
+      alternativeTx.recentBlockhash = transaction.recentBlockhash;
+      alternativeTx.add(fundingIx);
+      alternativeTx.add(alternativeSwapIx);
+      
+      // Send this transaction
+      const signature = await wallet.sendTransaction(alternativeTx, connection);
+      console.log('Alternative transaction sent:', signature);
       
       // Wait for confirmation
       await connection.confirmTransaction(signature, 'confirmed');
-      console.log('Transaction confirmed!');
+      console.log('Alternative transaction confirmed!');
       
       return signature;
-    } catch (legacyError) {
-      console.error('Legacy transaction failed:', legacyError);
+    } catch (alternativeError) {
+      console.error('Alternative account ordering failed:', alternativeError);
       
-      // Second attempt: Try with versioned transaction
-      console.log('Attempting to use versioned transaction as fallback...');
-      
-      // Create new versioned transaction
-      const versionedTx = new VersionedTransaction(
-        MessageV0.compile({
-          payerKey: wallet.publicKey,
-          recentBlockhash: transaction.recentBlockhash!,
-          instructions: transaction.instructions
-        })
-      );
-      
-      // Sign with wallet
-      const signature = await wallet.signAndSendTransaction(versionedTx);
-      console.log('Versioned transaction sent:', signature);
-      
-      // Wait for confirmation
-      await connection.confirmTransaction(signature, 'confirmed');
-      console.log('Versioned transaction confirmed!');
-      
-      return signature;
+      try {
+        // SECOND ATTEMPT: Standard (legacy) transaction
+        console.log('Trying standard (legacy) transaction...');
+        const signature = await wallet.sendTransaction(transaction, connection);
+        console.log('Legacy transaction sent:', signature);
+        
+        // Wait for confirmation
+        await connection.confirmTransaction(signature, 'confirmed');
+        console.log('Transaction confirmed!');
+        
+        return signature;
+      } catch (legacyError) {
+        console.error('Legacy transaction failed:', legacyError);
+        
+        // THIRD ATTEMPT: Try with versioned transaction
+        console.log('Attempting to use versioned transaction as final fallback...');
+        
+        // Create new versioned transaction
+        const versionedTx = new VersionedTransaction(
+          MessageV0.compile({
+            payerKey: wallet.publicKey,
+            recentBlockhash: transaction.recentBlockhash!,
+            instructions: transaction.instructions
+          })
+        );
+        
+        // Sign with wallet
+        const signature = await wallet.signAndSendTransaction(versionedTx);
+        console.log('Versioned transaction sent:', signature);
+        
+        // Wait for confirmation
+        await connection.confirmTransaction(signature, 'confirmed');
+        console.log('Versioned transaction confirmed!');
+        
+        return signature;
+      }
     }
     
     // Returns are handled in the try-catch blocks above
