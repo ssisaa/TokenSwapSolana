@@ -1,0 +1,80 @@
+Simulating swap transaction...
+connection-manager.ts:82 Connection attempt 0 failed with endpoint 0: Transaction instruction index 0 has undefined program id
+executeWithFallback @ connection-manager.ts:82
+await in executeWithFallback
+performSwap @ multihub-contract-v3.ts:1927
+await in performSwap
+performMultiHubSwap @ multihub-integration-v3.ts:485
+await in performMultiHubSwap
+handleExecuteSwap @ FixedSwapPage.tsx:326
+await in handleExecuteSwap
+callCallback2 @ chunk-276SZO74.js?v=c5448800:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c5448800:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c5448800:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c5448800:3736
+executeDispatch @ chunk-276SZO74.js?v=c5448800:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c5448800:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c5448800:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c5448800:7051
+(anonymous) @ chunk-276SZO74.js?v=c5448800:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c5448800:18913
+batchedUpdates @ chunk-276SZO74.js?v=c5448800:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c5448800:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c5448800:5478
+dispatchEvent @ chunk-276SZO74.js?v=c5448800:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c5448800:5449Understand this warning
+multihub-contract-v3.ts:1965 Error during transaction simulation: Error: Transaction instruction index 0 has undefined program id
+    at _Transaction.compileMessage (chunk-VWXFBHAO.js?v=c5448800:12761:15)
+    at _Transaction._compile (chunk-VWXFBHAO.js?v=c5448800:12896:26)
+    at Connection.simulateTransaction (chunk-VWXFBHAO.js?v=c5448800:17334:33)
+    at async ConnectionManager.executeWithFallback (connection-manager.ts:74:26)
+    at async Object.performSwap (multihub-contract-v3.ts:1927:20)
+    at async handleExecuteSwap (FixedSwapPage.tsx:326:23)
+performSwap @ multihub-contract-v3.ts:1965
+await in performSwap
+performMultiHubSwap @ multihub-integration-v3.ts:485
+await in performMultiHubSwap
+handleExecuteSwap @ FixedSwapPage.tsx:326
+await in handleExecuteSwap
+callCallback2 @ chunk-276SZO74.js?v=c5448800:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c5448800:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c5448800:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c5448800:3736
+executeDispatch @ chunk-276SZO74.js?v=c5448800:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c5448800:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c5448800:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c5448800:7051
+(anonymous) @ chunk-276SZO74.js?v=c5448800:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c5448800:18913
+batchedUpdates @ chunk-276SZO74.js?v=c5448800:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c5448800:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c5448800:5478
+dispatchEvent @ chunk-276SZO74.js?v=c5448800:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c5448800:5449Understand this error
+multihub-contract-v3.ts:2063 Error in swap function: Error: Transaction simulation error: Transaction instruction index 0 has undefined program id
+    at Object.performSwap (multihub-contract-v3.ts:1973:13)
+    at async handleExecuteSwap (FixedSwapPage.tsx:326:23)
+performSwap @ multihub-contract-v3.ts:2063
+await in performSwap
+performMultiHubSwap @ multihub-integration-v3.ts:485
+await in performMultiHubSwap
+handleExecuteSwap @ FixedSwapPage.tsx:326
+await in handleExecuteSwap
+callCallback2 @ chunk-276SZO74.js?v=c5448800:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c5448800:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c5448800:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c5448800:3736
+executeDispatch @ chunk-276SZO74.js?v=c5448800:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c5448800:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c5448800:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c5448800:7051
+(anonymous) @ chunk-276SZO74.js?v=c5448800:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c5448800:18913
+batchedUpdates @ chunk-276SZO74.js?v=c5448800:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c5448800:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c5448800:5478
+dispatchEvent @ chunk-276SZO74.js?v=c5448800:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c5448800:5449Understand this error
+FixedSwapPage.tsx:348 Swap failed: Error: Transaction simulation error: Transaction instruction index 0 has undefined program id
+    at Object.performSwap (multihub-contract-v3.ts:1973:13)
+    at async handleExecuteSwap (FixedSwapPage.tsx:326:23)
