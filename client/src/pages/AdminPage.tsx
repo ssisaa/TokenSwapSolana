@@ -12,6 +12,7 @@ import AdminStatistics from "@/components/admin/AdminStatistics";
 import AdminTransactions from "@/components/admin/AdminTransactions";
 import FundProgramAccounts from "@/components/admin/FundProgramAccounts";
 import MultiHubSwapSettings from "@/components/admin/MultiHubSwapSettings";
+import AuthorizeTokens from "@/components/admin/AuthorizeTokens";
 import { useMultiWallet } from "@/context/MultiWalletContext";
 
 export default function AdminPage() {
@@ -98,6 +99,9 @@ export default function AdminPage() {
               
               {/* Multi-Hub Swap Settings */}
               <MultiHubSwapSettings wallet={wallet} isAdmin={!!admin?.isFounder} />
+              
+              {/* Token Authorization Component */}
+              <AuthorizeTokens />
             </div>
             
             {/* Statistics panel next to Blockchain settings */}
