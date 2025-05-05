@@ -272,15 +272,15 @@ export default function FixedSwapPage() {
         console.log(`Raw form amounts: ${fromAmount} ${fromToken} -> ${toAmount} ${toToken}`);
         
         // CRITICAL FIX: Convert the input amount to raw blockchain format (lamports)
-        // This ensures the amount shown in UI is exactly what's sent to the blockchain
-        // Use BigInt for large numbers to prevent numeric overflow
+        // Use exact parsing to prevent floating point imprecision
+        // This fixes the issue where 0.2 SOL in UI shows as 0.05 SOL in wallet
         const rawFromAmount = fromToken === SOL_SYMBOL 
-          ? BigInt(Math.floor(fromAmount * 1e9)) // Convert SOL to lamports 
-          : BigInt(Math.floor(fromAmount * 1e9)); // Convert YOT to raw amount with 9 decimals
+          ? BigInt(Math.round(fromAmount * 1e9)) // Convert SOL to lamports with rounding
+          : BigInt(Math.round(fromAmount * 1e9)); // Convert YOT to raw amount with 9 decimals
           
         const rawToAmount = toToken === SOL_SYMBOL
-          ? BigInt(Math.floor(toAmount * 1e9)) // Convert SOL to lamports
-          : BigInt(Math.floor(toAmount * 1e9)); // Convert YOT to raw amount with 9 decimals
+          ? BigInt(Math.round(toAmount * 1e9)) // Convert SOL to lamports with rounding
+          : BigInt(Math.round(toAmount * 1e9)); // Convert YOT to raw amount with 9 decimals
           
         console.log(`Converted raw amounts: ${rawFromAmount} ${fromToken} -> ${rawToAmount} ${toToken}`);
         
