@@ -590,7 +590,7 @@ pub fn process_withdraw_liquidity(
     
     // Reset contribution amount
     contribution_data.contributed_amount = 0;
-    contribution_data.serialize(&mut *liquidity_contribution_account.data.borrow_mut())?;
+    contribution_data.pack(&mut liquidity_contribution_account.data.borrow_mut()[..])?;
     
     msg!("Liquidity withdrawn successfully: {} YOT", amount_to_withdraw);
     Ok(())
@@ -724,11 +724,11 @@ pub fn process_contribute(
             last_claim_time: Clock::get()?.unix_timestamp,
             total_claimed_yos: 0,
         };
-        contribution.serialize(&mut &mut liquidity_contribution_account.data.borrow_mut()[..])?;
+        contribution.pack(&mut liquidity_contribution_account.data.borrow_mut()[..])?;
     }
     
     // Load contribution data
-    let mut contribution = LiquidityContribution::try_from_slice(&liquidity_contribution_account.data.borrow())?;
+    let mut contribution = LiquidityContribution::unpack(&liquidity_contribution_account.data.borrow())?;
     
     // Verify user ownership
     if contribution.user != *user.key {
@@ -755,7 +755,7 @@ pub fn process_contribute(
     
     // Update contribution amount
     contribution.contributed_amount += amount;
-    contribution.serialize(&mut &mut liquidity_contribution_account.data.borrow_mut()[..])?;
+    contribution.pack(&mut liquidity_contribution_account.data.borrow_mut()[..])?;
     
     msg!("Contribution successful: {} tokens", amount);
     Ok(())
@@ -790,7 +790,7 @@ pub fn process_update_parameters(
     }
     
     // Load existing program state
-    let mut state = ProgramState::try_from_slice(&program_state_account.data.borrow())?;
+    let mut state = ProgramState::unpack(&program_state_account.data.borrow())?;
     
     // Verify caller is admin
     if state.admin != *admin.key {
@@ -819,7 +819,7 @@ pub fn process_update_parameters(
     state.referral_rate = referral_rate;
     
     // Save updated state
-    state.serialize(&mut &mut program_state_account.data.borrow_mut()[..])?;
+    state.pack(&mut program_state_account.data.borrow_mut()[..])?;
     
     // Log successful update
     msg!("✅ Program parameters updated successfully:");
