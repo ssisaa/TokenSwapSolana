@@ -8,6 +8,9 @@ import { connectionManager } from './connection-manager';
 // Import from multihub contract file
 import { MULTIHUB_SWAP_PROGRAM_ID } from './multihub-contract-v3';
 
+// Convert program ID to PublicKey for use in transaction instructions
+const PROGRAM_ID_PUBKEY = new PublicKey(MULTIHUB_SWAP_PROGRAM_ID);
+
 /**
  * Perform a token swap using the multihub swap V3 program
  * IMPROVED VERSION: Uses auto-refund functionality to automatically return SOL on failed transactions
