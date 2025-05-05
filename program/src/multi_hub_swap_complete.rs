@@ -483,37 +483,238 @@ pub fn process_withdraw_liquidity(
     Ok(())
 }
 
-// Stub implementations for remaining functions
+// Basic implementation of token swap
 pub fn process_swap(
-    _program_id: &Pubkey,
-    _accounts: &[AccountInfo],
-    _amount: u64,
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    amount: u64,
 ) -> ProgramResult {
-    // This would implement the actual swap logic
-    msg!("Swap function - implementation pending");
+    let accounts_iter = &mut accounts.iter();
+    
+    // Parse accounts
+    let user = next_account_info(accounts_iter)?;
+    let source_token = next_account_info(accounts_iter)?;
+    let destination_token = next_account_info(accounts_iter)?;
+    let user_source = next_account_info(accounts_iter)?;
+    let user_destination = next_account_info(accounts_iter)?;
+    let token_program = next_account_info(accounts_iter)?;
+    
+    // Verify user is a signer
+    if !user.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+    
+    // Find program authority
+    let (program_authority, authority_bump) = Pubkey::find_program_address(
+        &[b"authority"], program_id
+    );
+    
+    // Transfer user's tokens to the source pool
+    invoke(
+        &token_instruction::transfer(
+            token_program.key,
+            user_source.key,
+            source_token.key,
+            user.key,
+            &[],
+            amount,
+        )?,
+        &[
+            user_source.clone(),
+            source_token.clone(),
+            user.clone(),
+            token_program.clone(),
+        ],
+    )?;
+    
+    // Simple 1:1 swap for demonstration
+    // In a real implementation, this would use price oracle or pool ratio
+    let swap_amount = amount;
+    
+    // Transfer tokens from destination pool to user
+    invoke_signed(
+        &token_instruction::transfer(
+            token_program.key,
+            destination_token.key,
+            user_destination.key,
+            &program_authority,
+            &[],
+            swap_amount,
+        )?,
+        &[
+            destination_token.clone(),
+            user_destination.clone(),
+            token_program.clone(),
+        ],
+        &[&[b"authority", &[authority_bump]]],
+    )?;
+    
+    msg!("Swap successful: {} tokens", amount);
     Ok(())
 }
 
+// Direct contribution to liquidity pool
 pub fn process_contribute(
-    _program_id: &Pubkey,
-    _accounts: &[AccountInfo],
-    _amount: u64,
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    amount: u64,
 ) -> ProgramResult {
-    // This would implement the direct contribution logic
-    msg!("Contribute function - implementation pending");
+    let accounts_iter = &mut accounts.iter();
+    
+    // Parse accounts
+    let user = next_account_info(accounts_iter)?;
+    let user_token = next_account_info(accounts_iter)?;
+    let liquidity_token = next_account_info(accounts_iter)?;
+    let liquidity_contribution_account = next_account_info(accounts_iter)?;
+    let token_program = next_account_info(accounts_iter)?;
+    let system_program = next_account_info(accounts_iter)?;
+    
+    // Verify user is a signer
+    if !user.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+    
+    // Verify liquidity contribution account
+    let (expected_liq_contrib, bump_seed) = Pubkey::find_program_address(
+        &[b"liq", user.key.as_ref()],
+        program_id
+    );
+    
+    if expected_liq_contrib != *liquidity_contribution_account.key {
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Create account if it doesn't exist
+    if liquidity_contribution_account.data_is_empty() {
+        msg!("Creating new liquidity contribution account");
+        invoke_signed(
+            &system_instruction::create_account(
+                user.key,
+                liquidity_contribution_account.key,
+                Rent::get()?.minimum_balance(LiquidityContribution::LEN),
+                LiquidityContribution::LEN as u64,
+                program_id,
+            ),
+            &[
+                user.clone(),
+                liquidity_contribution_account.clone(),
+                system_program.clone(),
+            ],
+            &[&[b"liq", user.key.as_ref(), &[bump_seed]]],
+        )?;
+        
+        // Initialize contribution data
+        let contribution = LiquidityContribution {
+            user: *user.key,
+            contributed_amount: 0,
+            start_timestamp: Clock::get()?.unix_timestamp,
+            last_claim_time: Clock::get()?.unix_timestamp,
+            total_claimed_yos: 0,
+        };
+        contribution.serialize(&mut &mut liquidity_contribution_account.data.borrow_mut()[..])?;
+    }
+    
+    // Load contribution data
+    let mut contribution = LiquidityContribution::try_from_slice(&liquidity_contribution_account.data.borrow())?;
+    
+    // Verify user ownership
+    if contribution.user != *user.key {
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Transfer tokens from user to liquidity pool
+    invoke(
+        &token_instruction::transfer(
+            token_program.key,
+            user_token.key,
+            liquidity_token.key,
+            user.key,
+            &[],
+            amount,
+        )?,
+        &[
+            user_token.clone(),
+            liquidity_token.clone(),
+            user.clone(),
+            token_program.clone(),
+        ],
+    )?;
+    
+    // Update contribution amount
+    contribution.contributed_amount += amount;
+    contribution.serialize(&mut &mut liquidity_contribution_account.data.borrow_mut()[..])?;
+    
+    msg!("Contribution successful: {} tokens", amount);
     Ok(())
 }
 
 pub fn process_update_parameters(
-    _program_id: &Pubkey,
-    _accounts: &[AccountInfo],
-    _lp_rate: u64,
-    _cashback_rate: u64,
-    _admin_fee: u64,
-    _swap_fee: u64,
-    _referral_rate: u64,
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    lp_rate: u64,
+    cashback_rate: u64,
+    admin_fee: u64,
+    swap_fee: u64,
+    referral_rate: u64,
 ) -> ProgramResult {
-    // This would implement the parameter updating logic
-    msg!("UpdateParameters function - implementation pending");
+    let accounts_iter = &mut accounts.iter();
+    
+    // Parse accounts
+    let admin = next_account_info(accounts_iter)?;
+    let program_state_account = next_account_info(accounts_iter)?;
+    
+    // Verify admin is a signer
+    if !admin.is_signer {
+        msg!("Error: Admin must sign parameter update instruction");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+    
+    // Verify program state account
+    let (state_pda, _) = Pubkey::find_program_address(&[b"state"], program_id);
+    if state_pda != *program_state_account.key {
+        msg!("Error: Invalid program state account");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Load existing program state
+    let mut state = ProgramState::try_from_slice(&program_state_account.data.borrow())?;
+    
+    // Verify caller is admin
+    if state.admin != *admin.key {
+        msg!("Error: Only admin can update parameters");
+        return Err(ProgramError::InvalidArgument);
+    }
+    
+    // Validate parameters
+    if lp_rate > 100 || cashback_rate > 100 || admin_fee > 100 || 
+       swap_fee > 100 || referral_rate > 100 {
+        msg!("Error: All rates must be between 0-100 (percentage)");
+        return Err(ProgramError::InvalidArgument);
+    }
+    
+    // Check that total doesn't exceed 100%
+    if lp_rate + cashback_rate + admin_fee > 100 {
+        msg!("Error: Total of lp_rate + cashback_rate + admin_fee cannot exceed 100%");
+        return Err(ProgramError::InvalidArgument);
+    }
+    
+    // Update parameters
+    state.lp_contribution_rate = lp_rate;
+    state.yos_cashback_rate = cashback_rate;
+    state.admin_fee_rate = admin_fee;
+    state.swap_fee_rate = swap_fee;
+    state.referral_rate = referral_rate;
+    
+    // Save updated state
+    state.serialize(&mut &mut program_state_account.data.borrow_mut()[..])?;
+    
+    // Log successful update
+    msg!("✅ Program parameters updated successfully:");
+    msg!("- LP contribution rate: {}%", lp_rate);
+    msg!("- YOS cashback rate: {}%", cashback_rate);
+    msg!("- Admin fee rate: {}%", admin_fee);
+    msg!("- Swap fee rate: {}%", swap_fee);
+    msg!("- Referral rate: {}%", referral_rate);
+    
     Ok(())
 }
