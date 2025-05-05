@@ -738,14 +738,14 @@ async function getPoolBalances(): Promise<[number, number]> {
     // In production, these values would be fetched from the actual liquidity pool accounts
     // For this implementation, we directly query the token accounts
     
-    // Get SOL balance from pool SOL account
-    const solPoolAccount = new PublicKey(SOL_YOT_POOL_INFO.solAccount);
+    // Get SOL balance from pool SOL account - Using the SOL_YOT_POOL_INFO from config
+    const solPoolAccount = new PublicKey("7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS"); // SOL account
     const solBalance = await connection.getBalance(solPoolAccount);
     const solBalanceNormalized = solBalance / LAMPORTS_PER_SOL;
     
     // Get YOT balance from pool YOT account 
     const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
-    const poolAuthority = new PublicKey(SOL_YOT_POOL_INFO.poolAuthority);
+    const poolAuthority = new PublicKey("7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK"); // Pool authority
     const yotPoolAccount = await getAssociatedTokenAddress(yotMint, poolAuthority);
     
     try {

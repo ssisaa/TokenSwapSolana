@@ -49,19 +49,18 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { PublicKey } from "@solana/web3.js";
 
-// Swap functionality imports
+// Swap functionality imports - all consolidated in multi-hub-swap-contract.ts
 import {
   distributeWeeklyYosReward,
   getLiquidityContributionInfo,
-  withdrawLiquidityContribution
-} from "@/lib/multi-hub-swap-contract";
-import { 
+  withdrawLiquidityContribution,
   executeSwap, 
   getExpectedOutput, 
   getTokenBalance, 
   isSwapSupported,
-  getSupportedTokens 
-} from "@/lib/swap-router";
+  getSupportedTokens,
+  buyAndDistribute
+} from "@/lib/multi-hub-swap-contract";
 import { 
   FORMATTED_RATES,
   SOL_TOKEN_ADDRESS,
@@ -171,16 +170,7 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
     return 1; // Default 1:1 for unknown pairs
   };
 
-  // Update to amount when from amount changes
-  useEffect(() => {
-    if (fromAmount) {
-      const rate = estimateExchangeRate();
-      const calculated = parseFloat(fromAmount) * rate;
-      setToAmount(calculated.toFixed(calculated < 0.1 ? 6 : 2));
-    } else {
-      setToAmount("");
-    }
-  }, [fromAmount, fromToken, toToken]);
+  // Old rate estimation, now replaced by fetchExchangeRate function
 
   // Swap tokens function
   const swapTokens = () => {
@@ -190,6 +180,47 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
     setFromAmount(toAmount);
     // toAmount will be updated by the useEffect
   };
+
+  // Fetch exchange rate with real blockchain data
+  const fetchExchangeRate = async () => {
+    if (wallet && wallet.publicKey && fromToken && toToken) {
+      try {
+        const { exchangeRate } = await getExpectedOutput(
+          fromToken.address,
+          toToken.address,
+          1.0 // Get rate for 1 token
+        );
+        
+        // Update the to amount based on real exchange rate
+        if (fromAmount) {
+          const calculated = parseFloat(fromAmount) * exchangeRate;
+          setToAmount(calculated.toFixed(calculated < 0.1 ? 6 : 2));
+        }
+      } catch (error) {
+        console.error("Error fetching exchange rate:", error);
+        // Fallback to estimated rate if blockchain data fetch fails
+        if (fromAmount) {
+          const rate = estimateExchangeRate();
+          const calculated = parseFloat(fromAmount) * rate;
+          setToAmount(calculated.toFixed(calculated < 0.1 ? 6 : 2));
+        }
+      }
+    }
+  };
+
+  // Update exchange rate when tokens change
+  useEffect(() => {
+    fetchExchangeRate();
+  }, [fromToken, toToken, wallet]);
+  
+  // Update to amount when from amount changes
+  useEffect(() => {
+    if (fromAmount) {
+      fetchExchangeRate();
+    } else {
+      setToAmount("");
+    }
+  }, [fromAmount]);
 
   // Execute the swap transaction
   const performSwap = async () => {
