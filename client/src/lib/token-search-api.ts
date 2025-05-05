@@ -1,131 +1,69 @@
 /**
- * Token Search API
- * 
- * Provides standardized token information and search capabilities
+ * Token search API utility with common token definitions
  */
-
-import { SOL_TOKEN_MINT, YOT_TOKEN_MINT, YOS_TOKEN_MINT } from './multihub-client';
 
 export interface TokenInfo {
+  address: string;
   symbol: string;
   name: string;
-  address: string;
   decimals: number;
-  logoURI?: string;
-  coingeckoId?: string;
-  tags?: string[];
-  chainId?: number; // Optional chainId field for network support
+  logo?: string;
+  icon?: string;
 }
 
-// Common token list with well-known Solana tokens
-const COMMON_TOKENS: TokenInfo[] = [
+// Default token list for the application
+export const defaultTokens: TokenInfo[] = [
   {
-    symbol: 'SOL',
-    name: 'Solana',
-    address: SOL_TOKEN_MINT,
+    address: "So11111111111111111111111111111111111111112",
+    symbol: "SOL",
+    name: "Solana",
     decimals: 9,
-    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
-    coingeckoId: 'solana',
-    tags: ['native']
+    icon: "🌟"
   },
   {
-    symbol: 'YOT',
-    name: 'Yot Token',
-    address: YOT_TOKEN_MINT,
+    address: "2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF",
+    symbol: "YOT",
+    name: "YOT Token",
     decimals: 9,
-    logoURI: 'https://raw.githubusercontent.com/yot-currency/token-assets/main/yot-logo.png',
-    tags: ['yot-ecosystem']
+    icon: "🪙"
   },
   {
-    symbol: 'YOS',
-    name: 'Yos Token',
-    address: YOS_TOKEN_MINT,
+    address: "GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n",
+    symbol: "YOS",
+    name: "YOS Token",
     decimals: 9,
-    logoURI: 'https://raw.githubusercontent.com/yot-currency/token-assets/main/yos-logo.png',
-    tags: ['yot-ecosystem']
+    icon: "🌱"
   },
   {
-    symbol: 'USDC',
-    name: 'USD Coin',
-    address: '9T7uw5dqaEmEC4McqyefzYsZauvtSP3z3iMrZsrMW8n',
+    address: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    symbol: "USDC",
+    name: "USD Coin",
     decimals: 6,
-    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png',
-    coingeckoId: 'usd-coin',
-    tags: ['stablecoin']
+    icon: "💵"
   },
   {
-    symbol: 'XAR',
-    name: 'Example AR Token',
-    address: '9VnMEkvpCPkRVyxXZQWEDocyipoq2uGehdYwAw3yryEa',
-    decimals: 9,
-    tags: ['test']
-  },
-  {
-    symbol: 'XMP',
-    name: 'Example MP Token',
-    address: 'HMfSHCLwS6tJmg4aoYnkAqCFte1LQMkjRpfFvP5M3HPs',
-    decimals: 9,
-    tags: ['test']
-  },
+    address: "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+    symbol: "USDT",
+    name: "USDT",
+    decimals: 6,
+    icon: "💰"
+  }
 ];
 
-// Export the common tokens list for use in components
-export const defaultTokens = COMMON_TOKENS;
-
 /**
- * Search for tokens by name, symbol, or address
+ * Get a token by its symbol
+ * @param symbol Token symbol to look up
+ * @returns TokenInfo object if found, undefined otherwise
  */
-export async function searchTokens(query: string): Promise<TokenInfo[]> {
-  if (!query) return COMMON_TOKENS;
-  
-  const lowerQuery = query.toLowerCase();
-  
-  return COMMON_TOKENS.filter((token) => {
-    return (
-      token.symbol.toLowerCase().includes(lowerQuery) ||
-      token.name.toLowerCase().includes(lowerQuery) ||
-      token.address.toLowerCase().includes(lowerQuery)
-    );
-  });
+export function getTokenBySymbol(symbol: string): TokenInfo | undefined {
+  return defaultTokens.find(token => token.symbol === symbol);
 }
 
 /**
- * Get token by address
+ * Get a token by its address
+ * @param address Token address to look up
+ * @returns TokenInfo object if found, undefined otherwise
  */
-export async function getTokenByAddress(address: string): Promise<TokenInfo | null> {
-  const token = COMMON_TOKENS.find(t => t.address === address);
-  return token || null;
+export function getTokenByAddress(address: string): TokenInfo | undefined {
+  return defaultTokens.find(token => token.address === address);
 }
-
-/**
- * Get token by symbol
- */
-export async function getTokenBySymbol(symbol: string): Promise<TokenInfo | null> {
-  const token = COMMON_TOKENS.find(t => t.symbol === symbol);
-  return token || null;
-}
-
-/**
- * Get token info by either address or symbol
- */
-export async function getTokenInfo(identifierOrToken: string | TokenInfo): Promise<TokenInfo | null> {
-  if (typeof identifierOrToken !== 'string') {
-    return identifierOrToken; // It's already a TokenInfo
-  }
-  
-  // Check if it looks like an address (long string)
-  if (identifierOrToken.length > 30) {
-    return getTokenByAddress(identifierOrToken);
-  }
-  
-  // Otherwise treat as symbol
-  return getTokenBySymbol(identifierOrToken);
-}
-
-export default {
-  searchTokens,
-  getTokenByAddress,
-  getTokenBySymbol,
-  getTokenInfo,
-  COMMON_TOKENS
-};
