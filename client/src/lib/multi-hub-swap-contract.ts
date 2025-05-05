@@ -17,22 +17,26 @@ import {
 import { Buffer } from 'buffer';
 import { ADMIN_WALLET_ADDRESS } from './constants';
 
-// Import configuration from dedicated config file to prevent conflicts
+// Import configuration from centralized configuration system
 import {
-  MULTI_HUB_SWAP_CONFIG,
+  solanaConfig,
+  SOL_TOKEN_ADDRESS,
   YOT_TOKEN_ADDRESS,
   YOS_TOKEN_ADDRESS,
+  MULTI_HUB_SWAP_PROGRAM_ID,
+  MULTI_HUB_SWAP_STATE,
   SOLANA_RPC_URL,
-  SOL_TOKEN_ADDRESS,
+  DEFAULT_DISTRIBUTION_RATES,
+  DEFAULT_FEE_RATES,
   DEFAULT_EXCHANGE_RATES,
-  DEFAULT_DISTRIBUTION_RATES
-} from './multi-hub-config';
+  BUY_AND_DISTRIBUTE_DISCRIMINATOR,
+  CLAIM_REWARD_DISCRIMINATOR,
+  WITHDRAW_CONTRIBUTION_DISCRIMINATOR,
+  UPDATE_PARAMETERS_DISCRIMINATOR
+} from './config';
 
-// Program ID from the deployed Solana program
-export const MULTI_HUB_SWAP_PROGRAM_ID = MULTI_HUB_SWAP_CONFIG.programId;
-
-// Program State PDA 
-export const MULTI_HUB_SWAP_PROGRAM_STATE = MULTI_HUB_SWAP_CONFIG.programState;
+// Program State PDA from centralized config
+export const MULTI_HUB_SWAP_PROGRAM_STATE = MULTI_HUB_SWAP_STATE;
 
 // Instruction types for the program
 export enum MultiHubSwapInstructionType {
@@ -47,11 +51,7 @@ export enum MultiHubSwapInstructionType {
 // Connection to Solana network
 export const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
 
-// Instruction discriminators for the program
-const BUY_AND_DISTRIBUTE_DISCRIMINATOR = Buffer.from([97, 208, 4, 103, 223, 94, 26, 42]);
-const CLAIM_REWARD_DISCRIMINATOR = Buffer.from([140, 176, 3, 173, 23, 2, 90, 79]);
-const WITHDRAW_CONTRIBUTION_DISCRIMINATOR = Buffer.from([183, 18, 70, 156, 148, 109, 161, 34]);
-const UPDATE_PARAMETERS_DISCRIMINATOR = Buffer.from([98, 103, 208, 178, 254, 106, 239, 67]);
+// Use discriminators from centralized config
 
 /**
  * Find the program state PDA

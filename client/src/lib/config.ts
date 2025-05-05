@@ -10,19 +10,30 @@ export interface SolanaConfig {
   rpcUrl: string;
   programId: string;
   commitment: string;
+  explorerUrl: string;
+  confirmationCount: number;
   tokens: {
+    sol: {
+      address: string;
+      decimals: number;
+      name: string;
+      symbol: string;
+    };
     yot: {
       address: string;
       decimals: number;
       name: string;
+      symbol: string;
       account: string;
     };
     yos: {
       address: string;
       decimals: number;
       name: string;
+      symbol: string;
       account: string;
       programAccount: string;
+      displayAdjustment: number;
     };
   };
   pool: {
@@ -64,6 +75,7 @@ export interface AdminConfig {
   defaultLiquidityFee: number;
   stakingRatePerSecond: number;
   harvestThreshold: number;
+  programScalingFactor: number;
 }
 
 export interface UIConfig {
