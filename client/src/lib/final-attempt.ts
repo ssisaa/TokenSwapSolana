@@ -33,7 +33,8 @@ const POOL_AUTHORITY = new PublicKey('7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKp
 
 // Pool token accounts
 const POOL_SOL_ACCOUNT = new PublicKey('7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS');
-const USER_SOL_ACCOUNT = new PublicKey('AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ'); // The wallet address used for SOL ops
+// CRITICAL FIX: Don't use the wallet as USER_SOL_ACCOUNT, use a different account
+const USER_SOL_ACCOUNT = new PublicKey('11111111111111111111111111111111'); // System Program as dummy account
 const PROGRAM_YOT_ACCOUNT = new PublicKey('BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE');
 const PROGRAM_YOS_ACCOUNT = new PublicKey('5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz');
 
