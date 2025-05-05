@@ -6,7 +6,8 @@ import {
   SYSVAR_RENT_PUBKEY,
   TransactionInstruction,
   sendAndConfirmTransaction,
-  LAMPORTS_PER_SOL
+  LAMPORTS_PER_SOL,
+  ComputeBudgetProgram
 } from '@solana/web3.js';
 import {
   TOKEN_PROGRAM_ID,
@@ -107,6 +108,31 @@ function encodeU64(value: number): Buffer {
   const buffer = Buffer.alloc(8);
   buffer.writeBigUInt64LE(BigInt(value), 0);
   return buffer;
+}
+
+/**
+ * Creates a transaction with compute budget instructions for complex operations
+ * This ensures transactions have enough compute units and prioritization
+ */
+function createTransactionWithComputeBudget(instruction: TransactionInstruction): Transaction {
+  // Add compute unit allocation to the transaction (critical for complex instructions)
+  const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({
+    units: 1000000 // Use a high value to ensure enough compute budget
+  });
+  
+  const priorityFee = ComputeBudgetProgram.setComputeUnitPrice({
+    microLamports: 1_000_000 // Higher priority fee to increase chance of success
+  });
+  
+  // Create transaction with compute unit instructions first, then our main instruction
+  const transaction = new Transaction()
+    .add(modifyComputeUnits)
+    .add(priorityFee)
+    .add(instruction);
+  
+  console.log("Transaction includes compute budget allocation for complex operations");
+  
+  return transaction;
 }
 
 /**
