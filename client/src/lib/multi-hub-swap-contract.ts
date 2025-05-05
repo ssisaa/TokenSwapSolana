@@ -390,6 +390,16 @@ export async function distributeWeeklyYosReward(
     console.log("- Program ID:", program.toString());
     
     // Log all accounts for debugging purposes
+    // CRITICAL: We must exactly match what the program expects in the process_claim_weekly_reward function
+    // In lines 668-674, it only gets 6 accounts:
+    // let caller = next_account_info(accounts_iter)?;                      // 1
+    // let user_key = next_account_info(accounts_iter)?;                    // 2
+    // let liquidity_contribution_account = next_account_info(accounts_iter)?; // 3
+    // let yos_mint = next_account_info(accounts_iter)?;                    // 4
+    // let user_yos = next_account_info(accounts_iter)?;                    // 5
+    // let token_program = next_account_info(accounts_iter)?;               // 6
+    // The program_authority and program_state are computed internally in the function
+
     console.log("CLAIM_WEEKLY_REWARD accounts:");
     console.log("1. admin: ", adminPublicKey.toString(), "(signer)");
     console.log("2. user: ", userPublicKey.toString());
@@ -397,8 +407,6 @@ export async function distributeWeeklyYosReward(
     console.log("4. yos_mint: ", yosMint.toString());
     console.log("5. user_yos: ", userYosAccount.toString());
     console.log("6. token_program: ", TOKEN_PROGRAM_ID.toString());
-    console.log("7. program_authority: ", programAuthorityAddress.toString());
-    console.log("8. program_state: ", programStateAccount.toString());
 
     // Create the instruction with proper account list matching the Rust code
     const instruction = new TransactionInstruction({
@@ -408,9 +416,8 @@ export async function distributeWeeklyYosReward(
         { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true },
         { pubkey: yosMint, isSigner: false, isWritable: true },
         { pubkey: userYosAccount, isSigner: false, isWritable: true },
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false },
-        { pubkey: programStateAccount, isSigner: false, isWritable: true }
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }
+        // Removing program_authority and program_state as they're not expected by the Rust program
       ],
       programId: program,
       data
@@ -510,14 +517,21 @@ export async function withdrawLiquidityContribution(wallet: any): Promise<{ sign
     console.log("- Program ID:", program.toString());
     
     // Log all accounts for debugging purposes
+    // CRITICAL: We must exactly match what the program expects in the process_withdraw_contribution function
+    // In lines 767-772, it only gets 5 accounts:
+    // let user = next_account_info(accounts_iter)?;                       // 1
+    // let liquidity_contribution_account = next_account_info(accounts_iter)?; // 2
+    // let liquidity_yot = next_account_info(accounts_iter)?;               // 3
+    // let user_yot = next_account_info(accounts_iter)?;                    // 4
+    // let token_program = next_account_info(accounts_iter)?;               // 5
+    // The program_authority is computed internally in the function
+    
     console.log("WITHDRAW_CONTRIBUTION accounts:");
     console.log("1. user: ", userPublicKey.toString(), "(signer)");
     console.log("2. liquidity_contribution: ", liquidityContributionAddress.toString());
     console.log("3. liquidity_yot: ", liquidityYotAddress.toString());
     console.log("4. user_yot: ", userYotAccount.toString());
     console.log("5. token_program: ", TOKEN_PROGRAM_ID.toString());
-    console.log("6. program_authority: ", programAuthorityAddress.toString());
-    console.log("7. program_state: ", programStateAccount.toString());
 
     // Create the instruction with proper account list matching the Rust code
     const instruction = new TransactionInstruction({
@@ -526,9 +540,8 @@ export async function withdrawLiquidityContribution(wallet: any): Promise<{ sign
         { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true },
         { pubkey: liquidityYotAddress, isSigner: false, isWritable: true },
         { pubkey: userYotAccount, isSigner: false, isWritable: true },
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false },
-        { pubkey: programStateAccount, isSigner: false, isWritable: true }
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }
+        // Removing program_authority and program_state as they're not expected by the Rust program
       ],
       programId: program,
       data
