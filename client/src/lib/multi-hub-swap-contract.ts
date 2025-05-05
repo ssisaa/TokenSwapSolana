@@ -16,7 +16,8 @@ import {
   createTransferInstruction,
   getAssociatedTokenAddress,
   createMintToInstruction,
-  createAssociatedTokenAccountInstruction
+  createAssociatedTokenAccountInstruction,
+  createApproveCheckedInstruction
 } from '@solana/spl-token';
 import { Buffer } from 'buffer';
 // Import configuration from centralized configuration system
@@ -740,8 +741,29 @@ export async function buyAndDistribute(
     console.log("- Discriminator (first byte):", instructionData[0]);
     console.log("- Amount bytes (little-endian u64):", Array.from(instructionData.slice(1, 9)));
     
-    // CRITICAL: Create an instruction that uses the EXACT account order expected by the Rust program
-    const instruction = new TransactionInstruction({
+    // First, we need to create a token approval instruction so the program can transfer tokens on behalf of the user
+    // This is required to fix the "owner does not match" error (0x4)
+    
+    // Find the program authority PDA that will be used to transfer tokens
+    const [swapProgramAuthority] = PublicKey.findProgramAddressSync(
+      [Buffer.from("authority")],
+      program
+    );
+    
+    console.log("CRITICAL FIX: Adding token approval for program authority", swapProgramAuthority.toString());
+    
+    // Create the approval instruction
+    const approveInstruction = createApproveCheckedInstruction(
+      userYotAccount,                   // source account (owned by the user)
+      yotMint,                          // mint account 
+      swapProgramAuthority,             // delegate account (program PDA)
+      userPublicKey,                    // owner of source account
+      rawAmount,                        // amount
+      9                                 // decimals
+    );
+    
+    // CRITICAL: Create the main instruction that uses the EXACT account order expected by the Rust program
+    const swapInstruction = new TransactionInstruction({
       keys: [
         { pubkey: userPublicKey, isSigner: true, isWritable: true },
         { pubkey: poolYotAccount, isSigner: false, isWritable: true },  // vault_yot (Pool's YOT account)
@@ -758,6 +780,12 @@ export async function buyAndDistribute(
       programId: program,
       data: instructionData
     });
+    
+    // Use an array of instructions instead of a single one
+    const instructions = [
+      approveInstruction,
+      swapInstruction
+    ];
 
     console.log("Preparing buyAndDistribute transaction with: ", {
       totalAmount: amountIn,
