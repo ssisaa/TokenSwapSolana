@@ -31,9 +31,9 @@ import { config } from './config';
 import { connectionManager } from './connection-manager';
 import { validateTokenAccount as validateSplTokenAccount } from './validateTokenAccount';
 
-// CRITICAL FIX: Use a hardcoded program ID to avoid undefined program ID error
-// This ensures that the program ID is always defined and never undefined
-const DEFAULT_PROGRAM_ID = "SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE"; // Fixed program ID
+// Get the program ID from config, but if it's not available yet, use a sensible default
+// This ensures that the program ID is always defined even when config is loading
+const DEFAULT_PROGRAM_ID = "SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE"; // Default value, should be replaced by config
 
 // Use a getter function to always return a valid program ID
 // This ensures we never have an undefined program ID even if config isn't loaded yet
@@ -66,16 +66,17 @@ const ASSOCIATED_TOKEN_PROGRAM_ID = SPL_ASSOCIATED_TOKEN_PROGRAM_ID;
 const SYSTEM_PROGRAM_ID = new PublicKey('11111111111111111111111111111111');
 const SYSVAR_RENT_PUBKEY = new PublicKey('SysvarRent111111111111111111111111111111111');
 
-// Define token accounts for both authorities for dual implementation and fallback
-const POOL_AUTHORITY = "7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK";
-const PROGRAM_AUTHORITY = "Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ";
+// Define token accounts from config for both authorities for dual implementation and fallback
+const POOL_AUTHORITY = config.accounts?.poolAuthority || "7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK";
+const PROGRAM_AUTHORITY = "Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ"; // PDA - cannot be configured
 
-// Primary token accounts (Pool Authority)
-const DEFAULT_SOL_TOKEN_ACCOUNT = "7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS";
-const DEFAULT_YOT_TOKEN_ACCOUNT = "BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE";
-const DEFAULT_YOS_TOKEN_ACCOUNT = "5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz";
+// Primary token accounts (Pool Authority) from config
+const DEFAULT_SOL_TOKEN_ACCOUNT = config.accounts?.poolSol || "7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS";
+const DEFAULT_YOT_TOKEN_ACCOUNT = config.accounts?.yotToken || "BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE";
+const DEFAULT_YOS_TOKEN_ACCOUNT = config.accounts?.yosToken || "5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz";
 
 // Fallback token accounts (Program Authority ATAs)
+// These are associated token accounts dynamically derived based on the Program Authority PDA
 const FALLBACK_YOT_TOKEN_ACCOUNT = "ALNfRZWERhp8eDyBR5wcbeDVzz3yv61zQJz5wwW9GnN8";
 const FALLBACK_YOS_TOKEN_ACCOUNT = "49APzC9EH1sBSA2uy5wsvX1qnBeeRyxHm7zgfcv9dYRA";
 
