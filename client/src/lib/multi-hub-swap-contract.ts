@@ -168,6 +168,8 @@ export async function buyAndDistribute(
       new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
     );
     
+    console.log("FIND PROGRAM AUTHORITY - seed 'authority':", programAuthorityAddress.toString());
+    
     console.log("PDA Addresses:");
     console.log("- Program State:", programStateAddress.toString());
     console.log("- Program Authority:", programAuthorityAddress.toString());
@@ -201,14 +203,23 @@ export async function buyAndDistribute(
     console.log("- Expected discriminator from program: BUY_AND_DISTRIBUTE_IX = 4");
     console.log("- Raw amount (u64):", rawAmount);
     
-    // Create a 9-byte buffer: 1 byte for discriminator + 8 bytes for u64 amount
+    // Create a buffer for the instruction data - CRITICAL CHANGE
+    // Try simplest possible approach - direct array with values matching Rust enum
+    // Create a buffer with just the discriminator and amount packed directly
     const data = Buffer.alloc(9);
     
-    // Write discriminator as first byte - must be 4 for BUY_AND_DISTRIBUTE_IX
-    data.writeUInt8(4, 0);
+    // Set the instruction discriminator (4 = BUY_AND_DISTRIBUTE_IX)
+    data[0] = 4;
     
-    // Write amount as 8-byte little-endian u64 starting at position 1
-    data.writeBigUInt64LE(BigInt(rawAmount), 1);
+    // Pack the amount as a little-endian u64 (8 bytes)
+    const amountBuffer = Buffer.alloc(8);
+    amountBuffer.writeBigUInt64LE(BigInt(rawAmount), 0);
+    amountBuffer.copy(data, 1);
+    
+    console.log("CRITICAL - New instruction data format:");
+    console.log("- Raw hex:", data.toString("hex"));
+    console.log("- First byte (discriminator):", data[0]);
+    console.log("- Amount bytes:", Array.from(data.slice(1, 9)));
     
     console.log("Instruction data (hex):", data.toString("hex"));
     console.log("Data buffer:", {
@@ -240,6 +251,21 @@ export async function buyAndDistribute(
       program
     );
     
+    // CRITICAL ADD PROGRAM AUTHORITY to match Rust process_buy_and_distribute function
+    // From lines ~500-510 in multi_hub_swap.rs, we see:
+    // let user = next_account_info(accounts_iter)?; // 1
+    // let vault_yot = next_account_info(accounts_iter)?; // 2 
+    // let user_yot = next_account_info(accounts_iter)?; // 3
+    // let liquidity_yot = next_account_info(accounts_iter)?; // 4
+    // let yos_mint = next_account_info(accounts_iter)?; // 5
+    // let user_yos = next_account_info(accounts_iter)?; // 6
+    // let liquidity_contribution_account = next_account_info(accounts_iter)?; // 7
+    // let token_program = next_account_info(accounts_iter)?; // 8
+    // let system_program = next_account_info(accounts_iter)?; // 9
+    // let rent_sysvar = next_account_info(accounts_iter)?; // 10
+    // let program_state_account = next_account_info(accounts_iter)?; // 11
+    // +++ We might be missing program_authority which is found later in execution
+    
     // Log all accounts for debugging purposes
     console.log("FINAL ACCOUNTS FOR INSTRUCTION:");
     console.log("1. user: ", userPublicKey.toString(), "(signer)");
@@ -253,6 +279,7 @@ export async function buyAndDistribute(
     console.log("9. system_program: ", SystemProgram.programId.toString());
     console.log("10. rent_sysvar: ", SYSVAR_RENT_PUBKEY.toString());
     console.log("11. program_state: ", programStateAccount.toString(), "(CRITICAL)");
+    console.log("12. program_authority: ", programAuthorityAddress.toString(), "(ADDED)");
     
     const instruction = new TransactionInstruction({
       keys: [
@@ -266,7 +293,8 @@ export async function buyAndDistribute(
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
-        { pubkey: programStateAccount, isSigner: false, isWritable: true } // Make sure this is writable!
+        { pubkey: programStateAccount, isSigner: false, isWritable: true }, // Make sure this is writable!
+        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false } // Added program authority
       ],
       programId: program,
       data
