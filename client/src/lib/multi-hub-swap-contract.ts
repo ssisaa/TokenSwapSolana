@@ -544,6 +544,7 @@ export async function buyAndDistribute(
     
     // The pool token account owned by the pool authority
     const poolAuthority = new PublicKey(solanaConfig.pool.authority);
+    console.log("Pool authority from config:", poolAuthority.toString());
     const poolYotAccount = await getAssociatedTokenAddress(yotMint, poolAuthority);
     
     // Find liquidity contribution PDA
@@ -554,11 +555,12 @@ export async function buyAndDistribute(
     
     // Find the program authority PDA - CRITICAL: this must be derived correctly
     // This is the authority that the program uses for token operations
-    const [programAuthority, _] = PublicKey.findProgramAddressSync(
+    const [programAuthority, authorityBump] = PublicKey.findProgramAddressSync(
       [Buffer.from("authority")],
       new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
     );
     console.log("Dynamically derived program authority PDA:", programAuthority.toString());
+    console.log("Program authority bump seed:", authorityBump);
     
     // Validate percentages match contract expectations
     if (buyUserPercent !== 75 || buyLiquidityPercent !== 20 || buyCashbackPercent !== 5) {
