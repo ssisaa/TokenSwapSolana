@@ -210,13 +210,6 @@ function createTransactionWithComputeBudget(instruction: TransactionInstruction)
 }
 
 /**
- * Safely simulates a transaction and handles any errors
- * Returns true if simulation was successful, false otherwise
- * 
- * Note: This implementation uses the simplest form of simulation to avoid type errors.
- * The web3.js types can be inconsistent between versions.
- */
-/**
  * Safely simulates a transaction and provides detailed logs for debugging
  * This function will never throw, only log errors and return a success/failure status
  */
@@ -224,13 +217,34 @@ async function safelySimulateTransaction(connection: Connection, transaction: Tr
   try {
     console.log("📊 SIMULATION: Attempting to simulate transaction before sending...");
     
+    // Print detailed account list information for better debugging
+    console.log("\n🔑 TRANSACTION ACCOUNTS ANALYSIS:");
+    for (let i = 0; i < transaction.instructions.length; i++) {
+      const instruction = transaction.instructions[i];
+      console.log(`\nInstruction #${i} with program ID: ${instruction.programId.toString()}`);
+      
+      instruction.keys.forEach((keyObj, idx) => {
+        console.log(`  Account #${idx}: ${keyObj.pubkey.toString()}`);
+        console.log(`    Signer: ${keyObj.isSigner}, Writable: ${keyObj.isWritable}`);
+      });
+    }
+    
     // Extract the instruction data for debugging
     if (transaction.instructions.length > 0) {
       const instructionData = transaction.instructions[0].data;
-      console.log("📊 Instruction data analysis:");
+      console.log("\n📊 INSTRUCTION DATA ANALYSIS:");
       console.log(`- Data length: ${instructionData.length} bytes`);
       console.log(`- Discriminator byte: ${instructionData[0]}`);
       console.log(`- Full data (hex): ${instructionData.toString('hex')}`);
+      
+      // Show additional bytes for buyAndDistribute
+      if (instructionData[0] === BUY_AND_DISTRIBUTE_DISCRIMINATOR[0]) {
+        const amountBytes = instructionData.slice(1, 9);
+        const amount = Number(amountBytes.readBigUInt64LE(0));
+        console.log(`- Amount bytes: ${amountBytes.toString('hex')}`);
+        console.log(`- Amount (raw): ${amount}`);
+        console.log(`- Amount (UI): ${amount / Math.pow(10, 9)} YOT`);
+      }
     }
     
     // Check if transaction is properly built
@@ -244,9 +258,9 @@ async function safelySimulateTransaction(connection: Connection, transaction: Tr
       return false;
     }
     
+    console.log("\n🧪 Starting transaction simulation...");
+    
     // Use the simpler form of simulateTransaction to avoid type errors
-    // This only takes the transaction as a parameter and doesn't use the extra options
-    // that can cause type errors with different web3.js versions
     const simResult = await connection.simulateTransaction(transaction);
 
     // Check if simulation results are available
@@ -263,6 +277,8 @@ async function safelySimulateTransaction(connection: Connection, transaction: Tr
       if (typeof simResult.value.err === 'object') {
         const errorObj = simResult.value.err as any;
         
+        console.log("\n🔍 DETAILED ERROR ANALYSIS:", JSON.stringify(errorObj, null, 2));
+        
         // Look for specific InstructionError patterns
         if (errorObj.InstructionError) {
           const [index, error] = errorObj.InstructionError;
@@ -270,9 +286,6 @@ async function safelySimulateTransaction(connection: Connection, transaction: Tr
           
           if (error.Custom === 1) {
             console.error("❗ Detected Unknown Instruction Discriminator error - verify the instruction byte is correct");
-            console.error("💡 SOLUTION: Make sure the discriminator bytes match between client and program:");
-            console.error("   - Client uses BUY_AND_DISTRIBUTE_DISCRIMINATOR = Buffer.from([1])");
-            console.error("   - Program expects BUY_AND_DISTRIBUTE_IX = 1");
           } else if (error.Custom === 0) {
             console.error("❗ Detected invalid account data - check account ownership and initialization");
           }
@@ -281,7 +294,7 @@ async function safelySimulateTransaction(connection: Connection, transaction: Tr
       
       // Log simulation logs if available
       if (simResult.value.logs) {
-        console.log("📋 SIMULATION LOGS:");
+        console.log("\n📋 SIMULATION LOGS:");
         simResult.value.logs.forEach((log, i) => console.log(`#${i}: ${log}`));
         
         // Additional analysis of logs
@@ -294,47 +307,28 @@ async function safelySimulateTransaction(connection: Connection, transaction: Tr
           console.log("\n🔍 PROGRAM SPECIFIC LOGS:");
           programLogs.forEach((log, i) => console.log(`#${i}: ${log}`));
         }
-        
-        // Look for specific error patterns
-        const errorLogs = simResult.value.logs.filter(log => 
-          log.includes("failed") || 
-          log.includes("Error") || 
-          log.includes("error") ||
-          log.includes("invalid") ||
-          log.includes("Unknown instruction")
-        );
-        
-        if (errorLogs.length > 0) {
-          console.log("\n⚠️ ERROR INDICATORS IN LOGS:");
-          errorLogs.forEach((log, i) => console.log(`#${i}: ${log}`));
-        }
       }
       
+      console.log("\nWill proceed with transaction despite simulation errors.");
       return false;
     }
     
     // Simulation succeeded, log any available logs
-    console.log("✅ SIMULATION SUCCEEDED. Logs:");
+    console.log("✅ SIMULATION SUCCEEDED.");
     if (simResult.value.logs) {
-      simResult.value.logs.forEach((log, i) => console.log(`#${i}: ${log}`));
-    } else {
-      console.log("No simulation logs available");
+      console.log("Logs (truncated):");
+      simResult.value.logs.slice(0, 10).forEach((log, i) => console.log(`#${i}: ${log}`));
     }
     
     return true;
   } catch (error: any) {
     console.error("❌ CRITICAL ERROR during transaction simulation:", error);
     
-    // Try to extract more information from the error
-    if (error?.logs) {
-      console.log("📋 ERROR LOGS:");
-      error.logs.forEach((log: string, i: number) => console.log(`#${i}: ${log}`));
-    }
-    
     if (error?.message) {
       console.log("📝 ERROR MESSAGE:", error.message);
     }
     
+    console.log("\n⚠️ Simulation failed but will continue with transaction.");
     return false;
   }
 }
@@ -879,14 +873,16 @@ export async function withdrawLiquidityContribution(wallet: any): Promise<{ sign
     console.log("5. token_program: ", TOKEN_PROGRAM_ID.toString());
 
     // Create the instruction with proper account list matching the Rust code
+    // Also adding system program and associated token program to allow token account creation
     const instruction = new TransactionInstruction({
       keys: [
         { pubkey: userPublicKey, isSigner: true, isWritable: true },
         { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true },
         { pubkey: liquidityYotAddress, isSigner: false, isWritable: true },
         { pubkey: userYotAccount, isSigner: false, isWritable: true },
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }
-        // Removing program_authority and program_state as they're not expected by the Rust program
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // Added for token account creation
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false } // Added for token account creation
       ],
       programId: program,
       data
