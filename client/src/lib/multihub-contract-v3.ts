@@ -33,6 +33,7 @@ export const MULTIHUB_SWAP_PROGRAM_ID = config.programs.multiHub.v4;
 
 // Define essential Solana system addresses (used throughout the module)
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
 const SYSTEM_PROGRAM_ID = new PublicKey('11111111111111111111111111111111');
 const SYSVAR_RENT_PUBKEY = new PublicKey('SysvarRent111111111111111111111111111111111');
 
@@ -858,6 +859,79 @@ type TokenAccountInfo = {
  * This function ensures token accounts exist and are properly validated
  * The previous implementation was vulnerable to "InvalidAccountData" errors
  */
+/**
+ * ENHANCED: Verify token account is a valid SPL token account
+ * This helps detect and prevent InvalidAccountData errors
+ * 
+ * IMPORTANT FIX: Using recommended account validation to prevent InvalidAccountData errors
+ */
+async function validateTokenAccount(
+  connection: Connection,
+  accountAddress: PublicKey,
+  expectedMint: PublicKey
+): Promise<boolean> {
+  try {
+    console.log(`🔍 Validating token account: ${accountAddress.toString()}`);
+    console.log(`🔍 Expected mint: ${expectedMint.toString()}`);
+    
+    // CRITICAL FIX: Explicitly use proper programs and get parsed account info
+    // getParsedAccountInfo returns more details about the account's structure
+    const accountInfo = await connection.getParsedAccountInfo(accountAddress);
+    
+    // Check if account exists
+    if (!accountInfo.value) {
+      console.error(`❌ Token account does not exist: ${accountAddress.toString()}`);
+      return false;
+    }
+    
+    // Check if it's a token account by examining parsed data
+    const parsedData = accountInfo.value.data;
+    if (!('parsed' in parsedData)) {
+      console.error(`❌ Not a token account (no parsed data): ${accountAddress.toString()}`);
+      return false;
+    }
+    
+    // Check program owner
+    if (!accountInfo.value.owner.equals(TOKEN_PROGRAM_ID)) {
+      console.error(`❌ Account not owned by Token Program: ${accountAddress.toString()}`);
+      console.error(`   Owner: ${accountInfo.value.owner.toString()}`);
+      console.error(`   Expected: ${TOKEN_PROGRAM_ID.toString()}`);
+      return false;
+    }
+    
+    // Check type and mint
+    const tokenData = parsedData.parsed;
+    if (tokenData.type !== 'account') {
+      console.error(`❌ Not a token account (wrong type): ${tokenData.type}`);
+      return false;
+    }
+    
+    const tokenInfo = tokenData.info;
+    if (tokenInfo.mint !== expectedMint.toString()) {
+      console.error(`❌ Token account mint mismatch.`);
+      console.error(`   Expected: ${expectedMint.toString()}`);
+      console.error(`   Actual: ${tokenInfo.mint}`);
+      return false;
+    }
+    
+    // Verify account is initialized
+    if (!tokenInfo.isInitialized) {
+      console.error(`❌ Token account not initialized: ${accountAddress.toString()}`);
+      return false;
+    }
+    
+    console.log(`✅ Valid SPL token account verified: ${accountAddress.toString()}`);
+    console.log(`✅ Mint: ${tokenInfo.mint}`);
+    console.log(`✅ Owner: ${tokenInfo.owner}`);
+    console.log(`✅ Balance: ${tokenInfo.tokenAmount.uiAmount}`);
+    return true;
+  } catch (err) {
+    console.error(`❌ Token account validation failed for: ${accountAddress.toString()}`);
+    console.error(`   Error details:`, err);
+    return false;
+  }
+}
+
 async function ensureTokenAccount(
   connection: Connection,
   wallet: any,
