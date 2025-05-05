@@ -9,13 +9,12 @@ use solana_program::{
     system_instruction,
     sysvar::{rent::Rent, Sysvar, clock::Clock},
 };
-use borsh::{BorshDeserialize, BorshSerialize};
+use arrayref::{array_ref, array_refs, array_mut_ref, mut_array_refs};
 
 // Define the program's entrypoint
 entrypoint!(process_instruction);
 
-// Program state
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
+// Program state with manual serialization
 pub struct ProgramState {
     pub admin: Pubkey,
     pub yot_mint: Pubkey,
@@ -27,8 +26,73 @@ pub struct ProgramState {
     pub referral_rate: u64,
 }
 
-// Liquidity contribution tracking
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
+impl ProgramState {
+    pub const LEN: usize = 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8; // 3 pubkeys + 5 u64s
+    
+    // Manual deserialization
+    pub fn unpack(data: &[u8]) -> Result<Self, ProgramError> {
+        if data.len() < Self::LEN {
+            msg!("Program state data too short");
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let data_array = array_ref![data, 0, Self::LEN];
+        let (
+            admin,
+            yot_mint,
+            yos_mint,
+            lp_contribution_rate,
+            admin_fee_rate,
+            yos_cashback_rate,
+            swap_fee_rate,
+            referral_rate,
+        ) = array_refs![data_array, 32, 32, 32, 8, 8, 8, 8, 8];
+
+        Ok(Self {
+            admin: Pubkey::new_from_array(*admin),
+            yot_mint: Pubkey::new_from_array(*yot_mint),
+            yos_mint: Pubkey::new_from_array(*yos_mint),
+            lp_contribution_rate: u64::from_le_bytes(*lp_contribution_rate),
+            admin_fee_rate: u64::from_le_bytes(*admin_fee_rate),
+            yos_cashback_rate: u64::from_le_bytes(*yos_cashback_rate),
+            swap_fee_rate: u64::from_le_bytes(*swap_fee_rate),
+            referral_rate: u64::from_le_bytes(*referral_rate),
+        })
+    }
+
+    // Manual serialization
+    pub fn pack(&self, dst: &mut [u8]) -> Result<(), ProgramError> {
+        if dst.len() < Self::LEN {
+            msg!("Destination buffer too small for ProgramState");
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let dst_array = array_mut_ref![dst, 0, Self::LEN];
+        let (
+            admin_dst,
+            yot_mint_dst,
+            yos_mint_dst,
+            lp_contribution_rate_dst,
+            admin_fee_rate_dst,
+            yos_cashback_rate_dst,
+            swap_fee_rate_dst,
+            referral_rate_dst,
+        ) = mut_array_refs![dst_array, 32, 32, 32, 8, 8, 8, 8, 8];
+
+        admin_dst.copy_from_slice(self.admin.as_ref());
+        yot_mint_dst.copy_from_slice(self.yot_mint.as_ref());
+        yos_mint_dst.copy_from_slice(self.yos_mint.as_ref());
+        *lp_contribution_rate_dst = self.lp_contribution_rate.to_le_bytes();
+        *admin_fee_rate_dst = self.admin_fee_rate.to_le_bytes();
+        *yos_cashback_rate_dst = self.yos_cashback_rate.to_le_bytes();
+        *swap_fee_rate_dst = self.swap_fee_rate.to_le_bytes();
+        *referral_rate_dst = self.referral_rate.to_le_bytes();
+
+        Ok(())
+    }
+}
+
+// Liquidity contribution tracking with manual serialization
 pub struct LiquidityContribution {
     pub user: Pubkey,
     pub contributed_amount: u64,
@@ -39,6 +103,56 @@ pub struct LiquidityContribution {
 
 impl LiquidityContribution {
     pub const LEN: usize = 32 + 8 + 8 + 8 + 8; // pubkey + u64 + i64 + i64 + u64
+    
+    // Manual deserialization
+    pub fn unpack(data: &[u8]) -> Result<Self, ProgramError> {
+        if data.len() < Self::LEN {
+            msg!("Liquidity contribution data too short");
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let data_array = array_ref![data, 0, Self::LEN];
+        let (
+            user,
+            contributed_amount,
+            start_timestamp,
+            last_claim_time,
+            total_claimed_yos,
+        ) = array_refs![data_array, 32, 8, 8, 8, 8];
+
+        Ok(Self {
+            user: Pubkey::new_from_array(*user),
+            contributed_amount: u64::from_le_bytes(*contributed_amount),
+            start_timestamp: i64::from_le_bytes(*start_timestamp),
+            last_claim_time: i64::from_le_bytes(*last_claim_time),
+            total_claimed_yos: u64::from_le_bytes(*total_claimed_yos),
+        })
+    }
+
+    // Manual serialization
+    pub fn pack(&self, dst: &mut [u8]) -> Result<(), ProgramError> {
+        if dst.len() < Self::LEN {
+            msg!("Destination buffer too small for LiquidityContribution");
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let dst_array = array_mut_ref![dst, 0, Self::LEN];
+        let (
+            user_dst,
+            contributed_amount_dst,
+            start_timestamp_dst,
+            last_claim_time_dst,
+            total_claimed_yos_dst,
+        ) = mut_array_refs![dst_array, 32, 8, 8, 8, 8];
+
+        user_dst.copy_from_slice(self.user.as_ref());
+        *contributed_amount_dst = self.contributed_amount.to_le_bytes();
+        *start_timestamp_dst = self.start_timestamp.to_le_bytes();
+        *last_claim_time_dst = self.last_claim_time.to_le_bytes();
+        *total_claimed_yos_dst = self.total_claimed_yos.to_le_bytes();
+
+        Ok(())
+    }
 }
 
 pub fn process_instruction(
@@ -168,7 +282,7 @@ pub fn process_initialize(
         referral_rate: 0,         // 0%
     };
     
-    program_state.serialize(&mut *program_state_account.data.borrow_mut())?;
+    program_state.pack(&mut program_state_account.data.borrow_mut()[..])?;
     
     msg!("MultiHubSwap program initialized successfully!");
     Ok(())
@@ -269,7 +383,7 @@ pub fn process_buy_and_distribute(
             last_claim_time: Clock::get()?.unix_timestamp,
             total_claimed_yos: 0,
         };
-        contribution_data.serialize(&mut *liquidity_contribution_account.data.borrow_mut())?;
+        contribution_data.pack(&mut liquidity_contribution_account.data.borrow_mut()[..])?;
     }
 
     // CRITICAL FIX 1: Use token instruction to transfer tokens
