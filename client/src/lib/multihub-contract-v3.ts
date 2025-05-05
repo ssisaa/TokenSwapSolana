@@ -821,21 +821,46 @@ export async function initializeProgram(
     console.log(`5. System Program: 11111111111111111111111111111111`);
     console.log(`6. Rent Sysvar: SysvarRent111111111111111111111111111111111`);
     
-    // Create a proper TransactionInstruction with all necessary accounts
+    // =====================================================================
+    // COMPLETE REWRITE OF INITIALIZE INSTRUCTION CREATION
+    // =====================================================================
+    console.log("COMPLETE REWRITE: Creating initialize transaction instruction manually");
+    
+    // Step 1: Create the account keys array
+    const keys = [
+      { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // payer_account
+      { pubkey: programStateAddress, isSigner: false, isWritable: true }, // program_state_account (will be created by program)
+      { pubkey: programAuthorityAddress, isSigner: false, isWritable: true }, // program_authority_account 
+      { pubkey: poolAuthorityAddress, isSigner: false, isWritable: true }, // CRITICAL FIX: Add Pool Authority
+      { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false }, // system_program_account
+      { pubkey: new PublicKey('SysvarRent111111111111111111111111111111111'), isSigner: false, isWritable: false }, // rent_sysvar_account
+    ];
+    
+    // Step 2: Directly create the program ID from string (hardcoded for maximum reliability)
+    const programId = new PublicKey("SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE");
+    
+    console.log("DEBUG - Program ID Values for initialize:");
+    console.log(`- From config (string): ${MULTIHUB_SWAP_PROGRAM_ID}`);
+    console.log(`- From config (PublicKey): ${MULTIHUB_SWAP_PROGRAM_PUBKEY.toString()}`);
+    console.log(`- Hardcoded direct: ${programId.toString()}`);
+    
+    // Verify they all match
+    if (MULTIHUB_SWAP_PROGRAM_ID !== programId.toString()) {
+      console.error("ERROR: Program ID from config doesn't match hardcoded ID!");
+    }
+    
+    // Step 3: Create raw transaction instruction with proper buffer
     const initializeProgramInstruction = new TransactionInstruction({
-      keys: [
-        { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // payer_account
-        { pubkey: programStateAddress, isSigner: false, isWritable: true }, // program_state_account (will be created by program)
-        { pubkey: programAuthorityAddress, isSigner: false, isWritable: true }, // program_authority_account 
-        { pubkey: poolAuthorityAddress, isSigner: false, isWritable: true }, // CRITICAL FIX: Add Pool Authority
-        { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false }, // system_program_account
-        { pubkey: new PublicKey('SysvarRent111111111111111111111111111111111'), isSigner: false, isWritable: false }, // rent_sysvar_account
-      ],
-      programId: MULTIHUB_SWAP_PROGRAM_PUBKEY, // Using PublicKey object from config
+      keys: keys,
+      programId: programId, // Using hard-coded PublicKey
       data: instructionData
     });
     
-    // Add the instruction to the transaction
+    // Step 4: Verify the instruction has a valid program ID before adding it
+    console.log(`Initialize instruction created. Program ID: ${initializeProgramInstruction.programId.toString()}`);
+    console.log(`Program ID valid: ${initializeProgramInstruction.programId !== undefined}`);
+    
+    // Step 5: Add the instruction to the transaction  
     transaction.add(initializeProgramInstruction);
     
     // Simulate the transaction to check for errors
@@ -1832,72 +1857,101 @@ export async function performSwap(
     // CRITICAL FIX: Reorder accounts to match Rust contract's expected layout EXACTLY
     // The InvalidAccountData error happens because the account at index 2 is being checked
     // by the Rust code with specific expectations
-    transaction.add(new TransactionInstruction({
-      keys: [
-        // CRITICAL: User must be first
-        { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // User wallet [0]
-        
-        // CRITICAL: Program state must be second 
-        { pubkey: programStateAddress, isSigner: false, isWritable: true }, // Program state [1]
-        
-        // CRITICAL FIX: Program Authority must be third AND writable
-        // EMERGENCY FIX: Make sure programAuthorityPDA is a regular account/PDA not an ATA
-        { pubkey: programAuthorityPDA, isSigner: false, isWritable: true }, // Program Authority PDA [2]
-        
-        // Pool Authority is the actual owner of token accounts
-        { pubkey: poolAuthorityAddress, isSigner: false, isWritable: true }, // Pool Authority [3]
-        
-        // CRITICAL FIX: For SOL swaps, use wallet.publicKey as the FROM account
-        // This is because SOL is directly held in the wallet, not in a token account
-        { 
-          pubkey: tokenFromMint.equals(new PublicKey("So11111111111111111111111111111111111111112")) 
-            ? wallet.publicKey // For SOL, use wallet address directly 
-            : tokenFromAccount.address, // For other tokens, use token account
-          isSigner: tokenFromMint.equals(new PublicKey("So11111111111111111111111111111111111111112")),
-          isWritable: true 
-        }, // User's source token account (or wallet for SOL) [4]
-        { 
-          pubkey: tokenToAccount.address, 
-          isSigner: false, 
-          isWritable: true 
-        }, // User's destination token account [5]
-        { 
-          pubkey: yosTokenAccount.address, 
-          isSigner: false, 
-          isWritable: true 
-        }, // User's YOS token account for cashback [6]
-        
-        // CRITICAL FIX: Enhanced token account validation for program token accounts
-        // The InvalidAccountData error is likely caused by issues with these accounts
-        { 
-          pubkey: tokenFromMintATA, 
-          isSigner: false, 
-          isWritable: true 
-        }, // Program's token account for source token [7]
-        { 
-          pubkey: tokenToMintATA, 
-          isSigner: false, 
-          isWritable: true 
-        }, // Program's token account for destination token [8]
-        { 
-          pubkey: yosTokenProgramATA, 
-          isSigner: false, 
-          isWritable: true 
-        }, // Program's YOS token account [9]
-        
-        // Token mints (indexes 10-12)
-        { pubkey: tokenFromMint, isSigner: false, isWritable: false }, // From token mint [10]
-        { pubkey: tokenToMint, isSigner: false, isWritable: false }, // To token mint [11] 
-        { pubkey: new PublicKey(YOS_TOKEN_MINT), isSigner: false, isWritable: false }, // YOS token mint [12]
-        
-        // System programs (indexes 13-15)
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // SPL Token program [13]
-        { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false }, // System program [14]
-        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, // Rent sysvar [15]
-      ],
-      programId: MULTIHUB_SWAP_PROGRAM_PUBKEY, // Using PublicKey object from config
+    // =====================================================================
+    // COMPLETE REWRITE OF TRANSACTION INSTRUCTION CREATION
+    // =====================================================================
+    console.log("COMPLETE REWRITE: Creating transaction instruction manually");
+    
+    // Step 1: Create the account keys array
+    const keys = [
+      // CRITICAL: User must be first
+      { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // User wallet [0]
+      
+      // CRITICAL: Program state must be second 
+      { pubkey: programStateAddress, isSigner: false, isWritable: true }, // Program state [1]
+      
+      // CRITICAL FIX: Program Authority must be third AND writable
+      // EMERGENCY FIX: Make sure programAuthorityPDA is a regular account/PDA not an ATA
+      { pubkey: programAuthorityPDA, isSigner: false, isWritable: true }, // Program Authority PDA [2]
+      
+      // Pool Authority is the actual owner of token accounts
+      { pubkey: poolAuthorityAddress, isSigner: false, isWritable: true }, // Pool Authority [3]
+      
+      // CRITICAL FIX: For SOL swaps, use wallet.publicKey as the FROM account
+      // This is because SOL is directly held in the wallet, not in a token account
+      { 
+        pubkey: tokenFromMint.equals(new PublicKey("So11111111111111111111111111111111111111112")) 
+          ? wallet.publicKey // For SOL, use wallet address directly 
+          : tokenFromAccount.address, // For other tokens, use token account
+        isSigner: tokenFromMint.equals(new PublicKey("So11111111111111111111111111111111111111112")),
+        isWritable: true 
+      }, // User's source token account (or wallet for SOL) [4]
+      { 
+        pubkey: tokenToAccount.address, 
+        isSigner: false, 
+        isWritable: true 
+      }, // User's destination token account [5]
+      { 
+        pubkey: yosTokenAccount.address, 
+        isSigner: false, 
+        isWritable: true 
+      }, // User's YOS token account for cashback [6]
+      
+      // CRITICAL FIX: Enhanced token account validation for program token accounts
+      // The InvalidAccountData error is likely caused by issues with these accounts
+      { 
+        pubkey: tokenFromMintATA, 
+        isSigner: false, 
+        isWritable: true 
+      }, // Program's token account for source token [7]
+      { 
+        pubkey: tokenToMintATA, 
+        isSigner: false, 
+        isWritable: true 
+      }, // Program's token account for destination token [8]
+      { 
+        pubkey: yosTokenProgramATA, 
+        isSigner: false, 
+        isWritable: true 
+      }, // Program's YOS token account [9]
+      
+      // Token mints (indexes 10-12)
+      { pubkey: tokenFromMint, isSigner: false, isWritable: false }, // From token mint [10]
+      { pubkey: tokenToMint, isSigner: false, isWritable: false }, // To token mint [11] 
+      { pubkey: new PublicKey(YOS_TOKEN_MINT), isSigner: false, isWritable: false }, // YOS token mint [12]
+      
+      // System programs (indexes 13-15)
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // SPL Token program [13]
+      { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false }, // System program [14]
+      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, // Rent sysvar [15]
+    ];
+    
+    // Step 2: Directly create the program ID from string (hardcoded for maximum reliability)
+    const programId = new PublicKey("SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE");
+    
+    console.log("DEBUG - Program ID Values:");
+    console.log(`- From config (string): ${MULTIHUB_SWAP_PROGRAM_ID}`);
+    console.log(`- From config (PublicKey): ${MULTIHUB_SWAP_PROGRAM_PUBKEY.toString()}`);
+    console.log(`- Hardcoded direct: ${programId.toString()}`);
+    
+    // Verify they all match
+    if (MULTIHUB_SWAP_PROGRAM_ID !== programId.toString()) {
+      console.error("ERROR: Program ID from config doesn't match hardcoded ID!");
+    }
+    
+    // Step 3: Create raw transaction instruction with proper buffer
+    const swapInstruction = new TransactionInstruction({
+      keys: keys,
+      programId: programId, // Using hard-coded PublicKey
       data: Buffer.from(swapData)
-    }));
+    });
+    
+    // Step 4: Verify the instruction has a valid program ID
+    console.log(`Instruction created. Program ID: ${swapInstruction.programId.toString()}`);
+    console.log(`Program ID valid: ${swapInstruction.programId !== undefined}`);
+    
+    // Step 5: Add the instruction to the transaction
+    transaction.add(swapInstruction);
     
     // CRITICAL FIX: Enhanced error handling for InvalidAccountData
     // First verify that all token accounts exist with proper owners using validateTokenAccount
@@ -2222,23 +2276,46 @@ export async function closeProgram(
     
     const closeProgramData = instructionData;
     
-    // Add the close program instruction to the transaction
-    // IMPORTANT: Ensure we include ALL the required accounts:
-    // 1. Admin account (signer)
-    // 2. Program state account (PDA)
-    // 3. Program authority account (PDA used for token operations)
-    // 4. Pool authority account (PDA used for token accounts) - CRITICAL FIX
-    transaction.add(new TransactionInstruction({
-      keys: [
-        { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // Admin account that receives the rent
-        { pubkey: programStateAddress, isSigner: false, isWritable: true }, // Program state account to be closed
-        { pubkey: programAuthorityAddress, isSigner: false, isWritable: true }, // Program authority - must be writable!
-        { pubkey: poolAuthorityAddress, isSigner: false, isWritable: true }, // CRITICAL FIX: Pool Authority for token accounts
-        { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false }, // System Program - needed for closing accounts
-      ],
-      programId: MULTIHUB_SWAP_PROGRAM_PUBKEY, // Using PublicKey object from config
+    // =====================================================================
+    // COMPLETE REWRITE OF CLOSEPROGRAM INSTRUCTION CREATION
+    // =====================================================================
+    console.log("COMPLETE REWRITE: Creating closeProgram transaction instruction manually");
+    
+    // Step 1: Create the account keys array
+    const keys = [
+      { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // Admin account that receives the rent
+      { pubkey: programStateAddress, isSigner: false, isWritable: true }, // Program state account to be closed
+      { pubkey: programAuthorityAddress, isSigner: false, isWritable: true }, // Program authority - must be writable!
+      { pubkey: poolAuthorityAddress, isSigner: false, isWritable: true }, // CRITICAL FIX: Pool Authority for token accounts
+      { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false }, // System Program - needed for closing accounts
+    ];
+    
+    // Step 2: Directly create the program ID from string (hardcoded for maximum reliability)
+    const programId = new PublicKey("SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE");
+    
+    console.log("DEBUG - Program ID Values for closeProgram:");
+    console.log(`- From config (string): ${MULTIHUB_SWAP_PROGRAM_ID}`);
+    console.log(`- From config (PublicKey): ${MULTIHUB_SWAP_PROGRAM_PUBKEY.toString()}`);
+    console.log(`- Hardcoded direct: ${programId.toString()}`);
+    
+    // Verify they all match
+    if (MULTIHUB_SWAP_PROGRAM_ID !== programId.toString()) {
+      console.error("ERROR: Program ID from config doesn't match hardcoded ID!");
+    }
+    
+    // Step 3: Create raw transaction instruction with proper buffer
+    const closeInstruction = new TransactionInstruction({
+      keys: keys,
+      programId: programId, // Using hard-coded PublicKey
       data: Buffer.from(closeProgramData)
-    }));
+    });
+    
+    // Step 4: Verify the instruction has a valid program ID before adding it
+    console.log(`CloseProgram instruction created. Program ID: ${closeInstruction.programId.toString()}`);
+    console.log(`Program ID valid: ${closeInstruction.programId !== undefined}`);
+    
+    // Step 5: Add the instruction to the transaction  
+    transaction.add(closeInstruction);
     
     // Simulate the transaction to check for errors
     console.log('Simulating close program transaction...');
