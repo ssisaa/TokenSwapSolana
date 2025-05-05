@@ -597,16 +597,17 @@ export async function updateMultiHubSwapParameters(
 /**
  * Program state stored in a PDA
  * Matches the Solana program's ProgramState struct
+ * Default values from app.config.json
  */
 interface ProgramState {
   admin: PublicKey;
   yotMint: PublicKey;
   yosMint: PublicKey;
-  lpContributionRate: number; // 20% (2000 basis points)
-  adminFeeRate: number;       // 0.1% (10 basis points)
-  yosCashbackRate: number;    // 5% (500 basis points) 
-  swapFeeRate: number;        // 0.3% (30 basis points)
-  referralRate: number;       // 0.5% (50 basis points)
+  lpContributionRate: number; // Default: solanaConfig.multiHubSwap.rates.lpContributionRate
+  adminFeeRate: number;       // Default: solanaConfig.multiHubSwap.rates.adminFeeRate
+  yosCashbackRate: number;    // Default: solanaConfig.multiHubSwap.rates.yosCashbackRate
+  swapFeeRate: number;        // Default: solanaConfig.multiHubSwap.rates.swapFeeRate
+  referralRate: number;       // Default: solanaConfig.multiHubSwap.rates.referralRate
 }
 
 /**
@@ -637,17 +638,22 @@ export async function executeSwap(
     // Execute SOL-YOT swap using buyAndDistribute
     const signature = await buyAndDistribute(wallet, inputAmount);
     
-    // In this case, the contract handles the distribution automatically:
-    // - 75% to user
-    // - 20% to liquidity pool
-    // - 5% as YOS cashback
+    // In this case, the contract handles the distribution automatically
+    // using rates from the config:
+    // - Usually 75% to user 
+    // - Usually 20% to liquidity pool
+    // - Usually 5% as YOS cashback
+    const userDistribution = 100 - (solanaConfig.multiHubSwap.rates.lpContributionRate / 100) - (solanaConfig.multiHubSwap.rates.yosCashbackRate / 100);
+    const lpContribution = solanaConfig.multiHubSwap.rates.lpContributionRate / 100;
+    const yosCashback = solanaConfig.multiHubSwap.rates.yosCashbackRate / 100;
+    
     return {
       signature,
       outputAmount,
       distributionDetails: {
-        userReceived: outputAmount * DEFAULT_DISTRIBUTION_RATES.userDistribution/100,
-        liquidityContribution: outputAmount * DEFAULT_DISTRIBUTION_RATES.lpContribution/100,
-        yosCashback: outputAmount * DEFAULT_DISTRIBUTION_RATES.yosCashback/100
+        userReceived: outputAmount * userDistribution/100,
+        liquidityContribution: outputAmount * lpContribution/100,
+        yosCashback: outputAmount * yosCashback/100
       }
     };
   }
@@ -1025,17 +1031,17 @@ export async function getMultiHubSwapStats() {
       swapFeeRate, 
       referralRate,
       
-      // For convenience, also provide as distributions
+      // For convenience, also provide as distributions calculated from on-chain data
       buyDistribution: {
-        userPercent: 100 - lpContributionRate - yosCashbackRate, // Usually 75%
-        liquidityPercent: lpContributionRate,                    // Usually 20%
-        cashbackPercent: yosCashbackRate                         // Usually 5%
+        userPercent: 100 - lpContributionRate - yosCashbackRate,
+        liquidityPercent: lpContributionRate,
+        cashbackPercent: yosCashbackRate
       },
       
       sellDistribution: {
-        userPercent: 100 - lpContributionRate - yosCashbackRate, // Usually 75%
-        liquidityPercent: lpContributionRate,                    // Usually 20%
-        cashbackPercent: yosCashbackRate                         // Usually 5%
+        userPercent: 100 - lpContributionRate - yosCashbackRate,
+        liquidityPercent: lpContributionRate,
+        cashbackPercent: yosCashbackRate
       },
       
       // Weekly reward rate from config
@@ -1058,14 +1064,14 @@ export async function getMultiHubSwapStats() {
       weeklyRewardRate: solanaConfig.multiHubSwap.rates.weeklyRewardRate,
       yearlyAPR: solanaConfig.multiHubSwap.rates.yearlyAPR,
       buyDistribution: {
-        userPercent: DEFAULT_DISTRIBUTION_RATES.userDistribution,
-        liquidityPercent: DEFAULT_DISTRIBUTION_RATES.lpContribution,
-        cashbackPercent: DEFAULT_DISTRIBUTION_RATES.yosCashback
+        userPercent: 100 - (solanaConfig.multiHubSwap.rates.lpContributionRate / 100) - (solanaConfig.multiHubSwap.rates.yosCashbackRate / 100),
+        liquidityPercent: solanaConfig.multiHubSwap.rates.lpContributionRate / 100,
+        cashbackPercent: solanaConfig.multiHubSwap.rates.yosCashbackRate / 100
       },
       sellDistribution: {
-        userPercent: DEFAULT_DISTRIBUTION_RATES.userDistribution,
-        liquidityPercent: DEFAULT_DISTRIBUTION_RATES.lpContribution,
-        cashbackPercent: DEFAULT_DISTRIBUTION_RATES.yosCashback
+        userPercent: 100 - (solanaConfig.multiHubSwap.rates.lpContributionRate / 100) - (solanaConfig.multiHubSwap.rates.yosCashbackRate / 100),
+        liquidityPercent: solanaConfig.multiHubSwap.rates.lpContributionRate / 100,
+        cashbackPercent: solanaConfig.multiHubSwap.rates.yosCashbackRate / 100
       }
     };
   }
