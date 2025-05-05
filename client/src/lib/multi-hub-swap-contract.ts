@@ -405,30 +405,34 @@ export async function buyAndDistribute(
     console.log("- Program Authority:", programAuthorityAddress.toString());
     console.log("- Liquidity Contribution:", liquidityContributionAddress.toString());
     
-    // Find vault and liquidity pool addresses
-    // IMPORTANT: Create separate accounts for vault and liquidity to match program expectations
+    // Use the Pool Authority token accounts instead of trying to create new PDAs
+    // The Pool Authority already has associated token accounts for YOT, YOS, etc.
+    const poolAuthority = new PublicKey(solanaConfig.pool.authority);
+    console.log("Using Pool Authority:", poolAuthority.toString());
     
-    // 1. vault_yot - The temporary vault that holds tokens during distribution
-    // Use PDA with "vault" seed per the Rust contract
-    const [vaultYotAddress] = findVaultTokenAddress(yotMint);
+    // Get Pool Authority's YOT and YOS token accounts
+    const poolYotAccount = await getAssociatedTokenAddress(yotMint, poolAuthority);
+    const poolYosAccount = await getAssociatedTokenAddress(yosMint, poolAuthority);
     
-    // 2. liquidity_yot - The account that receives and holds the liquidity contribution
-    // Use PDA with "liquidity" seed per the Rust contract
-    const [liquidityYotAddress] = findLiquidityTokenAddress(yotMint);
-    
-    // Check if vault and liquidity token accounts exist
-    const vaultYotAccountInfo = await connection.getAccountInfo(vaultYotAddress);
-    const liquidityYotAccountInfo = await connection.getAccountInfo(liquidityYotAddress);
+    // Check if the accounts exist
+    const poolYotAccountInfo = await connection.getAccountInfo(poolYotAccount);
+    const poolYosAccountInfo = await connection.getAccountInfo(poolYosAccount);
     
     console.log("Token Accounts:");
     console.log("- User YOT:", userYotAccount.toString());
     console.log("- User YOS:", userYosAccount.toString(), createUserYosAccount ? " (needs creation)" : "");
-    console.log("- Vault YOT:", vaultYotAddress.toString(), vaultYotAccountInfo ? "" : " (needs creation)");
-    console.log("- Liquidity YOT:", liquidityYotAddress.toString(), liquidityYotAccountInfo ? "" : " (needs creation)");
+    console.log("- Pool YOT:", poolYotAccount.toString(), poolYotAccountInfo ? "✓" : "❌ Missing!");
+    console.log("- Pool YOS:", poolYosAccount.toString(), poolYosAccountInfo ? "✓" : "❌ Missing!");
+    
+    if (!poolYotAccountInfo) {
+      console.error("CRITICAL: Pool YOT account doesn't exist! This should be created in advance.");
+    }
+    
+    if (!poolYosAccountInfo) {
+      console.error("CRITICAL: Pool YOS account doesn't exist! This should be created in advance.");
+    }
 
     // Try to create the user YOS account if needed
-    // For PDA-owned accounts (vault and liquidity), we'll let the program handle them
-    
     if (createUserYosAccount) {
       console.log("User YOS account doesn't exist. Creating it now...");
       
@@ -460,17 +464,6 @@ export async function buyAndDistribute(
         console.warn("Failed to create user YOS account:", error);
         console.log("Continuing with swap anyway - the program might create it or fail");
       }
-    }
-    
-    // For PDA-owned accounts, let the program create them through CPIs
-    console.log("PDA-owned token accounts must be created by the program itself:");
-    
-    if (!vaultYotAccountInfo) {
-      console.log("- Vault YOT account doesn't exist. Program should create it.");
-    }
-    
-    if (!liquidityYotAccountInfo) {
-      console.log("- Liquidity YOT account doesn't exist. Program should create it.");
     }
     
     // Convert amount to raw token amount
@@ -571,19 +564,23 @@ export async function buyAndDistribute(
     // The program_authority is derived inside the function as needed (lines 631-634)
     // No need to include it as an explicit account in the transaction
     
+    // Let's get the PDA for the liquidity contribution tracking
+    const [liquidityContributionPda] = findLiquidityContributionAddress(userPublicKey);
+    
     // Log all accounts for debugging purposes
     console.log("FINAL ACCOUNTS FOR INSTRUCTION:");
     console.log("1. user: ", userPublicKey.toString(), "(signer)");
-    console.log("2. vault_yot: ", vaultYotAddress.toString());
+    console.log("2. pool_yot: ", poolYotAccount.toString(), "POOL ACCOUNT");
     console.log("3. user_yot: ", userYotAccount.toString());
-    console.log("4. liquidity_yot: ", liquidityYotAddress.toString());
+    console.log("4. pool_yos: ", poolYosAccount.toString(), "POOL ACCOUNT");
     console.log("5. yos_mint: ", yosMint.toString());
     console.log("6. user_yos: ", userYosAccount.toString());
-    console.log("7. liquidity_contribution: ", liquidityContributionAddress.toString());
+    console.log("7. liquidity_contribution: ", liquidityContributionPda.toString());
     console.log("8. token_program: ", TOKEN_PROGRAM_ID.toString());
     console.log("9. system_program: ", SystemProgram.programId.toString());
     console.log("10. rent_sysvar: ", SYSVAR_RENT_PUBKEY.toString());
-    console.log("11. program_state: ", programStateAccount.toString(), "(CRITICAL)");
+    console.log("11. pool_authority: ", poolAuthority.toString(), "ADDED POOL AUTHORITY");
+    console.log("12. program_state: ", programStateAccount.toString());
     
     // Debug the actual buffer being sent to the program
     console.log("Final instruction data breakdown:");
@@ -592,22 +589,23 @@ export async function buyAndDistribute(
     console.log("- Discriminator (first byte):", instructionData[0]);
     console.log("- Amount bytes (little-endian u64):", Array.from(instructionData.slice(1, 9)));
     
-    // CRITICAL: Add the ASSOCIATED_TOKEN_PROGRAM_ID as an account for token creation
-    // The program needs this to create token accounts via CPI calls
+    // CRITICAL: Create an instruction that uses the Pool Authority's token accounts
+    // rather than attempting to create new PDAs
     const instruction = new TransactionInstruction({
       keys: [
         { pubkey: userPublicKey, isSigner: true, isWritable: true },
-        { pubkey: vaultYotAddress, isSigner: false, isWritable: true },
+        { pubkey: poolYotAccount, isSigner: false, isWritable: true },  // Pool's YOT account
         { pubkey: userYotAccount, isSigner: false, isWritable: true },
-        { pubkey: liquidityYotAddress, isSigner: false, isWritable: true },
+        { pubkey: poolYosAccount, isSigner: false, isWritable: true },  // Pool's YOS account
         { pubkey: yosMint, isSigner: false, isWritable: true },
         { pubkey: userYosAccount, isSigner: false, isWritable: true },
-        { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true },
+        { pubkey: liquidityContributionPda, isSigner: false, isWritable: true },
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
-        { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // ADDED: Associated Token Program
-        { pubkey: programStateAccount, isSigner: false, isWritable: true } // Make sure this is writable!
+        { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: poolAuthority, isSigner: false, isWritable: false },  // Add Pool Authority
+        { pubkey: programStateAccount, isSigner: false, isWritable: true }
       ],
       programId: program,
       data: instructionData
@@ -698,11 +696,9 @@ export async function distributeWeeklyYosReward(
     // Find program controlled accounts
     const [liquidityContributionAddress] = findLiquidityContributionAddress(userPublicKey);
     
-    // Find program authority (for signing token mints)
-    const [programAuthorityAddress] = PublicKey.findProgramAddressSync(
-      [Buffer.from("authority")],
-      program
-    );
+    // Get Pool Authority and its token accounts
+    const poolAuthority = new PublicKey(solanaConfig.pool.authority);
+    const poolYosAccount = await getAssociatedTokenAddress(yosMint, poolAuthority);
     
     // Get the program state account
     const [programStateAccount] = PublicKey.findProgramAddressSync(
@@ -736,7 +732,9 @@ export async function distributeWeeklyYosReward(
     console.log("3. liquidity_contribution: ", liquidityContributionAddress.toString());
     console.log("4. yos_mint: ", yosMint.toString());
     console.log("5. user_yos: ", userYosAccount.toString());
-    console.log("6. token_program: ", TOKEN_PROGRAM_ID.toString());
+    console.log("6. pool_yos: ", poolYosAccount.toString(), "POOL ACCOUNT");
+    console.log("7. pool_authority: ", poolAuthority.toString(), "POOL AUTHORITY");
+    console.log("8. token_program: ", TOKEN_PROGRAM_ID.toString());
 
     // Create the instruction with proper account list matching the Rust code
     // Also adding ASSOCIATED_TOKEN_PROGRAM_ID for token account creation if needed
@@ -747,6 +745,8 @@ export async function distributeWeeklyYosReward(
         { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true },
         { pubkey: yosMint, isSigner: false, isWritable: true },
         { pubkey: userYosAccount, isSigner: false, isWritable: true },
+        { pubkey: poolYosAccount, isSigner: false, isWritable: true },  // Pool's YOS account
+        { pubkey: poolAuthority, isSigner: false, isWritable: false },  // Pool Authority
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
         { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // Added for token account creation
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false } // Added for token account creation
@@ -828,9 +828,12 @@ export async function withdrawLiquidityContribution(wallet: any): Promise<{ sign
 
     // Find program controlled accounts
     const [liquidityContributionAddress] = findLiquidityContributionAddress(userPublicKey);
-    const [liquidityYotAddress] = findLiquidityTokenAddress(yotMint);
     
-    // Find program authority (for signing token transfers)
+    // Get Pool Authority and its token accounts
+    const poolAuthority = new PublicKey(solanaConfig.pool.authority);
+    const poolYotAccount = await getAssociatedTokenAddress(yotMint, poolAuthority);
+    
+    // Find program authority (for signing token transfers) - may be needed internally by the program
     const [programAuthorityAddress] = PublicKey.findProgramAddressSync(
       [Buffer.from("authority")],
       program
@@ -868,9 +871,10 @@ export async function withdrawLiquidityContribution(wallet: any): Promise<{ sign
     console.log("WITHDRAW_CONTRIBUTION accounts:");
     console.log("1. user: ", userPublicKey.toString(), "(signer)");
     console.log("2. liquidity_contribution: ", liquidityContributionAddress.toString());
-    console.log("3. liquidity_yot: ", liquidityYotAddress.toString());
+    console.log("3. pool_yot: ", poolYotAccount.toString(), "POOL ACCOUNT");
     console.log("4. user_yot: ", userYotAccount.toString());
     console.log("5. token_program: ", TOKEN_PROGRAM_ID.toString());
+    console.log("6. pool_authority: ", poolAuthority.toString(), "POOL AUTHORITY");
 
     // Create the instruction with proper account list matching the Rust code
     // Also adding system program and associated token program to allow token account creation
@@ -878,9 +882,10 @@ export async function withdrawLiquidityContribution(wallet: any): Promise<{ sign
       keys: [
         { pubkey: userPublicKey, isSigner: true, isWritable: true },
         { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true },
-        { pubkey: liquidityYotAddress, isSigner: false, isWritable: true },
+        { pubkey: poolYotAccount, isSigner: false, isWritable: true },  // Use Pool's YOT account
         { pubkey: userYotAccount, isSigner: false, isWritable: true },
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: poolAuthority, isSigner: false, isWritable: false },  // Add Pool Authority
         { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // Added for token account creation
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false } // Added for token account creation
       ],
