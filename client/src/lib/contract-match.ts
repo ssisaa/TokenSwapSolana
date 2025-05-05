@@ -98,8 +98,8 @@ export async function contractMatch(
       
       // --- SECTION 2: User token accounts (NOT duplicating wallet or System Program) ---
       // For SOL->YOT, we need a different account than SystemProgram.programId (position 14)
-      // Use POOL_AUTHORITY as a stand-in for user's SOL account instead
-      { pubkey: isSOLToYOT ? POOL_AUTHORITY : USER_YOT_ACCOUNT,            // User FROM account   [4]
+      // Use TOKEN_PROGRAM_ID as a stand-in since it's not duplicated elsewhere in the accounts array
+      { pubkey: isSOLToYOT ? TOKEN_PROGRAM_ID : USER_YOT_ACCOUNT,          // User FROM account   [4]
         isSigner: false, isWritable: true },                               // Never mark as signer here
       { pubkey: USER_YOT_ACCOUNT, isSigner: false, isWritable: true },     // User YOT account    [5]
       { pubkey: USER_YOS_ACCOUNT, isSigner: false, isWritable: true },     // User YOS account    [6]
