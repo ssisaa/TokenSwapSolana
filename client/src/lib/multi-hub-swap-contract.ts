@@ -444,17 +444,19 @@ export async function getLiquidityContributionInfo(walletAddressStr: string): Pr
       const startTimestamp = Number(startTime) * 1000; // Convert to milliseconds
       const lastClaimTimeMs = Number(lastClaimTime) * 1000; // Convert to milliseconds
       
-      // Calculate next claim time (7 days after last claim)
-      const nextClaimTime = lastClaimTimeMs + (7 * 24 * 60 * 60 * 1000);
+      // Calculate next claim time (using claimPeriodDays from config)
+      const claimPeriodMs = solanaConfig.multiHubSwap.rewards.claimPeriodDays * 24 * 60 * 60 * 1000;
+      const nextClaimTime = lastClaimTimeMs + claimPeriodMs;
       const now = Date.now();
       const canClaimReward = now >= nextClaimTime;
       
-      // Calculate estimated weekly reward (1.92% of contributed amount - 100% APR / 52 weeks)
-      const estimatedWeeklyReward = contributedAmount * 0.0192;
+      // Calculate estimated weekly reward (using weeklyRewardRate from config)
+      const weeklyRewardRate = solanaConfig.multiHubSwap.rewards.weeklyRewardRate / 100;
+      const estimatedWeeklyReward = contributedAmount * weeklyRewardRate;
       
       // Calculate total claimed YOS (estimating based on time since start)
-      const weeksSinceStart = Math.floor((now - startTimestamp) / (7 * 24 * 60 * 60 * 1000));
-      const totalClaimedYos = weeksSinceStart * estimatedWeeklyReward;
+      const periodsSinceStart = Math.floor((now - startTimestamp) / claimPeriodMs);
+      const totalClaimedYos = periodsSinceStart * estimatedWeeklyReward;
       
       return {
         contributedAmount,
@@ -490,11 +492,11 @@ export async function getLiquidityContributionInfo(walletAddressStr: string): Pr
  */
 export async function updateMultiHubSwapParameters(
   wallet: any,
-  lpContributionRate: number = 20,   // % of transaction going to LP (usually 20%)
-  adminFeeRate: number = 0.1,        // % fee going to admin (usually 0.1%)
-  yosCashbackRate: number = 5,       // % of transaction minted as YOS (usually 5%)
-  swapFeeRate: number = 0.3,         // % swap fee (usually 0.3%)
-  referralRate: number = 0.5         // % referral bonus (usually 0.5%)
+  lpContributionRate: number = solanaConfig.multiHubSwap.rates.lpContributionRate / 100,   // % of transaction going to LP
+  adminFeeRate: number = solanaConfig.multiHubSwap.rates.adminFeeRate / 100,               // % fee going to admin
+  yosCashbackRate: number = solanaConfig.multiHubSwap.rates.yosCashbackRate / 100,         // % of transaction minted as YOS
+  swapFeeRate: number = solanaConfig.multiHubSwap.rates.swapFeeRate / 100,                 // % swap fee
+  referralRate: number = solanaConfig.multiHubSwap.rates.referralRate / 100                // % referral bonus
 ) {
   try {
     if (!wallet || !wallet.publicKey) {
@@ -758,7 +760,7 @@ export async function getExchangeRate(fromToken: string, toToken: string): Promi
 async function getPoolBalances(): Promise<[number, number, number]> {
   try {
     // Get SOL balance from pool SOL account - Using the SOL_YOT_POOL_INFO from config
-    const solPoolAccount = new PublicKey("7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS"); // SOL account
+    const solPoolAccount = new PublicKey(solanaConfig.pool.solAccount);
     const solBalance = await connection.getBalance(solPoolAccount);
     const solBalanceNormalized = solBalance / LAMPORTS_PER_SOL;
     
@@ -862,18 +864,18 @@ export function isSwapSupported(fromToken: string, toToken: string): boolean {
  * Gets a list of supported swap tokens in the network
  */
 export async function getSupportedTokens(): Promise<Array<{ symbol: string, address: string, name: string, logoUrl: string }>> {
-  // Return hardcoded list of supported tokens
+  // Return dynamically generated list of supported tokens from config
   return [
     {
-      symbol: "SOL",
+      symbol: solanaConfig.tokens.sol.symbol,
       address: SOL_TOKEN_ADDRESS,
-      name: "Solana",
+      name: solanaConfig.tokens.sol.name,
       logoUrl: "https://cryptologos.cc/logos/solana-sol-logo.png"
     },
     {
-      symbol: "YOT",
+      symbol: solanaConfig.tokens.yot.symbol,
       address: YOT_TOKEN_ADDRESS,
-      name: "YOT Token",
+      name: solanaConfig.tokens.yot.name,
       logoUrl: "https://place-hold.it/32x32/37c/fff?text=YOT"
     }
   ];
@@ -891,11 +893,11 @@ export async function initializeMultiHubSwap(
   wallet: any,
   yotMint: PublicKey,
   yosMint: PublicKey,
-  lpContributionRate: number = 20,
-  adminFeeRate: number = 0.1,
-  yosCashbackRate: number = 5,
-  swapFeeRate: number = 0.3,
-  referralRate: number = 0.5
+  lpContributionRate: number = solanaConfig.multiHubSwap.rates.lpContributionRate / 100,
+  adminFeeRate: number = solanaConfig.multiHubSwap.rates.adminFeeRate / 100,
+  yosCashbackRate: number = solanaConfig.multiHubSwap.rates.yosCashbackRate / 100,
+  swapFeeRate: number = solanaConfig.multiHubSwap.rates.swapFeeRate / 100,
+  referralRate: number = solanaConfig.multiHubSwap.rates.referralRate / 100
 ): Promise<string> {
   if (!wallet || !wallet.publicKey) {
     throw new Error("Wallet not connected");
@@ -1036,9 +1038,9 @@ export async function getMultiHubSwapStats() {
         cashbackPercent: yosCashbackRate                         // Usually 5%
       },
       
-      // Weekly reward rate (default is 1.92% which equals 100% APR when compounded)
-      weeklyRewardRate: 1.92,
-      yearlyAPR: 100
+      // Weekly reward rate from config
+      weeklyRewardRate: solanaConfig.multiHubSwap.rewards.weeklyRewardRate,
+      yearlyAPR: solanaConfig.multiHubSwap.rewards.yearlyAPR
     };
   } catch (error) {
     console.error("Error getting multi-hub swap stats:", error);
