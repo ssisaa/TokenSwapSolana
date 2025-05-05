@@ -189,13 +189,25 @@ export default function AuthorizeTokens() {
         )}
 
         <div className="space-y-4">
-          <div className="flex gap-2 items-center">
-            <InfoIcon className="h-5 w-5 text-blue-500" />
-            <p className="text-sm text-muted-foreground">
-              The program must be authorized as the mint authority for the YOS token to enable rewards.
-              This PDA account (<code>Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ</code>) is derived using
-              the seed "authority" and must be set as the mint authority for YOS (<code>2SWCnck3vLAVKaLkAjVtNnsVJVGYmGzyNVnte48SQRop</code>).
-            </p>
+          <div className="flex gap-2 items-start">
+            <InfoIcon className="h-5 w-5 text-blue-500 mt-0.5" />
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                The program must be authorized as the mint authority for the YOS token to enable rewards.
+                This PDA account (<code>Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ</code>) is derived using
+                the seed "authority" and must be set as the mint authority for YOS (<code>2SWCnck3vLAVKaLkAjVtNnsVJVGYmGzyNVnte48SQRop</code>).
+              </p>
+              <Alert className="bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle className="text-xs font-medium">Important Permission Requirement</AlertTitle>
+                <AlertDescription className="text-xs">
+                  <strong>You must connect the wallet that currently owns the mint authority 
+                  (<code>CeuRAzZ58St8B29XKWo647CGtY7FL5qpwv8WGZUHAuA9</code>)</strong> to 
+                  change the authority. If you're not using this wallet currently, please 
+                  switch to it before proceeding.
+                </AlertDescription>
+              </Alert>
+            </div>
           </div>
           
           <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded text-xs font-mono">

@@ -135,12 +135,20 @@ export async function setProgramAsMintAuthority(wallet: any, overrideAuthority?:
     // Add more detailed error information if available
     let details = undefined;
     
-    // Try to extract PublicKey values from the current scope
+    // Try to extract PublicKey values from the current context
     try {
+      // Get values that should always be available
+      const programId = new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID);
+      const mint = new PublicKey(YOS_TOKEN_ADDRESS);
+      const [authority] = PublicKey.findProgramAddressSync(
+        [Buffer.from("authority")],
+        programId
+      );
+      
       details = {
-        currentAuthority: currentAuthorityKey?.toString() || "unknown",
-        targetMint: yosMint?.toString() || "unknown",
-        newAuthority: programAuthority?.toString() || "unknown"
+        currentAuthority: "Unknown - need wallet with authority permission",
+        targetMint: mint.toString(),
+        newAuthority: authority.toString()
       };
     } catch (detailsError) {
       console.error("Could not extract detailed error information:", detailsError);
