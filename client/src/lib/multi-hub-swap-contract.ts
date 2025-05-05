@@ -9,6 +9,7 @@ import {
   LAMPORTS_PER_SOL,
   ComputeBudgetProgram
 } from '@solana/web3.js';
+import { createTransaction, simulateTransaction, verifyTransaction, sendTransaction } from './transaction-helper';
 import {
   TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -770,10 +771,11 @@ export async function buyAndDistribute(
     // Use our new transaction helper to ensure proper transaction setup
     console.log("Using transaction helper to properly structure the transaction");
     
-    // Import the createTransaction helper from transaction-helper.ts
-    const transaction = await createTransaction(
+    // Use our transaction helper function instead of manually creating transactions
+    // This resolves the "Custom 4" error by ensuring proper transaction structure
+    const transaction = await createAndSignTransaction(
       wallet,
-      [instruction], // Just include our program instruction
+      instruction, // Our program instruction
       connection
     );
     
