@@ -1925,12 +1925,14 @@ async function getTokenAccountCreateInstruction(
       owner = wallet.publicKey;
     }
     
-    // Create the token account
+    // Create the token account with explicit program IDs
     const instruction = createAssociatedTokenAccountInstruction(
       wallet.publicKey,
       account,
       owner,
-      mint
+      mint,
+      TOKEN_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID
     );
     
     console.log(`Created instruction for: ${accountName} (mint: ${mint.toString()}, owner: ${owner.toString()})`);
@@ -2051,11 +2053,13 @@ export async function transferTokensToPDA(
     // Get the appropriate mint address
     const mint = new PublicKey(isYot ? YOT_TOKEN_MINT : YOS_TOKEN_MINT);
     
-    // Get destination ATA
+    // Get destination ATA with explicit program IDs
     const pdaAta = await getAssociatedTokenAddress(
       mint,
       programAuthorityAddress,
-      true // Allow PDA as owner
+      true, // Allow PDA as owner
+      TOKEN_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID
     );
     
     // Check if destination ATA exists, if not, create it
@@ -2072,7 +2076,9 @@ export async function transferTokensToPDA(
         wallet.publicKey, // payer
         pdaAta, // ata address
         programAuthorityAddress, // owner (PDA)
-        mint // mint
+        mint, // mint
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
       );
       transaction.add(createAtaIx);
     }
@@ -2136,7 +2142,9 @@ export async function mintTokensToProgramPDA(
     const pdaYotAta = await getAssociatedTokenAddress(
       yotMint,
       programAuthorityAddress,
-      true // Allow PDA as owner
+      true, // Allow PDA as owner
+      TOKEN_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID
     );
     
     // Check if account already exists
@@ -2148,7 +2156,9 @@ export async function mintTokensToProgramPDA(
         wallet.publicKey, // payer
         pdaYotAta, // ata address
         programAuthorityAddress, // owner (PDA)
-        yotMint // mint
+        yotMint, // mint
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
       );
       ataTransaction.add(createYotAtaIx);
       needsAtaCreation = true;
@@ -2161,7 +2171,9 @@ export async function mintTokensToProgramPDA(
     const pdaYosAta = await getAssociatedTokenAddress(
       yosMint,
       programAuthorityAddress,
-      true // Allow PDA as owner
+      true, // Allow PDA as owner
+      TOKEN_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID
     );
     
     // Check if account already exists
@@ -2173,7 +2185,9 @@ export async function mintTokensToProgramPDA(
         wallet.publicKey, // payer
         pdaYosAta, // ata address
         programAuthorityAddress, // owner (PDA)
-        yosMint // mint
+        yosMint, // mint
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
       );
       ataTransaction.add(createYosAtaIx);
       needsAtaCreation = true;
