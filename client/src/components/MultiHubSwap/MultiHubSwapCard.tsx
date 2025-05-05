@@ -1071,7 +1071,17 @@ const MaxBalanceButton = ({
 };
 
 // Component to display real-time token balance from blockchain
-const BalanceDisplay = ({ wallet, tokenAddress, symbol }: { wallet: any, tokenAddress: string, symbol: string }) => {
+const BalanceDisplay = ({ 
+  wallet, 
+  tokenAddress, 
+  symbol, 
+  refreshTrigger 
+}: { 
+  wallet: any, 
+  tokenAddress: string, 
+  symbol: string, 
+  refreshTrigger?: boolean 
+}) => {
   const [balance, setBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -1102,7 +1112,7 @@ const BalanceDisplay = ({ wallet, tokenAddress, symbol }: { wallet: any, tokenAd
     const intervalId = setInterval(fetchBalance, 15000);
     
     return () => clearInterval(intervalId);
-  }, [wallet, tokenAddress, symbol]);
+  }, [wallet, tokenAddress, symbol, refreshTrigger]);
 
   return (
     <Label className="text-xs text-muted-foreground">

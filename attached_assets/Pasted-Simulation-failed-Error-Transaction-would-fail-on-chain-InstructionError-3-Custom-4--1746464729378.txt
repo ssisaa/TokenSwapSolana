@@ -1,0 +1,56 @@
+Simulation failed: Error: Transaction would fail on-chain: {"InstructionError":[3,{"Custom":4}]}
+    at buyAndDistribute (multi-hub-swap-contract.ts:817:15)
+    at async executeSwap (multi-hub-swap-contract.ts:1573:25)
+    at async performSwap (MultiHubSwapCard.tsx:313:22)
+buyAndDistribute @ multi-hub-swap-contract.ts:822
+await in buyAndDistribute
+executeSwap @ multi-hub-swap-contract.ts:1573
+await in executeSwap
+performSwap @ MultiHubSwapCard.tsx:313
+await in performSwap
+onClick @ MultiHubSwapCard.tsx:751
+callCallback2 @ chunk-276SZO74.js?v=c4994235:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c4994235:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c4994235:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c4994235:3736
+executeDispatch @ chunk-276SZO74.js?v=c4994235:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c4994235:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c4994235:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c4994235:7051
+(anonymous) @ chunk-276SZO74.js?v=c4994235:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c4994235:18913
+batchedUpdates @ chunk-276SZO74.js?v=c4994235:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c4994235:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c4994235:5478
+dispatchEvent @ chunk-276SZO74.js?v=c4994235:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c4994235:5449Understand this error
+multi-hub-swap-contract.ts:876 Error in buyAndDistribute: Error: Transaction would fail: Transaction would fail on-chain: {"InstructionError":[3,{"Custom":4}]}
+    at buyAndDistribute (multi-hub-swap-contract.ts:823:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1573:25)
+    at async performSwap (MultiHubSwapCard.tsx:313:22)
+buyAndDistribute @ multi-hub-swap-contract.ts:876
+await in buyAndDistribute
+executeSwap @ multi-hub-swap-contract.ts:1573
+await in executeSwap
+performSwap @ MultiHubSwapCard.tsx:313
+await in performSwap
+onClick @ MultiHubSwapCard.tsx:751
+callCallback2 @ chunk-276SZO74.js?v=c4994235:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c4994235:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c4994235:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c4994235:3736
+executeDispatch @ chunk-276SZO74.js?v=c4994235:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c4994235:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c4994235:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c4994235:7051
+(anonymous) @ chunk-276SZO74.js?v=c4994235:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c4994235:18913
+batchedUpdates @ chunk-276SZO74.js?v=c4994235:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c4994235:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c4994235:5478
+dispatchEvent @ chunk-276SZO74.js?v=c4994235:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c4994235:5449Understand this error
+multi-hub-swap-contract.ts:1601 [SWAP_DEBUG] Critical transaction failure: Error: Transaction would fail: Transaction would fail on-chain: {"InstructionError":[3,{"Custom":4}]}
+    at buyAndDistribute (multi-hub-swap-contract.ts:823:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1573:25)
+    at async performSwap (MultiHubSwapCard.tsx:313:22)

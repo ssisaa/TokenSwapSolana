@@ -792,10 +792,13 @@ export async function buyAndDistribute(
     
     // STEP 3: Add explicit SOL transfer instruction
     // This ensures the wallet shows the correct amount being transferred
+    // CRITICAL FIX: We should NOT use the full rawAmount here because this causes a double-spend
+    // Instead, transfer a small amount (0.001 SOL) to make the transfer visible in the wallet
+    // The actual program will handle the full token transfer internally
     const transferInstruction = SystemProgram.transfer({
       fromPubkey: wallet.publicKey,
       toPubkey: new PublicKey(solanaConfig.pool.authority), // Send to pool authority
-      lamports: rawAmount // Use the same amount as the program instruction
+      lamports: 1_000_000 // 0.001 SOL - Just enough to be visible in the wallet UI
     });
     
     // STEP 4: Add all instructions in order
