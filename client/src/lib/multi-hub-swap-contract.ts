@@ -89,14 +89,14 @@ export function findLiquidityTokenAddress(tokenMint: PublicKey): [PublicKey, num
 
 /**
  * Find the liquidity contribution account for a user
- * CRITICAL: Must use "liq" seed to match Rust program exactly
- * Rust: Pubkey::find_program_address(&[b"liq", user.as_ref()], program_id)
+ * CRITICAL: Must use "liquidity" seed to match Rust program exactly
+ * Rust: Pubkey::find_program_address(&[b"liquidity", user_key.as_ref()], program_id)
  */
 export function findLiquidityContributionAddress(userWallet: PublicKey): [PublicKey, number] {
-  // CRITICAL FIX: Use "liq" seed to match Rust program exactly
-  // This was identified from Rust code: `&[b"liq", user.as_ref()]`
+  // CRITICAL FIX: Use "liquidity" seed to match Rust program exactly
+  // This matches the Rust code: `&[b"liquidity", user_key.as_ref()]`
   return PublicKey.findProgramAddressSync(
-    [Buffer.from("liq"), userWallet.toBuffer()],
+    [Buffer.from("liquidity"), userWallet.toBuffer()],
     new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
   );
 }

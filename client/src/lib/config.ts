@@ -182,10 +182,11 @@ export const DEBUG_MODE = process.env.NODE_ENV !== 'production';
 
 // Instruction discriminators for the multi-hub swap program
 // These are single-byte discriminators that match the Rust program's instruction enum
-export const BUY_AND_DISTRIBUTE_DISCRIMINATOR = Buffer.from([4]); // Match with BUY_AND_DISTRIBUTE_IX = 4
-export const CLAIM_REWARD_DISCRIMINATOR = Buffer.from([5]);      // Match with CLAIM_WEEKLY_REWARD_IX = 5
-export const WITHDRAW_CONTRIBUTION_DISCRIMINATOR = Buffer.from([6]); // Match with WITHDRAW_CONTRIBUTION_IX = 6
-export const UPDATE_PARAMETERS_DISCRIMINATOR = Buffer.from([3]); // Match with UPDATE_PARAMETERS_IX = 3
+// CRITICAL: These must exactly match the values in the Rust program's multi_hub_swap.rs file!
+export const BUY_AND_DISTRIBUTE_DISCRIMINATOR = Buffer.from([1]); // Match with BUY_AND_DISTRIBUTE_IX = 1 
+export const CLAIM_REWARD_DISCRIMINATOR = Buffer.from([3]);      // Match with CLAIM_WEEKLY_REWARD_IX = 3
+export const WITHDRAW_CONTRIBUTION_DISCRIMINATOR = Buffer.from([4]); // Match with WITHDRAW_CONTRIBUTION_IX = 4
+export const UPDATE_PARAMETERS_DISCRIMINATOR = Buffer.from([5]); // Match with UPDATE_PARAMETERS_IX = 5
 
 // Default exchange rate fallbacks (only used if AMM data unavailable)
 export const DEFAULT_EXCHANGE_RATES = {
