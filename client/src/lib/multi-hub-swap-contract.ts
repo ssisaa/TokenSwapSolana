@@ -203,33 +203,26 @@ export async function buyAndDistribute(
     console.log("- Expected discriminator from program: BUY_AND_DISTRIBUTE_IX = 4");
     console.log("- Raw amount (u64):", rawAmount);
     
-    // Create a buffer for the instruction data - CRITICAL CHANGE
-    // Try simplest possible approach - direct array with values matching Rust enum
-    // Create a buffer with just the discriminator and amount packed directly
-    const data = Buffer.alloc(9);
+    // CRITICAL FIX: Create the EXACT instruction data format the Rust contract expects
+    // Looking at "program/src/multi_hub_swap.rs":
+    // - const BUY_AND_DISTRIBUTE_IX: u8 = 4;
+    // - match instruction_data.first() { Some(&BUY_AND_DISTRIBUTE_IX) => { ... }}
+    // - let amount = u64::from_le_bytes(instruction_data[1..9].try_into().unwrap());
     
-    // Set the instruction discriminator (4 = BUY_AND_DISTRIBUTE_IX)
-    data[0] = 4;
+    // Create the instruction data buffer
+    const instructionData = Buffer.alloc(9); // 1 byte discriminator + 8 bytes for amount
+
+    // Write the discriminator exactly as defined in Rust (BUY_AND_DISTRIBUTE_IX = 4)
+    instructionData.writeUint8(4, 0);
     
-    // Pack the amount as a little-endian u64 (8 bytes)
-    const amountBuffer = Buffer.alloc(8);
-    amountBuffer.writeBigUInt64LE(BigInt(rawAmount), 0);
-    amountBuffer.copy(data, 1);
+    // Write the amount as a little-endian u64 (8 bytes)
+    instructionData.writeBigUInt64LE(BigInt(rawAmount), 1);
     
-    console.log("CRITICAL - New instruction data format:");
-    console.log("- Raw hex:", data.toString("hex"));
-    console.log("- First byte (discriminator):", data[0]);
-    console.log("- Amount bytes:", Array.from(data.slice(1, 9)));
-    
-    console.log("Instruction data (hex):", data.toString("hex"));
-    console.log("Data buffer:", {
-      length: data.length,
-      firstByte: data[0],
-      discriminator: data.slice(0, 1).toString("hex"),
-      rawAmount,
-      amountBytes: Array.from(data.slice(1, 9)),
-      fullData: Array.from(data)
-    });
+    console.log("CRITICAL - Instruction data:");
+    console.log("- Raw hex:", instructionData.toString("hex"));
+    console.log("- First byte (discriminator):", instructionData[0]);
+    console.log("- Amount (decimal):", rawAmount);
+    console.log("- Amount (hex):", instructionData.slice(1, 9).toString("hex"));
 
     // Create the instruction
     // IMPORTANT: Accounts must be in the EXACT same order as expected by the program:
@@ -297,7 +290,7 @@ export async function buyAndDistribute(
         { pubkey: programAuthorityAddress, isSigner: false, isWritable: false } // Added program authority
       ],
       programId: program,
-      data
+      data: instructionData
     });
 
     console.log("Preparing buyAndDistribute transaction with: ", {
