@@ -213,6 +213,10 @@ function createTransactionWithComputeBudget(instruction: TransactionInstruction)
  * Safely simulates a transaction and provides detailed logs for debugging
  * This function will never throw, only log errors and return a success/failure status
  */
+/**
+ * Enhanced transaction simulation function with detailed analysis 
+ * and helpful debugging information for troubleshooting transaction errors
+ */
 async function safelySimulateTransaction(connection: Connection, transaction: Transaction): Promise<boolean> {
   try {
     console.log("📊 SIMULATION: Attempting to simulate transaction before sending...");
@@ -223,28 +227,61 @@ async function safelySimulateTransaction(connection: Connection, transaction: Tr
       const instruction = transaction.instructions[i];
       console.log(`\nInstruction #${i} with program ID: ${instruction.programId.toString()}`);
       
+      // Enhanced account logging with expected program state account checks
       instruction.keys.forEach((keyObj, idx) => {
-        console.log(`  Account #${idx}: ${keyObj.pubkey.toString()}`);
+        const pubkeyStr = keyObj.pubkey.toString();
+        console.log(`  Account #${idx}: ${pubkeyStr}`);
         console.log(`    Signer: ${keyObj.isSigner}, Writable: ${keyObj.isWritable}`);
+        
+        // Help identify program state account issues
+        if (idx === 0 && !keyObj.isSigner) {
+          console.warn("⚠️ WARNING: First account is expected to be a signer in most instructions!");
+        }
+        
+        // Check for program state account
+        const [expectedProgramState] = PublicKey.findProgramAddressSync(
+          [Buffer.from("state")],
+          new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
+        );
+        if (pubkeyStr === expectedProgramState.toString()) {
+          console.log("    ✓ IDENTIFIED: This is the program state account");
+        }
       });
     }
     
     // Extract the instruction data for debugging
     if (transaction.instructions.length > 0) {
       const instructionData = transaction.instructions[0].data;
+      
+      // Enhanced instruction data analysis with discriminator identification
+      const discriminatorByte = instructionData[0];
       console.log("\n📊 INSTRUCTION DATA ANALYSIS:");
       console.log(`- Data length: ${instructionData.length} bytes`);
-      console.log(`- Discriminator byte: ${instructionData[0]}`);
+      console.log(`- Discriminator byte: ${discriminatorByte}`);
       console.log(`- Full data (hex): ${instructionData.toString('hex')}`);
       
-      // Show additional bytes for buyAndDistribute
-      if (instructionData[0] === BUY_AND_DISTRIBUTE_DISCRIMINATOR[0]) {
+      // Identify which instruction is being called
+      let instructionName = "Unknown";
+      if (discriminatorByte === BUY_AND_DISTRIBUTE_DISCRIMINATOR[0]) {
+        instructionName = "BUY_AND_DISTRIBUTE";
         const amountBytes = instructionData.slice(1, 9);
         const amount = Number(amountBytes.readBigUInt64LE(0));
+        console.log(`- Instruction type: ${instructionName}`);
         console.log(`- Amount bytes: ${amountBytes.toString('hex')}`);
         console.log(`- Amount (raw): ${amount}`);
         console.log(`- Amount (UI): ${amount / Math.pow(10, 9)} YOT`);
+      } else if (discriminatorByte === CLAIM_REWARD_DISCRIMINATOR[0]) {
+        instructionName = "CLAIM_WEEKLY_REWARD";
+        console.log(`- Instruction type: ${instructionName}`);
+      } else if (discriminatorByte === WITHDRAW_CONTRIBUTION_DISCRIMINATOR[0]) {
+        instructionName = "WITHDRAW_CONTRIBUTION";
+        console.log(`- Instruction type: ${instructionName}`);
+      } else if (discriminatorByte === UPDATE_PARAMETERS_DISCRIMINATOR[0]) {
+        instructionName = "UPDATE_PARAMETERS";
+        console.log(`- Instruction type: ${instructionName}`);
       }
+      
+      console.log(`- Expected account order: See Rust code for ${instructionName}`);
     }
     
     // Check if transaction is properly built
@@ -274,7 +311,7 @@ async function safelySimulateTransaction(connection: Connection, transaction: Tr
       if (simResult.value.err) {
         console.error("❌ SIMULATION FAILED:", simResult.value.err);
         
-        // Additional error analysis
+        // Advanced error analysis specifically for "Invalid program state account" errors
         if (typeof simResult.value.err === 'object') {
           const errorObj = simResult.value.err as any;
           
@@ -286,17 +323,36 @@ async function safelySimulateTransaction(connection: Connection, transaction: Tr
             console.error(`❌ Error in instruction ${index}:`, error);
             
             if (error.Custom === 1) {
-              console.error("❗ Detected Unknown Instruction Discriminator error - verify the instruction byte is correct");
+              console.error("❗ IDENTIFIED ERROR: Unknown Instruction Discriminator - The instruction byte doesn't match what the program expects");
+              console.error("📝 FIX: Verify the instruction discriminator byte is correct (first byte of instruction data)");
             } else if (error.Custom === 0) {
-              console.error("❗ Detected invalid account data - check account ownership and initialization");
+              console.error("❗ IDENTIFIED ERROR: Invalid account data - An account may not be properly initialized");
+              console.error("📝 FIX: Check account ownership and initialization status");
+            } else if (typeof error === 'string' && error.includes("InvalidAccountData")) {
+              console.error("❗ IDENTIFIED ERROR: Invalid Account Data - Account doesn't match program expectations");
+              console.error("📝 FIX: Verify account order matches EXACTLY what the Rust program expects");
+            } else if (typeof error === 'string' && error.includes("AccountNotExecutable")) {
+              console.error("❗ IDENTIFIED ERROR: Account Not Executable - Program account cannot be executed");
+              console.error("📝 FIX: Check program ID is correct and deployed");
             }
           }
         }
         
-        // Log simulation logs if available
+        // Enhanced log analysis specifically targeting "Invalid program state account" errors
         if (simResult.value.logs) {
           console.log("\n📋 SIMULATION LOGS:");
           simResult.value.logs.forEach((log: string, i: number) => console.log(`#${i}: ${log}`));
+          
+          // Check for specific error messages in the logs
+          const invalidProgramStateError = simResult.value.logs.find(log => 
+            log.includes("Invalid program state account")
+          );
+          
+          if (invalidProgramStateError) {
+            console.error("\n❗ CRITICAL ERROR IDENTIFIED: 'Invalid program state account'");
+            console.error("📝 FIX: This error occurs when the program state account is not in the expected position in the accounts array.");
+            console.error("📝 SOLUTION: Update the account order in the TransactionInstruction to match EXACTLY what the Rust program expects.");
+          }
           
           // Additional analysis of logs
           const programLogs = simResult.value.logs.filter((log: string) => 
@@ -310,7 +366,7 @@ async function safelySimulateTransaction(connection: Connection, transaction: Tr
           }
         }
         
-        console.log("\nWill proceed with transaction despite simulation errors.");
+        console.log("\n⚠️ Will proceed with transaction despite simulation errors.");
         return false;
       }
       
@@ -324,16 +380,35 @@ async function safelySimulateTransaction(connection: Connection, transaction: Tr
       return true;
     } catch (simError: any) {
       console.error("❌ SIMULATION ERROR:", simError);
+      
+      // Enhanced error message extraction
       if (simError?.message) {
         console.log("📝 SIMULATION ERROR MESSAGE:", simError.message);
+        
+        // Look for specific error patterns
+        if (simError.message.includes("Cannot read properties of undefined")) {
+          console.error("❗ IDENTIFIED ERROR: 'Cannot read properties of undefined'");
+          console.error("📝 This often happens when the transaction structure is incorrect or an expected account is missing.");
+          console.error("📝 SOLUTION: Double-check ALL account addresses and their order in the instruction.");
+        }
       }
+      
       return false;
     }
   } catch (error: any) {
     console.error("❌ CRITICAL ERROR during transaction simulation:", error);
     
+    // Enhanced error handling for typical transaction issues
     if (error?.message) {
       console.log("📝 ERROR MESSAGE:", error.message);
+      
+      if (error.message.includes("failed to get account")) {
+        console.error("❗ IDENTIFIED ERROR: Failed to get account information");
+        console.error("📝 FIX: One of the accounts in the transaction doesn't exist or is invalid");
+      } else if (error.message.includes("Transaction too large")) {
+        console.error("❗ IDENTIFIED ERROR: Transaction too large");
+        console.error("📝 FIX: Reduce the number of instructions or account references");
+      }
     }
     
     console.log("\n⚠️ Simulation failed but will continue with transaction.");
@@ -869,34 +944,28 @@ export async function withdrawLiquidityContribution(wallet: any): Promise<{ sign
     
     // Log all accounts for debugging purposes
     // CRITICAL: We must exactly match what the program expects in the process_withdraw_contribution function
-    // In lines 767-772, it only gets 5 accounts:
-    // let user = next_account_info(accounts_iter)?;                       // 1
-    // let liquidity_contribution_account = next_account_info(accounts_iter)?; // 2
-    // let liquidity_yot = next_account_info(accounts_iter)?;               // 3
-    // let user_yot = next_account_info(accounts_iter)?;                    // 4
-    // let token_program = next_account_info(accounts_iter)?;               // 5
-    // The program_authority is computed internally in the function
+    // Based on the Rust code analysis, here's what the function expects:
+    // 1. user - The user's wallet (signer)
+    // 2. liquidity_contribution_account - PDA to track contribution
+    // 3. liquidity_yot - Pool's YOT account for liquidity
+    // 4. user_yot - User's YOT account
+    // 5. token_program - Token Program
     
     console.log("WITHDRAW_CONTRIBUTION accounts:");
     console.log("1. user: ", userPublicKey.toString(), "(signer)");
-    console.log("2. liquidity_contribution: ", liquidityContributionAddress.toString());
-    console.log("3. pool_yot: ", poolYotAccount.toString(), "POOL ACCOUNT");
+    console.log("2. liquidity_contribution_account: ", liquidityContributionAddress.toString());
+    console.log("3. liquidity_yot: ", poolYotAccount.toString(), "POOL YOT ACCOUNT");
     console.log("4. user_yot: ", userYotAccount.toString());
     console.log("5. token_program: ", TOKEN_PROGRAM_ID.toString());
-    console.log("6. pool_authority: ", poolAuthority.toString(), "POOL AUTHORITY");
 
-    // Create the instruction with proper account list matching the Rust code
-    // Also adding system program and associated token program to allow token account creation
+    // Create the instruction that uses the EXACT account order expected by the Rust program
     const instruction = new TransactionInstruction({
       keys: [
-        { pubkey: userPublicKey, isSigner: true, isWritable: true },
-        { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true },
-        { pubkey: poolYotAccount, isSigner: false, isWritable: true },  // Use Pool's YOT account
-        { pubkey: userYotAccount, isSigner: false, isWritable: true },
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-        { pubkey: poolAuthority, isSigner: false, isWritable: false },  // Add Pool Authority
-        { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // Added for token account creation
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false } // Added for token account creation
+        { pubkey: userPublicKey, isSigner: true, isWritable: true },             // user
+        { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true }, // liquidity_contribution_account
+        { pubkey: poolYotAccount, isSigner: false, isWritable: true },           // liquidity_yot
+        { pubkey: userYotAccount, isSigner: false, isWritable: true },           // user_yot
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }         // token_program
       ],
       programId: program,
       data
