@@ -138,31 +138,40 @@ function createTransactionWithComputeBudget(instruction: TransactionInstruction)
 /**
  * Safely simulates a transaction and handles any errors
  * Returns true if simulation was successful, false otherwise
+ * 
+ * Note: This implementation uses the simplest form of simulation to avoid type errors.
+ * The web3.js types can be inconsistent between versions.
  */
 async function safelySimulateTransaction(connection: Connection, transaction: Transaction): Promise<boolean> {
   try {
     console.log("Attempting to simulate transaction safely...");
-    // Use the simplest form of simulation to avoid potential errors
-    const response = await connection.simulateTransaction(transaction);
     
-    // Check if simulation was successful
-    if (response.value && response.value.err) {
-      console.error("❌ Simulation failed:", response.value.err);
+    // Use the basic form of simulateTransaction - explicitly casting for type safety
+    const simResult = await connection.simulateTransaction(transaction as any);
+
+    // Check if simulation results are available
+    if (!simResult || !simResult.value) {
+      console.error("❌ Simulation result is undefined or malformed");
+      return false;
+    }
+
+    // Check for errors in the simulation
+    if (simResult.value.err) {
+      console.error("❌ Simulation failed:", simResult.value.err);
       
       // Log simulation logs if available
-      if (response.value.logs) {
+      if (simResult.value.logs) {
         console.log("Simulation logs:");
-        response.value.logs.forEach((log, i) => console.log(`Log ${i}:`, log));
+        simResult.value.logs.forEach((log, i) => console.log(`Log ${i}:`, log));
       }
       
       return false;
     }
     
     // Simulation succeeded, log any available logs
-    console.log("✅ Simulation successful!");
-    if (response.value && response.value.logs) {
-      console.log("Simulation logs:");
-      response.value.logs.forEach((log, i) => console.log(`Log ${i}:`, log));
+    console.log("✅ Simulation succeeded. Logs:");
+    if (simResult.value.logs) {
+      simResult.value.logs.forEach((log, i) => console.log(`Log ${i}:`, log));
     } else {
       console.log("No simulation logs available");
     }
@@ -1027,15 +1036,15 @@ export async function executeSwap(
           yosCashback: outputAmount * yosCashback/100
         }
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error("[SWAP_DEBUG] Critical transaction failure:", error);
       
       // Try to get more information about the error
       console.log("[SWAP_DEBUG] Error type:", typeof error);
-      console.log("[SWAP_DEBUG] Error name:", error.name);
+      console.log("[SWAP_DEBUG] Error name:", error?.name);
       console.log("[SWAP_DEBUG] Full error object:", JSON.stringify(error, null, 2));
       
-      if (error.logs) {
+      if (error?.logs) {
         console.log("[SWAP_DEBUG] Transaction logs:", error.logs);
       }
       
@@ -1044,7 +1053,7 @@ export async function executeSwap(
         console.log("[SWAP_DEBUG] Will attempt transaction simulation for more details...");
         // Re-throw the original error to preserve the stack trace
         throw error;
-      } catch (simulationError) {
+      } catch (simulationError: any) {
         console.error("[SWAP_DEBUG] Simulation also failed:", simulationError);
         throw error; // Re-throw the original error
       }
@@ -1140,7 +1149,7 @@ export async function getExchangeRate(fromToken: string, toToken: string): Promi
     // For other pairs, we would integrate with other AMMs like Jupiter or Raydium
     console.warn(`No direct pool for ${fromToken} to ${toToken}, using fallback rate`);
     return DEFAULT_EXCHANGE_RATES.SOL_YOT;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching AMM rate:", error);
     // Fallback to default rates if blockchain query fails
     if (fromToken === SOL_TOKEN_ADDRESS && toToken === YOT_TOKEN_ADDRESS) {
@@ -1194,7 +1203,7 @@ async function getPoolBalances(): Promise<[number, number, number]> {
     
     console.log(`Pool balances fetched - SOL: ${solBalanceNormalized}, YOT: ${yotBalance}, YOS: ${yosBalance}`);
     return [solBalanceNormalized, yotBalance, yosBalance];
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching pool balances:", error);
     // Return fallback values from config if blockchain query fails completely
     const fallbackSol = solanaConfig.pool.fallbackBalances.sol;
@@ -1236,7 +1245,7 @@ export async function getTokenBalance(wallet: any, tokenAddress: string): Promis
         return 0;
       }
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching token balance:", error);
     return 0;
   }
@@ -1391,7 +1400,7 @@ export async function initializeMultiHubSwap(
     await connection.confirmTransaction(signature, 'confirmed');
     console.log("Multi-Hub Swap program initialized:", signature);
     return signature;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Failed to initialize Multi-Hub Swap program:", error);
     throw error;
   }
@@ -1522,7 +1531,7 @@ export async function getMultiHubSwapStats() {
       console.error("Error parsing account data:", dataError);
       throw dataError;
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error getting multi-hub swap stats:", error);
     
     // Fallback to default values from config if we can't read the program state
