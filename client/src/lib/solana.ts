@@ -69,6 +69,39 @@ export async function getSolBalance(publicKey: PublicKey): Promise<number> {
   }
 }
 
+// Helper to get SOL balance for a wallet address string
+export async function getSOLBalance(walletAddress: string): Promise<number> {
+  try {
+    const publicKey = new PublicKey(walletAddress);
+    return await getSolBalance(publicKey);
+  } catch (error) {
+    console.error('Error getting SOL balance:', error);
+    return 0;
+  }
+}
+
+// Helper to get YOT balance for a wallet address string
+export async function getYOTBalance(walletAddress: string): Promise<number> {
+  try {
+    const publicKey = new PublicKey(walletAddress);
+    return await getTokenBalance(YOT_TOKEN_ADDRESS, publicKey);
+  } catch (error) {
+    console.error('Error getting YOT balance:', error);
+    return 0;
+  }
+}
+
+// Helper to get YOS balance for a wallet address string
+export async function getYOSBalance(walletAddress: string): Promise<number> {
+  try {
+    const publicKey = new PublicKey(walletAddress);
+    return await getTokenBalance(YOS_TOKEN_ADDRESS, publicKey);
+  } catch (error) {
+    console.error('Error getting YOS balance:', error);
+    return 0;
+  }
+}
+
 // Get token balance for a wallet with retry using our new utility
 export async function getTokenBalance(
   tokenMintAddress: string,

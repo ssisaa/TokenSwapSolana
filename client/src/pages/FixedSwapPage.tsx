@@ -36,6 +36,10 @@ export default function FixedSwapPage() {
   const [transactionSignature, setTransactionSignature] = useState<string>("");
   const [isProgramInitialized, setIsProgramInitialized] = useState(true);
   
+  // Wallet balance states
+  const [solBalance, setSolBalance] = useState<number>(0);
+  const [yotBalance, setYotBalance] = useState<number>(0);
+  
   // Check if the MultiHub Swap Program is initialized using the V3 contract
   useEffect(() => {
     async function checkProgramInitialization() {
@@ -118,15 +122,46 @@ export default function FixedSwapPage() {
     }
   };
   
-  // Fetch exchange rate on component mount
+  // Fetch wallet balances
+  const fetchWalletBalances = async () => {
+    if (!connected || !wallet) return;
+    
+    try {
+      // Fetch SOL balance
+      const { getSOLBalance, getYOTBalance } = await import('@/lib/solana');
+      
+      // Get SOL balance
+      const solBalanceResult = await getSOLBalance(wallet.publicKey.toString());
+      if (solBalanceResult) {
+        console.log(`Got actual SOL balance from wallet: ${solBalanceResult} SOL`);
+        setSolBalance(solBalanceResult);
+      }
+      
+      // Get YOT balance
+      const yotBalanceResult = await getYOTBalance(wallet.publicKey.toString());
+      if (yotBalanceResult) {
+        console.log(`Got actual YOT balance from wallet: ${yotBalanceResult} YOT`);
+        setYotBalance(yotBalanceResult);
+      }
+    } catch (error) {
+      console.error('Error fetching wallet balances:', error);
+    }
+  };
+  
+  // Fetch exchange rate and wallet balances on component mount
   useEffect(() => {
     fetchExchangeRate();
+    fetchWalletBalances();
     
-    // Set up a refresh interval
-    const intervalId = setInterval(fetchExchangeRate, 30000); // Refresh every 30 seconds
+    // Set up refresh intervals
+    const exchangeRateIntervalId = setInterval(fetchExchangeRate, 30000); // Refresh every 30 seconds
+    const balancesIntervalId = setInterval(fetchWalletBalances, 30000);
     
-    return () => clearInterval(intervalId);
-  }, []);
+    return () => {
+      clearInterval(exchangeRateIntervalId);
+      clearInterval(balancesIntervalId);
+    };
+  }, [connected, wallet]);
 
   // Handle token swap with real exchange rate
   const handleFromTokenChange = (newFromToken: string) => {
@@ -421,7 +456,9 @@ export default function FixedSwapPage() {
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm text-muted-foreground">From</span>
                   <span className="text-sm text-muted-foreground">
-                    Balance: {fromToken === SOL_SYMBOL ? "6.9898" : "159,627,437.145"} {fromToken}
+                    Balance: {fromToken === SOL_SYMBOL ? 
+                      (solBalance ? solBalance.toFixed(4) : "Loading...") : 
+                      (yotBalance ? yotBalance.toLocaleString() : "Loading...")} {fromToken}
                   </span>
                 </div>
                 
