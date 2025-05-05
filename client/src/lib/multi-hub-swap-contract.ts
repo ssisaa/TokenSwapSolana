@@ -363,7 +363,7 @@ export async function withdrawLiquidityContribution(wallet: any): Promise<{ sign
     const adminFeeRate = config.parameters.swap.adminFeeRate / 100; // Convert basis points to percentage
     const commissionLamports = Math.floor(0.0001 * LAMPORTS_PER_SOL); // Fixed 0.0001 SOL for withdrawals
     
-    console.log(`Adding owner commission: ${0.0001} SOL (${commissionLamports} lamports) to admin wallet`);
+    console.log(`Adding owner commission: ${0.0001} SOL (${commissionLamports} lamports) to admin wallet ${config.accounts?.admin} at rate ${adminFeeRate}%`);
     
     // Add commission transaction
     const transferInstruction = SystemProgram.transfer({
@@ -637,22 +637,37 @@ export async function getMultiHubSwapStats() {
     
     if (!accountInfo || !accountInfo.data) {
       console.log("Program state not initialized");
+      // Return default values (constants defined in the protocol)
+      // For buy: 75% user, 20% liquidity, 5% cashback (as per protocol standards)
+      const buyUserPercent = 75;
+      const buyLiquidityPercent = config.parameters?.swap?.liquidityContributionRate / 100 || 20;
+      const buyCashbackPercent = config.parameters?.swap?.yosCashbackRate / 100 || 5;
+      
+      // For sell: 75% user, 20% liquidity, 5% cashback (as per protocol standards)
+      const sellUserPercent = 75;
+      const sellLiquidityPercent = config.parameters?.swap?.liquidityContributionRate / 100 || 20;
+      const sellCashbackPercent = config.parameters?.swap?.yosCashbackRate / 100 || 5;
+      
+      // Weekly reward rate is approximately 1.92% (100% APR / 52 weeks)
+      const weeklyRewardRate = 1.92;
+      const ownerCommissionPercent = config.parameters?.swap?.adminFeeRate / 100 || 0.1;
+      
       return {
         totalLiquidityContributed: 0,
         totalUniqueContributors: 0,
         totalYosDistributed: 0,
         buyDistribution: {
-          userPercent: 75,
-          liquidityPercent: 20,
-          cashbackPercent: 5
+          userPercent: buyUserPercent,
+          liquidityPercent: buyLiquidityPercent,
+          cashbackPercent: buyCashbackPercent
         },
         sellDistribution: {
-          userPercent: 75,
-          liquidityPercent: 20,
-          cashbackPercent: 5
+          userPercent: sellUserPercent,
+          liquidityPercent: sellLiquidityPercent,
+          cashbackPercent: sellCashbackPercent
         },
-        weeklyRewardRate: 1.92,
-        ownerCommissionPercent: 0.1
+        weeklyRewardRate,
+        ownerCommissionPercent
       };
     }
     
@@ -730,23 +745,37 @@ export async function getMultiHubSwapStats() {
     };
   } catch (error) {
     console.error("Error fetching multi-hub swap stats:", error);
-    // Return default values
+    // Return default values (constants defined in the protocol)
+    // For buy: 75% user, 20% liquidity, 5% cashback (as per protocol standards)
+    const buyUserPercent = 75;
+    const buyLiquidityPercent = config.parameters?.swap?.liquidityContributionRate / 100 || 20;
+    const buyCashbackPercent = config.parameters?.swap?.yosCashbackRate / 100 || 5;
+    
+    // For sell: 75% user, 20% liquidity, 5% cashback (as per protocol standards)
+    const sellUserPercent = 75;
+    const sellLiquidityPercent = config.parameters?.swap?.liquidityContributionRate / 100 || 20;
+    const sellCashbackPercent = config.parameters?.swap?.yosCashbackRate / 100 || 5;
+    
+    // Weekly reward rate is approximately 1.92% (100% APR / 52 weeks)
+    const weeklyRewardRate = 1.92;
+    const ownerCommissionPercent = config.parameters?.swap?.adminFeeRate / 100 || 0.1;
+    
     return {
       totalLiquidityContributed: 0,
       totalUniqueContributors: 0,
       totalYosDistributed: 0,
       buyDistribution: {
-        userPercent: 75,
-        liquidityPercent: 20,
-        cashbackPercent: 5
+        userPercent: buyUserPercent,
+        liquidityPercent: buyLiquidityPercent,
+        cashbackPercent: buyCashbackPercent
       },
       sellDistribution: {
-        userPercent: 75,
-        liquidityPercent: 20,
-        cashbackPercent: 5
+        userPercent: sellUserPercent,
+        liquidityPercent: sellLiquidityPercent,
+        cashbackPercent: sellCashbackPercent
       },
-      weeklyRewardRate: 1.92,
-      ownerCommissionPercent: 0.1
+      weeklyRewardRate,
+      ownerCommissionPercent
     };
   }
 }
