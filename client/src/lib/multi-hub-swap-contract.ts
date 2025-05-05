@@ -694,11 +694,9 @@ export async function buyAndDistribute(
     // 10. rent_sysvar
     // 11. program_state_account - make sure this is writable!
     
-    // Get the program state account using the same derivation as the Rust program
-    const [programStateAccount] = PublicKey.findProgramAddressSync(
-      [Buffer.from("state")],
-      program
-    );
+    // CRITICAL FIX: Use the exact program state account from config instead of deriving it
+    // This fixes the "Custom 4" error by ensuring we use the correct account
+    const programStateAccount = new PublicKey(MULTI_HUB_SWAP_STATE);
     
     // CRITICAL CORRECTION: Matching EXACTLY what the process_buy_and_distribute function in Rust expects
     // Based on careful analysis of the Rust code in attached_assets, the function expects these accounts:
@@ -907,11 +905,8 @@ export async function distributeWeeklyYosReward(
     const poolAuthority = new PublicKey(solanaConfig.pool.authority);
     const poolYosAccount = await getAssociatedTokenAddress(yosMint, poolAuthority);
     
-    // Get the program state account
-    const [programStateAccount] = PublicKey.findProgramAddressSync(
-      [Buffer.from("state")],
-      program
-    );
+    // CRITICAL FIX: Use the exact program state account from config
+    const programStateAccount = new PublicKey(MULTI_HUB_SWAP_STATE);
 
     // Create the instruction data - direct byte approach
     // This must match what's in the Rust program in match instruction_data.first()
@@ -1088,11 +1083,8 @@ export async function withdrawLiquidityContribution(wallet: any): Promise<{ sign
       program
     );
     
-    // Get the program state account
-    const [programStateAccount] = PublicKey.findProgramAddressSync(
-      [Buffer.from("state")],
-      program
-    );
+    // CRITICAL FIX: Use the exact program state account from config
+    const programStateAccount = new PublicKey(MULTI_HUB_SWAP_STATE);
 
     // Get the current contribution amount before withdrawal
     const liquidityContributionInfo = await getLiquidityContributionInfo(userPublicKey.toString());
