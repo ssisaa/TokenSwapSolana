@@ -1996,6 +1996,7 @@ export async function performSwap(
 /**
  * Helper function to create a token account instruction based on account name pattern
  * ENHANCED: Better handling of User Token accounts with improved logic for SOL
+ * CRITICAL FIX: Robust address derivation with fallback logic for InvalidSeeds errors
  */
 async function getTokenAccountCreateInstruction(
   connection: Connection,
@@ -2031,10 +2032,43 @@ async function getTokenAccountCreateInstruction(
       owner = wallet.publicKey;
     }
     
+    // CRITICAL FIX: Use precalculated address instead of dynamically deriving it
+    // This prevents "Error: Associated address does not match seed derivation" errors
+    let derivedTokenAddress: PublicKey;
+    
+    try {
+      // First try to manually derive the ATA using the find program address method
+      const seeds = [
+        owner.toBuffer(),
+        TOKEN_PROGRAM_ID.toBuffer(),
+        mint.toBuffer(),
+      ];
+      
+      // Use findProgramAddress which is more reliable than getAssociatedTokenAddress
+      const [address, _bump] = await PublicKey.findProgramAddress(
+        seeds,
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+      
+      derivedTokenAddress = address;
+      console.log(`Derived ATA for ${accountName} using findProgramAddress: ${address.toString()}`);
+      
+      // Compare with the expected address to ensure they match
+      if (!derivedTokenAddress.equals(account)) {
+        console.warn(`WARNING: Derived address ${derivedTokenAddress.toString()} doesn't match expected ${account.toString()}`);
+        console.log(`Using derived address to prevent InvalidSeeds error`);
+      }
+    } catch (derivationError) {
+      console.error(`Error deriving token address: ${derivationError}`);
+      // Fall back to using the provided account
+      derivedTokenAddress = account;
+    }
+    
     // Create the token account with explicit program IDs
+    // CRITICAL FIX: Use the derived address instead of the input account if they don't match
     const instruction = createAssociatedTokenAccountInstruction(
       wallet.publicKey,
-      account,
+      derivedTokenAddress,
       owner,
       mint,
       TOKEN_PROGRAM_ID,
@@ -2042,6 +2076,7 @@ async function getTokenAccountCreateInstruction(
     );
     
     console.log(`Created instruction for: ${accountName} (mint: ${mint.toString()}, owner: ${owner.toString()})`);
+    console.log(`ATA address: ${derivedTokenAddress.toString()}`);
     return instruction;
   } catch (error) {
     console.error(`Error creating token account instruction for ${accountName}:`, error);
