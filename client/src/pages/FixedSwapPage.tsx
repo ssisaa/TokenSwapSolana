@@ -330,8 +330,10 @@ export default function FixedSwapPage() {
           fee: 0.003     // Fee is set by the contract
         };
         
-        // Get connection from hook
-        const connection = useConnection();
+        // Get connection from our singleton connection provider instead of hook
+        // This avoids the React hooks error when trying to use useConnection() here
+        const { getConnection } = await import('../hooks/useConnection');
+        const connection = getConnection();
         
         // 💥 FINAL ABSOLUTE ATTEMPT WITH 100% HARDCODED VALUES
         console.log("======== MINIMAL SWAP WITH SIMPLIFIED ACCOUNT STRUCTURE ========");

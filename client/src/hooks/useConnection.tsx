@@ -1,34 +1,43 @@
 import { useEffect, useState } from 'react';
 import { Connection, clusterApiUrl } from '@solana/web3.js';
 
+// Cache a single connection instance for the entire application
+let connectionInstance: Connection | null = null;
+
 /**
- * Custom hook that provides a stable Solana connection
+ * Create a stable Solana connection that can be used anywhere
+ * Unlike a normal hook, this can be called outside of components
  * @returns A Solana Connection object connected to devnet
  */
-export default function useConnection(): Connection {
-  // Store the Connection object in state to ensure it's stable
-  const [connection, setConnection] = useState<Connection | null>(null);
-
-  // Initialize the connection on component mount
-  useEffect(() => {
+export function getConnection(): Connection {
+  if (!connectionInstance) {
     // Use devnet for development
     const endpoint = clusterApiUrl('devnet');
     
-    // Create a new Connection object with preflight commitment level
-    const conn = new Connection(endpoint, {
+    // Create a new connection with improved timeout settings
+    connectionInstance = new Connection(endpoint, {
       commitment: 'confirmed',
       confirmTransactionInitialTimeout: 60000, // 60 seconds
     });
     
-    // Store the connection in state
-    setConnection(conn);
-    
     // Log initialization for debugging
-    console.log('Solana connection initialized to devnet');
+    console.log('Solana connection initialized to devnet (singleton)');
+  }
+  
+  return connectionInstance;
+}
 
-    // No cleanup needed - Connection objects don't have disposal methods
-  }, []);
-
-  // Return the Connection object, or a fallback that will be replaced once initialized
-  return connection || new Connection(clusterApiUrl('devnet'), 'confirmed');
+/**
+ * Custom React hook that provides a stable Solana connection
+ * This wraps the getConnection function for components
+ * @returns A Solana Connection object connected to devnet
+ */
+export default function useConnection(): Connection {
+  // We use a useState here just to properly follow React conventions
+  // but the actual connection will always be the singleton
+  const [connection] = useState<Connection>(getConnection());
+  
+  // No useEffect needed since we're managing a singleton connection instance
+  
+  return connection;
 }
