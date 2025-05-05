@@ -359,9 +359,10 @@ export async function buyAndDistribute(
     const instructionData = Buffer.alloc(9); // 1 byte discriminator + 8 bytes for amount
     
     // Write discriminator byte (4) directly without using Buffer.from()
+    // CRITICAL: This matches the Rust program expectation of BUY_AND_DISTRIBUTE_IX = 4
     instructionData.writeUInt8(4, 0); // Write value 4 at position 0
     
-    // Write amount as little-endian u64 (8 bytes)
+    // Write amount as little-endian u64 (8 bytes) - EXACT match for Rust's u64::from_le_bytes
     instructionData.writeBigUInt64LE(BigInt(rawAmount), 1);
     
     // Verify data was written correctly

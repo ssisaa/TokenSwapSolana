@@ -802,7 +802,8 @@ fn process_withdraw_contribution(
     // Verify liquidity contribution account belongs to the user
     let (expected_liq_contrib, _) = find_liquidity_contribution_address(user.key, program_id);
     if expected_liq_contrib != *liquidity_contribution_account.key {
-        msg!("Invalid liquidity contribution account");
+        msg!("Invalid liquidity contribution account: expected {}, got {}", 
+            expected_liq_contrib, liquidity_contribution_account.key);
         return Err(ProgramError::InvalidAccountData);
     }
     
