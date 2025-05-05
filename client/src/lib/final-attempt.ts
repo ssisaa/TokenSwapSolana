@@ -128,17 +128,17 @@ export async function finalAttempt(
       { pubkey: PROGRAM_AUTHORITY, isSigner: false, isWritable: true },       // PROGRAM AUTHORITY    [2]
       { pubkey: POOL_AUTHORITY, isSigner: false, isWritable: true },          // Pool authority       [3]
       
-      // CRITICAL FIX: For SOL->YOT swaps, use wallet for source and USER_YOT_ACCOUNT for destination
-      // For YOT->SOL swaps, use USER_YOT_ACCOUNT for source and wallet for destination
-      // NEVER mark wallet as signer twice - it's already marked as signer at index 0
+      // CRITICAL FIX: We need to create a DIFFERENT token account for SOL operations
+      // Do NOT use wallet.publicKey again - this was causing duplicate accounts!
+      // For SOL operations, specifically use the POOL_SOL_ACCOUNT to avoid duplicates
       { 
-        pubkey: isSOLToYOT ? wallet.publicKey : USER_YOT_ACCOUNT,             // User FROM account    [4]
-        isSigner: false,    // NEVER mark wallet as signer more than once
+        pubkey: isSOLToYOT ? POOL_SOL_ACCOUNT : USER_YOT_ACCOUNT,             // User FROM account    [4]
+        isSigner: false,    // NEVER mark any account as signer more than once
         isWritable: true 
       },
       { 
-        pubkey: isSOLToYOT ? USER_YOT_ACCOUNT : wallet.publicKey,             // User TO account      [5]
-        isSigner: false,    // NEVER mark wallet as signer more than once
+        pubkey: isSOLToYOT ? USER_YOT_ACCOUNT : POOL_SOL_ACCOUNT,             // User TO account      [5]
+        isSigner: false,    // NEVER mark any account as signer more than once
         isWritable: true 
       },
       { pubkey: USER_YOS_ACCOUNT, isSigner: false, isWritable: true },        // User YOS account     [6]
@@ -262,10 +262,11 @@ export async function finalAttempt(
         { pubkey: MYSTERY_ADDRESS, isSigner: false, isWritable: true },        // Mystery address      [2]
         { pubkey: PROGRAM_AUTHORITY, isSigner: false, isWritable: true },      // Program authority    [3]
         
-        // From/To accounts - with FIXED isSigner flags (never duplicate wallet signing)
-        { pubkey: isSOLToYOT ? wallet.publicKey : USER_YOT_ACCOUNT,            // User FROM account    [4]
+        // CRITICAL FIX: We need to use DIFFERENT token accounts here too to avoid duplicates
+        // Do NOT use wallet.publicKey again - this was causing duplicate accounts!
+        { pubkey: isSOLToYOT ? POOL_SOL_ACCOUNT : USER_YOT_ACCOUNT,            // User FROM account    [4]
           isSigner: false, isWritable: true },
-        { pubkey: isSOLToYOT ? USER_YOT_ACCOUNT : wallet.publicKey,            // User TO account      [5]
+        { pubkey: isSOLToYOT ? USER_YOT_ACCOUNT : POOL_SOL_ACCOUNT,            // User TO account      [5]
           isSigner: false, isWritable: true },
         { pubkey: USER_YOS_ACCOUNT, isSigner: false, isWritable: true },       // User YOS account     [6]
         
