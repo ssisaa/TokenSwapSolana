@@ -150,12 +150,15 @@ async function safelySimulateTransaction(connection: Connection, transaction: Tr
   try {
     console.log("📊 SIMULATION: Attempting to simulate transaction before sending...");
     
-    // Use the basic form of simulateTransaction with explicit options
-    const simResult = await connection.simulateTransaction(transaction, {
-      sigVerify: false,
-      commitment: 'confirmed',
-      replaceRecentBlockhash: true
-    });
+    // Use the basic form of simulateTransaction with correct parameters
+    // First parameter: transaction
+    // Second parameter: optional signers array (we pass empty array)
+    // Third parameter: includeAccounts is undefined
+    const simResult = await connection.simulateTransaction(
+      transaction,
+      [],  // empty signers array
+      true // includeAccounts set to true
+    );
 
     // Check if simulation results are available
     if (!simResult || !simResult.value) {

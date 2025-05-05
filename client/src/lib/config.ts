@@ -10,8 +10,8 @@ export interface SolanaConfig {
   rpcUrl: string;
   programId: string;
   commitment: string;
-  explorerUrl: string;
-  confirmationCount: number;
+  explorerUrl?: string; // Make optional since it might not be in the config
+  confirmationCount?: number; // Make optional since it might not be in the config
   tokens: {
     sol: {
       address: string;
@@ -104,9 +104,13 @@ export interface FeatureConfig {
   enableAnalytics: boolean;
 }
 
-// Export config sections
-export const solanaConfig: SolanaConfig = appConfig.solana;
-export const adminConfig: AdminConfig = appConfig.admin;
+// Export config sections with type assertions to match expected interfaces
+export const solanaConfig: SolanaConfig = appConfig.solana as SolanaConfig;
+// Add programScalingFactor with proper type handling
+export const adminConfig: AdminConfig = {
+  ...appConfig.admin,
+  programScalingFactor: (appConfig.admin as any).programScalingFactor || 9260, // Default to 9260 if missing
+};
 export const uiConfig: UIConfig = appConfig.ui;
 export const featureConfig: FeatureConfig = appConfig.features;
 
