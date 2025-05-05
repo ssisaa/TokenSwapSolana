@@ -8,9 +8,7 @@
 import { Keypair, Connection, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, TransactionInstruction, Transaction } from '@solana/web3.js';
 import { ENDPOINT, YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS } from './constants';
 import { ADMIN_KEYPAIR } from './multi-swap-admin';
-
-// Multi-Hub Swap Program ID
-const MULTI_HUB_SWAP_PROGRAM_ID = 'SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE';
+import { MULTI_HUB_SWAP_PROGRAM_ID } from './config';
 
 // Connect to Solana network
 const connection = new Connection(ENDPOINT, 'confirmed');
