@@ -31,6 +31,9 @@ const SOL_MINT = new PublicKey('So11111111111111111111111111111111111111112');
 const YOT_MINT = new PublicKey('2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF');
 const YOS_MINT = new PublicKey('GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n');
 
+// Fee account from final-attempt.ts
+const FEE_ACCOUNT = new PublicKey('Eh8fHudZ4Rkb1MrzXSHRWP8SoubpBM4BhEHBmoJg17F8');
+
 /**
  * Create a minimal swap instruction data buffer
  * First byte = 1 (swap opcode)
@@ -88,36 +91,26 @@ export async function contractMatch(
     // Create swap instruction data
     const swapData = createSwapInstructionData(rawAmount);
     
-    // Define the accounts in the EXACT SAME ORDER as the original contract
+    // Define the accounts in the EXACT SAME ORDER as the final-attempt.ts
+    // Based on the debug output you provided (including all 17 accounts)
     const accounts = [
-      // --- SECTION 1: Signers and state ---
-      { pubkey: wallet.publicKey, isSigner: true, isWritable: true },      // User wallet         [0]
-      { pubkey: PROGRAM_STATE, isSigner: false, isWritable: true },        // Program state       [1]
-      { pubkey: PROGRAM_AUTHORITY, isSigner: false, isWritable: true },    // Program authority   [2]
-      { pubkey: POOL_AUTHORITY, isSigner: false, isWritable: true },       // Pool authority      [3]
-      
-      // --- SECTION 2: User token accounts (NOT duplicating wallet or System Program) ---
-      // For SOL->YOT, we need a different account than SystemProgram.programId (position 14)
-      // Use TOKEN_PROGRAM_ID as a stand-in since it's not duplicated elsewhere in the accounts array
-      { pubkey: isSOLToYOT ? TOKEN_PROGRAM_ID : USER_YOT_ACCOUNT,          // User FROM account   [4]
-        isSigner: false, isWritable: true },                               // Never mark as signer here
-      { pubkey: USER_YOT_ACCOUNT, isSigner: false, isWritable: true },     // User YOT account    [5]
-      { pubkey: USER_YOS_ACCOUNT, isSigner: false, isWritable: true },     // User YOS account    [6]
-      
-      // --- SECTION 3: Program token accounts ---
-      { pubkey: POOL_SOL_ACCOUNT, isSigner: false, isWritable: true },     // Pool SOL account    [7]
-      { pubkey: PROGRAM_YOT_ACCOUNT, isSigner: false, isWritable: true },  // Program YOT acct    [8]
-      { pubkey: PROGRAM_YOS_ACCOUNT, isSigner: false, isWritable: true },  // Program YOS acct    [9]
-      
-      // --- SECTION 4: Token mints ---
-      { pubkey: SOL_MINT, isSigner: false, isWritable: false },            // SOL mint           [10]
-      { pubkey: YOT_MINT, isSigner: false, isWritable: false },            // YOT mint           [11]
-      { pubkey: YOS_MINT, isSigner: false, isWritable: false },            // YOS mint           [12]
-      
-      // --- SECTION 5: System programs ---
-      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },    // Token Program      [13]
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // System Program [14]
-      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },  // Rent               [15]
+      { pubkey: wallet.publicKey, isSigner: true, isWritable: true },       // [0] Wallet (signer)
+      { pubkey: PROGRAM_STATE, isSigner: false, isWritable: true },         // [1] 2sR6kFJfCa7oG9hrMWxeTK6ESir7PNZe4vky2JDiNrKC
+      { pubkey: PROGRAM_AUTHORITY, isSigner: false, isWritable: true },     // [2] Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ
+      { pubkey: POOL_AUTHORITY, isSigner: false, isWritable: true },        // [3] 7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // [4] 11111111111111111111111111111111
+      { pubkey: USER_YOT_ACCOUNT, isSigner: false, isWritable: true },      // [5] 8ufUyc9yA5j2uJqHRwxi7XZZR8gKg8dwKBg2J168yvk4
+      { pubkey: USER_YOS_ACCOUNT, isSigner: false, isWritable: true },      // [6] 8QGzzUxJ5X88LwMW6gBd7zc5Re6FbjHhFv52oj5WMfSz
+      { pubkey: POOL_SOL_ACCOUNT, isSigner: false, isWritable: true },      // [7] 7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS
+      { pubkey: PROGRAM_YOT_ACCOUNT, isSigner: false, isWritable: true },   // [8] BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE
+      { pubkey: PROGRAM_YOS_ACCOUNT, isSigner: false, isWritable: true },   // [9] 5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz
+      { pubkey: SOL_MINT, isSigner: false, isWritable: false },             // [10] So11111111111111111111111111111111111111112
+      { pubkey: YOT_MINT, isSigner: false, isWritable: false },             // [11] 2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF
+      { pubkey: YOS_MINT, isSigner: false, isWritable: false },             // [12] GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },     // [13] TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // [14] 11111111111111111111111111111111
+      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },   // [15] SysvarRent111111111111111111111111111111111
+      { pubkey: FEE_ACCOUNT, isSigner: false, isWritable: false },          // [16] Eh8fHudZ4Rkb1MrzXSHRWP8SoubpBM4BhEHBmoJg17F8
     ];
     
     // Log all accounts for verification
