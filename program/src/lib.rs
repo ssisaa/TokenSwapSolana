@@ -1,3 +1,6 @@
+// Import our multi_hub_swap module
+mod multi_hub_swap;
+
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -180,6 +183,36 @@ pub fn process_instruction(
                 swap_fee_rate,
                 referral_rate,
             )
+        },
+        
+        Some(4) => {
+            msg!("BuyAndDistribute Instruction");
+            if instruction_data.len() < 1 + 8 {
+                msg!("Instruction too short for BuyAndDistribute: {} bytes", instruction_data.len());
+                return Err(ProgramError::InvalidInstructionData);
+            }
+            
+            // Extract amount parameter
+            let amount = u64::from_le_bytes(instruction_data[1..9].try_into().unwrap());
+            
+            msg!("BuyAndDistribute amount: {}", amount);
+            
+            // Directly call the multi_hub_swap implementation
+            crate::multi_hub_swap::process_buy_and_distribute(program_id, accounts, amount)
+        },
+        
+        Some(5) => {
+            msg!("ClaimWeeklyReward Instruction");
+            
+            // Directly call the multi_hub_swap implementation
+            crate::multi_hub_swap::process_claim_weekly_reward(program_id, accounts)
+        },
+        
+        Some(6) => {
+            msg!("WithdrawContribution Instruction");
+            
+            // Directly call the multi_hub_swap implementation
+            crate::multi_hub_swap::process_withdraw_contribution(program_id, accounts)
         },
         
         _ => {
