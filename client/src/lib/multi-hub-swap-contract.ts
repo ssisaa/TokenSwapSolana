@@ -213,7 +213,28 @@ export async function buyAndDistribute(
     // 8. token_program
     // 9. system_program
     // 10. rent_sysvar
-    // 11. program_state_account (this was missing!)
+    // 11. program_state_account - make sure this is writable!
+    
+    // Get the program state account using the same derivation as the Rust program
+    const [programStateAccount] = PublicKey.findProgramAddressSync(
+      [Buffer.from("state")],
+      program
+    );
+    
+    // Log all accounts for debugging purposes
+    console.log("FINAL ACCOUNTS FOR INSTRUCTION:");
+    console.log("1. user: ", userPublicKey.toString(), "(signer)");
+    console.log("2. vault_yot: ", vaultYotAddress.toString());
+    console.log("3. user_yot: ", userYotAccount.toString());
+    console.log("4. liquidity_yot: ", liquidityYotAddress.toString());
+    console.log("5. yos_mint: ", yosMint.toString());
+    console.log("6. user_yos: ", userYosAccount.toString());
+    console.log("7. liquidity_contribution: ", liquidityContributionAddress.toString());
+    console.log("8. token_program: ", TOKEN_PROGRAM_ID.toString());
+    console.log("9. system_program: ", SystemProgram.programId.toString());
+    console.log("10. rent_sysvar: ", SYSVAR_RENT_PUBKEY.toString());
+    console.log("11. program_state: ", programStateAccount.toString(), "(CRITICAL)");
+    
     const instruction = new TransactionInstruction({
       keys: [
         { pubkey: userPublicKey, isSigner: true, isWritable: true },
@@ -226,7 +247,7 @@ export async function buyAndDistribute(
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
-        { pubkey: programStateAddress, isSigner: false, isWritable: false }
+        { pubkey: programStateAccount, isSigner: false, isWritable: true } // Make sure this is writable!
       ],
       programId: program,
       data

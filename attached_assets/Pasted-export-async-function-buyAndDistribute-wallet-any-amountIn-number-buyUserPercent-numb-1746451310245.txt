@@ -1,0 +1,88 @@
+export async function buyAndDistribute(
+  wallet: any,
+  amountIn: number,
+  buyUserPercent: number = 75,
+  buyLiquidityPercent: number = 20,
+  buyCashbackPercent: number = 5
+): Promise<string> {
+  try {
+    if (!wallet || !wallet.publicKey) {
+      throw new Error("Wallet not connected");
+    }
+
+    if (buyUserPercent !== 75 || buyLiquidityPercent !== 20 || buyCashbackPercent !== 5) {
+      console.warn("Warning: Custom percentages provided, but contract expects 75/20/5.");
+    }
+
+    const userPublicKey = wallet.publicKey;
+    const program = new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID);
+    const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
+    const yosMint = new PublicKey(YOS_TOKEN_ADDRESS);
+
+    const userYotAccount = await getAssociatedTokenAddress(yotMint, userPublicKey);
+    const userYosAccount = await getAssociatedTokenAddress(yosMint, userPublicKey);
+
+    // Vault and Liquidity Token Accounts (assumed to be PDA-based)
+    const [vaultYotAddress] = PublicKey.findProgramAddressSync(
+      [Buffer.from("vault"), yotMint.toBuffer()],
+      program
+    );
+    const [liquidityYotAddress] = PublicKey.findProgramAddressSync(
+      [Buffer.from("liquidity"), yotMint.toBuffer()],
+      program
+    );
+
+    // Liquidity Contribution PDA
+    const [liquidityContributionAddress] = PublicKey.findProgramAddressSync(
+      [Buffer.from("contrib"), userPublicKey.toBuffer()],
+      program
+    );
+
+    // State Account PDA (11th required account)
+    const [programStateAccount] = PublicKey.findProgramAddressSync(
+      [Buffer.from("state")],
+      program
+    );
+
+    // Convert amount to u64 (assumes 9 decimals)
+    const rawAmount = Math.floor(amountIn * Math.pow(10, 9));
+    const data = Buffer.alloc(9);
+    data.writeUInt8(4, 0); // Discriminator = 4
+    data.writeBigUInt64LE(BigInt(rawAmount), 1);
+
+    console.log("Instruction Data:", data.toString("hex"));
+
+    const instruction = new TransactionInstruction({
+      keys: [
+        { pubkey: userPublicKey, isSigner: true, isWritable: true },
+        { pubkey: vaultYotAddress, isSigner: false, isWritable: true },
+        { pubkey: userYotAccount, isSigner: false, isWritable: true },
+        { pubkey: liquidityYotAddress, isSigner: false, isWritable: true },
+        { pubkey: yosMint, isSigner: false, isWritable: true },
+        { pubkey: userYosAccount, isSigner: false, isWritable: true },
+        { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true },
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+        { pubkey: programStateAccount, isSigner: false, isWritable: true } // 11th account ✅
+      ],
+      programId: program,
+      data
+    });
+
+    const transaction = new Transaction().add(instruction);
+    transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+    transaction.feePayer = userPublicKey;
+
+    const signedTx = await wallet.signTransaction(transaction);
+    const signature = await connection.sendRawTransaction(signedTx.serialize());
+    await connection.confirmTransaction(signature, "confirmed");
+
+    console.log("Transaction confirmed:", signature);
+    return signature;
+
+  } catch (error) {
+    console.error("Error in buyAndDistribute:", error);
+    throw error;
+  }
+}
