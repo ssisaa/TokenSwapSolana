@@ -1,5 +1,6 @@
 // Multi-Hub Swap Integration
 // Integrates with Raydium (devnet) and Jupiter (SDK devnet)
+// All configuration is pulled from app.config.json through config.ts
 
 import { 
   Connection, 
@@ -8,20 +9,26 @@ import {
   SystemProgram, 
   LAMPORTS_PER_SOL,
   TransactionInstruction,
-  Keypair
+  Keypair,
+  Commitment
 } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
-import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, YOT_DECIMALS, YOS_DECIMALS, ENDPOINT } from './constants';
+import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, YOT_DECIMALS, YOS_DECIMALS, SOLANA_RPC_URL } from './constants';
 import { sendTransaction } from './transaction-helper';
-// Using buffer-based seed approach for PDAs instead of anchor's findProgramAddressSync
+// Import configuration from centralized configuration
+import {
+  solanaConfig,
+  MULTI_HUB_SWAP_PROGRAM_ID,
+  USDC_DEVNET_ADDRESS,
+  RAYDIUM_ROUTER_CONFIG
+} from './config';
 
-// Raydium Devnet Constants
-export const RAYDIUM_USDC_MINT = new PublicKey('9T7uw5dqaEmEC4McqyefzYsEg5hoC4e2oV8it1Uc4f1U');
-export const RAYDIUM_ROUTER_ADDRESS = new PublicKey('BVChZ3XFEwTMUk1o9i3HAf91H6mFxSwa5X2wFAWhYPhU');
-export const MULTI_HUB_SWAP_PROGRAM_ID = 'Fg6PaFpoGXkYsidMpWxqSWib32jBzv4U5mpdKqHR3rXY';
+// Raydium Devnet Constants from centralized config
+export const RAYDIUM_USDC_MINT = new PublicKey(solanaConfig.multiHubSwap.amm.raydium.usdc);
+export const RAYDIUM_ROUTER_ADDRESS = new PublicKey(solanaConfig.multiHubSwap.amm.raydium.routerAddress);
 
-// Connection instance
-export const connection = new Connection(ENDPOINT, 'confirmed');
+// Connection instance with proper commitment
+export const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
 
 // Utility function to convert amount to raw format
 export function uiToRawAmount(amount: number, decimals: number): bigint {

@@ -34,13 +34,13 @@ import { PublicKey } from '@solana/web3.js';
 import { 
   getMultiHubSwapStats, 
   updateMultiHubSwapParameters,
-  initializeMultiHubSwap,
-  MULTI_HUB_SWAP_PROGRAM_ID
+  initializeMultiHubSwap
 } from "@/lib/multi-hub-swap-contract";
 import {
+  MULTI_HUB_SWAP_PROGRAM_ID,
   YOT_TOKEN_ADDRESS,
   YOS_TOKEN_ADDRESS
-} from "@/lib/multi-hub-config";
+} from "@/lib/config";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface MultiHubSwapSettingsProps {

@@ -35,8 +35,9 @@ import {
   UPDATE_PARAMETERS_DISCRIMINATOR
 } from './config';
 
-// Program State PDA from centralized config
+// Export program IDs for backward compatibility
 export const MULTI_HUB_SWAP_PROGRAM_STATE = MULTI_HUB_SWAP_STATE;
+export { MULTI_HUB_SWAP_PROGRAM_ID };
 
 // Instruction types for the program
 export enum MultiHubSwapInstructionType {
