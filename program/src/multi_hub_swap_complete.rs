@@ -5,12 +5,14 @@ use solana_program::{
     msg,
     program::{invoke, invoke_signed},
     program_error::ProgramError,
+    program_pack::Pack,
     pubkey::Pubkey,
     system_instruction,
     sysvar::{rent::Rent, Sysvar, clock::Clock},
 };
 use borsh::{BorshDeserialize, BorshSerialize};
-use spl_token;
+use spl_token::instruction as token_instruction;
+use spl_token::state::Account as TokenAccount;
 
 // Define the program's entrypoint
 entrypoint!(process_instruction);
