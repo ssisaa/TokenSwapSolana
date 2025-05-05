@@ -31,7 +31,7 @@ impl ProgramState {
     
     // Manual deserialization
     pub fn unpack(data: &[u8]) -> Result<Self, ProgramError> {
-        if data.len() < Self::LEN {
+        if data.len() < ProgramState::LEN {
             msg!("Program state data too short");
             return Err(ProgramError::InvalidAccountData);
         }
@@ -62,12 +62,12 @@ impl ProgramState {
 
     // Manual serialization
     pub fn pack(&self, dst: &mut [u8]) -> Result<(), ProgramError> {
-        if dst.len() < Self::LEN {
+        if dst.len() < ProgramState::LEN {
             msg!("Destination buffer too small for ProgramState");
             return Err(ProgramError::InvalidAccountData);
         }
 
-        let dst_array = array_mut_ref![dst, 0, Self::LEN];
+        let dst_array = array_mut_ref![dst, 0, ProgramState::LEN];
         let (
             admin_dst,
             yot_mint_dst,
@@ -106,12 +106,12 @@ impl LiquidityContribution {
     
     // Manual deserialization
     pub fn unpack(data: &[u8]) -> Result<Self, ProgramError> {
-        if data.len() < Self::LEN {
+        if data.len() < LiquidityContribution::LEN {
             msg!("Liquidity contribution data too short");
             return Err(ProgramError::InvalidAccountData);
         }
 
-        let data_array = array_ref![data, 0, Self::LEN];
+        let data_array = array_ref![data, 0, LiquidityContribution::LEN];
         let (
             user,
             contributed_amount,
@@ -131,12 +131,12 @@ impl LiquidityContribution {
 
     // Manual serialization
     pub fn pack(&self, dst: &mut [u8]) -> Result<(), ProgramError> {
-        if dst.len() < Self::LEN {
+        if dst.len() < LiquidityContribution::LEN {
             msg!("Destination buffer too small for LiquidityContribution");
             return Err(ProgramError::InvalidAccountData);
         }
 
-        let dst_array = array_mut_ref![dst, 0, Self::LEN];
+        let dst_array = array_mut_ref![dst, 0, LiquidityContribution::LEN];
         let (
             user_dst,
             contributed_amount_dst,
