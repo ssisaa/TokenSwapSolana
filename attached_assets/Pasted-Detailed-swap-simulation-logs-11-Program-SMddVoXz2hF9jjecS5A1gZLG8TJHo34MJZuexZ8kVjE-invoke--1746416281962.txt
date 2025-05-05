@@ -1,0 +1,27 @@
+Detailed swap simulation logs: 
+(11) ['Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE invoke [1]', 'Program log: Manual Swap Instruction', 'Program log: Swap params: Amount In: 200000000, Min Out: 15895563991610511', 'Program log: Starting token swap', 'Program log: Amount in: 200000000', 'Program log: Min amount out: 15895563991610511', 'Program log: Program authority account: Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ', 'Program log: Expected authority PDA: Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ', 'Program log: Error unpacking user_token_from_account: InvalidAccountData', 'Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE consumed 39821 of 200000 compute units', 'Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE failed: invalid account data for instruction']
+multihub-contract-v3.ts:1873 Swap simulation failed: 
+{InstructionError: Array(2)}
+performSwap	@	multihub-contract-v3.ts:1873
+await in performSwap		
+performMultiHubSwap	@	multihub-integration-v3.ts:409
+await in performMultiHubSwap		
+handleExecuteSwap	@	FixedSwapPage.tsx:261
+multihub-contract-v3.ts:1874 Simulation error details: {"InstructionError":[0,"InvalidAccountData"]}
+performSwap	@	multihub-contract-v3.ts:1874
+await in performSwap		
+performMultiHubSwap	@	multihub-integration-v3.ts:409
+await in performMultiHubSwap		
+handleExecuteSwap	@	FixedSwapPage.tsx:261
+multihub-contract-v3.ts:1891 Error in swap function: Error: Simulation failed: {"InstructionError":[0,"InvalidAccountData"]}
+    at Object.performSwap (multihub-contract-v3.ts:1875:13)
+    at async handleExecuteSwap (FixedSwapPage.tsx:261:23)
+performSwap	@	multihub-contract-v3.ts:1891
+await in performSwap		
+performMultiHubSwap	@	multihub-integration-v3.ts:409
+await in performMultiHubSwap		
+handleExecuteSwap	@	FixedSwapPage.tsx:261
+FixedSwapPage.tsx:283 Swap failed: Error: Simulation failed: {"InstructionError":[0,"InvalidAccountData"]}
+    at Object.performSwap (multihub-contract-v3.ts:1875:13)
+    at async handleExecuteSwap (FixedSwapPage.tsx:261:23)
+handleExecuteSwap	@	FixedSwapPage.tsx:283

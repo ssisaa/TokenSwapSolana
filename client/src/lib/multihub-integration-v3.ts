@@ -285,8 +285,19 @@ export async function performMultiHubSwap(
       }
       
       if (availableYOT < minNeeded) {
-        console.error(`Program only has ${availableYOT} YOT but needs at least ${minNeeded} YOT for this swap`);
-        throw new Error(`The swap program doesn't have enough YOT tokens to complete this swap. Please try a smaller amount or try YOT → SOL swap direction first to fund the program, or visit the admin page to fund the program with YOT tokens.`);
+        // Calculate maximum allowed amount for a better error message
+        // Convert both to numbers for calculation (if they're not already)
+        const amountInNum = typeof amountIn === 'bigint' ? Number(amountIn) / 1e9 : Number(amountIn);
+        const availableYotNum = typeof availableYOT === 'bigint' ? Number(availableYOT) / 1e9 : Number(availableYOT);
+        const minNeededNum = typeof minNeeded === 'bigint' ? Number(minNeeded) / 1e9 : Number(minNeeded);
+        
+        const maxSolAmount = (amountInNum * availableYotNum / minNeededNum) * 0.9; // 90% of theoretical max to be safe
+        const formattedMaxAmount = maxSolAmount.toFixed(6);
+        
+        console.error(`Program only has ${availableYotNum} YOT but needs at least ${minNeededNum} YOT for this swap`);
+        console.error(`Maximum recommended SOL amount for swap: ${formattedMaxAmount} SOL`);
+        
+        throw new Error(`Insufficient YOT in the program account. The maximum recommended amount for SOL → YOT swap is ${formattedMaxAmount} SOL. Please try a smaller amount or try YOT → SOL swap direction first to fund the program, or visit the admin page to fund the program with YOT tokens.`);
       }
     } else if (tokenFrom.symbol === 'YOT' && tokenTo.symbol === 'SOL') {
       // For YOT → SOL swaps, need SOL token account

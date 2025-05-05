@@ -1,0 +1,41 @@
+Program token accounts verification results: {
+  "programAuthorityAddress": "Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ",
+  "yotAccount": {
+    "address": "BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE",
+    "exists": true,
+    "balance": 631442400.4973553
+  },
+  "yosAccount": {
+    "address": "5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz",
+    "exists": true,
+    "balance": 562922446.8943949
+  },
+  "solAccount": {
+    "address": "7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS",
+    "exists": true,
+    "balance": 12
+  }
+}
+multihub-integration-v3.ts:288 Program only has 631442400.4973553 YOT but needs at least 17661737768456126 YOT for this swap
+performMultiHubSwap @ multihub-integration-v3.ts:288
+await in performMultiHubSwap
+handleExecuteSwap @ FixedSwapPage.tsx:261
+await in handleExecuteSwap
+callCallback2 @ chunk-276SZO74.js?v=c5448800:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c5448800:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c5448800:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c5448800:3736
+executeDispatch @ chunk-276SZO74.js?v=c5448800:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c5448800:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c5448800:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c5448800:7051
+(anonymous) @ chunk-276SZO74.js?v=c5448800:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c5448800:18913
+batchedUpdates @ chunk-276SZO74.js?v=c5448800:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c5448800:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c5448800:5478
+dispatchEvent @ chunk-276SZO74.js?v=c5448800:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c5448800:5449Understand this error
+multihub-integration-v3.ts:314 Error during program token account verification: Error: The swap program doesn't have enough YOT tokens to complete this swap. Please try a smaller amount or try YOT → SOL swap direction first to fund the program, or visit the admin page to fund the program with YOT tokens.
+    at Object.performMultiHubSwap (multihub-integration-v3.ts:289:15)
+    at async handleExecuteSwap (FixedSwapPage.tsx:261:23)

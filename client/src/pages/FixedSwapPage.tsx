@@ -283,11 +283,29 @@ export default function FixedSwapPage() {
         console.error("Swap failed:", error);
         setSwapError(error);
         
+        // Extract the maximum allowed amount if it exists in the error message
+        let errorMessage = error.message || "There was an error processing your swap.";
+        let toastTitle = "Swap Failed";
+        let toastVariant: "destructive" | "default" = "destructive";
+        
+        // Provide more user-friendly information for specific errors
+        if (errorMessage.includes("maximum recommended amount")) {
+          // This is the insufficient YOT balance error
+          const maxAmountMatch = errorMessage.match(/maximum recommended amount for SOL → YOT swap is (\d+\.\d+) SOL/);
+          const maxAmount = maxAmountMatch ? maxAmountMatch[1] : "a smaller amount";
+          
+          toastTitle = "Insufficient Liquidity";
+          errorMessage = `The program doesn't have enough YOT tokens for this swap. Please try with ${maxAmount} SOL or use YOT → SOL direction first.`;
+          toastVariant = "default"; // Less alarming for a limitation rather than an error
+        } else if (errorMessage.includes("InvalidAccountData")) {
+          errorMessage = "Token account validation failed. This usually indicates a problem with the program's token accounts.";
+        }
+        
         // Show error toast
         toast({
-          title: "Swap Failed",
-          description: error.message || "There was an error processing your swap.",
-          variant: "destructive"
+          title: toastTitle,
+          description: errorMessage,
+          variant: toastVariant
         });
         
         return;
