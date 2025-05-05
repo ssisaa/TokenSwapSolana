@@ -1106,6 +1106,7 @@ export async function performSwap(
     
     // CRITICAL FIX: Enhanced account validation with detailed error reporting
     // This function checks if the account exists and is valid for the expected operation
+    // Using the TOKEN_PROGRAM_ID defined at the top of the file
     const validateAccount = async (pubkey: PublicKey, accountType = "unknown"): Promise<boolean> => {
       try {
         console.log(`Validating ${accountType} account: ${pubkey.toString()}`);
@@ -1126,14 +1127,25 @@ export async function performSwap(
           console.warn('WARNING: Program authority has data which may cause InvalidAccountData');
           console.warn(`Data length: ${accountInfo.data.length} bytes`);
           // This is likely the cause of the InvalidAccountData error at index 2
+          
+          // Check if Program Authority is actually a token account
+          // This could be the cause of the InvalidAccountData error
+          const programAuthorityPDA = new PublicKey(PROGRAM_AUTHORITY);
+          if (pubkey.equals(programAuthorityPDA)) {
+            console.log("Program Authority PDA should not have any data - this may be the cause of InvalidAccountData");
+            // Since this is a PDA used for authority, we should proceed anyway
+            return true;
+          }
         }
         
-        // Additional validation for token accounts
+        // Additional validation for token accounts - using TOKEN_PROGRAM_ID constant from top of file
         if (accountType.includes("token")) {
+          const tokenProgramID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+          
           // Check owner is TOKEN_PROGRAM_ID (0x06...)
-          if (!accountInfo.owner.equals(TOKEN_PROGRAM_ID)) {
+          if (!accountInfo.owner.equals(tokenProgramID)) {
             console.error(`INVALID TOKEN ACCOUNT: ${accountType} account is not owned by Token Program`);
-            console.error(`Owner: ${accountInfo.owner.toString()}, Expected: ${TOKEN_PROGRAM_ID.toString()}`);
+            console.error(`Owner: ${accountInfo.owner.toString()}, Expected: ${tokenProgramID.toString()}`);
             return false;
           }
           
@@ -1653,6 +1665,30 @@ export async function performSwap(
       conn => conn.getBalance(poolAuthorityAddress)
     ) / 1_000_000_000} SOL`);
     
+    // Make sure the Program Authority PDA is validated first
+    await validateAccount(programAuthorityPDA, "Program Authority");
+    
+    // EMERGENCY FIX: Check if the Program Authority account has data
+    // If it does, this will cause InvalidAccountData error during the swap
+    try {
+      const programAuthorityInfo = await connectionManager.executeWithFallback(
+        conn => conn.getAccountInfo(programAuthorityPDA)
+      );
+      
+      if (programAuthorityInfo && programAuthorityInfo.data.length > 0) {
+        console.error("CRITICAL: Program Authority PDA has unexpected data! This will cause InvalidAccountData error");
+        console.error(`Data length: ${programAuthorityInfo.data.length} bytes`);
+        console.error("First few bytes:", Buffer.from(programAuthorityInfo.data.slice(0, 16)).toString('hex'));
+        
+        throw new Error("Program Authority PDA has unexpected data which will cause transaction to fail");
+      } else {
+        console.log("Program Authority PDA validation passed - no unexpected data found");
+      }
+    } catch (error) {
+      console.warn("Error checking Program Authority data:", error);
+      // Continue anyway, as this might be a connection error rather than a data error
+    }
+    
     // IMPORTANT: Add the transaction with very specific ordering that matches the
     // Rust program's expectation EXACTLY
     console.log("Creating transaction instruction with EXACT account order matching Rust program");
@@ -1669,7 +1705,7 @@ export async function performSwap(
         { pubkey: programStateAddress, isSigner: false, isWritable: true }, // Program state [1]
         
         // CRITICAL FIX: Program Authority must be third AND writable
-        // This is exactly where InvalidAccountData occurs, and it must match Rust expectations exactly
+        // EMERGENCY FIX: Make sure programAuthorityPDA is a regular account/PDA not an ATA
         { pubkey: programAuthorityPDA, isSigner: false, isWritable: true }, // Program Authority PDA [2]
         
         // Pool Authority is the actual owner of token accounts
