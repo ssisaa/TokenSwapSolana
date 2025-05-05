@@ -335,63 +335,75 @@ export default function FixedSwapPage() {
         console.log("======== FINAL ATTEMPT WITH HARDCODED ADDRESSES ========");
         
         try {
+          // TRY CONTRACT MATCH FIRST (FOLLOWS EXACT CONTRACT LAYOUT)
+          console.log("Executing swap with CONTRACT MATCH implementation (follows exact contract structure)");
+          
           if (fromToken === SOL_SYMBOL && toToken === YOT_SYMBOL) {
-            // Swapping SOL to YOT
-            console.log("Executing SOL to YOT swap with DIRECT SWAP IMPLEMENTATION");
-            
-            // Using our direct swap implementation with account deduplication
-            signature = await directSwap(
+            signature = await contractMatch(
               connection,
               wallet,
               true, // isSOLToYOT = true
-              fromAmount  // Amount in UI format
+              fromAmount // UI format amount
             );
-            
-            console.log("SOL to YOT swap completed successfully with DIRECT SWAP method:", signature);
+            console.log("SOL to YOT swap completed with CONTRACT MATCH method:", signature);
           } else {
-            // Swapping YOT to SOL
-            console.log("Executing YOT to SOL swap with DIRECT SWAP IMPLEMENTATION");
-            
-            // Using our direct swap implementation with account deduplication
-            signature = await directSwap(
+            signature = await contractMatch(
               connection,
               wallet,
               false, // isSOLToYOT = false
-              fromAmount  // Amount in UI format
+              fromAmount // UI format amount
             );
-            
-            console.log("YOT to SOL swap completed successfully with DIRECT SWAP method:", signature);
+            console.log("YOT to SOL swap completed with CONTRACT MATCH method:", signature);
           }
-        } catch (directSwapError) {
-          console.error("DIRECT SWAP failed:", directSwapError);
-          console.log("Falling back to FINAL ATTEMPT method...");
+        } catch (contractMatchError) {
+          console.error("CONTRACT MATCH failed:", contractMatchError);
+          console.log("Falling back to DIRECT SWAP method...");
           
-          // Fall back to the original finalAttempt if directSwap fails
+          // Fall back to directSwap if contractMatch fails
           try {
             if (fromToken === SOL_SYMBOL && toToken === YOT_SYMBOL) {
-              signature = await finalAttempt(
+              signature = await directSwap(
                 connection,
                 wallet,
                 true, // isSOLToYOT = true
-                rawFromAmount // Amount in raw format
+                fromAmount // UI format amount
               );
+              console.log("SOL to YOT swap completed with DIRECT SWAP method:", signature);
             } else {
-              signature = await finalAttempt(
+              signature = await directSwap(
                 connection,
                 wallet,
                 false, // isSOLToYOT = false
-                rawFromAmount // Amount in raw format
+                fromAmount // UI format amount
               );
+              console.log("YOT to SOL swap completed with DIRECT SWAP method:", signature);
             }
-            console.log("Fallback to FINAL ATTEMPT succeeded:", signature);
-          } catch (finalAttemptError) {
-            console.error("FINAL ATTEMPT also failed:", finalAttemptError);
+          } catch (directSwapError) {
+            console.error("DIRECT SWAP failed:", directSwapError);
+            console.log("Falling back to FINAL ATTEMPT method...");
             
-            // Show more detailed error information
-            console.error("Detailed error from final attempt:", JSON.stringify(finalAttemptError, null, 2));
-            
-            // Pass the error up for the user to see
-            throw finalAttemptError;
+            // Final fallback to finalAttempt
+            try {
+              if (fromToken === SOL_SYMBOL && toToken === YOT_SYMBOL) {
+                signature = await finalAttempt(
+                  connection,
+                  wallet,
+                  true, // isSOLToYOT = true
+                  rawFromAmount // Raw format amount
+                );
+              } else {
+                signature = await finalAttempt(
+                  connection,
+                  wallet,
+                  false, // isSOLToYOT = false
+                  rawFromAmount // Raw format amount
+                );
+              }
+              console.log("Fallback to FINAL ATTEMPT succeeded:", signature);
+            } catch (finalAttemptError) {
+              console.error("ALL SWAP METHODS FAILED:", finalAttemptError);
+              throw finalAttemptError;
+            }
           }
         }
         
