@@ -753,18 +753,16 @@ export async function buyAndDistribute(
     console.log("CRITICAL FIX: Adding token approval for program authority", swapProgramAuthority.toString());
     
     // Create the approval instruction - need to delegate authority to the program
-    // Using the Token Program's createApproveCheckedInstruction to set proper delegation
+    // Using the Token Program's createApproveInstruction to set proper delegation
     console.log(`Creating token approval for ${rawAmount} tokens`);
     
     // We need to add the Token Program's approve instruction to allow the program to transfer tokens
     // This is done before calling the program's instruction
-    const approveInstruction = createApproveCheckedInstruction(
+    const approveInstruction = createApproveInstruction(
       userYotAccount,                   // source account (owned by the user)
-      yotMint,                          // mint account 
       swapProgramAuthority,             // delegate account (program PDA)
       userPublicKey,                    // owner of source account
-      rawAmount,                        // amount
-      9                                 // decimals
+      rawAmount                         // amount
     );
     
     // CRITICAL: Create the main instruction that uses the EXACT account order expected by the Rust program
