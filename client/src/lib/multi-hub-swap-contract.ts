@@ -567,42 +567,40 @@ export async function buyAndDistribute(
       program
     );
     
-    // CRITICAL CORRECTION: Analyzing the process_buy_and_distribute function in the Rust code
-    // shows that it only expects 11 accounts, not 12.
-    // The program_authority is derived inside the function as needed (lines 631-634)
-    // No need to include it as an explicit account in the transaction
+    // CRITICAL CORRECTION: Matching EXACTLY what the process_buy_and_distribute function in Rust expects
+    // Based on careful analysis of the Rust code in attached_assets, the function expects these accounts:
+    // user, vault_yot, user_yot, liquidity_yot, yos_mint, user_yos, liquidity_contribution_account,
+    // token_program, system_program, rent_sysvar, program_state_account
     
     // Let's get the PDA for the liquidity contribution tracking
     const [liquidityContributionPda] = findLiquidityContributionAddress(userPublicKey);
     
-    // Looking at the Rust program code, here's the correct account order:
+    // IMPORTANT: Based on the Rust program code analysis, here's the EXACT account order:
     // 1. user - The user's wallet (signer)
-    // 2. program_state - The program's state PDA
-    // 3. pool_yot - Pool's YOT account (owned by Pool Authority)
-    // 4. user_yot - User's YOT account
-    // 5. pool_yos - Pool's YOS account (owned by Pool Authority)
-    // 6. yos_mint - YOS mint
-    // 7. user_yos - User's YOS account
-    // 8. liquidity_contribution - PDA to track contribution
-    // 9. pool_authority - Pool Authority (needed for CPI to token program)
-    // 10. token_program - SPL Token Program
-    // 11. system_program - System Program
-    // 12. rent_sysvar - Rent Sysvar
+    // 2. vault_yot - Pool's YOT account 
+    // 3. user_yot - User's YOT account
+    // 4. liquidity_yot - Also the Pool's YOT account (same as vault_yot) for liquidity
+    // 5. yos_mint - YOS mint
+    // 6. user_yos - User's YOS account
+    // 7. liquidity_contribution_account - PDA to track contribution
+    // 8. token_program - SPL Token Program
+    // 9. system_program - System Program
+    // 10. rent_sysvar - Rent Sysvar
+    // 11. program_state_account - The state account containing configuration
     
     // Log all accounts for debugging purposes
     console.log("FINAL ACCOUNTS FOR INSTRUCTION:");
     console.log("1. user: ", userPublicKey.toString(), "(signer)");
-    console.log("2. program_state: ", programStateAccount.toString());
-    console.log("3. pool_yot: ", poolYotAccount.toString(), "POOL ACCOUNT");
-    console.log("4. user_yot: ", userYotAccount.toString());
-    console.log("5. pool_yos: ", poolYosAccount.toString(), "POOL ACCOUNT");
-    console.log("6. yos_mint: ", yosMint.toString());
-    console.log("7. user_yos: ", userYosAccount.toString());
-    console.log("8. liquidity_contribution: ", liquidityContributionPda.toString());
-    console.log("9. pool_authority: ", poolAuthority.toString(), "POOL AUTHORITY");
-    console.log("10. token_program: ", TOKEN_PROGRAM_ID.toString());
-    console.log("11. system_program: ", SystemProgram.programId.toString());
-    console.log("12. rent_sysvar: ", SYSVAR_RENT_PUBKEY.toString());
+    console.log("2. vault_yot: ", poolYotAccount.toString(), "POOL YOT ACCOUNT");
+    console.log("3. user_yot: ", userYotAccount.toString());
+    console.log("4. liquidity_yot: ", poolYotAccount.toString(), "POOL YOT ACCOUNT (same as vault_yot)");
+    console.log("5. yos_mint: ", yosMint.toString());
+    console.log("6. user_yos: ", userYosAccount.toString());
+    console.log("7. liquidity_contribution: ", liquidityContributionPda.toString());
+    console.log("8. token_program: ", TOKEN_PROGRAM_ID.toString());
+    console.log("9. system_program: ", SystemProgram.programId.toString());
+    console.log("10. rent_sysvar: ", SYSVAR_RENT_PUBKEY.toString());
+    console.log("11. program_state: ", programStateAccount.toString());
     
     // Debug the actual buffer being sent to the program
     console.log("Final instruction data breakdown:");
@@ -611,22 +609,20 @@ export async function buyAndDistribute(
     console.log("- Discriminator (first byte):", instructionData[0]);
     console.log("- Amount bytes (little-endian u64):", Array.from(instructionData.slice(1, 9)));
     
-    // CRITICAL: Create an instruction that uses the Pool Authority's token accounts
-    // with the exact account order expected by the Rust program
+    // CRITICAL: Create an instruction that uses the EXACT account order expected by the Rust program
     const instruction = new TransactionInstruction({
       keys: [
         { pubkey: userPublicKey, isSigner: true, isWritable: true },
-        { pubkey: programStateAccount, isSigner: false, isWritable: true },
-        { pubkey: poolYotAccount, isSigner: false, isWritable: true },  // Pool's YOT account
-        { pubkey: userYotAccount, isSigner: false, isWritable: true },
-        { pubkey: poolYosAccount, isSigner: false, isWritable: true },  // Pool's YOS account
-        { pubkey: yosMint, isSigner: false, isWritable: true },
-        { pubkey: userYosAccount, isSigner: false, isWritable: true },
-        { pubkey: liquidityContributionPda, isSigner: false, isWritable: true },
-        { pubkey: poolAuthority, isSigner: false, isWritable: false },  // Pool Authority
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }
+        { pubkey: poolYotAccount, isSigner: false, isWritable: true },  // vault_yot (Pool's YOT account)
+        { pubkey: userYotAccount, isSigner: false, isWritable: true },  // user_yot
+        { pubkey: poolYotAccount, isSigner: false, isWritable: true },  // liquidity_yot (same as vault_yot)
+        { pubkey: yosMint, isSigner: false, isWritable: true },         // yos_mint
+        { pubkey: userYosAccount, isSigner: false, isWritable: true },  // user_yos
+        { pubkey: liquidityContributionPda, isSigner: false, isWritable: true }, // liquidity_contribution_account
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // token_program
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // system_program
+        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, // rent_sysvar
+        { pubkey: programStateAccount, isSigner: false, isWritable: true } // program_state_account
       ],
       programId: program,
       data: instructionData
@@ -738,39 +734,31 @@ export async function distributeWeeklyYosReward(
     
     // Log all accounts for debugging purposes
     // CRITICAL: We must exactly match what the program expects in the process_claim_weekly_reward function
-    // In lines 668-674, it only gets 6 accounts:
-    // let caller = next_account_info(accounts_iter)?;                      // 1
-    // let user_key = next_account_info(accounts_iter)?;                    // 2
-    // let liquidity_contribution_account = next_account_info(accounts_iter)?; // 3
-    // let yos_mint = next_account_info(accounts_iter)?;                    // 4
-    // let user_yos = next_account_info(accounts_iter)?;                    // 5
-    // let token_program = next_account_info(accounts_iter)?;               // 6
-    // The program_authority and program_state are computed internally in the function
+    // Based on the Rust code analysis, here's what the function expects:
+    // 1. caller - The admin/caller wallet (signer)
+    // 2. user_key - The user who will receive the rewards
+    // 3. liquidity_contribution_account - PDA to track contribution
+    // 4. yos_mint - YOS mint
+    // 5. user_yos - User's YOS account
+    // 6. token_program - Token Program
 
     console.log("CLAIM_WEEKLY_REWARD accounts:");
-    console.log("1. admin: ", adminPublicKey.toString(), "(signer)");
-    console.log("2. user: ", userPublicKey.toString());
-    console.log("3. liquidity_contribution: ", liquidityContributionAddress.toString());
+    console.log("1. caller: ", adminPublicKey.toString(), "(signer)");
+    console.log("2. user_key: ", userPublicKey.toString());
+    console.log("3. liquidity_contribution_account: ", liquidityContributionAddress.toString());
     console.log("4. yos_mint: ", yosMint.toString());
     console.log("5. user_yos: ", userYosAccount.toString());
-    console.log("6. pool_yos: ", poolYosAccount.toString(), "POOL ACCOUNT");
-    console.log("7. pool_authority: ", poolAuthority.toString(), "POOL AUTHORITY");
-    console.log("8. token_program: ", TOKEN_PROGRAM_ID.toString());
+    console.log("6. token_program: ", TOKEN_PROGRAM_ID.toString());
 
-    // Create the instruction with proper account list matching the Rust code
-    // Also adding ASSOCIATED_TOKEN_PROGRAM_ID for token account creation if needed
+    // Create the instruction with proper account list matching EXACTLY what the Rust code expects
     const instruction = new TransactionInstruction({
       keys: [
-        { pubkey: adminPublicKey, isSigner: true, isWritable: true },
-        { pubkey: userPublicKey, isSigner: false, isWritable: true },
-        { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true },
-        { pubkey: yosMint, isSigner: false, isWritable: true },
-        { pubkey: userYosAccount, isSigner: false, isWritable: true },
-        { pubkey: poolYosAccount, isSigner: false, isWritable: true },  // Pool's YOS account
-        { pubkey: poolAuthority, isSigner: false, isWritable: false },  // Pool Authority
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-        { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // Added for token account creation
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false } // Added for token account creation
+        { pubkey: adminPublicKey, isSigner: true, isWritable: true },    // caller
+        { pubkey: userPublicKey, isSigner: false, isWritable: true },    // user_key
+        { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true }, // liquidity_contribution_account
+        { pubkey: yosMint, isSigner: false, isWritable: true },          // yos_mint
+        { pubkey: userYosAccount, isSigner: false, isWritable: true },   // user_yos
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false } // token_program
       ],
       programId: program,
       data
