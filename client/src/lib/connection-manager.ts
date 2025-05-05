@@ -8,14 +8,11 @@ import {
   SystemProgram
 } from '@solana/web3.js';
 import { toast } from '@/hooks/use-toast';
+import { getRpcEndpoints } from './config';
 
-// Multiple RPC endpoints for fallback
-const RPC_ENDPOINTS = [
-  'https://api.devnet.solana.com',
-  'https://devnet.genesysgo.net',
-  'https://devnet.solana.rpcpool.com',
-  'https://api.testnet.solana.com' // Could fallback to testnet in extreme cases
-];
+// Get RPC endpoints from centralized configuration
+// This will be dynamically loaded from app.config.json
+// Default endpoints will be used as fallback if config loading fails
 
 // Different commitment levels to try
 const COMMITMENT_LEVELS: Commitment[] = ['confirmed', 'processed'];
@@ -42,8 +39,12 @@ class ConnectionManager {
   }
 
   private initializeConnections() {
+    // Get RPC endpoints from config
+    const endpoints = getRpcEndpoints();
+    console.log(`Initializing Connection Manager with ${endpoints.length} RPC endpoints from config`);
+    
     // Create a connection for each endpoint
-    RPC_ENDPOINTS.forEach(endpoint => {
+    endpoints.forEach(endpoint => {
       // For each endpoint, create connections with different commitment levels
       COMMITMENT_LEVELS.forEach(commitment => {
         const config: ConnectionConfig = {
@@ -54,6 +55,9 @@ class ConnectionManager {
         this.connections.push(new Connection(endpoint, config));
       });
     });
+    
+    // Log initialization results
+    console.log(`Created ${this.connections.length} Solana connections with fallback capabilities`);
   }
 
   /**
