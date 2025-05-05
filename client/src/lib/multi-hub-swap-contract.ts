@@ -260,67 +260,75 @@ async function safelySimulateTransaction(connection: Connection, transaction: Tr
     
     console.log("\n🧪 Starting transaction simulation...");
     
-    // Use the simpler form of simulateTransaction to avoid type errors
-    const simResult = await connection.simulateTransaction(transaction);
-
-    // Check if simulation results are available
-    if (!simResult || !simResult.value) {
-      console.error("❌ SIMULATION: Result is undefined or malformed");
-      return false;
-    }
-
-    // Check for errors in the simulation
-    if (simResult.value.err) {
-      console.error("❌ SIMULATION FAILED:", simResult.value.err);
+    try {
+      // We use the basic form without options to avoid type errors
+      const simResult = await connection.simulateTransaction(transaction);
       
-      // Additional error analysis
-      if (typeof simResult.value.err === 'object') {
-        const errorObj = simResult.value.err as any;
+      // Check if simulation results are available
+      if (!simResult || !simResult.value) {
+        console.error("❌ SIMULATION: Result is undefined or malformed");
+        return false;
+      }
+      
+      // Check for errors in the simulation
+      if (simResult.value.err) {
+        console.error("❌ SIMULATION FAILED:", simResult.value.err);
         
-        console.log("\n🔍 DETAILED ERROR ANALYSIS:", JSON.stringify(errorObj, null, 2));
-        
-        // Look for specific InstructionError patterns
-        if (errorObj.InstructionError) {
-          const [index, error] = errorObj.InstructionError;
-          console.error(`❌ Error in instruction ${index}:`, error);
+        // Additional error analysis
+        if (typeof simResult.value.err === 'object') {
+          const errorObj = simResult.value.err as any;
           
-          if (error.Custom === 1) {
-            console.error("❗ Detected Unknown Instruction Discriminator error - verify the instruction byte is correct");
-          } else if (error.Custom === 0) {
-            console.error("❗ Detected invalid account data - check account ownership and initialization");
+          console.log("\n🔍 DETAILED ERROR ANALYSIS:", JSON.stringify(errorObj, null, 2));
+          
+          // Look for specific InstructionError patterns
+          if (errorObj.InstructionError) {
+            const [index, error] = errorObj.InstructionError;
+            console.error(`❌ Error in instruction ${index}:`, error);
+            
+            if (error.Custom === 1) {
+              console.error("❗ Detected Unknown Instruction Discriminator error - verify the instruction byte is correct");
+            } else if (error.Custom === 0) {
+              console.error("❗ Detected invalid account data - check account ownership and initialization");
+            }
           }
         }
-      }
-      
-      // Log simulation logs if available
-      if (simResult.value.logs) {
-        console.log("\n📋 SIMULATION LOGS:");
-        simResult.value.logs.forEach((log, i) => console.log(`#${i}: ${log}`));
         
-        // Additional analysis of logs
-        const programLogs = simResult.value.logs.filter(log => 
-          log.includes("Program log:") || 
-          log.includes("Program return:")
-        );
-        
-        if (programLogs.length > 0) {
-          console.log("\n🔍 PROGRAM SPECIFIC LOGS:");
-          programLogs.forEach((log, i) => console.log(`#${i}: ${log}`));
+        // Log simulation logs if available
+        if (simResult.value.logs) {
+          console.log("\n📋 SIMULATION LOGS:");
+          simResult.value.logs.forEach((log: string, i: number) => console.log(`#${i}: ${log}`));
+          
+          // Additional analysis of logs
+          const programLogs = simResult.value.logs.filter((log: string) => 
+            log.includes("Program log:") || 
+            log.includes("Program return:")
+          );
+          
+          if (programLogs.length > 0) {
+            console.log("\n🔍 PROGRAM SPECIFIC LOGS:");
+            programLogs.forEach((log: string, i: number) => console.log(`#${i}: ${log}`));
+          }
         }
+        
+        console.log("\nWill proceed with transaction despite simulation errors.");
+        return false;
       }
       
-      console.log("\nWill proceed with transaction despite simulation errors.");
+      // Simulation succeeded, log any available logs
+      console.log("✅ SIMULATION SUCCEEDED.");
+      if (simResult.value.logs) {
+        console.log("Logs (truncated):");
+        simResult.value.logs.slice(0, 10).forEach((log: string, i: number) => console.log(`#${i}: ${log}`));
+      }
+      
+      return true;
+    } catch (simError: any) {
+      console.error("❌ SIMULATION ERROR:", simError);
+      if (simError?.message) {
+        console.log("📝 SIMULATION ERROR MESSAGE:", simError.message);
+      }
       return false;
     }
-    
-    // Simulation succeeded, log any available logs
-    console.log("✅ SIMULATION SUCCEEDED.");
-    if (simResult.value.logs) {
-      console.log("Logs (truncated):");
-      simResult.value.logs.slice(0, 10).forEach((log, i) => console.log(`#${i}: ${log}`));
-    }
-    
-    return true;
   } catch (error: any) {
     console.error("❌ CRITICAL ERROR during transaction simulation:", error);
     
@@ -567,20 +575,34 @@ export async function buyAndDistribute(
     // Let's get the PDA for the liquidity contribution tracking
     const [liquidityContributionPda] = findLiquidityContributionAddress(userPublicKey);
     
+    // Looking at the Rust program code, here's the correct account order:
+    // 1. user - The user's wallet (signer)
+    // 2. program_state - The program's state PDA
+    // 3. pool_yot - Pool's YOT account (owned by Pool Authority)
+    // 4. user_yot - User's YOT account
+    // 5. pool_yos - Pool's YOS account (owned by Pool Authority)
+    // 6. yos_mint - YOS mint
+    // 7. user_yos - User's YOS account
+    // 8. liquidity_contribution - PDA to track contribution
+    // 9. pool_authority - Pool Authority (needed for CPI to token program)
+    // 10. token_program - SPL Token Program
+    // 11. system_program - System Program
+    // 12. rent_sysvar - Rent Sysvar
+    
     // Log all accounts for debugging purposes
     console.log("FINAL ACCOUNTS FOR INSTRUCTION:");
     console.log("1. user: ", userPublicKey.toString(), "(signer)");
-    console.log("2. pool_yot: ", poolYotAccount.toString(), "POOL ACCOUNT");
-    console.log("3. user_yot: ", userYotAccount.toString());
-    console.log("4. pool_yos: ", poolYosAccount.toString(), "POOL ACCOUNT");
-    console.log("5. yos_mint: ", yosMint.toString());
-    console.log("6. user_yos: ", userYosAccount.toString());
-    console.log("7. liquidity_contribution: ", liquidityContributionPda.toString());
-    console.log("8. token_program: ", TOKEN_PROGRAM_ID.toString());
-    console.log("9. system_program: ", SystemProgram.programId.toString());
-    console.log("10. rent_sysvar: ", SYSVAR_RENT_PUBKEY.toString());
-    console.log("11. pool_authority: ", poolAuthority.toString(), "ADDED POOL AUTHORITY");
-    console.log("12. program_state: ", programStateAccount.toString());
+    console.log("2. program_state: ", programStateAccount.toString());
+    console.log("3. pool_yot: ", poolYotAccount.toString(), "POOL ACCOUNT");
+    console.log("4. user_yot: ", userYotAccount.toString());
+    console.log("5. pool_yos: ", poolYosAccount.toString(), "POOL ACCOUNT");
+    console.log("6. yos_mint: ", yosMint.toString());
+    console.log("7. user_yos: ", userYosAccount.toString());
+    console.log("8. liquidity_contribution: ", liquidityContributionPda.toString());
+    console.log("9. pool_authority: ", poolAuthority.toString(), "POOL AUTHORITY");
+    console.log("10. token_program: ", TOKEN_PROGRAM_ID.toString());
+    console.log("11. system_program: ", SystemProgram.programId.toString());
+    console.log("12. rent_sysvar: ", SYSVAR_RENT_PUBKEY.toString());
     
     // Debug the actual buffer being sent to the program
     console.log("Final instruction data breakdown:");
@@ -590,22 +612,21 @@ export async function buyAndDistribute(
     console.log("- Amount bytes (little-endian u64):", Array.from(instructionData.slice(1, 9)));
     
     // CRITICAL: Create an instruction that uses the Pool Authority's token accounts
-    // rather than attempting to create new PDAs
+    // with the exact account order expected by the Rust program
     const instruction = new TransactionInstruction({
       keys: [
         { pubkey: userPublicKey, isSigner: true, isWritable: true },
+        { pubkey: programStateAccount, isSigner: false, isWritable: true },
         { pubkey: poolYotAccount, isSigner: false, isWritable: true },  // Pool's YOT account
         { pubkey: userYotAccount, isSigner: false, isWritable: true },
         { pubkey: poolYosAccount, isSigner: false, isWritable: true },  // Pool's YOS account
         { pubkey: yosMint, isSigner: false, isWritable: true },
         { pubkey: userYosAccount, isSigner: false, isWritable: true },
         { pubkey: liquidityContributionPda, isSigner: false, isWritable: true },
+        { pubkey: poolAuthority, isSigner: false, isWritable: false },  // Pool Authority
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
-        { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-        { pubkey: poolAuthority, isSigner: false, isWritable: false },  // Add Pool Authority
-        { pubkey: programStateAccount, isSigner: false, isWritable: true }
+        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }
       ],
       programId: program,
       data: instructionData
