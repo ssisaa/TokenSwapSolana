@@ -287,7 +287,7 @@ export async function getExchangeRate() {
     // Convert SOL from lamports for rate calculation
     const solBalanceInSol = lamportsToSol(solBalance);
     
-    // Calculate exchange rates using AMM formula (x * y = k)
+    // Calculate exchange rates using spot price (dy/dx at the current pool state)
     const solToYot = yotBalance / solBalanceInSol;
     const yotToSol = solBalanceInSol / yotBalance;
     
@@ -314,34 +314,70 @@ export async function getExchangeRate() {
   }
 }
 
-// Calculate the amount of YOT received for a given SOL amount
+// Calculate the amount of YOT received for a given SOL amount using AMM formula (x * y = k)
 export async function calculateSolToYot(solAmount: number) {
   try {
-    const { solToYot, yotPerSol } = await getExchangeRate();
-    // Use solToYot for consistency with existing code
-    const rate = solToYot !== 0 ? solToYot : yotPerSol;
+    const { solBalance, yotBalance } = await getPoolBalances();
     
+    // If either balance is zero, we can't calculate
+    if (solBalance === 0 || yotBalance === 0) {
+      throw new Error('Cannot calculate exchange rate: Pool balances unavailable');
+    }
+    
+    // Convert SOL from lamports for calculation
+    const solBalanceInSol = lamportsToSol(solBalance);
+    
+    // Apply fee to input amount
     const fee = solAmount * SWAP_FEE;
     const solAmountAfterFee = solAmount - fee;
-    return solAmountAfterFee * rate;
+    
+    // Calculate YOT using AMM formula: dx = (y * dz) / (x + dz)
+    // Where x = solBalanceInSol, y = yotBalance, dz = solAmountAfterFee
+    const yotAmountOut = (yotBalance * solAmountAfterFee) / (solBalanceInSol + solAmountAfterFee);
+    
+    console.log(`AMM calculation for SOL→YOT swap:`);
+    console.log(`  Pool state: ${solBalanceInSol} SOL, ${yotBalance} YOT`);
+    console.log(`  Input: ${solAmount} SOL (${solAmountAfterFee} after ${SWAP_FEE*100}% fee)`);
+    console.log(`  Output: ${yotAmountOut} YOT`);
+    console.log(`  Effective rate: ${yotAmountOut / solAmountAfterFee} YOT per SOL`);
+    
+    return yotAmountOut;
   } catch (error) {
-    console.error('Error calculating SOL to YOT:', error);
+    console.error('Error calculating SOL to YOT using AMM formula:', error);
     throw error;
   }
 }
 
-// Calculate the amount of SOL received for a given YOT amount
+// Calculate the amount of SOL received for a given YOT amount using AMM formula (x * y = k)
 export async function calculateYotToSol(yotAmount: number) {
   try {
-    const { yotToSol, solPerYot } = await getExchangeRate();
-    // Use yotToSol for consistency with existing code
-    const rate = yotToSol !== 0 ? yotToSol : solPerYot;
+    const { solBalance, yotBalance } = await getPoolBalances();
     
-    const solBeforeFee = yotAmount * rate;
-    const fee = solBeforeFee * SWAP_FEE;
-    return solBeforeFee - fee;
+    // If either balance is zero, we can't calculate
+    if (solBalance === 0 || yotBalance === 0) {
+      throw new Error('Cannot calculate exchange rate: Pool balances unavailable');
+    }
+    
+    // Convert SOL from lamports for calculation
+    const solBalanceInSol = lamportsToSol(solBalance);
+    
+    // Calculate SOL using AMM formula: dx = (y * dz) / (x + dz)
+    // Where x = yotBalance, y = solBalanceInSol, dz = yotAmount
+    const solAmountBeforeFee = (solBalanceInSol * yotAmount) / (yotBalance + yotAmount);
+    
+    // Apply fee to output amount
+    const fee = solAmountBeforeFee * SWAP_FEE;
+    const solAmountOut = solAmountBeforeFee - fee;
+    
+    console.log(`AMM calculation for YOT→SOL swap:`);
+    console.log(`  Pool state: ${yotBalance} YOT, ${solBalanceInSol} SOL`);
+    console.log(`  Input: ${yotAmount} YOT`);
+    console.log(`  Output: ${solAmountOut} SOL (after ${SWAP_FEE*100}% fee from ${solAmountBeforeFee})`);
+    console.log(`  Effective rate: ${solAmountOut / yotAmount} SOL per YOT`);
+    
+    return solAmountOut;
   } catch (error) {
-    console.error('Error calculating YOT to SOL:', error);
+    console.error('Error calculating YOT to SOL using AMM formula:', error);
     throw error;
   }
 }

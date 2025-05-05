@@ -81,8 +81,10 @@ export default function FixedSwapPage() {
         console.log(`Using real blockchain exchange rate: 1 SOL = ${actualRate.toFixed(2)} YOT`);
         setExchangeRate(actualRate);
         
-        // Update the displayed amount if needed
-        updateAmounts(fromToken, toToken, fromAmount, actualRate);
+        // Update the displayed amount if needed (now async)
+        (async () => {
+          await updateAmounts(fromToken, toToken, fromAmount, actualRate);
+        })();
       } else {
         console.error('Invalid pool data received', poolData);
         // Don't set a fallback rate - just keep current state
@@ -92,32 +94,64 @@ export default function FixedSwapPage() {
     }
   };
   
-  // Update amounts based on the token direction and exchange rate
-  const updateAmounts = (from: string, to: string, amount: number, rate: number) => {
-    if (from === SOL_SYMBOL && to === YOT_SYMBOL) {
-      setToAmount(amount * rate);
-    } else if (from === YOT_SYMBOL && to === SOL_SYMBOL) {
-      setToAmount(amount / rate);
-    }
-    
-    // Update cashback calculation - 5% of the input amount
-    // For SOL, apply the exchange rate to get YOS amount based on YOT value
-    let cashback;
-    if (from === SOL_SYMBOL && to === YOT_SYMBOL) {
-      // For SOL->YOT, first convert SOL to YOT then apply 5% cashback
-      const yotAmount = amount * rate;
-      cashback = yotAmount * 0.05;
-    } else if (from === YOT_SYMBOL && to === SOL_SYMBOL) {
-      // For YOT->SOL, just take 5% of the input YOT amount
-      cashback = amount * 0.05;
-    } else {
-      cashback = amount * 0.05;
-    }
-    
-    // Use at least 2 decimal places for display
-    if (cashback < 0.01) {
-      setCashbackAmount(cashback.toFixed(6));
-    } else {
+  // Update amounts based on the token direction and AMM calculations
+  const updateAmounts = async (from: string, to: string, amount: number, rate: number) => {
+    try {
+      if (amount <= 0 || isNaN(amount)) {
+        setToAmount(0);
+        setCashbackAmount("0");
+        return;
+      }
+      
+      let expectedOutput: number;
+      let cashback: number;
+      
+      if (from === SOL_SYMBOL && to === YOT_SYMBOL) {
+        // For SOL->YOT use the AMM formula from solana.ts
+        const { calculateSolToYot } = await import('@/lib/solana');
+        expectedOutput = await calculateSolToYot(amount);
+        setToAmount(expectedOutput);
+        
+        // Cashback is 5% of the YOT output, slightly rounded for better UX
+        cashback = expectedOutput * 0.05;
+      } else if (from === YOT_SYMBOL && to === SOL_SYMBOL) {
+        // For YOT->SOL use the AMM formula from solana.ts
+        const { calculateYotToSol } = await import('@/lib/solana');
+        expectedOutput = await calculateYotToSol(amount);
+        setToAmount(expectedOutput);
+        
+        // For YOT->SOL, cashback is 5% of the input YOT amount
+        cashback = amount * 0.05;
+      } else {
+        // Fallback to simple calculation (should never reach here)
+        expectedOutput = amount * rate;
+        setToAmount(expectedOutput);
+        cashback = amount * 0.05;
+      }
+      
+      // Format cashback amount for display with appropriate precision
+      if (cashback < 0.01) {
+        setCashbackAmount(cashback.toFixed(6));
+      } else {
+        setCashbackAmount(cashback.toFixed(2));
+      }
+      
+      console.log(`Updated amounts: ${amount} ${from} → ${expectedOutput.toFixed(2)} ${to} (Cashback: ${cashback.toFixed(2)} YOS)`);
+    } catch (error) {
+      console.error('Error updating amounts with AMM calculation:', error);
+      
+      // Fallback to simple rate calculation if AMM calculation fails
+      if (from === SOL_SYMBOL && to === YOT_SYMBOL) {
+        setToAmount(amount * rate);
+      } else if (from === YOT_SYMBOL && to === SOL_SYMBOL) {
+        setToAmount(amount / rate);
+      }
+      
+      // Simple cashback calculation
+      const cashback = (from === SOL_SYMBOL) 
+        ? (amount * rate * 0.05) // SOL->YOT
+        : (amount * 0.05);       // YOT->SOL
+        
       setCashbackAmount(cashback.toFixed(2));
     }
   };
