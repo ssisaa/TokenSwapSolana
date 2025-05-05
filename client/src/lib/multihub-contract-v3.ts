@@ -24,6 +24,8 @@ import {
   createAssociatedTokenAccountInstruction,
   getAccount,
   getOrCreateAssociatedTokenAccount,
+  TOKEN_PROGRAM_ID as SPL_TOKEN_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID as SPL_ASSOCIATED_TOKEN_PROGRAM_ID
 } from '@solana/spl-token';
 import { config } from './config';
 import { connectionManager } from './connection-manager';
@@ -32,8 +34,9 @@ import { connectionManager } from './connection-manager';
 export const MULTIHUB_SWAP_PROGRAM_ID = config.programs.multiHub.v4;
 
 // Define essential Solana system addresses (used throughout the module)
-const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
-const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
+// Use imported constants from @solana/spl-token to ensure consistency
+const TOKEN_PROGRAM_ID = SPL_TOKEN_PROGRAM_ID;
+const ASSOCIATED_TOKEN_PROGRAM_ID = SPL_ASSOCIATED_TOKEN_PROGRAM_ID;
 const SYSTEM_PROGRAM_ID = new PublicKey('11111111111111111111111111111111');
 const SYSVAR_RENT_PUBKEY = new PublicKey('SysvarRent111111111111111111111111111111111');
 
