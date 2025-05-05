@@ -20,6 +20,7 @@ import {
   createApproveInstruction
 } from '@solana/spl-token';
 import { Buffer } from 'buffer';
+import { uiToRawTokenAmount } from './utils';
 // Import configuration from centralized configuration system
 import {
   solanaConfig,
@@ -502,8 +503,18 @@ async function safelySimulateTransaction(connection: Connection, transaction: Tr
  *    - Verifies user ownership before allowing withdrawal
  *    - Automatically stops reward generation when withdrawn
  */
+/**
+ * Buy and distribute YOT tokens with cashback in YOS
+ * This implements the buy_and_distribute instruction from the Anchor smart contract
+ * 
+ * Key features of the smart contract:
+ * 1. Split Token Distribution System:
+ *    - 75% goes directly to the user
+ *    - 20% is added to the liquidity pool (auto-split 50/50 between YOT/SOL)
+ *    - 5% is minted as YOS tokens for cashback rewards
+ */
 export async function buyAndDistribute(
-  wallet: any,
+  wallet: any, 
   amountIn: number,
   buyUserPercent: number = 75,
   buyLiquidityPercent: number = 20,
@@ -513,401 +524,158 @@ export async function buyAndDistribute(
     if (!wallet || !wallet.publicKey) {
       throw new Error("Wallet not connected");
     }
+    
+    console.log(`Initiating buyAndDistribute with amount: ${amountIn}`);
 
-    // Validate percentages match contract expectations
-    if (buyUserPercent !== 75 || buyLiquidityPercent !== 20 || buyCashbackPercent !== 5) {
-      console.warn("Warning: Custom percentages were provided, but the contract uses fixed values: 75% user, 20% liquidity, 5% cashback");
-    }
-
-    const userPublicKey = wallet.publicKey;
+    // Get program and public keys
     const program = new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID);
+    const userPublicKey = wallet.publicKey;
     const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
     const yosMint = new PublicKey(YOS_TOKEN_ADDRESS);
-
-    // Find user's token accounts
+    
+    // Convert amountIn to raw token amount with proper decimals
+    const rawAmount = uiToRawTokenAmount(amountIn, 9);
+    console.log(`Raw token amount: ${rawAmount}`);
+    
+    // Get token accounts
+    console.log("Getting associated token accounts...");
     const userYotAccount = await getAssociatedTokenAddress(yotMint, userPublicKey);
     const userYosAccount = await getAssociatedTokenAddress(yosMint, userPublicKey);
-
-    // Check if user YOS account exists and create it if not
-    const userYosAccountInfo = await connection.getAccountInfo(userYosAccount);
-    const createUserYosAccount = !userYosAccountInfo;
-    console.log("User YOS account exists:", !!userYosAccountInfo);
-
-    // Find program controlled accounts
-    const [liquidityContributionAddress] = findLiquidityContributionAddress(userPublicKey);
-    const [programStateAddress] = findProgramStateAddress();
-    const [programAuthorityAddress] = PublicKey.findProgramAddressSync(
-      [Buffer.from("authority")],
-      new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
-    );
     
-    console.log("FIND PROGRAM AUTHORITY - seed 'authority':", programAuthorityAddress.toString());
-    
-    console.log("PDA Addresses:");
-    console.log("- Program State:", programStateAddress.toString());
-    console.log("- Program Authority:", programAuthorityAddress.toString());
-    console.log("- Liquidity Contribution:", liquidityContributionAddress.toString());
-    
-    // Use the Pool Authority token accounts instead of trying to create new PDAs
-    // The Pool Authority already has associated token accounts for YOT, YOS, etc.
+    // The pool token account owned by the pool authority
     const poolAuthority = new PublicKey(solanaConfig.pool.authority);
-    console.log("Using Pool Authority:", poolAuthority.toString());
-    
-    // Get Pool Authority's YOT and YOS token accounts
     const poolYotAccount = await getAssociatedTokenAddress(yotMint, poolAuthority);
-    const poolYosAccount = await getAssociatedTokenAddress(yosMint, poolAuthority);
     
-    // Check if the accounts exist
-    const poolYotAccountInfo = await connection.getAccountInfo(poolYotAccount);
-    const poolYosAccountInfo = await connection.getAccountInfo(poolYosAccount);
+    // Find liquidity contribution PDA
+    const [liquidityContribution] = findLiquidityContributionAddress(userPublicKey);
     
-    console.log("Token Accounts:");
-    console.log("- User YOT:", userYotAccount.toString());
-    console.log("- User YOS:", userYosAccount.toString(), createUserYosAccount ? " (needs creation)" : "");
-    console.log("- Pool YOT:", poolYotAccount.toString(), poolYotAccountInfo ? "✓" : "❌ Missing!");
-    console.log("- Pool YOS:", poolYosAccount.toString(), poolYosAccountInfo ? "✓" : "❌ Missing!");
+    // Get program state and authority accounts
+    const stateAccount = new PublicKey(MULTI_HUB_SWAP_STATE);
+    const programAuthority = new PublicKey(MULTI_HUB_SWAP_PROGRAM_AUTHORITY);
     
-    if (!poolYotAccountInfo) {
-      console.error("CRITICAL: Pool YOT account doesn't exist! This should be created in advance.");
-    }
-    
-    if (!poolYosAccountInfo) {
-      console.error("CRITICAL: Pool YOS account doesn't exist! This should be created in advance.");
+    // Validate percentages match contract expectations
+    if (buyUserPercent !== 75 || buyLiquidityPercent !== 20 || buyCashbackPercent !== 5) {
+      console.warn("Warning: Custom percentages provided, but contract uses fixed values: 75/20/5");
     }
 
-    // Try to create the user YOS account if needed
-    if (createUserYosAccount) {
-      console.log("User YOS account doesn't exist. Creating it now...");
+    // Check if user YOS account exists and create it if needed
+    const userYosAccountInfo = await connection.getAccountInfo(userYosAccount);
+    if (!userYosAccountInfo) {
+      console.log("Creating user YOS token account...");
       
       try {
-        // Create a transaction specifically for creating the user token account
         const transaction = new Transaction();
         transaction.add(
           createAssociatedTokenAccountInstruction(
             userPublicKey,  // payer
             userYosAccount, // ata address
-            userPublicKey,  // owner (user)
+            userPublicKey,  // owner
             yosMint         // mint
           )
         );
         
-        // Set recent blockhash and fee payer
-        transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+        const recentBlockhash = await connection.getLatestBlockhash('confirmed');
+        transaction.recentBlockhash = recentBlockhash.blockhash;
         transaction.feePayer = userPublicKey;
         
-        // Sign and send transaction
-        console.log("Creating user YOS token account...");
         const signedTransaction = await wallet.signTransaction(transaction);
         const signature = await connection.sendRawTransaction(signedTransaction.serialize());
         
-        // Wait for confirmation
         await connection.confirmTransaction(signature, 'confirmed');
-        console.log("✅ User YOS token account created successfully:", signature);
+        console.log("✅ User YOS token account created:", signature);
       } catch (error) {
         console.warn("Failed to create user YOS account:", error);
-        console.log("Continuing with swap anyway - the program might create it or fail");
       }
     }
     
-    // Convert amount to raw token amount
-    const rawAmount = Math.floor(amountIn * Math.pow(10, 9)); // Assuming 9 decimals for YOT/YOS
-
-    // 1-byte discriminator + 8-byte amount
-    // IMPORTANT: Program expects BUY_AND_DISTRIBUTE_IX (4) as the first byte
-    // followed by the amount as an 8-byte little-endian u64 value
+    // Create instruction data buffer for the buy_and_distribute instruction
+    const instructionBuffer = Buffer.alloc(9); // 1 byte discriminator + 8 bytes amount
+    instructionBuffer.writeUInt8(4, 0); // BUY_AND_DISTRIBUTE_IX = 4
+    instructionBuffer.writeBigUInt64LE(BigInt(rawAmount), 1); // amount as u64 little-endian
     
-    console.log("BUY_AND_DISTRIBUTE instruction preparation:");
-    console.log("- Expected discriminator from program: BUY_AND_DISTRIBUTE_IX = 4");
-    console.log("- Raw amount (u64):", rawAmount);
+    console.log("Instruction data created:");
+    console.log("- Discriminator:", instructionBuffer[0]);
+    console.log("- Raw amount:", rawAmount.toString());
     
-    // CRITICAL FIX: Create the EXACT instruction data format the Rust contract expects
-    // Looking at "program/src/multi_hub_swap.rs":
-    // - const BUY_AND_DISTRIBUTE_IX: u8 = 4;
-    // - match instruction_data.first() { Some(&BUY_AND_DISTRIBUTE_IX) => { ... }}
-    // - let amount = u64::from_le_bytes(instruction_data[1..9].try_into().unwrap());
-    
-    // Create the instruction data buffer - ULTRA PRECISE VERSION
-    // CRITICAL: We need to ensure our buffer matches EXACTLY what the Rust program expects
-    
-    // First, dump the rust program match code for clarity
-    console.log(`
-    RUST PROGRAM CODE:
-    match instruction_data.first() {
-        Some(&BUY_AND_DISTRIBUTE_IX) => {  // BUY_AND_DISTRIBUTE_IX = 4
-            msg!("BuyAndDistribute Instruction");
-            if instruction_data.len() < 1 + 8 {
-                msg!("Instruction too short for BuyAndDistribute: {} bytes", instruction_data.len());
-                return Err(ProgramError::InvalidInstructionData);
-            }
-            
-            // Extract amount parameter
-            let amount = u64::from_le_bytes(instruction_data[1..9].try_into().unwrap());
-            
-            msg!("BuyAndDistribute amount: {}", amount);
-            
-            process_buy_and_distribute(program_id, accounts, amount)
-        },
-    `);
-    
-    // STRICT FORMAT: Create buffer with EXACTLY the format the Rust program expects
-    // 1. A single byte for the instruction type (4 = BUY_AND_DISTRIBUTE_IX)
-    // 2. Followed by an 8-byte little-endian u64 for the amount
-    // Total: 9 bytes
-    
-    // METHOD 1: Manual buffer creation with explicit writing
-    const instructionData = Buffer.alloc(9); // 1 byte discriminator + 8 bytes for amount
-    
-    // Write discriminator byte (4) using the constant from config
-    // CRITICAL: This matches the Rust program expectation of BUY_AND_DISTRIBUTE_IX = 4
-    instructionData.writeUInt8(BUY_AND_DISTRIBUTE_DISCRIMINATOR[0], 0); // Write value 4 at position 0
-    
-    // Write amount as little-endian u64 (8 bytes) - EXACT match for Rust's u64::from_le_bytes
-    instructionData.writeBigUInt64LE(BigInt(rawAmount), 1);
-    
-    // Verify data was written correctly
-    if (instructionData[0] !== BUY_AND_DISTRIBUTE_DISCRIMINATOR[0]) {
-      console.error("CRITICAL ERROR: Discriminator byte was not set correctly!");
-      throw new Error("Failed to set instruction discriminator correctly");
-    }
-    
-    // Log EVERYTHING for debugging
-    console.log("MOST CRITICAL - Instruction data ultra debug:");
-    console.log("- Buffer full hex:", instructionData.toString("hex"));
-    console.log("- Buffer length:", instructionData.length);
-    console.log("- Byte-by-byte dump:", Array.from(instructionData));
-    console.log("- First byte (discriminator value):", instructionData[0]);
-    console.log("- First byte hex:", instructionData.slice(0, 1).toString("hex"));
-    console.log("- Amount as BigInt:", BigInt(rawAmount));
-    console.log("- Amount as regular number:", rawAmount);
-    console.log("- Amount bytes (little-endian u64):", Array.from(instructionData.slice(1, 9)));
-    console.log("- Amount hex (little-endian u64):", instructionData.slice(1, 9).toString("hex"));
-
-    // Create the instruction
-    // IMPORTANT: Accounts must be in the EXACT same order as expected by the program:
-    // 1. user (signer)
-    // 2. vault_yot
-    // 3. user_yot
-    // 4. liquidity_yot
-    // 5. yos_mint
-    // 6. user_yos
-    // 7. liquidity_contribution_account
-    // 8. token_program
-    // 9. system_program
-    // 10. rent_sysvar
-    // 11. program_state_account - make sure this is writable!
-    
-    // CRITICAL FIX: Use the exact program state account from config instead of deriving it
-    // This fixes the "Custom 4" error by ensuring we use the correct account
-    const programStateAccount = new PublicKey(MULTI_HUB_SWAP_STATE);
-    
-    // CRITICAL CORRECTION: Matching EXACTLY what the process_buy_and_distribute function in Rust expects
-    // Based on careful analysis of the Rust code in attached_assets, the function expects these accounts:
-    // user, vault_yot, user_yot, liquidity_yot, yos_mint, user_yos, liquidity_contribution_account,
-    // token_program, system_program, rent_sysvar, program_state_account
-    
-    // Let's get the PDA for the liquidity contribution tracking
-    const [liquidityContributionPda] = findLiquidityContributionAddress(userPublicKey);
-    
-    // IMPORTANT: Based on the Rust program code analysis, here's the EXACT account order:
-    // 1. user - The user's wallet (signer)
-    // 2. vault_yot - Pool's YOT account 
-    // 3. user_yot - User's YOT account
-    // 4. liquidity_yot - Also the Pool's YOT account (same as vault_yot) for liquidity
-    // 5. yos_mint - YOS mint
-    // 6. user_yos - User's YOS account
-    // 7. liquidity_contribution_account - PDA to track contribution
-    // 8. token_program - SPL Token Program
-    // 9. system_program - System Program
-    // 10. rent_sysvar - Rent Sysvar
-    // 11. program_state_account - The state account containing configuration
-    
-    // Log all accounts for debugging purposes
-    console.log("FINAL ACCOUNTS FOR INSTRUCTION:");
-    console.log("1. user: ", userPublicKey.toString(), "(signer)");
-    console.log("2. vault_yot: ", poolYotAccount.toString(), "POOL YOT ACCOUNT");
-    console.log("3. user_yot: ", userYotAccount.toString());
-    console.log("4. liquidity_yot: ", poolYotAccount.toString(), "POOL YOT ACCOUNT (same as vault_yot)");
-    console.log("5. yos_mint: ", yosMint.toString());
-    console.log("6. user_yos: ", userYosAccount.toString());
-    console.log("7. liquidity_contribution: ", liquidityContributionPda.toString());
-    console.log("8. token_program: ", TOKEN_PROGRAM_ID.toString());
-    console.log("9. system_program: ", SystemProgram.programId.toString());
-    console.log("10. rent_sysvar: ", SYSVAR_RENT_PUBKEY.toString());
-    console.log("11. program_state: ", programStateAccount.toString());
-    
-    // Debug the actual buffer being sent to the program
-    console.log("Final instruction data breakdown:");
-    console.log("- Full buffer (hex):", instructionData.toString('hex'));
-    console.log("- Full buffer (bytes):", Array.from(instructionData));
-    console.log("- Discriminator (first byte):", instructionData[0]);
-    console.log("- Amount bytes (little-endian u64):", Array.from(instructionData.slice(1, 9)));
-    
-    // First, we need to create a token approval instruction so the program can transfer tokens on behalf of the user
-    // This is required to fix the "owner does not match" error (0x4)
-    
-    // CRITICAL FIX: Use the pool authority specified in the config
-    // The Token Program expects the owner (not delegate) to match when transferring tokens
-    console.log("Using pool authority from config instead of program authority PDA");
-    // Get the official pool authority from config - this account owns the pool token accounts
-    const authorityFromPool = new PublicKey(solanaConfig.pool.authority);
-    console.log(`Pool authority: ${authorityFromPool.toString()}`);
-    
-    // We also need to pass the program PDA authority for reference - this is the program's authority PDA
-    const programAuthority = new PublicKey(MULTI_HUB_SWAP_PROGRAM_AUTHORITY);
-    
-    console.log("CRITICAL FIX: Adding token approval for program authority", programAuthority.toString());
-    
-    // Create the approval instruction - need to delegate authority to the program
-    // Using the Token Program's createApproveInstruction to set proper delegation
-    console.log(`Creating token approval for ${rawAmount} tokens`);
-    
-    // We need to add the Token Program's approve instruction to allow the program to transfer tokens
-    // This is done before calling the program's instruction
-    const approveInstruction = createApproveInstruction(
-      userYotAccount,                   // source account (owned by the user)
-      programAuthority,                 // delegate account (program PDA)
-      userPublicKey,                    // owner of source account
-      rawAmount                         // amount
-    );
-    
-    // CRITICAL: Create the main instruction that uses the EXACT account order expected by the Rust program
-    // Based on the error logs showing "owner does not match", we need to ensure the program PDA is the actual owner
-    // Add the program itself as a signer to ensure proper token transfers
-    
-    const swapInstruction = new TransactionInstruction({
+    // Create transaction instruction with accounts in EXACT order needed by Rust program
+    const instruction = new TransactionInstruction({
       keys: [
-        { pubkey: userPublicKey, isSigner: true, isWritable: true },
-        { pubkey: poolYotAccount, isSigner: false, isWritable: true },  // vault_yot (Pool's YOT account)
-        { pubkey: userYotAccount, isSigner: false, isWritable: true },  // user_yot
-        { pubkey: poolYotAccount, isSigner: false, isWritable: true },  // liquidity_yot (same as vault_yot)
-        { pubkey: yosMint, isSigner: false, isWritable: true },         // yos_mint
-        { pubkey: userYosAccount, isSigner: false, isWritable: true },  // user_yos
-        { pubkey: liquidityContributionPda, isSigner: false, isWritable: true }, // liquidity_contribution_account
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // token_program
+        { pubkey: userPublicKey, isSigner: true, isWritable: true },          // user
+        { pubkey: poolYotAccount, isSigner: false, isWritable: true },        // vault_yot
+        { pubkey: userYotAccount, isSigner: false, isWritable: true },        // user_yot
+        { pubkey: poolYotAccount, isSigner: false, isWritable: true },        // liquidity_yot (same as vault_yot)
+        { pubkey: yosMint, isSigner: false, isWritable: true },               // yos_mint
+        { pubkey: userYosAccount, isSigner: false, isWritable: true },        // user_yos
+        { pubkey: liquidityContribution, isSigner: false, isWritable: true }, // liquidity_contribution_account
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },     // token_program
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // system_program
-        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, // rent_sysvar
-        { pubkey: programStateAccount, isSigner: false, isWritable: true }, // program_state_account
-        // CRITICAL: Add the program authority as a signer to resolve the "owner does not match" error
-        { pubkey: programAuthority, isSigner: false, isWritable: false }, // program authority
-        // Also add the pool authority since it owns the token accounts
-        { pubkey: authorityFromPool, isSigner: false, isWritable: false } // pool authority (owns token accounts)
+        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },   // rent_sysvar
+        { pubkey: stateAccount, isSigner: false, isWritable: true },          // program_state_account
+        { pubkey: programAuthority, isSigner: false, isWritable: false }      // program authority
       ],
       programId: program,
-      data: instructionData
+      data: instructionBuffer
     });
     
-    // Use an array of instructions instead of a single one
-    const instructions = [
-      approveInstruction,
-      swapInstruction
-    ];
-
-    console.log("Preparing buyAndDistribute transaction with: ", {
-      totalAmount: amountIn,
-      userPortion: amountIn * 0.75,
-      liquidityPortion: amountIn * 0.20, // 10% YOT + 10% SOL automatically split by contract
-      cashbackPortion: amountIn * 0.05,
-    });
-
-    // Use our new transaction helper to ensure proper transaction setup
-    console.log("Using transaction helper to properly structure the transaction");
-    
-    // Modified createAndSignTransaction to handle multiple instructions
-    
-    // STEP 1: Get a valid blockhash first
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-    
-    // STEP 2: Create a completely fresh Transaction object
+    // Create transaction with compute budget for complex operations
     const transaction = new Transaction();
     
-    // STEP 3: Set blockhash and fee payer FIRST (before adding instructions)
-    // This is CRITICAL to avoid "Cannot read properties of undefined (reading 'numRequiredSignatures')" error
-    transaction.recentBlockhash = blockhash;
-    transaction.lastValidBlockHeight = lastValidBlockHeight;
-    transaction.feePayer = wallet.publicKey;
-    
-    // STEP 4: Add compute budget instructions for complex operations
+    // Add compute budget instructions
     const computeUnits = ComputeBudgetProgram.setComputeUnitLimit({
-      units: 1000000 // High value for complex transactions
+      units: 1000000 // High value for complex operations
     });
     
     const priorityFee = ComputeBudgetProgram.setComputeUnitPrice({
       microLamports: 1_000_000 // Higher priority fee
     });
     
-    // STEP 5: Add all instructions in the correct order
+    // Get a valid blockhash
+    const recentBlockhash = await connection.getLatestBlockhash('confirmed');
+    transaction.recentBlockhash = recentBlockhash.blockhash;
+    transaction.lastValidBlockHeight = recentBlockhash.lastValidBlockHeight;
+    transaction.feePayer = userPublicKey;
+    
+    // Add instructions in order
     transaction.add(computeUnits);
     transaction.add(priorityFee);
-    transaction.add(approveInstruction);
-    transaction.add(swapInstruction);
+    transaction.add(instruction);
     
-    // CRITICAL: Simulate the transaction before requesting wallet signature
-    // This prevents the wallet from showing a red error screen
-    console.log("Simulating transaction to detect errors before wallet signature prompt...");
+    // Simulate the transaction before wallet signing
+    console.log("Simulating transaction...");
     try {
-      const simResult = await connection.simulateTransaction(transaction);
-      
-      // Check for errors in the simulation
-      if (simResult.value.err) {
-        console.error("Transaction simulation failed:", simResult.value.err);
-        console.error("Log messages:", simResult.value.logs);
-        throw new Error(`Transaction would fail on-chain: ${JSON.stringify(simResult.value.err)}`);
+      const simulation = await connection.simulateTransaction(transaction);
+      if (simulation.value.err) {
+        console.error("Simulation failed:", simulation.value.err);
+        console.error("Logs:", simulation.value.logs);
+        throw new Error(`Transaction would fail: ${JSON.stringify(simulation.value.err)}`);
       }
-      
-      console.log("Simulation successful, proceeding with transaction signing");
-    } catch (error) {
-      console.error("Simulation failed:", error);
-      throw new Error(`Transaction would fail: ${error.message}`);
+      console.log("Simulation successful");
+    } catch (err: any) {
+      console.error("Error during simulation:", err);
+      throw new Error(`Simulation error: ${err.message}`);
     }
     
-    // Sign transaction with wallet
+    // Sign and send the transaction
+    console.log("Requesting wallet signature...");
     const signedTransaction = await wallet.signTransaction(transaction);
     
-    // Send the transaction but DO NOT skip preflight verification
-    // This ensures another simulation is run as a final check
-    console.log("Sending transaction with full preflight verification...");
+    console.log("Sending transaction...");
     const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
-      skipPreflight: false, // IMPORTANT: don't skip preflight
-      preflightCommitment: 'confirmed',
-      maxRetries: 3
+      skipPreflight: false,
+      preflightCommitment: 'confirmed'
     });
     
-    console.log("Transaction sent! Waiting for confirmation...");
+    console.log(`Transaction sent with signature: ${signature}`);
     
-    // Use proper confirmation strategy with blockhash reference
-    const confirmationStrategy = {
+    // Wait for confirmation
+    console.log("Waiting for confirmation...");
+    await connection.confirmTransaction({
       signature,
-      blockhash: transaction.recentBlockhash!,
-      lastValidBlockHeight: transaction.lastValidBlockHeight!
-    };
+      blockhash: recentBlockhash.blockhash,
+      lastValidBlockHeight: recentBlockhash.lastValidBlockHeight
+    }, 'confirmed');
     
-    // Wait for transaction confirmation and verify success
-    console.log("Waiting for transaction confirmation...");
-    const confirmationResult = await connection.confirmTransaction(confirmationStrategy, 'confirmed');
-    
-    // CRITICAL: Check if the transaction failed on-chain
-    if (confirmationResult.value.err) {
-      console.error("Transaction failed on-chain:", confirmationResult.value.err);
-      throw new Error(`Transaction failed on-chain: ${JSON.stringify(confirmationResult.value.err)}`);
-    }
-    
-    // Double-check the transaction status
-    try {
-      const txInfo = await connection.getTransaction(signature, {commitment: 'confirmed'});
-      
-      // If meta is null or transaction has an error, throw a clear error
-      if (!txInfo || !txInfo.meta || txInfo.meta.err) {
-        const errorDetails = txInfo?.meta?.err ? JSON.stringify(txInfo.meta.err) : "Unknown failure";
-        console.error(`Transaction verification failed: ${errorDetails}`);
-        throw new Error(`Transaction verification failed: ${errorDetails}`);
-      }
-      
-      console.log("✅ Buy and distribute transaction successfully verified:", signature);
-    } catch (error) {
-      console.error("Error verifying transaction:", error);
-      throw new Error(`Transaction may have failed. Please check explorer: ${error.message}`);
-    }
-    
+    console.log("Transaction confirmed successfully!");
     return signature;
   } catch (error) {
     // Just log the error without reference to swapProgramAuthority which may not be defined
