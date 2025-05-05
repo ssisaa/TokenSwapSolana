@@ -159,15 +159,21 @@ async function safelySimulateTransaction(connection: Connection, transaction: Tr
       console.log(`- Full data (hex): ${instructionData.toString('hex')}`);
     }
     
-    // Use the basic form of simulateTransaction with correct parameters
-    // First parameter: transaction
-    // Second parameter: optional signers array (we pass empty array)
-    // Third parameter: includeAccounts is undefined
-    const simResult = await connection.simulateTransaction(
-      transaction,
-      [],  // empty signers array
-      true // includeAccounts set to true
-    );
+    // Check if transaction is properly built
+    if (!transaction.recentBlockhash) {
+      console.error("❌ Transaction is missing recentBlockhash. Skipping simulation.");
+      return false;
+    }
+    
+    if (!transaction.feePayer) {
+      console.error("❌ Transaction is missing feePayer. Skipping simulation.");
+      return false;
+    }
+    
+    // Use the simpler form of simulateTransaction to avoid type errors
+    // This only takes the transaction as a parameter and doesn't use the extra options
+    // that can cause type errors with different web3.js versions
+    const simResult = await connection.simulateTransaction(transaction);
 
     // Check if simulation results are available
     if (!simResult || !simResult.value) {

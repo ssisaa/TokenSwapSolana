@@ -433,6 +433,25 @@ fn process_withdraw_contribution(
     Ok(())
 }
 
+// Helper: Find liquidity contribution PDA for a specific user
+pub fn find_liquidity_contribution_address(
+    user_key: &Pubkey,
+    program_id: &Pubkey,
+) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[b"liquidity", user_key.as_ref()],
+        program_id,
+    )
+}
+
+// Helper: Find program state PDA
+pub fn find_program_state_address(program_id: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[b"state"],
+        program_id,
+    )
+}
+
 // Buy and distribute YOT tokens with liquidity contribution and YOS cashback
 // Implements buy_and_distribute from the Anchor smart contract
 fn process_buy_and_distribute(
@@ -549,9 +568,10 @@ fn process_buy_and_distribute(
         msg!("Creating new liquidity contribution account");
         
         // Find the expected PDA for this user
-        let (expected_liq_contrib, _) = find_liquidity_contribution_address(user.key, program_id);
+        let (expected_liq_contrib, liq_bump) = find_liquidity_contribution_address(user.key, program_id);
         if expected_liq_contrib != *liquidity_contribution_account.key {
             msg!("Invalid liquidity contribution account address");
+            msg!("Expected: {}, Got: {}", expected_liq_contrib, liquidity_contribution_account.key);
             return Err(ProgramError::InvalidAccountData);
         }
         
@@ -573,7 +593,7 @@ fn process_buy_and_distribute(
                 liquidity_contribution_account.clone(),
                 system_program.clone(),
             ],
-            &[&[b"liquidity", user.key.as_ref(), &[0]]],
+            &[&[b"liquidity", user.key.as_ref(), &[liq_bump]]],
         )?;
     }
     
