@@ -17,7 +17,7 @@ export async function validateTokenAccount(
   expectedMint?: PublicKey
 ): Promise<boolean> {
   try {
-    console.log(`🔍 Validating token account ${accountAddress.toString()}`);
+    console.log(`🔍 Validating token account: ${accountAddress.toString()}`);
     if (expectedMint) {
       console.log(`🔍 Expected mint: ${expectedMint.toString()}`);
     }
@@ -72,7 +72,7 @@ export async function validateTokenAccount(
     } catch (tokenError) {
       console.error(`❌ Failed to parse as token account: ${accountAddress.toString()}`);
       console.error(`   Error: ${tokenError instanceof Error ? tokenError.message : String(tokenError)}`);
-      console.error(`   This will cause "InvalidAccountData" error at index ${accountIndex} during transaction`);
+      console.error(`   This will cause "InvalidAccountData" error during transaction`);
       return false;
     }
   } catch (error) {
@@ -88,12 +88,11 @@ export async function validateTokenAccount(
 export async function validateUserTokenAccount(
   connection: Connection,
   accountAddress: PublicKey,
-  expectedMint: PublicKey,
-  accountType = "user token"
+  expectedMint: PublicKey
 ): Promise<boolean> {
   try {
     // First attempt
-    return await validateTokenAccount(connection, accountAddress, expectedMint, 0, accountType);
+    return await validateTokenAccount(connection, accountAddress, expectedMint);
   } catch (error) {
     console.warn(`⚠️ First validation attempt failed, retrying: ${error instanceof Error ? error.message : String(error)}`);
     
@@ -102,7 +101,7 @@ export async function validateUserTokenAccount(
     
     try {
       // Second attempt
-      return await validateTokenAccount(connection, accountAddress, expectedMint, 0, accountType);
+      return await validateTokenAccount(connection, accountAddress, expectedMint);
     } catch (retryError) {
       console.error(`❌ Token account validation failed after retry: ${retryError instanceof Error ? retryError.message : String(retryError)}`);
       return false;
