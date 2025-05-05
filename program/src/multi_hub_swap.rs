@@ -65,6 +65,16 @@ pub fn process_instruction(
     instruction_data: &[u8],
 ) -> ProgramResult {
     // First byte is the instruction discriminator
+    msg!("📥 Received instruction_data: {:?}", instruction_data);
+    
+    if instruction_data.is_empty() {
+        msg!("❌ No instruction data provided");
+        return Err(ProgramError::InvalidInstructionData);
+    }
+    
+    // Log the discriminator byte for debugging
+    msg!("📌 Discriminator byte received: {}", instruction_data[0]);
+    
     match instruction_data.first() {
         Some(&INITIALIZE_IX) => {
             msg!("Initialize Instruction");
@@ -201,7 +211,7 @@ pub fn process_instruction(
         },
         
         Some(&BUY_AND_DISTRIBUTE_IX) => {
-            msg!("BuyAndDistribute Instruction");
+            msg!("Matched: BUY_AND_DISTRIBUTE_IX ✅");
             if instruction_data.len() < 1 + 8 {
                 msg!("Instruction too short for BuyAndDistribute: {} bytes", instruction_data.len());
                 return Err(ProgramError::InvalidInstructionData);
@@ -250,6 +260,22 @@ pub fn find_liquidity_contribution_address(
     program_id: &Pubkey,
 ) -> (Pubkey, u8) {
     Pubkey::find_program_address(&[b"liq", user.as_ref()], program_id)
+}
+
+// Find vault token account for a token mint
+pub fn find_vault_token_address(
+    mint: &Pubkey,
+    program_id: &Pubkey,
+) -> (Pubkey, u8) {
+    Pubkey::find_program_address(&[b"vault", mint.as_ref()], program_id)
+}
+
+// Find liquidity token account for a token mint
+pub fn find_liquidity_token_address(
+    mint: &Pubkey,
+    program_id: &Pubkey,
+) -> (Pubkey, u8) {
+    Pubkey::find_program_address(&[b"liquidity", mint.as_ref()], program_id)
 }
 
 // Initialize the swap program with token accounts and parameters
@@ -465,7 +491,7 @@ fn process_update_parameters(
         return Err(ProgramError::InvalidArgument);
     }
     
-    // Update program state
+    // Update rates
     program_state.lp_contribution_rate = lp_contribution_rate;
     program_state.admin_fee_rate = admin_fee_rate;
     program_state.yos_cashback_rate = yos_cashback_rate;
@@ -479,8 +505,7 @@ fn process_update_parameters(
     Ok(())
 }
 
-// Buy and distribute YOT tokens with liquidity contribution and YOS cashback
-// Implements buy_and_distribute from the Anchor smart contract
+// Buy and distribute tokens with YOS cashback
 fn process_buy_and_distribute(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -699,36 +724,33 @@ fn process_claim_weekly_reward(
     
     // Check if contribution amount is valid
     if contribution.contributed_amount == 0 {
-        msg!("No liquidity contribution to distribute rewards from");
-        return Err(ProgramError::InvalidAccountData);
+        msg!("User has no liquidity contribution");
+        return Err(ProgramError::InvalidArgument);
     }
     
-    // Check 7-day waiting period
+    // Check if 7 days have passed since last claim
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
-    let elapsed = now - contribution.last_claim_time;
     
-    const SECONDS_PER_WEEK: i64 = 604800; // 7 days
-    if elapsed < SECONDS_PER_WEEK {
-        msg!("Too early to distribute rewards. Must wait 7 days between distributions.");
-        msg!("Last distribution: {}, Now: {}, Elapsed: {}/{} seconds", 
-            contribution.last_claim_time, now, elapsed, SECONDS_PER_WEEK);
-        return Err(ProgramError::InvalidInstructionData);
+    // 604800 seconds = 7 days
+    if now - contribution.last_claim_time < 604800 {
+        msg!("Cannot claim rewards yet. Wait 7 days between claims.");
+        msg!("Last claim: {}, Now: {}, Diff: {}", 
+            contribution.last_claim_time, 
+            now, 
+            now - contribution.last_claim_time);
+        return Err(ProgramError::InvalidArgument);
     }
     
-    // Calculate weekly reward (1/52 of yearly reward - 100% APR)
-    // 100% APR means weekly rate is ~1.92%
-    let weekly_reward = (contribution.contributed_amount * 192) / 10000; // 1.92%
-    msg!("Calculating weekly reward: {} * 1.92% = {}", 
-        contribution.contributed_amount, weekly_reward);
+    // Calculate rewards (1/52 of yearly APR, which is 100%)
+    // This assumes 100% APR distributed weekly (approximately 1.92% per week)
+    // reward = contribution_amount * 0.0192
+    let weekly_reward = (contribution.contributed_amount * 192) / 10000;
     
-    // Find PDA for mint authority
-    let (mint_authority, mint_authority_bump) = Pubkey::find_program_address(
-        &[b"authority"],
-        program_id,
-    );
+    // Find mint authority PDA for signing
+    let (mint_authority, mint_authority_bump) = find_program_authority_address(program_id);
     
-    // Mint YOS rewards directly to user's account
+    // Mint YOS rewards to user
     invoke_signed(
         &token_instruction::mint_to(
             token_program.key,
@@ -777,7 +799,7 @@ fn process_withdraw_contribution(
         return Err(ProgramError::MissingRequiredSignature);
     }
     
-    // Verify liquidity contribution account
+    // Verify liquidity contribution account belongs to the user
     let (expected_liq_contrib, _) = find_liquidity_contribution_address(user.key, program_id);
     if expected_liq_contrib != *liquidity_contribution_account.key {
         msg!("Invalid liquidity contribution account");
@@ -789,23 +811,20 @@ fn process_withdraw_contribution(
         &liquidity_contribution_account.data.borrow()
     )?;
     
-    // Verify user owns this contribution
+    // Verify the contribution belongs to the user
     if contribution.user != *user.key {
-        msg!("You don't own this liquidity contribution");
+        msg!("Contribution account doesn't match the signer");
         return Err(ProgramError::InvalidAccountData);
     }
     
     // Check if there's anything to withdraw
     if contribution.contributed_amount == 0 {
-        msg!("No liquidity contribution to withdraw");
-        return Err(ProgramError::InvalidAccountData);
+        msg!("No contribution to withdraw");
+        return Err(ProgramError::InvalidArgument);
     }
     
-    // Find PDA for program authority
-    let (program_authority, authority_bump) = Pubkey::find_program_address(
-        &[b"authority"],
-        program_id,
-    );
+    // Find program authority PDA for signing
+    let (program_authority, program_authority_bump) = find_program_authority_address(program_id);
     
     // Transfer liquidity back to user
     invoke_signed(
@@ -822,21 +841,21 @@ fn process_withdraw_contribution(
             user_yot.clone(),
             token_program.clone(),
         ],
-        &[&[b"authority", &[authority_bump]]],
+        &[&[b"authority", &[program_authority_bump]]],
     )?;
     
-    // Reset contribution account (zero out everything)
+    // Zero out the contribution account - don't actually delete it
     let mut zeroed_contribution = LiquidityContribution {
         user: *user.key,
         contributed_amount: 0,
-        start_timestamp: 0,
-        last_claim_time: 0,
-        total_claimed_yos: contribution.total_claimed_yos, // keep track of total claimed
+        start_timestamp: contribution.start_timestamp,
+        last_claim_time: contribution.last_claim_time,
+        total_claimed_yos: contribution.total_claimed_yos,
     };
     
     // Serialize the zeroed contribution data
     zeroed_contribution.serialize(&mut &mut liquidity_contribution_account.data.borrow_mut()[..])?;
     
-    msg!("Liquidity contribution of {} YOT withdrawn successfully", contribution.contributed_amount);
+    msg!("Withdrew {} tokens from liquidity contribution", contribution.contributed_amount);
     Ok(())
 }
