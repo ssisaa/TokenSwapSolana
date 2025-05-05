@@ -17,7 +17,7 @@ import {
   getAssociatedTokenAddress,
   createMintToInstruction,
   createAssociatedTokenAccountInstruction,
-  createApproveCheckedInstruction
+  createApproveInstruction
 } from '@solana/spl-token';
 import { Buffer } from 'buffer';
 // Import configuration from centralized configuration system
@@ -752,7 +752,12 @@ export async function buyAndDistribute(
     
     console.log("CRITICAL FIX: Adding token approval for program authority", swapProgramAuthority.toString());
     
-    // Create the approval instruction
+    // Create the approval instruction - need to delegate authority to the program
+    // Using the Token Program's createApproveCheckedInstruction to set proper delegation
+    console.log(`Creating token approval for ${rawAmount} tokens`);
+    
+    // We need to add the Token Program's approve instruction to allow the program to transfer tokens
+    // This is done before calling the program's instruction
     const approveInstruction = createApproveCheckedInstruction(
       userYotAccount,                   // source account (owned by the user)
       yotMint,                          // mint account 
@@ -895,9 +900,8 @@ export async function buyAndDistribute(
     
     return signature;
   } catch (error) {
-    // Additional debug info on error
+    // Just log the error without reference to swapProgramAuthority which may not be defined
     console.error("Error in buyAndDistribute:", error);
-    console.error("Debug info: Used program authority", swapProgramAuthority.toString());
     throw error;
   }
 }
