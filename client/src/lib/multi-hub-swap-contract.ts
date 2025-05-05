@@ -65,11 +65,36 @@ export function findProgramStateAddress(): [PublicKey, number] {
 }
 
 /**
+ * Find the vault token account PDA for a specific token
+ * Uses exact same seed as the Rust program: ["vault", token_mint]
+ */
+export function findVaultTokenAddress(tokenMint: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("vault"), tokenMint.toBuffer()],
+    new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
+  );
+}
+
+/**
+ * Find the liquidity token account PDA for a specific token
+ * Uses exact same seed as the Rust program: ["liquidity", token_mint]
+ */
+export function findLiquidityTokenAddress(tokenMint: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("liquidity"), tokenMint.toBuffer()],
+    new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
+  );
+}
+
+/**
  * Find the liquidity contribution account for a user
+ * CRITICAL: Must use "contrib" seed to match Rust program
  */
 export function findLiquidityContributionAddress(userWallet: PublicKey): [PublicKey, number] {
+  // IMPORTANT: Use "contrib" seed to match Rust program exactly
+  // This critical detail was missed in previous implementation
   return PublicKey.findProgramAddressSync(
-    [Buffer.from("liq"), userWallet.toBuffer()],
+    [Buffer.from("contrib"), userWallet.toBuffer()],
     new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
   );
 }
@@ -152,18 +177,12 @@ export async function buyAndDistribute(
     // IMPORTANT: Create separate accounts for vault and liquidity to match program expectations
     
     // 1. vault_yot - The temporary vault that holds tokens during distribution
-    const vaultYotAddress = await getAssociatedTokenAddress(
-      yotMint, 
-      programAuthorityAddress, 
-      true
-    );
+    // Use PDA with "vault" seed per the Rust contract
+    const [vaultYotAddress] = findVaultTokenAddress(yotMint);
     
     // 2. liquidity_yot - The account that receives and holds the liquidity contribution
-    const liquidityYotAddress = await getAssociatedTokenAddress(
-      yotMint, 
-      new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID), 
-      true
-    );
+    // Use PDA with "liquidity" seed per the Rust contract
+    const [liquidityYotAddress] = findLiquidityTokenAddress(yotMint);
     
     console.log("Token Accounts:");
     console.log("- User YOT:", userYotAccount.toString());
@@ -333,7 +352,10 @@ export async function distributeWeeklyYosReward(
     const [liquidityContributionAddress] = findLiquidityContributionAddress(userPublicKey);
 
     // Create the instruction data - simple direct approach with byte value 5
+    // This must match the CLAIM_WEEKLY_REWARD_IX value in the Rust program
     const data = Buffer.from([5]); // Direct byte for CLAIM_WEEKLY_REWARD_IX
+    
+    console.log("CLAIM_WEEKLY_REWARD instruction data:", data.toString("hex"));
 
     // Create the instruction with modified account list for auto-distribution
     const instruction = new TransactionInstruction({
@@ -416,14 +438,17 @@ export async function withdrawLiquidityContribution(wallet: any): Promise<{ sign
 
     // Find program controlled accounts
     const [liquidityContributionAddress] = findLiquidityContributionAddress(userPublicKey);
-    const liquidityYotAddress = await getAssociatedTokenAddress(yotMint, new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID), true);
+    const [liquidityYotAddress] = findLiquidityTokenAddress(yotMint);
 
     // Get the current contribution amount before withdrawal
     const liquidityContributionInfo = await getLiquidityContributionInfo(userPublicKey.toString());
     const withdrawnAmount = liquidityContributionInfo.contributedAmount;
 
     // Create the instruction data - simple direct approach with byte value 6
+    // This must match the WITHDRAW_CONTRIBUTION_IX value in the Rust program
     const data = Buffer.from([6]); // Direct byte for WITHDRAW_CONTRIBUTION_IX
+    
+    console.log("WITHDRAW_CONTRIBUTION instruction data:", data.toString("hex"));
 
     // Create the instruction
     const instruction = new TransactionInstruction({
@@ -616,9 +641,12 @@ export async function updateMultiHubSwapParameters(
     const referralBps = Math.round(referralRate * 100);
     
     // Create instruction data
-    // First byte is instruction discriminator (3 for UpdateParameters)
+    // First byte is instruction discriminator (3 for UPDATE_PARAMETERS_IX)
+    // This must match the value in the Rust program
     const data = Buffer.alloc(1 + 5 * 8); // 1 byte discrim + 5 u64 values (8 bytes each)
-    data.writeUInt8(3, 0); // UpdateParameters instruction
+    data.writeUInt8(3, 0); // UPDATE_PARAMETERS_IX instruction
+    
+    console.log("UPDATE_PARAMETERS instruction data (hex):", data.toString("hex"));
     
     // Write the parameters as u64 values
     data.writeBigUInt64LE(BigInt(lpContributionBps), 1);
