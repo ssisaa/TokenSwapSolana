@@ -73,7 +73,7 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
       setStats(programState);
       
       // Check if program is initialized
-      setIsInitialized(programState && programState.yotMint);
+      setIsInitialized(programState && !!programState.yotMint);
       
       // Update state with current parameters
       if (programState) {
