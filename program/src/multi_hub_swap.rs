@@ -1,9 +1,8 @@
-// Updated multi_hub_swap.rs with enhanced debugging
-// Version 1.1 - May 5, 2025
-// This file contains fixes for the "Unknown instruction discriminator" error
+// Updated multi_hub_swap.rs with enhanced debugging and manual serialization
+// Version 1.2 - May 5, 2025
+// This file contains manual serialization to replace Borsh
 // and improved logging for buy_and_distribute and other functions
 
-use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint,
@@ -18,14 +17,13 @@ use solana_program::{
     sysvar::Sysvar,
     clock::Clock,
 };
-use arrayref::array_ref;
+use arrayref::{array_ref, array_refs, array_mut_ref, mut_array_refs};
 use spl_token::{instruction as token_instruction, state::Account as TokenAccount};
 
 // Define the program ID here (will be replaced during deployment)
 solana_program::declare_id!("SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE");
 
 // Program state stored in a PDA
-#[derive(BorshSerialize, BorshDeserialize, Debug, Default)]
 pub struct ProgramState {
     pub admin: Pubkey,
     pub yot_mint: Pubkey,
@@ -37,19 +35,138 @@ pub struct ProgramState {
     pub referral_rate: u64,        // 0.5% (50 basis points)
 }
 
+impl ProgramState {
+    pub const LEN: usize = 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8; // 3 pubkeys + 5 u64s
+
+    // Deserialize from account data
+    pub fn unpack(data: &[u8]) -> Result<Self, ProgramError> {
+        if data.len() < ProgramState::LEN {
+            msg!("Program state data too short");
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let data_array = array_ref![data, 0, ProgramState::LEN];
+        let (
+            admin,
+            yot_mint,
+            yos_mint,
+            lp_contribution_rate,
+            admin_fee_rate,
+            yos_cashback_rate,
+            swap_fee_rate,
+            referral_rate,
+        ) = array_refs![data_array, 32, 32, 32, 8, 8, 8, 8, 8];
+
+        Ok(ProgramState {
+            admin: Pubkey::new_from_array(*admin),
+            yot_mint: Pubkey::new_from_array(*yot_mint),
+            yos_mint: Pubkey::new_from_array(*yos_mint),
+            lp_contribution_rate: u64::from_le_bytes(*lp_contribution_rate),
+            admin_fee_rate: u64::from_le_bytes(*admin_fee_rate),
+            yos_cashback_rate: u64::from_le_bytes(*yos_cashback_rate),
+            swap_fee_rate: u64::from_le_bytes(*swap_fee_rate),
+            referral_rate: u64::from_le_bytes(*referral_rate),
+        })
+    }
+
+    // Serialize to account data
+    pub fn pack(&self, dst: &mut [u8]) -> Result<(), ProgramError> {
+        if dst.len() < ProgramState::LEN {
+            msg!("Target buffer too small for program state");
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let dst_array = array_mut_ref![dst, 0, ProgramState::LEN];
+        let (
+            admin_dst,
+            yot_mint_dst,
+            yos_mint_dst,
+            lp_contribution_rate_dst,
+            admin_fee_rate_dst,
+            yos_cashback_rate_dst,
+            swap_fee_rate_dst,
+            referral_rate_dst,
+        ) = mut_array_refs![dst_array, 32, 32, 32, 8, 8, 8, 8, 8];
+
+        admin_dst.copy_from_slice(self.admin.as_ref());
+        yot_mint_dst.copy_from_slice(self.yot_mint.as_ref());
+        yos_mint_dst.copy_from_slice(self.yos_mint.as_ref());
+        *lp_contribution_rate_dst = self.lp_contribution_rate.to_le_bytes();
+        *admin_fee_rate_dst = self.admin_fee_rate.to_le_bytes();
+        *yos_cashback_rate_dst = self.yos_cashback_rate.to_le_bytes();
+        *swap_fee_rate_dst = self.swap_fee_rate.to_le_bytes();
+        *referral_rate_dst = self.referral_rate.to_le_bytes();
+
+        Ok(())
+    }
+}
+
 // Liquidity contribution account stores:
 // - User public key
 // - Contribution amount
 // - Start timestamp
 // - Last claim timestamp
 // - Total claimed YOS
-#[derive(BorshSerialize, BorshDeserialize, Debug, Default)]
 pub struct LiquidityContribution {
     pub user: Pubkey,
     pub contributed_amount: u64,
     pub start_timestamp: i64,
     pub last_claim_time: i64,
     pub total_claimed_yos: u64,
+}
+
+impl LiquidityContribution {
+    pub const LEN: usize = 32 + 8 + 8 + 8 + 8; // pubkey + u64 + i64 + i64 + u64
+
+    // Deserialize from account data
+    pub fn unpack(data: &[u8]) -> Result<Self, ProgramError> {
+        if data.len() < LiquidityContribution::LEN {
+            msg!("Liquidity contribution data too short");
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let data_array = array_ref![data, 0, LiquidityContribution::LEN];
+        let (
+            user,
+            contributed_amount,
+            start_timestamp,
+            last_claim_time,
+            total_claimed_yos,
+        ) = array_refs![data_array, 32, 8, 8, 8, 8];
+
+        Ok(LiquidityContribution {
+            user: Pubkey::new_from_array(*user),
+            contributed_amount: u64::from_le_bytes(*contributed_amount),
+            start_timestamp: i64::from_le_bytes(*start_timestamp),
+            last_claim_time: i64::from_le_bytes(*last_claim_time),
+            total_claimed_yos: u64::from_le_bytes(*total_claimed_yos),
+        })
+    }
+
+    // Serialize to account data
+    pub fn pack(&self, dst: &mut [u8]) -> Result<(), ProgramError> {
+        if dst.len() < LiquidityContribution::LEN {
+            msg!("Target buffer too small for liquidity contribution");
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let dst_array = array_mut_ref![dst, 0, LiquidityContribution::LEN];
+        let (
+            user_dst,
+            contributed_amount_dst,
+            start_timestamp_dst,
+            last_claim_time_dst,
+            total_claimed_yos_dst,
+        ) = mut_array_refs![dst_array, 32, 8, 8, 8, 8];
+
+        user_dst.copy_from_slice(self.user.as_ref());
+        *contributed_amount_dst = self.contributed_amount.to_le_bytes();
+        *start_timestamp_dst = self.start_timestamp.to_le_bytes();
+        *last_claim_time_dst = self.last_claim_time.to_le_bytes();
+        *total_claimed_yos_dst = self.total_claimed_yos.to_le_bytes();
+
+        Ok(())
+    }
 }
 
 // Instruction discriminators
