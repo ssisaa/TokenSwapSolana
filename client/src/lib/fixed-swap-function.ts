@@ -5,11 +5,11 @@
 
 import { Connection, PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
 import { connectionManager } from './connection-manager';
-// Import from multihub contract file
-import { MULTIHUB_SWAP_PROGRAM_ID } from './multihub-contract-v3';
+// Import from config helper to ensure we're using the single source of truth
+import { getMultiHubProgramPublicKey } from './config';
 
-// Convert program ID to PublicKey for use in transaction instructions
-const PROGRAM_ID_PUBKEY = new PublicKey(MULTIHUB_SWAP_PROGRAM_ID);
+// Get program ID as PublicKey object directly from config
+const PROGRAM_ID_PUBKEY = getMultiHubProgramPublicKey('v4');
 
 /**
  * Perform a token swap using the multihub swap V3 program
@@ -34,12 +34,13 @@ export async function performSwapWithAutoRefund(
   allAccountsSetup: boolean
 ): Promise<string> {
   try {
-    // Use the hardcoded program ID
-    console.log(`Using MultihubSwap Program ID: ${MULTIHUB_SWAP_PROGRAM_ID}`);
+    // Use the program ID from config
+    const programId = PROGRAM_ID_PUBKEY.toString();
+    console.log(`Using MultihubSwap Program ID: ${programId}`);
     
     // CRITICAL VALIDATION: Verify program ID is valid before proceeding
-    if (!MULTIHUB_SWAP_PROGRAM_ID || typeof MULTIHUB_SWAP_PROGRAM_ID !== 'string' || MULTIHUB_SWAP_PROGRAM_ID.length < 32) {
-      console.error(`Invalid program ID: ${MULTIHUB_SWAP_PROGRAM_ID}`);
+    if (!programId || programId.length < 32) {
+      console.error(`Invalid program ID: ${programId}`);
       throw new Error(`Invalid program ID. This is likely a configuration error. Please refresh the page and try again.`);
     }
     

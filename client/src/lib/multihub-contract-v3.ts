@@ -31,30 +31,12 @@ import { config } from './config';
 import { connectionManager } from './connection-manager';
 import { validateTokenAccount as validateSplTokenAccount } from './validateTokenAccount';
 
-// Get the program ID from config, but if it's not available yet, use a sensible default
-// This ensures that the program ID is always defined even when config is loading
-const DEFAULT_PROGRAM_ID = "SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE"; // Default value, should be replaced by config
+// Import the config getters
+import { getMultiHubProgramId, getMultiHubProgramPublicKey } from './config';
 
-// Use a getter function to always return a valid program ID
-// This ensures we never have an undefined program ID even if config isn't loaded yet
-function getMultiHubProgramID(): string {
-  // First check if config is loaded and has a valid program ID
-  if (config && 
-      config.programs && 
-      config.programs.multiHub && 
-      config.programs.multiHub.v4 && 
-      typeof config.programs.multiHub.v4 === 'string' && 
-      config.programs.multiHub.v4.length >= 32) {
-    return config.programs.multiHub.v4;
-  }
-  
-  // If not, use the default program ID
-  console.warn("Using hardcoded program ID because config isn't loaded or has invalid program ID");
-  return DEFAULT_PROGRAM_ID;
-}
-
-// Export a constant for compatibility with existing code
-export const MULTIHUB_SWAP_PROGRAM_ID = getMultiHubProgramID();
+// Get the program ID from config as both string and PublicKey
+export const MULTIHUB_SWAP_PROGRAM_ID = getMultiHubProgramId('v4');
+export const MULTIHUB_SWAP_PROGRAM_PUBKEY = getMultiHubProgramPublicKey('v4');
 
 // Validate and log the program ID
 console.log(`Using MultihubSwap Program ID: ${MULTIHUB_SWAP_PROGRAM_ID}`);
