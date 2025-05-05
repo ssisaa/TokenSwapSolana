@@ -9,9 +9,8 @@ import {
   SOL_TOKEN_ADDRESS, 
   YOT_TOKEN_ADDRESS, 
   SOLANA_RPC_URL, 
-  DEFAULT_EXCHANGE_RATES,
-  MULTI_HUB_SWAP_CONFIG
-} from './multi-hub-config';
+  DEFAULT_EXCHANGE_RATES
+} from './config';
 import { buyAndDistribute } from './multi-hub-swap-contract';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
 

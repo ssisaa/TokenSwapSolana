@@ -67,7 +67,7 @@ import {
   SOL_TOKEN_ADDRESS,
   YOT_TOKEN_ADDRESS,
   DEFAULT_DISTRIBUTION_RATES 
-} from "@/lib/multi-hub-config";
+} from "@/lib/config";
 
 // Token type definition
 interface Token {

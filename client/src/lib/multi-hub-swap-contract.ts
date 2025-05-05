@@ -765,7 +765,7 @@ async function getPoolBalances(): Promise<[number, number, number]> {
     
     // Get YOT balance from pool YOT account 
     const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
-    const poolAuthority = new PublicKey("7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK"); // Pool authority
+    const poolAuthority = new PublicKey(solanaConfig.pool.authority); // Pool authority
     const yotPoolAccount = await getAssociatedTokenAddress(yotMint, poolAuthority);
     
     // Get YOS balance (for display purposes)
