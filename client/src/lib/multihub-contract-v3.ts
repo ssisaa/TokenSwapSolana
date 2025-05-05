@@ -963,10 +963,13 @@ async function ensureTokenAccount(
     }
     
     // CRITICAL FIX: First, get the expected ATA address without creating it
+    // IMPORTANT: Explicitly provide TOKEN_PROGRAM_ID and ASSOCIATED_TOKEN_PROGRAM_ID to avoid mismatches
     const ataAddress = await getAssociatedTokenAddress(
       mint,
       wallet.publicKey,
-      false // Don't allow off-curve
+      false, // Don't allow off-curve
+      TOKEN_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID
     );
     
     console.log(`Expected ATA address for mint ${mint.toString()}: ${ataAddress.toString()}`);
@@ -979,11 +982,14 @@ async function ensureTokenAccount(
       console.log(`Token account for ${mint.toString()} does not exist. Creating it now...`);
       
       // CRITICAL FIX: Add explicit creation instruction with proper parameters
+      // IMPORTANT: Explicitly provide TOKEN_PROGRAM_ID and ASSOCIATED_TOKEN_PROGRAM_ID
       const createAtaIx = createAssociatedTokenAccountInstruction(
         wallet.publicKey, // Payer
         ataAddress,       // ATA address
         wallet.publicKey, // Owner
-        mint             // Mint
+        mint,             // Mint
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
       );
       
       transaction.add(createAtaIx);
@@ -1000,7 +1006,13 @@ async function ensureTokenAccount(
     // Account exists, so we can safely try to get its token info
     try {
       console.log(`Token account exists. Getting token info for ${ataAddress.toString()}`);
-      const tokenAccountInfo = await getAccount(connection, ataAddress);
+      // IMPORTANT: Explicitly use TOKEN_PROGRAM_ID to prevent mismatches
+      const tokenAccountInfo = await getAccount(
+        connection, 
+        ataAddress, 
+        undefined, // Commitment
+        TOKEN_PROGRAM_ID
+      );
       
       console.log(`Token account for ${mint.toString()}: ${tokenAccountInfo.address.toString()}`);
       console.log(`Balance: ${tokenAccountInfo.amount.toString()} (Owner: ${tokenAccountInfo.owner.toString()})`);
@@ -1260,7 +1272,9 @@ export async function performSwap(
       tokenFromMintATA = await getAssociatedTokenAddress(
         tokenFromMint,
         new PublicKey(POOL_AUTHORITY),
-        true  // allowOwnerOffCurve: true for PDAs
+        true,  // allowOwnerOffCurve: true for PDAs
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
       );
     }
     
@@ -1315,7 +1329,9 @@ export async function performSwap(
       tokenToMintATA = await getAssociatedTokenAddress(
         tokenToMint,
         new PublicKey(POOL_AUTHORITY),
-        true  // allowOwnerOffCurve: true for PDAs
+        true,  // allowOwnerOffCurve: true for PDAs
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
       );
     }
     
@@ -1392,7 +1408,9 @@ export async function performSwap(
           wallet.publicKey,
           tokenFromMintATA,
           new PublicKey(POOL_AUTHORITY),
-          tokenFromMint
+          tokenFromMint,
+          TOKEN_PROGRAM_ID,
+          ASSOCIATED_TOKEN_PROGRAM_ID
         );
         transaction.add(ix);
       }
@@ -1408,7 +1426,9 @@ export async function performSwap(
           wallet.publicKey,
           tokenToMintATA,
           new PublicKey(POOL_AUTHORITY),
-          tokenToMint
+          tokenToMint,
+          TOKEN_PROGRAM_ID,
+          ASSOCIATED_TOKEN_PROGRAM_ID
         );
         transaction.add(ix);
       }
@@ -1424,7 +1444,9 @@ export async function performSwap(
           wallet.publicKey,
           yosTokenProgramATA,
           new PublicKey(POOL_AUTHORITY),
-          new PublicKey(YOS_TOKEN_MINT)
+          new PublicKey(YOS_TOKEN_MINT),
+          TOKEN_PROGRAM_ID,
+          ASSOCIATED_TOKEN_PROGRAM_ID
         );
         transaction.add(ix);
       }
