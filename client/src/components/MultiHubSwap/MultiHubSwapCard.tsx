@@ -564,7 +564,12 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
                 <div className="flex justify-between">
                   <Label htmlFor="from-amount">From</Label>
                   {wallet?.publicKey && (
-                    <BalanceDisplay wallet={wallet} tokenAddress={fromToken.address} symbol={fromToken.symbol} />
+                    <BalanceDisplay 
+                      wallet={wallet} 
+                      tokenAddress={fromToken.address} 
+                      symbol={fromToken.symbol} 
+                      refreshTrigger={refreshTrigger} 
+                    />
                   )}
                 </div>
 
