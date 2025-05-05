@@ -177,21 +177,11 @@ export const RAYDIUM_ROUTER_CONFIG = {
 export const DEBUG_MODE = process.env.NODE_ENV !== 'production';
 
 // Instruction discriminators for the multi-hub swap program
-export const BUY_AND_DISTRIBUTE_DISCRIMINATOR = Buffer.from([
-  6, 240, 93, 246, 87, 224, 215, 175, // 8-byte discriminator for buy_and_distribute
-]);
-
-export const CLAIM_REWARD_DISCRIMINATOR = Buffer.from([
-  146, 113, 97, 51, 55, 103, 32, 159, // 8-byte discriminator for claim_weekly_reward
-]);
-
-export const WITHDRAW_CONTRIBUTION_DISCRIMINATOR = Buffer.from([
-  52, 21, 251, 13, 191, 179, 204, 196, // 8-byte discriminator for withdraw_contribution
-]);
-
-export const UPDATE_PARAMETERS_DISCRIMINATOR = Buffer.from([
-  98, 103, 208, 178, 254, 106, 239, 67, // 8-byte discriminator for update_parameters
-]);
+// These are single-byte discriminators that match the Rust program's instruction enum
+export const BUY_AND_DISTRIBUTE_DISCRIMINATOR = Buffer.from([4]); // Match with BUY_AND_DISTRIBUTE_IX = 4
+export const CLAIM_REWARD_DISCRIMINATOR = Buffer.from([5]);      // Match with CLAIM_WEEKLY_REWARD_IX = 5
+export const WITHDRAW_CONTRIBUTION_DISCRIMINATOR = Buffer.from([6]); // Match with WITHDRAW_CONTRIBUTION_IX = 6
+export const UPDATE_PARAMETERS_DISCRIMINATOR = Buffer.from([3]); // Match with UPDATE_PARAMETERS_IX = 3
 
 // Default exchange rate fallbacks (only used if AMM data unavailable)
 export const DEFAULT_EXCHANGE_RATES = {

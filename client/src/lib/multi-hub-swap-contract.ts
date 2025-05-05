@@ -150,10 +150,23 @@ export async function buyAndDistribute(
     const rawAmount = Math.floor(amountIn * Math.pow(10, 9)); // Assuming 9 decimals for YOT/YOS
 
     // Create the instruction data
-    const data = Buffer.concat([
-      BUY_AND_DISTRIBUTE_DISCRIMINATOR,
-      encodeU64(rawAmount)
-    ]);
+    // First byte is discriminator, then amount as u64 little-endian
+    const data = Buffer.alloc(9); // 1 byte discriminator + 8 bytes for u64
+    
+    // Copy discriminator byte (should be 4 for BUY_AND_DISTRIBUTE_IX)
+    BUY_AND_DISTRIBUTE_DISCRIMINATOR.copy(data, 0);
+    
+    // Encode amount as little-endian u64
+    const amountBuf = Buffer.alloc(8);
+    amountBuf.writeBigUInt64LE(BigInt(rawAmount), 0);
+    amountBuf.copy(data, 1);
+    
+    console.log("Instruction data:", {
+      discriminator: data[0],
+      rawAmount,
+      amountBytes: Array.from(amountBuf),
+      fullData: Array.from(data)
+    });
 
     // Create the instruction
     const instruction = new TransactionInstruction({
