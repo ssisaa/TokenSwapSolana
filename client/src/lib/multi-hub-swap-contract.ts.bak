@@ -767,36 +767,24 @@ export async function buyAndDistribute(
       cashbackPortion: amountIn * 0.05,
     });
 
-    // FIXED IMPLEMENTATION FOR TRANSACTION HANDLING
-    // Use our new createAndSignTransaction function to properly structure the transaction
-    console.log("Using improved transaction handling to fix numRequiredSignatures error");
-    const transaction = await createAndSignTransaction(wallet, instruction, connection);
+    // Create transaction with compute budget - critical for complex operations
+    const transaction = createTransactionWithComputeBudget(instruction);
     
-    // Sign transaction with wallet
+    // Set recent blockhash and fee payer
+    transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+    transaction.feePayer = userPublicKey;
+
+    // Sign the transaction
     const signedTransaction = await wallet.signTransaction(transaction);
     
-    // Skip simulation to avoid issues with numRequiredSignatures errors
-    console.log("Skipping simulation to avoid numRequiredSignatures error");
+    // Try to simulate the transaction, but continue even if it fails
+    // This helps debugging without blocking the actual transaction from being sent
+    await safelySimulateTransaction(connection, signedTransaction);
     
-    // Send transaction with skipPreflight to bypass simulation errors
-    console.log("Sending transaction with skipPreflight=true...");
-    const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
-      skipPreflight: true,
-      preflightCommitment: 'confirmed',
-      maxRetries: 3
-    });
-    
-    console.log("Transaction sent! Waiting for confirmation...");
-    
-    // Use proper confirmation strategy with blockhash reference
-    const confirmationStrategy = {
-      signature,
-      blockhash: transaction.recentBlockhash!,
-      lastValidBlockHeight: transaction.lastValidBlockHeight!
-    };
-    
-    // Wait for transaction confirmation
-    await connection.confirmTransaction(confirmationStrategy, 'confirmed');
+    // Send the transaction regardless of simulation result
+    console.log("Sending transaction...");
+    const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+    await connection.confirmTransaction(signature, 'confirmed');
     
     console.log("✅ Buy and distribute transaction confirmed:", signature);
     
