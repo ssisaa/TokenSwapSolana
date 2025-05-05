@@ -1,0 +1,108 @@
+invoke_signed(
+            &system_instruction::create_account(
+                user.key,
+                liquidity_contribution_account.key,
+                rent_lamports,
+                space as u64,
+                program_id,
+            ),
+            &[
+                user.clone(),
+                liquidity_contribution_account.clone(),
+                system_program.clone(),
+            ],
+            &[&[b"liq", user.key.as_ref(), &[liq_contrib_bump]]],
+        )?;
+    }
+    
+    // Update liquidity contribution account
+    let mut contribution = if liquidity_contribution_account.data_len() > 0 {
+        LiquidityContribution::try_from_slice(&liquidity_contribution_account.data.borrow())?
+    } else {
+        LiquidityContribution::default()
+    };
+    
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+    
+    contribution.user = *user.key;
+    contribution.contributed_amount += liquidity_amount;
+    if contribution.start_timestamp == 0 {
+        contribution.start_timestamp = now;
+    }
+    if contribution.last_claim_time == 0 {
+        contribution.last_claim_time = now;
+    }
+    
+    // Serialize the updated contribution data
+    contribution.serialize(&mut &mut liquidity_contribution_account.data.borrow_mut()[..])?;
+    
+    // Transfer 75% to user (if needed)
+    if user_amount > 0 {
+        invoke(
+            &token_instruction::transfer(
+                token_program.key,
+                vault_yot.key,
+                user_yot.key,
+                user.key,
+                &[],
+                user_amount,
+            )?,
+            &[
+                vault_yot.clone(),
+                user_yot.clone(),
+                user.clone(),
+                token_program.clone(),
+            ],
+        )?;
+    }
+    
+    // Transfer 20% to liquidity pool
+    if liquidity_amount > 0 {
+        invoke(
+            &token_instruction::transfer(
+                token_program.key,
+                vault_yot.key,
+                liquidity_yot.key,
+                user.key,
+                &[],
+                liquidity_amount,
+            )?,
+            &[
+                vault_yot.clone(),
+                liquidity_yot.clone(),
+                user.clone(),
+                token_program.clone(),
+            ],
+        )?;
+    }
+    
+    // Find PDA for mint authority
+    let (mint_authority, mint_authority_bump) = Pubkey::find_program_address(
+        &[b"authority"],
+        program_id,
+    );
+    
+    // Mint 5% YOS as cashback
+    if cashback_amount > 0 {
+        invoke_signed(
+            &token_instruction::mint_to(
+                token_program.key,
+                yos_mint.key,
+                user_yos.key,
+                &mint_authority,
+                &[],
+                cashback_amount,
+            )?,
+            &[
+                yos_mint.clone(),
+                user_yos.clone(),
+                token_program.clone(),
+            ],
+            &[&[b"authority", &[mint_authority_bump]]],
+        )?;
+    }
+    
+    msg!("Buy and distribute completed successfully");
+    Ok(())
+}

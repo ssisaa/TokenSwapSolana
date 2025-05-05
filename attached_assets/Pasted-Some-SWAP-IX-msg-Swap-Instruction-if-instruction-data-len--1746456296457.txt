@@ -1,0 +1,104 @@
+Some(&SWAP_IX) => {
+            msg!("Swap Instruction");
+            if instruction_data.len() < 1 + 8 + 8 {
+                msg!("Instruction too short for Swap: {} bytes", instruction_data.len());
+                return Err(ProgramError::InvalidInstructionData);
+            }
+            
+            // Extract swap parameters
+            let amount_in = u64::from_le_bytes(instruction_data[1..9].try_into().unwrap());
+            let min_amount_out = u64::from_le_bytes(instruction_data[9..17].try_into().unwrap());
+            
+            msg!("Swap params: Amount In: {}, Min Out: {}", amount_in, min_amount_out);
+            
+            // Call the swap handler with the parsed parameters
+            process_swap(program_id, accounts, amount_in, min_amount_out)
+        },
+        
+        Some(&CLOSE_PROGRAM_IX) => {
+            msg!("CloseProgram Instruction");
+            // Call the close program handler
+            process_close_program(program_id, accounts)
+        },
+        
+        Some(&UPDATE_PARAMETERS_IX) => {
+            msg!("UpdateParameters Instruction");
+            if instruction_data.len() < 1 + 8*5 {
+                msg!("Instruction too short for UpdateParameters: {} bytes", instruction_data.len());
+                return Err(ProgramError::InvalidInstructionData);
+            }
+            
+            let mut offset = 1;
+            
+            // Extract rates (all u64 in little-endian)
+            let lp_contribution_rate = u64::from_le_bytes(
+                instruction_data[offset..offset + 8].try_into().unwrap(),
+            );
+            offset += 8;
+            let admin_fee_rate = u64::from_le_bytes(
+                instruction_data[offset..offset + 8].try_into().unwrap(),
+            );
+            offset += 8;
+            let yos_cashback_rate = u64::from_le_bytes(
+                instruction_data[offset..offset + 8].try_into().unwrap(),
+            );
+            offset += 8;
+            let swap_fee_rate = u64::from_le_bytes(
+                instruction_data[offset..offset + 8].try_into().unwrap(),
+            );
+            offset += 8;
+            let referral_rate = u64::from_le_bytes(
+                instruction_data[offset..offset + 8].try_into().unwrap(),
+            );
+            
+            msg!("UpdateParameters: LP {} | Fee {} | Cashback {} | Swap {} | Referral {}",
+                lp_contribution_rate,
+                admin_fee_rate,
+                yos_cashback_rate,
+                swap_fee_rate,
+                referral_rate);
+                
+            process_update_parameters(
+                program_id,
+                accounts,
+                lp_contribution_rate,
+                admin_fee_rate,
+                yos_cashback_rate,
+                swap_fee_rate,
+                referral_rate,
+            )
+        },
+        
+        Some(&BUY_AND_DISTRIBUTE_IX) => {
+            msg!("BuyAndDistribute Instruction");
+            if instruction_data.len() < 1 + 8 {
+                msg!("Instruction too short for BuyAndDistribute: {} bytes", instruction_data.len());
+                return Err(ProgramError::InvalidInstructionData);
+            }
+            
+            // Extract amount parameter
+            let amount = u64::from_le_bytes(instruction_data[1..9].try_into().unwrap());
+            
+            msg!("BuyAndDistribute amount: {}", amount);
+            
+            process_buy_and_distribute(program_id, accounts, amount)
+        },
+        
+        Some(&CLAIM_WEEKLY_REWARD_IX) => {
+            msg!("ClaimWeeklyReward Instruction");
+            
+            process_claim_weekly_reward(program_id, accounts)
+        },
+        
+        Some(&WITHDRAW_CONTRIBUTION_IX) => {
+            msg!("WithdrawContribution Instruction");
+            
+            process_withdraw_contribution(program_id, accounts)
+        },
+        
+        _ => {
+            msg!("Unknown instruction discriminator");
+            Err(ProgramError::InvalidInstructionData)
+        }
+    }
+}

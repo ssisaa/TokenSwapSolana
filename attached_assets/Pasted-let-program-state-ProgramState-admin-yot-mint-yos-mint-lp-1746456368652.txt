@@ -1,0 +1,110 @@
+let program_state = ProgramState {
+        admin,
+        yot_mint,
+        yos_mint,
+        lp_contribution_rate,
+        admin_fee_rate,
+        yos_cashback_rate,
+        swap_fee_rate,
+        referral_rate,
+    };
+    
+    msg!("Initialized program state:");
+    msg!("Admin: {}", admin);
+    msg!("YOT mint: {}", yot_mint);
+    msg!("YOS mint: {}", yos_mint);
+    msg!("LP contribution rate: {}", lp_contribution_rate);
+    msg!("Admin fee rate: {}", admin_fee_rate);
+    msg!("YOS cashback rate: {}", yos_cashback_rate);
+    msg!("Swap fee rate: {}", swap_fee_rate);
+    msg!("Referral rate: {}", referral_rate);
+    
+    // Serialize and store program state
+    program_state.serialize(&mut &mut program_state_account.data.borrow_mut()[..])?;
+    
+    Ok(())
+}
+
+// Process swap instruction implementation (simplified for brevity)
+fn process_swap(
+    _program_id: &Pubkey,
+    _accounts: &[AccountInfo],
+    _amount_in: u64,
+    _min_amount_out: u64,
+) -> ProgramResult {
+    // Simplified implementation to focus on the new buy_and_distribute functionality
+    msg!("Swap functionality not fully implemented in this version");
+    Ok(())
+}
+
+// Close program implementation (admin only)
+fn process_close_program(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+) -> ProgramResult {
+    let accounts_iter = &mut accounts.iter();
+    
+    let admin_account = next_account_info(accounts_iter)?;
+    let program_state_account = next_account_info(accounts_iter)?;
+    
+    // Verify admin signature
+    if !admin_account.is_signer {
+        msg!("Admin must sign CloseProgram instruction");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+    
+    // Verify program state PDA
+    let (expected_program_state, _) = find_program_state_address(program_id);
+    if expected_program_state != *program_state_account.key {
+        msg!("Invalid program state account");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Deserialize program state
+    let program_state = ProgramState::try_from_slice(&program_state_account.data.borrow())?;
+    
+    // Verify admin authorization
+    if program_state.admin != *admin_account.key {
+        msg!("Only the admin can close the program");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Transfer lamports from program state account to admin
+    let lamports = program_state_account.lamports();
+    **program_state_account.lamports.borrow_mut() = 0;
+    **admin_account.lamports.borrow_mut() += lamports;
+    
+    // Clear account data
+    program_state_account.data.borrow_mut().fill(0);
+    
+    msg!("Program closed successfully");
+    Ok(())
+}
+
+// Update program parameters (admin only)
+fn process_update_parameters(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    lp_contribution_rate: u64,
+    admin_fee_rate: u64,
+    yos_cashback_rate: u64,
+    swap_fee_rate: u64,
+    referral_rate: u64,
+) -> ProgramResult {
+    let accounts_iter = &mut accounts.iter();
+    
+    let admin_account = next_account_info(accounts_iter)?;
+    let program_state_account = next_account_info(accounts_iter)?;
+    
+    // Verify admin signature
+    if !admin_account.is_signer {
+        msg!("Admin must sign UpdateParameters instruction");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+    
+    // Verify program state PDA
+    let (expected_program_state, _) = find_program_state_address(program_id);
+    if expected_program_state != *program_state_account.key {
+        msg!("Invalid program state account");
+        return Err(ProgramError::InvalidAccountData);
+    }

@@ -1,0 +1,101 @@
+pub fn find_program_state_address(program_id: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(&[b"state"], program_id)
+}
+
+// Find program authority PDA address
+pub fn find_program_authority_address(program_id: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(&[b"authority"], program_id)
+}
+
+// Find liquidity contribution account for a user
+pub fn find_liquidity_contribution_address(
+    user: &Pubkey,
+    program_id: &Pubkey,
+) -> (Pubkey, u8) {
+    Pubkey::find_program_address(&[b"liq", user.as_ref()], program_id)
+}
+
+// Initialize the swap program with token accounts and parameters
+// This version uses direct field initialization with buffer parsing
+pub fn process_initialize(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    admin: Pubkey,
+    yot_mint: Pubkey,
+    yos_mint: Pubkey,
+    lp_contribution_rate: u64,
+    admin_fee_rate: u64,
+    yos_cashback_rate: u64,
+    swap_fee_rate: u64,
+    referral_rate: u64,
+) -> ProgramResult {
+    // Get accounts
+    let accounts_iter = &mut accounts.iter();
+    
+    // Extract accounts
+    let payer_account = next_account_info(accounts_iter)?;
+    let program_state_account = next_account_info(accounts_iter)?;
+    let program_authority_account = next_account_info(accounts_iter)?;
+    let system_program_account = next_account_info(accounts_iter)?;
+    let _rent_sysvar_account = next_account_info(accounts_iter)?;  // Prefixed with underscore since it's unused
+    
+    // Validate accounts
+    if !payer_account.is_signer {
+        msg!("Payer account must be a signer");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+    
+    // Verify program state PDA
+    let (expected_program_state, program_state_bump) = find_program_state_address(program_id);
+    if expected_program_state != *program_state_account.key {
+        msg!("❌ Invalid program state account");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Verify program authority PDA
+    let (expected_program_authority, _program_authority_bump) = find_program_authority_address(program_id);
+    if expected_program_authority != *program_authority_account.key {
+        msg!("❌ Invalid program authority account");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Calculate space for program state
+    let space = 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8; // 3 pubkeys + 5 u64 rates
+    
+    // Check if the account already exists and validate it
+    if !program_state_account.data_is_empty() {
+        // If it exists, check owner and size
+        if program_state_account.owner != program_id {
+            msg!("❌ State account not owned by this program");
+            return Err(ProgramError::IncorrectProgramId);
+        }
+        
+        if program_state_account.data_len() < space {
+            msg!("❌ State account too small: expected {}, got {}", space, program_state_account.data_len());
+            return Err(ProgramError::AccountDataTooSmall);
+        }
+        
+        msg!("✓ Program state account already exists and is valid");
+    } else {
+        // Create program state account if it doesn't exist
+        let rent = Rent::get()?;
+        let required_lamports = rent.minimum_balance(space);
+        msg!("Creating program state with {} bytes", space);
+        msg!("Rent-exempt balance: {} lamports", required_lamports);
+        
+        invoke_signed(
+            &system_instruction::create_account(
+                payer_account.key,
+                program_state_account.key,
+                required_lamports,
+                space as u64,
+                program_id,
+            ),
+            &[
+                payer_account.clone(),
+                program_state_account.clone(),
+                system_program_account.clone(),
+            ],
+            &[&[b"state", &[program_state_bump]]],
+        )?;
+    }
