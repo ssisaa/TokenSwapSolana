@@ -353,11 +353,11 @@ export async function buyAndDistribute(
     const rawAmount = Math.floor(amountIn * Math.pow(10, 9)); // Assuming 9 decimals for YOT/YOS
 
     // 1-byte discriminator + 8-byte amount
-    // IMPORTANT: Program expects BUY_AND_DISTRIBUTE_IX (1) as the first byte
+    // IMPORTANT: Program expects BUY_AND_DISTRIBUTE_IX (4) as the first byte
     // followed by the amount as an 8-byte little-endian u64 value
     
     console.log("BUY_AND_DISTRIBUTE instruction preparation:");
-    console.log("- Expected discriminator from program: BUY_AND_DISTRIBUTE_IX = 1");
+    console.log("- Expected discriminator from program: BUY_AND_DISTRIBUTE_IX = 4");
     console.log("- Raw amount (u64):", rawAmount);
     
     // CRITICAL FIX: Create the EXACT instruction data format the Rust contract expects
@@ -373,7 +373,7 @@ export async function buyAndDistribute(
     console.log(`
     RUST PROGRAM CODE:
     match instruction_data.first() {
-        Some(&BUY_AND_DISTRIBUTE_IX) => {  // BUY_AND_DISTRIBUTE_IX = 1
+        Some(&BUY_AND_DISTRIBUTE_IX) => {  // BUY_AND_DISTRIBUTE_IX = 4
             msg!("BuyAndDistribute Instruction");
             if instruction_data.len() < 1 + 8 {
                 msg!("Instruction too short for BuyAndDistribute: {} bytes", instruction_data.len());
@@ -390,16 +390,16 @@ export async function buyAndDistribute(
     `);
     
     // STRICT FORMAT: Create buffer with EXACTLY the format the Rust program expects
-    // 1. A single byte for the instruction type (1 = BUY_AND_DISTRIBUTE_IX)
+    // 1. A single byte for the instruction type (4 = BUY_AND_DISTRIBUTE_IX)
     // 2. Followed by an 8-byte little-endian u64 for the amount
     // Total: 9 bytes
     
     // METHOD 1: Manual buffer creation with explicit writing
     const instructionData = Buffer.alloc(9); // 1 byte discriminator + 8 bytes for amount
     
-    // Write discriminator byte (1) using the constant from config
-    // CRITICAL: This matches the Rust program expectation of BUY_AND_DISTRIBUTE_IX = 1
-    instructionData.writeUInt8(BUY_AND_DISTRIBUTE_DISCRIMINATOR[0], 0); // Write value 1 at position 0
+    // Write discriminator byte (4) using the constant from config
+    // CRITICAL: This matches the Rust program expectation of BUY_AND_DISTRIBUTE_IX = 4
+    instructionData.writeUInt8(BUY_AND_DISTRIBUTE_DISCRIMINATOR[0], 0); // Write value 4 at position 0
     
     // Write amount as little-endian u64 (8 bytes) - EXACT match for Rust's u64::from_le_bytes
     instructionData.writeBigUInt64LE(BigInt(rawAmount), 1);
@@ -587,7 +587,7 @@ export async function distributeWeeklyYosReward(
     // Create the instruction data - direct byte approach
     // This must match what's in the Rust program in match instruction_data.first()
     // Use the constant from config to ensure consistency
-    const data = CLAIM_REWARD_DISCRIMINATOR; // 3 for CLAIM_WEEKLY_REWARD_IX
+    const data = CLAIM_REWARD_DISCRIMINATOR; // 5 for CLAIM_WEEKLY_REWARD_IX
     
     console.log("CLAIM_WEEKLY_REWARD instruction preparation:");
     console.log("- Instruction data:", data.toString("hex"));
