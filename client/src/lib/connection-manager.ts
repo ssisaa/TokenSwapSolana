@@ -1,4 +1,4 @@
-import { Commitment, Connection, ConnectionConfig } from '@solana/web3.js';
+import { Commitment, Connection, ConnectionConfig, PublicKey } from '@solana/web3.js';
 
 // Multiple RPC endpoints for fallback
 const RPC_ENDPOINTS = [
@@ -119,6 +119,20 @@ function isNetworkError(error: any): boolean {
     errorMessage.includes('expected the value')
   );
 }
+
+// Add token balance getter method to ConnectionManager
+ConnectionManager.prototype.getTokenBalance = async function(tokenAccount: PublicKey): Promise<bigint> {
+  try {
+    const { value } = await this.executeWithFallback(
+      conn => conn.getTokenAccountBalance(tokenAccount)
+    );
+    
+    return BigInt(value.amount);
+  } catch (error) {
+    console.error(`Error getting token balance for ${tokenAccount.toString()}:`, error);
+    return BigInt(0);
+  }
+};
 
 // Export a singleton instance
 export const connectionManager = new ConnectionManager();
