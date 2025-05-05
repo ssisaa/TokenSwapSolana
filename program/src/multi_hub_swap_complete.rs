@@ -36,7 +36,7 @@ impl ProgramState {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        let data_array = array_ref![data, 0, Self::LEN];
+        let data_array = array_ref![data, 0, ProgramState::LEN];
         let (
             admin,
             yot_mint,
