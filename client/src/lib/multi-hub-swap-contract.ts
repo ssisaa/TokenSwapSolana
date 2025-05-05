@@ -767,45 +767,15 @@ export async function buyAndDistribute(
       cashbackPortion: amountIn * 0.05,
     });
 
-    // FIXED IMPLEMENTATION FOR TRANSACTION HANDLING
-    // Create transaction with proper structure to avoid numRequiredSignatures error
-    console.log("Using improved transaction handling to fix numRequiredSignatures error");
+    // Use our new transaction helper to ensure proper transaction setup
+    console.log("Using transaction helper to properly structure the transaction");
     
-    // CRITICAL FIX: For SOL transfers, add an explicit System Program transfer
-    // This ensures the wallet shows the correct amount being deducted (-0.2 SOL)
-    const transaction = new Transaction();
-    
-    // STEP 1: Set blockhash and fee payer FIRST (before adding instructions)
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-    transaction.recentBlockhash = blockhash;
-    transaction.lastValidBlockHeight = lastValidBlockHeight;
-    transaction.feePayer = wallet.publicKey;
-    
-    // STEP 2: Add compute budget instructions
-    const computeUnits = ComputeBudgetProgram.setComputeUnitLimit({
-      units: 1000000 // High value for complex transactions
-    });
-    
-    const priorityFee = ComputeBudgetProgram.setComputeUnitPrice({
-      microLamports: 1_000_000 // Higher priority fee
-    });
-    
-    // STEP 3: Add explicit SOL transfer instruction
-    // This ensures the wallet shows the correct amount being transferred
-    // CRITICAL FIX: We should NOT use the full rawAmount here because this causes a double-spend
-    // Instead, transfer a small amount (0.001 SOL) to make the transfer visible in the wallet
-    // The actual program will handle the full token transfer internally
-    const transferInstruction = SystemProgram.transfer({
-      fromPubkey: wallet.publicKey,
-      toPubkey: new PublicKey(solanaConfig.pool.authority), // Send to pool authority
-      lamports: 1_000_000 // 0.001 SOL - Just enough to be visible in the wallet UI
-    });
-    
-    // STEP 4: Add all instructions in order
-    transaction.add(computeUnits);
-    transaction.add(priorityFee);
-    transaction.add(transferInstruction); // Add the SOL transfer instruction first
-    transaction.add(instruction); // Then add our program instruction
+    // Import the createTransaction helper from transaction-helper.ts
+    const transaction = await createTransaction(
+      wallet,
+      [instruction], // Just include our program instruction
+      connection
+    );
     
     // CRITICAL: Simulate the transaction before requesting wallet signature
     // This prevents the wallet from showing a red error screen
