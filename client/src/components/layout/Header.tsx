@@ -29,7 +29,7 @@ import {
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import * as token from '@solana/spl-token';
 import { SOLANA_CLUSTER } from '@/lib/constants';
-import { YOT_TOKEN_MINT, YOS_TOKEN_MINT } from '@/lib/token-constants';
+import { YOT_TOKEN_MINT, YOS_TOKEN_MINT, TOKEN_DECIMALS } from '@/lib/token-constants';
 
 export default function Header() {
   const { toast } = useToast();

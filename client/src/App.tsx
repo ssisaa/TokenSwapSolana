@@ -36,6 +36,7 @@ import SettingsPage from "@/pages/SettingsPage";
 import AffiliatePage from "@/pages/AffiliatePage";
 import LandingPage from "@/pages/LandingPage";
 import Home from "@/pages/Home"; // Keep for compatibility with existing routes
+import SwapPage from "@/pages/SwapPage"; // New simplified swap page
 
 // Routes that should use the dashboard layout
 const dashboardRoutes = [
