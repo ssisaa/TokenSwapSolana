@@ -1007,76 +1007,129 @@ export async function initializeMultiHubSwap(
 
 export async function getMultiHubSwapStats() {
   try {
-    // Get program state address
-    const programStateAddress = new PublicKey(MULTI_HUB_SWAP_PROGRAM_STATE);
+    // Get program state address - using explicit PDA derivation to ensure we're checking the right address
+    const [programStateAddress] = findProgramStateAddress();
+    console.log("Checking program state at:", programStateAddress.toString());
     
     // Fetch account data
     const accountInfo = await connection.getAccountInfo(programStateAddress);
+    
+    // Debug info about account
+    if (accountInfo) {
+      console.log("Program state account found:", {
+        owner: accountInfo.owner.toString(),
+        dataLength: accountInfo.data.length,
+        executable: accountInfo.executable
+      });
+    }
     
     if (!accountInfo || !accountInfo.data) {
       console.error("Program state account not found or empty");
       throw new Error("Program state not initialized");
     }
     
-    // The account data layout (based on Solana contract):
-    // - Admin pubkey: 32 bytes
-    // - YOT mint pubkey: 32 bytes
-    // - YOS mint pubkey: 32 bytes
-    // - LP contribution rate: 8 bytes (u64)
-    // - Admin fee rate: 8 bytes (u64)
-    // - YOS cashback rate: 8 bytes (u64)
-    // - Swap fee rate: 8 bytes (u64)
-    // - Referral rate: 8 bytes (u64)
+    // The account data layout should match the Rust program's ProgramState struct:
+    // ```
+    // pub struct ProgramState {
+    //   pub admin: Pubkey,             // 32 bytes
+    //   pub yot_mint: Pubkey,          // 32 bytes
+    //   pub yos_mint: Pubkey,          // 32 bytes
+    //   pub lp_contribution_rate: u64, // 8 bytes
+    //   pub admin_fee_rate: u64,       // 8 bytes
+    //   pub yos_cashback_rate: u64,    // 8 bytes
+    //   pub swap_fee_rate: u64,        // 8 bytes
+    //   pub referral_rate: u64,        // 8 bytes
+    // }
+    // ```
+    // Total expected size: 32*3 + 8*5 = 96 + 40 = 136 bytes
     
     const data = accountInfo.data;
+    console.log("Account data buffer length:", data.length);
     
-    // Read the public keys
-    const admin = new PublicKey(data.slice(0, 32));
-    const yotMint = new PublicKey(data.slice(32, 64));
-    const yosMint = new PublicKey(data.slice(64, 96));
-    
-    // Read the rates (u64 values in basis points - divide by 10000 for percentage)
-    // For example, 2000 basis points = 20%
-    const lpContributionRate = Number(data.readBigUInt64LE(96)) / 100; // Convert to percentage
-    const adminFeeRate = Number(data.readBigUInt64LE(104)) / 100;
-    const yosCashbackRate = Number(data.readBigUInt64LE(112)) / 100;
-    const swapFeeRate = Number(data.readBigUInt64LE(120)) / 100;
-    const referralRate = Number(data.readBigUInt64LE(128)) / 100;
-    
-    // Convert to a more user-friendly format
-    return {
-      admin: admin.toString(),
-      yotMint: yotMint.toString(),
-      yosMint: yosMint.toString(),
-      totalLiquidityContributed: solanaConfig.multiHubSwap.stats.totalLiquidityContributed, // From config 
-      totalContributors: solanaConfig.multiHubSwap.stats.totalContributors,            // From config
-      totalYosRewarded: solanaConfig.multiHubSwap.stats.totalYosRewarded,             // From config
+    // Safely extract values with error handling
+    try {
+      // Read the public keys if there's enough data
+      if (data.length < 32*3) {
+        throw new Error(`Insufficient account data: expected at least ${32*3} bytes, got ${data.length}`);
+      }
       
-      // Rates are stored in basis points (1bp = 0.01%)
-      // We convert them to percentages for the UI
-      lpContributionRate,
-      adminFeeRate,
-      yosCashbackRate,
-      swapFeeRate, 
-      referralRate,
+      const admin = new PublicKey(data.slice(0, 32));
+      const yotMint = new PublicKey(data.slice(32, 64));
+      const yosMint = new PublicKey(data.slice(64, 96));
       
-      // For convenience, also provide as distributions calculated from on-chain data
-      buyDistribution: {
-        userPercent: 100 - lpContributionRate - yosCashbackRate,
-        liquidityPercent: lpContributionRate,
-        cashbackPercent: yosCashbackRate
-      },
+      console.log("Extracted public keys:", {
+        admin: admin.toString(),
+        yotMint: yotMint.toString(),
+        yosMint: yosMint.toString()
+      });
       
-      sellDistribution: {
-        userPercent: 100 - lpContributionRate - yosCashbackRate,
-        liquidityPercent: lpContributionRate,
-        cashbackPercent: yosCashbackRate
-      },
+      let lpContributionRate = solanaConfig.multiHubSwap.rates.lpContributionRate / 100;
+      let adminFeeRate = solanaConfig.multiHubSwap.rates.adminFeeRate / 100;
+      let yosCashbackRate = solanaConfig.multiHubSwap.rates.yosCashbackRate / 100;
+      let swapFeeRate = solanaConfig.multiHubSwap.rates.swapFeeRate / 100;
+      let referralRate = solanaConfig.multiHubSwap.rates.referralRate / 100;
       
-      // Weekly reward rate from config
-      weeklyRewardRate: solanaConfig.multiHubSwap.rewards.weeklyRewardRate,
-      yearlyAPR: solanaConfig.multiHubSwap.rewards.yearlyAPR
-    };
+      // Try to read rates from the account data if there's enough data
+      if (data.length >= 32*3 + 8*5) {
+        try {
+          // Read the rates (u64 values in basis points - divide by 10000 for percentage)
+          lpContributionRate = Number(data.readBigUInt64LE(96)) / 10000; // Convert from basis points to percentage
+          adminFeeRate = Number(data.readBigUInt64LE(104)) / 10000;
+          yosCashbackRate = Number(data.readBigUInt64LE(112)) / 10000;
+          swapFeeRate = Number(data.readBigUInt64LE(120)) / 10000;
+          referralRate = Number(data.readBigUInt64LE(128)) / 10000;
+          
+          console.log("Extracted rates:", {
+            lpContributionRate,
+            adminFeeRate,
+            yosCashbackRate,
+            swapFeeRate,
+            referralRate
+          });
+        } catch (rateError) {
+          console.warn("Error reading rates from account data, using defaults:", rateError);
+        }
+      } else {
+        console.warn(`Insufficient data for rates: expected ${32*3 + 8*5} bytes, got ${data.length}. Using default rates.`);
+      }
+      
+      // Return formatted stats for the UI
+      return {
+        admin: admin.toString(),
+        yotMint: yotMint.toString(),
+        yosMint: yosMint.toString(),
+        totalLiquidityContributed: solanaConfig.multiHubSwap.stats.totalLiquidityContributed,
+        totalContributors: solanaConfig.multiHubSwap.stats.totalContributors,
+        totalYosRewarded: solanaConfig.multiHubSwap.stats.totalYosRewarded,
+        
+        // Rates (either from account data or fallback to config)
+        lpContributionRate,
+        adminFeeRate,
+        yosCashbackRate,
+        swapFeeRate, 
+        referralRate,
+        
+        // Distribution percentages
+        buyDistribution: {
+          userPercent: 100 - lpContributionRate - yosCashbackRate,
+          liquidityPercent: lpContributionRate,
+          cashbackPercent: yosCashbackRate
+        },
+        
+        sellDistribution: {
+          userPercent: 100 - lpContributionRate - yosCashbackRate,
+          liquidityPercent: lpContributionRate,
+          cashbackPercent: yosCashbackRate
+        },
+        
+        // Weekly reward rate from config
+        weeklyRewardRate: solanaConfig.multiHubSwap.rewards.weeklyRewardRate,
+        yearlyAPR: solanaConfig.multiHubSwap.rewards.yearlyAPR
+      };
+    } catch (dataError) {
+      console.error("Error parsing account data:", dataError);
+      throw dataError;
+    }
   } catch (error) {
     console.error("Error getting multi-hub swap stats:", error);
     
@@ -1090,8 +1143,8 @@ export async function getMultiHubSwapStats() {
       yosCashbackRate: solanaConfig.multiHubSwap.rates.yosCashbackRate / 100,
       swapFeeRate: solanaConfig.multiHubSwap.rates.swapFeeRate / 100,
       referralRate: solanaConfig.multiHubSwap.rates.referralRate / 100,
-      weeklyRewardRate: solanaConfig.multiHubSwap.rates.weeklyRewardRate,
-      yearlyAPR: solanaConfig.multiHubSwap.rates.yearlyAPR,
+      weeklyRewardRate: solanaConfig.multiHubSwap.rewards.weeklyRewardRate,
+      yearlyAPR: solanaConfig.multiHubSwap.rewards.yearlyAPR,
       buyDistribution: {
         userPercent: 100 - (solanaConfig.multiHubSwap.rates.lpContributionRate / 100) - (solanaConfig.multiHubSwap.rates.yosCashbackRate / 100),
         liquidityPercent: solanaConfig.multiHubSwap.rates.lpContributionRate / 100,
