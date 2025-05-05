@@ -14,6 +14,8 @@ import MultihubIntegrationV3 from "@/lib/multihub-integration-v3";
 import { TokenInfo, getTokenBySymbol } from "@/lib/token-search-api";
 import { SwapEstimate, SwapProvider } from "@/lib/multi-hub-swap";
 import MultihubV3DebugPanel from "@/components/MultihubV3DebugPanel";
+import TransactionRecoveryPanel from "@/components/TransactionRecoveryPanel";
+import { trackSwapTransaction } from "@/lib/multihub-recovery";
 
 // Constants
 const CONTRIBUTION_PERCENT = 20;
