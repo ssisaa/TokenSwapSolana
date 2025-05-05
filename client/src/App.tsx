@@ -22,7 +22,6 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
-import Swap from "@/pages/Swap";
 import Stake from "@/pages/Stake";
 import Liquidity from "@/pages/Liquidity";
 import Memes from "@/pages/Memes";
@@ -31,34 +30,17 @@ import AdminPage from "@/pages/AdminPage";
 import ProgramFundingPage from "@/pages/admin-page";
 import TestPage from "@/pages/TestPage";
 import TokenTestingPage from "@/pages/TokenTestingPage";
-import MultiHubSwapPage from "@/pages/MultiHubSwapPage";
-import CashbackSwapPage from "@/pages/CashbackSwapPage";
-import AdvancedSwapPage from "@/pages/AdvancedSwapPage";
-import TransactionDebugPage from "@/pages/TransactionDebugPage";
-import FixedSwapTestPage from "@/pages/FixedSwapTestPage";
-import MultihubV3AdminPage from "@/pages/MultihubV3AdminPage";
 import Analytics from "@/pages/Analytics";
 import WalletPage from "@/pages/WalletPage";
 import SettingsPage from "@/pages/SettingsPage";
 import AffiliatePage from "@/pages/AffiliatePage";
 import LandingPage from "@/pages/LandingPage";
-import MockSwapPage from "@/pages/MockSwapPage"; // Our new reliable mock swap page
-import SimpleSwapPage from "@/pages/SimpleSwapPage"; // Pure demo swap page with no Solana dependencies
-import FixedSwapPage from "@/pages/FixedSwapPage"; // Our optimized swap page that handles crypto module issues
-import MultihubAdminPage from "@/pages/MultihubAdminPage"; // Admin page with program initialization
 import Home from "@/pages/Home"; // Keep for compatibility with existing routes
-import MultihubV3DebugPanel from "@/components/MultihubV3DebugPanel"; // Debug panel for program authority verification
 
 // Routes that should use the dashboard layout
 const dashboardRoutes = [
   '/',
   '/dashboard',
-  '/swap',
-  '/multi-hub-swap',
-  '/cashback-swap',
-  '/mock-swap',     // Our new mock swap page
-  '/advanced-swap',
-  '/tx-debug',
   '/stake',
   '/staking',
   '/liquidity',
@@ -66,8 +48,6 @@ const dashboardRoutes = [
   '/analytics',
   '/wallet',
   '/admin',
-  '/multihub-v3-admin',
-  '/multihub-v3-debug', // Debug panel for program authority verification
   '/settings',
   '/affiliate',
   '/memes'
@@ -81,21 +61,6 @@ function Router() {
         <Route path="/">
           <DashboardLayout>
             <Dashboard />
-          </DashboardLayout>
-        </Route>
-        <Route path="/swap">
-          <DashboardLayout>
-            <Swap />
-          </DashboardLayout>
-        </Route>
-        <Route path="/multi-hub-swap">
-          <DashboardLayout>
-            <MultiHubSwapPage />
-          </DashboardLayout>
-        </Route>
-        <Route path="/cashback-swap">
-          <DashboardLayout>
-            <CashbackSwapPage />
           </DashboardLayout>
         </Route>
         <Route path="/stake">
@@ -163,61 +128,10 @@ function Router() {
             <AffiliatePage />
           </DashboardLayout>
         </Route>
-
-        <Route path="/advanced-swap">
-          <DashboardLayout>
-            <AdvancedSwapPage />
-          </DashboardLayout>
-        </Route>
-
-        <Route path="/tx-debug">
-          <DashboardLayout>
-            <TransactionDebugPage />
-          </DashboardLayout>
-        </Route>
-
-        <Route path="/fixed-swap">
-          <DashboardLayout>
-            <FixedSwapPage />
-          </DashboardLayout>
-        </Route>
-
-        <Route path="/multihub-v3-admin">
-          <DashboardLayout>
-            <MultihubV3AdminPage />
-          </DashboardLayout>
-        </Route>
-        
-        <Route path="/multihub-v3-debug">
-          <DashboardLayout>
-            <div className="container mx-auto px-4 py-8">
-              <h1 className="text-2xl font-bold mb-6">MultihubSwap V3 Debug Panel</h1>
-              <MultihubV3DebugPanel />
-            </div>
-          </DashboardLayout>
-        </Route>
-        
-        <Route path="/multihub-admin">
-          <DashboardLayout>
-            <MultihubAdminPage />
-          </DashboardLayout>
-        </Route>
         
         <Route path="/program-funding">
           <DashboardLayout>
             <ProgramFundingPage />
-          </DashboardLayout>
-        </Route>
-        
-        <Route path="/mock-swap">
-          <DashboardLayout>
-            <MockSwapPage />
-          </DashboardLayout>
-        </Route>
-        
-        <Route path="/simple-swap">
-          <DashboardLayout>
-            <SimpleSwapPage />
           </DashboardLayout>
         </Route>
         
