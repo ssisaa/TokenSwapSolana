@@ -1074,9 +1074,13 @@ async function ensureTokenAccount(
 }
 
 /**
+ * Export getMultiHubProgramID for other modules
+ */
+export { getMultiHubProgramID };
+
+/**
  * Perform a token swap using the multihub swap V3 program
- * This improved version uses ConnectionManager for reliable network operations
- * ENHANCED: Includes transaction recovery system for failed swaps
+ * IMPROVED VERSION: Uses auto-refund functionality to automatically return SOL on failed transactions
  */
 export async function performSwap(
   connection: Connection,
@@ -1086,6 +1090,14 @@ export async function performSwap(
   amountIn: number | bigint,
   minAmountOut: number | bigint
 ): Promise<string> {
+  // CRITICAL VALIDATE PROGRAM ID: Verify program ID is valid before proceeding
+  const programId = getMultiHubProgramID();
+  if (!programId || typeof programId !== 'string' || programId.length < 32) {
+    console.error(`Invalid program ID: ${programId}`);
+    throw new Error(`Invalid program ID. This is likely a configuration error. Please refresh the page and try again.`);
+  }
+  console.log(`Verified MultihubSwap Program ID: ${programId}`);
+  
   try {
     console.log("Starting swap using ConnectionManager for reliable network operations");
     
