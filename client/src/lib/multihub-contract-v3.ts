@@ -1240,7 +1240,9 @@ export async function performSwap(
     // DUAL IMPLEMENTATION: Use both Pool Authority and Program Authority with fallback logic
     console.log("Implementing dual authority approach with fallback logic");
     console.log("Primary authority: Pool Authority PDA", POOL_AUTHORITY);
-    console.log("Fallback authority: Program Authority PDA", PROGRAM_AUTHORITY);
+    // Derive the program authority PDA dynamically instead of using hardcoded value
+    const [derivedAuthorityPDA, _] = findProgramAuthorityAddress();
+    console.log("Fallback authority: Program Authority PDA", derivedAuthorityPDA.toString());
     
     // CRITICAL FIX: Use our enhanced token account validation
     // (We import the function at the top of the file)
@@ -1252,7 +1254,7 @@ export async function performSwap(
         console.log(`🧪 Enhanced validation for ${accountType} account: ${pubkey.toString()}`);
         
         // Check if this is the Program Authority account (special case)
-        const programAuthorityPDA = new PublicKey(PROGRAM_AUTHORITY);
+        const [programAuthorityPDA, authorityBump1] = findProgramAuthorityAddress();
         if (accountType === "Program Authority" || pubkey.equals(programAuthorityPDA)) {
           console.log(`💡 Validating Program Authority PDA: ${pubkey.toString()}`);
           
@@ -1715,7 +1717,7 @@ export async function performSwap(
     
     // Get the authorities
     const poolAuthorityAddress = new PublicKey(POOL_AUTHORITY);
-    const programAuthorityPDA = new PublicKey(PROGRAM_AUTHORITY);
+    const [programAuthorityPDA, authorityBump2] = findProgramAuthorityAddress();
     
     console.log("=== TRANSACTION SETUP ===");
     console.log("Program Authority PDA:", programAuthorityPDA.toString());

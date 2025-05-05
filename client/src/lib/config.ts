@@ -14,6 +14,9 @@ export interface AppConfig {
   endpoints: {
     [network: string]: string;
   };
+  rpcEndpoints?: {
+    [network: string]: string[];
+  };
   explorer: {
     url: string;
     txUrl: string;
@@ -162,6 +165,9 @@ export interface AppConfig {
   endpoints: {
     [network: string]: string;
   };
+  rpcEndpoints?: {
+    [network: string]: string[];
+  };
   explorer: {
     url: string;
     txUrl: string;
@@ -264,6 +270,24 @@ export const getEndpoint = (): string => {
   return config.endpoints[config.network];
 };
 
+// Convenience getter for RPC endpoints array
+export const getRpcEndpoints = (): string[] => {
+  if (config.rpcEndpoints && config.rpcEndpoints[config.network]) {
+    return config.rpcEndpoints[config.network];
+  }
+  // Fallback to single endpoint in an array
+  return [config.endpoints[config.network]];
+};
+
+// Convenience getter for SOL price
+export const getSolPrice = (): number => {
+  if (config.parameters.solPrice) {
+    return config.parameters.solPrice;
+  }
+  // Default SOL price if not specified
+  return 100; // Default $100 as fallback
+};
+
 // Export the full config and convenience functions
 export default {
   config,
@@ -274,5 +298,7 @@ export default {
   getTokenAddress,
   getTokenPublicKey,
   getTokenDecimals,
-  getEndpoint
+  getEndpoint,
+  getRpcEndpoints,
+  getSolPrice
 };
