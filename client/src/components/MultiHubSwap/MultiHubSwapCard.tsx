@@ -185,11 +185,14 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
   const fetchExchangeRate = async () => {
     if (wallet && wallet.publicKey && fromToken && toToken) {
       try {
+        console.log("Fetching exchange rate with wallet:", wallet.publicKey.toString());
         const { exchangeRate } = await getExpectedOutput(
           fromToken.address,
           toToken.address,
           1.0 // Get rate for 1 token
         );
+        
+        console.log(`Real exchange rate from blockchain: 1 ${fromToken.symbol} = ${exchangeRate} ${toToken.symbol}`);
         
         // Update the to amount based on real exchange rate
         if (fromAmount) {
@@ -201,10 +204,14 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
         // Fallback to estimated rate if blockchain data fetch fails
         if (fromAmount) {
           const rate = estimateExchangeRate();
+          console.log(`Using fallback exchange rate: 1 ${fromToken.symbol} = ${rate} ${toToken.symbol}`);
           const calculated = parseFloat(fromAmount) * rate;
           setToAmount(calculated.toFixed(calculated < 0.1 ? 6 : 2));
         }
       }
+    } else {
+      console.warn("Cannot fetch exchange rate: wallet not connected or tokens not selected", 
+        { wallet: !!wallet, publicKey: !!wallet?.publicKey, fromToken: !!fromToken, toToken: !!toToken });
     }
   };
 
@@ -1014,26 +1021,33 @@ const BalanceDisplay = ({ wallet, tokenAddress, symbol }: { wallet: any, tokenAd
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true); // Reset loading state when wallet or token changes
+    setBalance(null);  // Reset balance when wallet or token changes
+    
     const fetchBalance = async () => {
       if (wallet && wallet.publicKey) {
         try {
-          setLoading(true);
+          console.log(`Fetching balance for ${symbol} (${tokenAddress.slice(0, 4)}...${tokenAddress.slice(-4)})`);
           const tokenBalance = await getTokenBalance(wallet, tokenAddress);
+          console.log(`Balance for ${symbol}: ${tokenBalance}`);
           setBalance(tokenBalance);
         } catch (error) {
-          console.error("Error fetching balance:", error);
+          console.error(`Error fetching ${symbol} balance:`, error);
         } finally {
           setLoading(false);
         }
+      } else {
+        console.log("Cannot fetch balance: wallet not connected");
+        setLoading(false);
       }
     };
 
     fetchBalance();
-    // Set up an interval to refresh the balance every 30 seconds
-    const intervalId = setInterval(fetchBalance, 30000);
+    // Set up an interval to refresh the balance every 15 seconds
+    const intervalId = setInterval(fetchBalance, 15000);
     
     return () => clearInterval(intervalId);
-  }, [wallet, tokenAddress]);
+  }, [wallet, tokenAddress, symbol]);
 
   return (
     <Label className="text-xs text-muted-foreground">
