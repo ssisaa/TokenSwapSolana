@@ -797,13 +797,34 @@ export async function buyAndDistribute(
     // Use our new transaction helper to ensure proper transaction setup
     console.log("Using transaction helper to properly structure the transaction");
     
-    // Use our transaction helper function instead of manually creating transactions
-    // This resolves the "Custom 4" error by ensuring proper transaction structure
-    const transaction = await createAndSignTransaction(
-      wallet,
-      instruction, // Our program instruction
-      connection
-    );
+    // Modified createAndSignTransaction to handle multiple instructions
+    
+    // STEP 1: Get a valid blockhash first
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+    
+    // STEP 2: Create a completely fresh Transaction object
+    const transaction = new Transaction();
+    
+    // STEP 3: Set blockhash and fee payer FIRST (before adding instructions)
+    // This is CRITICAL to avoid "Cannot read properties of undefined (reading 'numRequiredSignatures')" error
+    transaction.recentBlockhash = blockhash;
+    transaction.lastValidBlockHeight = lastValidBlockHeight;
+    transaction.feePayer = wallet.publicKey;
+    
+    // STEP 4: Add compute budget instructions for complex operations
+    const computeUnits = ComputeBudgetProgram.setComputeUnitLimit({
+      units: 1000000 // High value for complex transactions
+    });
+    
+    const priorityFee = ComputeBudgetProgram.setComputeUnitPrice({
+      microLamports: 1_000_000 // Higher priority fee
+    });
+    
+    // STEP 5: Add all instructions in the correct order
+    transaction.add(computeUnits);
+    transaction.add(priorityFee);
+    transaction.add(approveInstruction);
+    transaction.add(swapInstruction);
     
     // CRITICAL: Simulate the transaction before requesting wallet signature
     // This prevents the wallet from showing a red error screen
@@ -874,7 +895,9 @@ export async function buyAndDistribute(
     
     return signature;
   } catch (error) {
+    // Additional debug info on error
     console.error("Error in buyAndDistribute:", error);
+    console.error("Debug info: Used program authority", swapProgramAuthority.toString());
     throw error;
   }
 }
