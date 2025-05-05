@@ -7,11 +7,16 @@ import { InfoIcon, CheckCircle2, AlertTriangle, LoaderIcon, KeyIcon, AlertCircle
 import { checkYosMintAuthority, setProgramAsMintAuthority } from '@/lib/authorize-mint';
 import { useMultiWallet } from '@/context/MultiWalletContext';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export default function AuthorizeTokens() {
   const { toast } = useToast();
   const { connected, wallet } = useMultiWallet();
   const [loading, setLoading] = useState(false);
+  const [useCustomAuthority, setUseCustomAuthority] = useState(false);
+  const [customAuthority, setCustomAuthority] = useState('');
   const [authorityStatus, setAuthorityStatus] = useState<{
     checked: boolean;
     isCorrect?: boolean;
@@ -157,6 +162,12 @@ export default function AuthorizeTokens() {
               This PDA account (<code>Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ</code>) is derived using
               the seed "authority" and must be set as the mint authority for YOS (<code>2SWCnck3vLAVKaLkAjVtNnsVJVGYmGzyNVnte48SQRop</code>).
             </p>
+          </div>
+          
+          <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded text-xs font-mono">
+            <div>YOS Token: <span className="text-blue-600 dark:text-blue-400">2SWCnck3vLAVKaLkAjVtNnsVJVGYmGzyNVnte48SQRop</span></div>
+            <div>Program ID: <span className="text-blue-600 dark:text-blue-400">SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE</span></div>
+            <div>Program Authority PDA: <span className="text-green-600 dark:text-green-400">Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ</span></div>
           </div>
         </div>
       </CardContent>

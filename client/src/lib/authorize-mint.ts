@@ -8,7 +8,8 @@ import {
 } from '@solana/web3.js';
 import { SOLANA_RPC_URL, YOS_TOKEN_ADDRESS, MULTI_HUB_SWAP_PROGRAM_ID } from './config';
 import { 
-  TOKEN_PROGRAM_ID, createSetAuthorityInstruction, AuthorityType
+  TOKEN_PROGRAM_ID, createSetAuthorityInstruction, AuthorityType,
+  getMint
 } from '@solana/spl-token';
 import { sendTransaction } from './transaction-helper';
 
@@ -16,8 +17,9 @@ import { sendTransaction } from './transaction-helper';
  * Set the YOS mint authority to the program authority PDA
  * This only needs to be run once by the admin
  * @param wallet The wallet from which to send the transaction
+ * @param overrideAuthority Optional override for the current mint authority if it's different from the wallet
  */
-export async function setProgramAsMintAuthority(wallet: any) {
+export async function setProgramAsMintAuthority(wallet: any, overrideAuthority?: string) {
   try {
     const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
     const adminPublicKey = wallet.publicKey;
@@ -35,20 +37,13 @@ export async function setProgramAsMintAuthority(wallet: any) {
     console.log("Program authority PDA:", programAuthority.toString());
     console.log("Authority bump seed:", bump);
     
-    // Get mint info to check the current authority directly
-    const mintInfo = await connection.getAccountInfo(yosMint);
-    if (!mintInfo) {
-      throw new Error("YOS mint account not found");
-    }
+    // Get mint info using SPL Token library
+    const mintInfo = await getMint(connection, yosMint);
     
-    // Parse mint info to extract current authority
-    const mintAuthorityOption = mintInfo.data[0];
+    // Get current authority
     let currentAuthority = "No authority set";
-    
-    if (mintAuthorityOption !== 0) {
-      const mintAuthorityBytes = mintInfo.data.slice(4, 36);
-      const mintAuthority = new PublicKey(mintAuthorityBytes);
-      currentAuthority = mintAuthority.toString();
+    if (mintInfo.mintAuthority) {
+      currentAuthority = mintInfo.mintAuthority.toString();
     }
     
     console.log("Current mint authority:", currentAuthority);
@@ -57,16 +52,36 @@ export async function setProgramAsMintAuthority(wallet: any) {
     if (currentAuthority !== adminPublicKey.toString()) {
       console.warn("WARNING: Current mint authority does not match your wallet address!");
       console.warn("This transaction may fail if you are not the current mint authority.");
+      console.warn("Current authority: " + currentAuthority);
+      console.warn("Your wallet: " + adminPublicKey.toString());
     }
     
-    // Create set authority instruction
+    // If an override authority is provided, use it instead of the admin's public key
+    let currentAuthorityKey: PublicKey;
+    
+    if (overrideAuthority) {
+      try {
+        currentAuthorityKey = new PublicKey(overrideAuthority);
+        console.log("Using override authority:", currentAuthorityKey.toString());
+      } catch (err) {
+        console.error("Invalid override authority provided:", err);
+        currentAuthorityKey = adminPublicKey;
+      }
+    } else {
+      // Use the admin's public key by default
+      currentAuthorityKey = adminPublicKey;
+    }
+    
+    console.log("Setting mint authority using authority:", currentAuthorityKey.toString());
+    
+    // Create set authority instruction with the appropriate authority
     const instruction = createSetAuthorityInstruction(
-      yosMint,             // Token mint account
-      adminPublicKey,      // Current authority (admin)
+      yosMint,                // Token mint account
+      currentAuthorityKey,    // Current authority (admin or override)
       AuthorityType.MintTokens, // Authority type
-      programAuthority,    // New authority (program PDA)
-      [],                  // Multisig signers (empty for single signer)
-      TOKEN_PROGRAM_ID     // Token program ID
+      programAuthority,       // New authority (program PDA)
+      [],                     // Multisig signers (empty for single signer)
+      TOKEN_PROGRAM_ID        // Token program ID
     );
     
     // Create transaction
@@ -119,17 +134,13 @@ export async function checkYosMintAuthority(): Promise<{
     console.log("Expected authority (PDA):", programAuthority.toString());
     console.log("Authority bump seed:", bump);
     
-    // Get mint info
-    const mintInfo = await connection.getAccountInfo(yosMint);
-    if (!mintInfo) {
-      throw new Error("YOS mint account not found");
-    }
+    // Get mint info using SPL Token library
+    const mintInfo = await getMint(connection, yosMint);
     
-    // Parse mint info - the mint authority is at bytes 4-35
-    const mintAuthorityOption = mintInfo.data[0]; // First byte indicates if authority is present
+    console.log("Full mint info:", mintInfo);
     
-    if (mintAuthorityOption === 0) {
-      // No mint authority set
+    // Check if mint authority exists
+    if (!mintInfo.mintAuthority) {
       return {
         isCorrect: false,
         currentAuthority: "No authority set",
@@ -138,10 +149,7 @@ export async function checkYosMintAuthority(): Promise<{
       };
     }
     
-    // Extract mint authority (bytes 4-35)
-    const mintAuthorityBytes = mintInfo.data.slice(4, 36);
-    const mintAuthority = new PublicKey(mintAuthorityBytes);
-    
+    const mintAuthority = mintInfo.mintAuthority;
     const isCorrect = mintAuthority.equals(programAuthority);
     
     console.log("Current mint authority:", mintAuthority.toString());
