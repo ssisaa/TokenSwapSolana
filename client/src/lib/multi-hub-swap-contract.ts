@@ -721,7 +721,7 @@ export async function withdrawLiquidityContribution(wallet: any): Promise<{ sign
     // Create the instruction data - direct byte approach matching Rust code
     // This must match what's in the Rust program in match instruction_data.first()
     // Use the constant from config to ensure consistency
-    const data = WITHDRAW_CONTRIBUTION_DISCRIMINATOR; // 4 for WITHDRAW_CONTRIBUTION_IX
+    const data = WITHDRAW_CONTRIBUTION_DISCRIMINATOR; // 6 for WITHDRAW_CONTRIBUTION_IX
     
     console.log("WITHDRAW_CONTRIBUTION instruction preparation:");
     console.log("- Instruction data:", data.toString("hex"));
@@ -942,11 +942,11 @@ export async function updateMultiHubSwapParameters(
     const referralBps = Math.round(referralRate * 100);
     
     // Create instruction data - consistent with how we format the other functions
-    // First byte is instruction discriminator (5 for UPDATE_PARAMETERS_IX)
+    // First byte is instruction discriminator (3 for UPDATE_PARAMETERS_IX)
     // This must match the value in the Rust program's match statement
     const data = Buffer.alloc(1 + 5 * 8); // 1 byte discrim + 5 u64 values (8 bytes each)
     
-    // Set discriminator as first byte - must be 5 for UPDATE_PARAMETERS_IX
+    // Set discriminator as first byte - must be 3 for UPDATE_PARAMETERS_IX
     // Use the constant from config to ensure consistency
     data[0] = UPDATE_PARAMETERS_DISCRIMINATOR[0];
     
