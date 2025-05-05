@@ -334,55 +334,55 @@ export default function FixedSwapPage() {
         const connection = useConnection();
         
         // 💥 FINAL ABSOLUTE ATTEMPT WITH 100% HARDCODED VALUES
-        console.log("======== FINAL ATTEMPT WITH HARDCODED ADDRESSES ========");
+        console.log("======== MINIMAL SWAP WITH SIMPLIFIED ACCOUNT STRUCTURE ========");
         
         try {
-          // TRY CONTRACT MATCH FIRST (FOLLOWS EXACT CONTRACT LAYOUT)
-          console.log("Executing swap with CONTRACT MATCH implementation (follows exact contract structure)");
+          // TRY SIMPLE SWAP FIRST (ULTRA MINIMAL IMPLEMENTATION)
+          console.log("Executing swap with SIMPLE SWAP implementation (ultra minimal account structure)");
           
           if (fromToken === SOL_SYMBOL && toToken === YOT_SYMBOL) {
-            signature = await contractMatch(
+            signature = await simpleSwap(
               connection,
               wallet,
               true, // isSOLToYOT = true
               fromAmount // UI format amount
             );
-            console.log("SOL to YOT swap completed with CONTRACT MATCH method:", signature);
+            console.log("SOL to YOT swap completed with SIMPLE SWAP method:", signature);
           } else {
-            signature = await contractMatch(
+            signature = await simpleSwap(
               connection,
               wallet,
               false, // isSOLToYOT = false
               fromAmount // UI format amount
             );
-            console.log("YOT to SOL swap completed with CONTRACT MATCH method:", signature);
+            console.log("YOT to SOL swap completed with SIMPLE SWAP method:", signature);
           }
-        } catch (contractMatchError) {
-          console.error("CONTRACT MATCH failed:", contractMatchError);
-          console.log("Falling back to DIRECT SWAP method...");
+        } catch (simpleSwapError) {
+          console.error("SIMPLE SWAP failed:", simpleSwapError);
+          console.log("Falling back to CONTRACT MATCH method...");
           
-          // Fall back to directSwap if contractMatch fails
+          // Try CONTRACT MATCH if simple swap fails
           try {
             if (fromToken === SOL_SYMBOL && toToken === YOT_SYMBOL) {
-              signature = await directSwap(
+              signature = await contractMatch(
                 connection,
                 wallet,
                 true, // isSOLToYOT = true
                 fromAmount // UI format amount
               );
-              console.log("SOL to YOT swap completed with DIRECT SWAP method:", signature);
+              console.log("SOL to YOT swap completed with CONTRACT MATCH method:", signature);
             } else {
-              signature = await directSwap(
+              signature = await contractMatch(
                 connection,
                 wallet,
                 false, // isSOLToYOT = false
                 fromAmount // UI format amount
               );
-              console.log("YOT to SOL swap completed with DIRECT SWAP method:", signature);
+              console.log("YOT to SOL swap completed with CONTRACT MATCH method:", signature);
             }
-          } catch (directSwapError) {
-            console.error("DIRECT SWAP failed:", directSwapError);
-            console.log("Falling back to FINAL ATTEMPT method...");
+          } catch (contractMatchError) {
+            console.error("CONTRACT MATCH failed:", contractMatchError);
+            console.log("Falling back to DIRECT SWAP method...");
             
             // Final fallback to finalAttempt
             try {
