@@ -408,9 +408,9 @@ pub fn process_buy_and_distribute(
 
     // CRITICAL FIX 2: Update contribution data with amount added to liquidity
     msg!("Updating liquidity contribution with {} YOT", liquidity_portion);
-    let mut contribution_data = LiquidityContribution::try_from_slice(&liquidity_contribution_account.data.borrow())?;
+    let mut contribution_data = LiquidityContribution::unpack(&liquidity_contribution_account.data.borrow())?;
     contribution_data.contributed_amount += liquidity_portion;
-    contribution_data.serialize(&mut *liquidity_contribution_account.data.borrow_mut())?;
+    contribution_data.pack(&mut liquidity_contribution_account.data.borrow_mut()[..])?;
 
     // CRITICAL FIX 3: Mint YOS cashback tokens directly to user
     msg!("Minting {} YOS cashback tokens to user", yos_cashback);
@@ -465,7 +465,7 @@ pub fn process_claim_rewards(
     }
     
     // Read contribution data
-    let mut contribution_data = LiquidityContribution::try_from_slice(
+    let mut contribution_data = LiquidityContribution::unpack(
         &liquidity_contribution_account.data.borrow()
     )?;
     
@@ -516,7 +516,7 @@ pub fn process_claim_rewards(
     // Update contribution data
     contribution_data.last_claim_time = current_time;
     contribution_data.total_claimed_yos += reward_amount;
-    contribution_data.serialize(&mut *liquidity_contribution_account.data.borrow_mut())?;
+    contribution_data.pack(&mut liquidity_contribution_account.data.borrow_mut()[..])?;
     
     msg!("Weekly rewards claimed successfully: {} YOS", reward_amount);
     Ok(())
@@ -551,7 +551,7 @@ pub fn process_withdraw_liquidity(
     }
     
     // Read contribution data
-    let mut contribution_data = LiquidityContribution::try_from_slice(
+    let mut contribution_data = LiquidityContribution::unpack(
         &liquidity_contribution_account.data.borrow()
     )?;
     
