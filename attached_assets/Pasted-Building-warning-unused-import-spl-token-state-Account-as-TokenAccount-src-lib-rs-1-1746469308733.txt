@@ -1,0 +1,73 @@
+Building...
+warning: unused import: `spl_token::state::Account as TokenAccount`
+  --> src/lib.rs:14:5
+   |
+14 | use spl_token::state::Account as TokenAccount;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+ 
+warning: use of deprecated associated function `solana_program::pubkey::Pubkey::new`: Please use 'Pubkey::from' or 'Pubkey::try_from' instead
+   --> src/lib.rs:141:28
+    |
+141 |     let yot_mint = Pubkey::new(&data[0..32]);
+    |                            ^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+ 
+warning: use of deprecated associated function `solana_program::pubkey::Pubkey::new`: Please use 'Pubkey::from' or 'Pubkey::try_from' instead
+   --> src/lib.rs:142:28
+    |
+142 |     let yos_mint = Pubkey::new(&data[32..64]);
+    |                            ^^^
+ 
+warning: unused import: `program_pack::Pack`
+ --> src/lib.rs:8:5
+  |
+8 |     program_pack::Pack,
+  |     ^^^^^^^^^^^^^^^^^^
+ 
+warning: unused variable: `liquidity_yot`
+   --> src/lib.rs:190:9
+    |
+190 |     let liquidity_yot = next_account_info(accounts_iter)?;
+    |         ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_liquidity_yot`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+ 
+warning: unused variable: `rent_sysvar`
+   --> src/lib.rs:196:9
+    |
+196 |     let rent_sysvar = next_account_info(accounts_iter)?;
+    |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_rent_sysvar`
+ 
+warning: unused variable: `program_state_account`
+   --> src/lib.rs:197:9
+    |
+197 |     let program_state_account = next_account_info(accounts_iter)?;
+    |         ^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_program_state_account`
+ 
+warning: unused variable: `program_authority_account`
+   --> src/lib.rs:200:9
+    |
+200 |     let program_authority_account = if accounts_iter.len() > 0 {
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_program_authority_account`
+ 
+warning: unused variable: `pool_authority`
+   --> src/lib.rs:208:9
+    |
+208 |     let pool_authority = if accounts_iter.len() > 0 {
+    |         ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_pool_authority`
+ 
+warning: variable does not need to be mutable
+   --> src/lib.rs:267:13
+    |
+267 |         let mut contribution_data = LiquidityContribution {
+    |             ----^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+ 
+warning: `stake` (lib) generated 10 warnings (run `cargo fix --lib -p stake` to apply 7 suggestions)
+Build successful. Completed in 9.45s

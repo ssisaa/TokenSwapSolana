@@ -5,14 +5,11 @@ use solana_program::{
     msg,
     program::{invoke, invoke_signed},
     program_error::ProgramError,
-    program_pack::Pack,
     pubkey::Pubkey,
     system_instruction,
     sysvar::{rent::Rent, Sysvar, clock::Clock},
 };
 use borsh::{BorshDeserialize, BorshSerialize};
-use spl_token::instruction as token_instruction;
-use spl_token::state::Account as TokenAccount;
 
 // Define the program's entrypoint
 entrypoint!(process_instruction);
@@ -139,8 +136,8 @@ pub fn process_initialize(
         return Err(ProgramError::InvalidInstructionData);
     }
     
-    let yot_mint = Pubkey::new(&data[0..32]);
-    let yos_mint = Pubkey::new(&data[32..64]);
+    let yot_mint = Pubkey::from(<[u8; 32]>::try_from(&data[0..32]).unwrap());
+    let yos_mint = Pubkey::from(<[u8; 32]>::try_from(&data[32..64]).unwrap());
     
     // Create the program state account
     invoke_signed(
@@ -188,17 +185,17 @@ pub fn process_buy_and_distribute(
     let user = next_account_info(accounts_iter)?;
     let vault_yot = next_account_info(accounts_iter)?;
     let user_yot = next_account_info(accounts_iter)?;
-    let liquidity_yot = next_account_info(accounts_iter)?;
+    let _liquidity_yot = next_account_info(accounts_iter)?;
     let yos_mint = next_account_info(accounts_iter)?;
     let user_yos = next_account_info(accounts_iter)?;
     let liquidity_contribution_account = next_account_info(accounts_iter)?;
     let token_program = next_account_info(accounts_iter)?;
     let system_program = next_account_info(accounts_iter)?;
-    let rent_sysvar = next_account_info(accounts_iter)?;
-    let program_state_account = next_account_info(accounts_iter)?;
+    let _rent_sysvar = next_account_info(accounts_iter)?;
+    let _program_state_account = next_account_info(accounts_iter)?;
     
     // Get optional program authority (if provided)
-    let program_authority_account = if accounts_iter.len() > 0 {
+    let _program_authority_account = if accounts_iter.len() > 0 {
         next_account_info(accounts_iter)?
     } else {
         // If not provided, we'll derive it when needed
@@ -206,7 +203,7 @@ pub fn process_buy_and_distribute(
     };
     
     // Get optional pool authority (if provided)
-    let pool_authority = if accounts_iter.len() > 0 {
+    let _pool_authority = if accounts_iter.len() > 0 {
         next_account_info(accounts_iter)?
     } else {
         // If not provided, we'll derive it when needed
@@ -265,7 +262,7 @@ pub fn process_buy_and_distribute(
         )?;
 
         // Initialize contribution data
-        let mut contribution_data = LiquidityContribution {
+        let contribution_data = LiquidityContribution {
             user: *user.key,
             contributed_amount: 0,
             start_timestamp: Clock::get()?.unix_timestamp,
@@ -513,7 +510,7 @@ pub fn process_swap(
     
     // Transfer user's tokens to the source pool
     invoke(
-        &token_instruction::transfer(
+        &spl_token::instruction::transfer(
             token_program.key,
             user_source.key,
             source_token.key,
@@ -535,7 +532,7 @@ pub fn process_swap(
     
     // Transfer tokens from destination pool to user
     invoke_signed(
-        &token_instruction::transfer(
+        &spl_token::instruction::transfer(
             token_program.key,
             destination_token.key,
             user_destination.key,
@@ -626,7 +623,7 @@ pub fn process_contribute(
     
     // Transfer tokens from user to liquidity pool
     invoke(
-        &token_instruction::transfer(
+        &spl_token::instruction::transfer(
             token_program.key,
             user_token.key,
             liquidity_token.key,
