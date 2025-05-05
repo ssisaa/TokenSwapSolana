@@ -432,3 +432,233 @@ fn process_withdraw_contribution(
     msg!("Liquidity contribution of {} YOT withdrawn successfully", contribution.contributed_amount);
     Ok(())
 }
+
+// Buy and distribute YOT tokens with liquidity contribution and YOS cashback
+// Implements buy_and_distribute from the Anchor smart contract
+fn process_buy_and_distribute(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    amount: u64,
+) -> ProgramResult {
+    msg!("🔹 Starting process_buy_and_distribute with amount: {}", amount);
+    
+    // Debug account count
+    msg!("🔹 Account count: {}", accounts.len());
+    if accounts.len() < 11 {
+        msg!("❌ ERROR: Not enough accounts provided. Expected at least 11, got {}", accounts.len());
+        return Err(ProgramError::NotEnoughAccountKeys);
+    }
+    
+    let accounts_iter = &mut accounts.iter();
+    
+    // Parse accounts with detailed logging
+    msg!("🔹 Parsing accounts...");
+    let user = next_account_info(accounts_iter)?;
+    msg!("1. User: {}", user.key);
+    
+    let vault_yot = next_account_info(accounts_iter)?;
+    msg!("2. Vault YOT: {}", vault_yot.key);
+    
+    let user_yot = next_account_info(accounts_iter)?;
+    msg!("3. User YOT: {}", user_yot.key);
+    
+    let liquidity_yot = next_account_info(accounts_iter)?;
+    msg!("4. Liquidity YOT: {}", liquidity_yot.key);
+    
+    let yos_mint = next_account_info(accounts_iter)?;
+    msg!("5. YOS Mint: {}", yos_mint.key);
+    
+    let user_yos = next_account_info(accounts_iter)?;
+    msg!("6. User YOS: {}", user_yos.key);
+    
+    let liquidity_contribution_account = next_account_info(accounts_iter)?;
+    msg!("7. Liquidity Contribution: {}", liquidity_contribution_account.key);
+    
+    let token_program = next_account_info(accounts_iter)?;
+    msg!("8. Token Program: {}", token_program.key);
+    
+    let system_program = next_account_info(accounts_iter)?;
+    msg!("9. System Program: {}", system_program.key);
+    
+    let rent_sysvar = next_account_info(accounts_iter)?;
+    msg!("10. Rent Sysvar: {}", rent_sysvar.key);
+    
+    let program_state_account = next_account_info(accounts_iter)?;
+    msg!("11. Program State: {}", program_state_account.key);
+    
+    // Verify user signed the transaction
+    if !user.is_signer {
+        msg!("User must sign BuyAndDistribute instruction");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+    
+    // Load program state to get parameters
+    let program_state = ProgramState::try_from_slice(&program_state_account.data.borrow())?;
+    
+    // Verify YOT and YOS mint addresses match
+    if program_state.yot_mint != *vault_yot.owner {
+        msg!("YOT mint mismatch in state");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    if program_state.yos_mint != *yos_mint.key {
+        msg!("YOS mint mismatch in state");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Validate token account owners
+    // Verify user_yot belongs to the user
+    let user_yot_data = TokenAccount::unpack(&user_yot.data.borrow())?;
+    if user_yot_data.owner != *user.key {
+        msg!("User YOT account not owned by user");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Verify user_yos belongs to the user
+    let user_yos_data = TokenAccount::unpack(&user_yos.data.borrow())?;
+    if user_yos_data.owner != *user.key {
+        msg!("User YOS account not owned by user");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Calculate distribution
+    // Total amount split: 
+    // - 75% to user
+    // - 20% to liquidity (split equally between YOT and SOL)
+    // - 5% YOS cashback
+    let user_amount = (amount * 75) / 100;
+    let liquidity_amount = (amount * 20) / 100;
+    let cashback_amount = (amount * 5) / 100;
+    
+    msg!("Distribution: Total {} | User {} | Liquidity {} | Cashback {}",
+         amount, user_amount, liquidity_amount, cashback_amount);
+    
+    // Find PDAs for program authority
+    let (program_authority, authority_bump) = Pubkey::find_program_address(
+        &[b"authority"],
+        program_id,
+    );
+    
+    // Check if liquidity contribution account exists, create if not
+    let expected_data_len = std::mem::size_of::<LiquidityContribution>();
+    
+    // Check if account exists and belongs to user
+    let create_new_account = liquidity_contribution_account.data_is_empty();
+    
+    if create_new_account {
+        msg!("Creating new liquidity contribution account");
+        
+        // Find the expected PDA for this user
+        let (expected_liq_contrib, _) = find_liquidity_contribution_address(user.key, program_id);
+        if expected_liq_contrib != *liquidity_contribution_account.key {
+            msg!("Invalid liquidity contribution account address");
+            return Err(ProgramError::InvalidAccountData);
+        }
+        
+        // Calculate rent
+        let rent = Rent::get()?;
+        let lamports = rent.minimum_balance(expected_data_len);
+        
+        // Create account
+        invoke_signed(
+            &system_instruction::create_account(
+                user.key,
+                liquidity_contribution_account.key,
+                lamports,
+                expected_data_len as u64,
+                program_id,
+            ),
+            &[
+                user.clone(),
+                liquidity_contribution_account.clone(),
+                system_program.clone(),
+            ],
+            &[&[b"liquidity", user.key.as_ref(), &[0]]],
+        )?;
+    }
+    
+    // Load or initialize contribution
+    let mut contribution = if create_new_account {
+        // Initialize new contribution
+        LiquidityContribution {
+            user: *user.key,
+            contributed_amount: 0, // Will be updated below
+            start_timestamp: Clock::get()?.unix_timestamp,
+            last_claim_time: Clock::get()?.unix_timestamp,
+            total_claimed_yos: 0,
+        }
+    } else {
+        // Load existing contribution
+        LiquidityContribution::try_from_slice(&liquidity_contribution_account.data.borrow())?
+    };
+    
+    // Verify existing account belongs to this user
+    if !create_new_account && contribution.user != *user.key {
+        msg!("Liquidity contribution account does not belong to this user");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Transfer YOT from vault to user
+    invoke_signed(
+        &token_instruction::transfer(
+            token_program.key,
+            vault_yot.key,
+            user_yot.key,
+            &program_authority,
+            &[],
+            user_amount,
+        )?,
+        &[
+            vault_yot.clone(),
+            user_yot.clone(),
+            token_program.clone(),
+        ],
+        &[&[b"authority", &[authority_bump]]],
+    )?;
+    
+    // Transfer YOT from vault to liquidity
+    invoke_signed(
+        &token_instruction::transfer(
+            token_program.key,
+            vault_yot.key,
+            liquidity_yot.key,
+            &program_authority,
+            &[],
+            liquidity_amount,
+        )?,
+        &[
+            vault_yot.clone(),
+            liquidity_yot.clone(),
+            token_program.clone(),
+        ],
+        &[&[b"authority", &[authority_bump]]],
+    )?;
+    
+    // Mint YOS cashback to user
+    invoke_signed(
+        &token_instruction::mint_to(
+            token_program.key,
+            yos_mint.key,
+            user_yos.key,
+            &program_authority,
+            &[],
+            cashback_amount,
+        )?,
+        &[
+            yos_mint.clone(),
+            user_yos.clone(),
+            token_program.clone(),
+        ],
+        &[&[b"authority", &[authority_bump]]],
+    )?;
+    
+    // Update liquidity contribution
+    contribution.contributed_amount += liquidity_amount;
+    
+    // Save updated contribution
+    contribution.serialize(&mut &mut liquidity_contribution_account.data.borrow_mut()[..])?;
+    
+    msg!("✅ Buy and distribute successful: {} YOT total | {} YOT to user | {} YOT to liquidity | {} YOS cashback",
+        amount, user_amount, liquidity_amount, cashback_amount);
+    Ok(())
+}
