@@ -1226,12 +1226,12 @@ export async function performSwap(
         
         // Additional validation for token accounts - using TOKEN_PROGRAM_ID constant from top of file
         if (accountType.includes("token")) {
-          const tokenProgramID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+          // Use the TOKEN_PROGRAM_ID constant defined at the top of the file
           
           // Check owner is TOKEN_PROGRAM_ID (0x06...)
-          if (!accountInfo.owner.equals(tokenProgramID)) {
+          if (!accountInfo.owner.equals(TOKEN_PROGRAM_ID)) {
             console.error(`INVALID TOKEN ACCOUNT: ${accountType} account is not owned by Token Program`);
-            console.error(`Owner: ${accountInfo.owner.toString()}, Expected: ${tokenProgramID.toString()}`);
+            console.error(`Owner: ${accountInfo.owner.toString()}, Expected: ${TOKEN_PROGRAM_ID.toString()}`);
             return false;
           }
           
@@ -2086,13 +2086,15 @@ export async function transferTokensToPDA(
     // Calculate amount in raw format (assuming 9 decimals)
     const rawAmount = BigInt(Math.floor(amount * 1e9));
     
-    // Add transfer instruction
+    // Add transfer instruction with explicit program ID
     const { createTransferInstruction } = await import('@solana/spl-token');
     const transferIx = createTransferInstruction(
       sourceAddress, // source
       pdaAta, // destination
       wallet.publicKey, // owner
-      rawAmount // amount
+      rawAmount, // amount
+      [], // multiSigners (empty array for normal signing)
+      TOKEN_PROGRAM_ID // explicit program ID
     );
     transaction.add(transferIx);
     
