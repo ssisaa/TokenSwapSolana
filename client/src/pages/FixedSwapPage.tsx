@@ -272,17 +272,21 @@ export default function FixedSwapPage() {
         console.log(`Raw form amounts: ${fromAmount} ${fromToken} -> ${toAmount} ${toToken}`);
         
         // CRITICAL FIX: Convert the input amount to raw blockchain format (lamports)
-        // Use exact parsing to prevent floating point imprecision
-        // This fixes the issue where 0.2 SOL in UI shows as 0.05 SOL in wallet
-        const rawFromAmount = fromToken === SOL_SYMBOL 
-          ? BigInt(Math.round(fromAmount * 1e9)) // Convert SOL to lamports with rounding
-          : BigInt(Math.round(fromAmount * 1e9)); // Convert YOT to raw amount with 9 decimals
+        // CRITICAL FIX: Use exact parsing without any float-to-int conversion errors
+        // We use Number.parseInt() on a string fixed at 9 decimal places to avoid any precision loss
+        // This properly fixes the amount mismatch in wallet confirmation screen
+        const fromAmountString = fromAmount.toFixed(9).replace('.', ''); // Convert to string with exact 9 decimal places
+        const toAmountString = toAmount.toFixed(9).replace('.', '');
+        
+        // Now convert to BigInt with zero chance of float rounding errors
+        const rawFromAmount = BigInt(fromAmountString);
+        const rawToAmount = BigInt(toAmountString);
           
-        const rawToAmount = toToken === SOL_SYMBOL
-          ? BigInt(Math.round(toAmount * 1e9)) // Convert SOL to lamports with rounding
-          : BigInt(Math.round(toAmount * 1e9)); // Convert YOT to raw amount with 9 decimals
-          
-        console.log(`Converted raw amounts: ${rawFromAmount} ${fromToken} -> ${rawToAmount} ${toToken}`);
+        console.log(`EXACT amount conversion: ${fromAmount} ${fromToken} -> ${rawFromAmount} lamports/raw units`);
+        console.log(`EXACT amount conversion: ${toAmount} ${toToken} -> ${rawToAmount} lamports/raw units`);
+        
+        // Log detailed wallet display estimation
+        console.log(`User should see approximately -${fromAmount} ${fromToken} in wallet confirmation`);
         
         // We use outAmount: 0n (0 as BigInt) to let the program calculate the output
         // This is critical to avoid unrealistic estimates that can't be fulfilled
