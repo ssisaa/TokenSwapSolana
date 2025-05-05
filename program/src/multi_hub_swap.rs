@@ -494,7 +494,7 @@ fn process_withdraw_contribution(
     }
     
     // Deserialize contribution account
-    let contribution = LiquidityContribution::try_from_slice(
+    let contribution = LiquidityContribution::unpack(
         &liquidity_contribution_account.data.borrow()
     )?;
     
