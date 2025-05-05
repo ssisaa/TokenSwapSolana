@@ -206,8 +206,10 @@ export default function FixedSwapPage() {
       setToToken(newFromToken === SOL_SYMBOL ? YOT_SYMBOL : SOL_SYMBOL);
     }
     
-    // Update amounts based on real exchange rate
-    updateAmounts(newFromToken, toToken, fromAmount, exchangeRate);
+    // Update amounts based on real exchange rate (now async)
+    (async () => {
+      await updateAmounts(newFromToken, toToken, fromAmount, exchangeRate);
+    })();
   };
   
   // Handle token swap using real exchange rate
@@ -219,8 +221,10 @@ export default function FixedSwapPage() {
       setFromToken(newToToken === SOL_SYMBOL ? YOT_SYMBOL : SOL_SYMBOL);
     }
     
-    // Update amounts based on real exchange rate
-    updateAmounts(fromToken, newToToken, fromAmount, exchangeRate);
+    // Update amounts based on real exchange rate (now async)
+    (async () => {
+      await updateAmounts(fromToken, newToToken, fromAmount, exchangeRate);
+    })();
     
     // Refresh the exchange rate when token changes
     fetchExchangeRate();
@@ -231,8 +235,10 @@ export default function FixedSwapPage() {
     const value = parseFloat(e.target.value) || 0;
     setFromAmount(value);
     
-    // Update amounts based on real exchange rate
-    updateAmounts(fromToken, toToken, value, exchangeRate);
+    // Update amounts based on real exchange rate (now async)
+    (async () => {
+      await updateAmounts(fromToken, toToken, value, exchangeRate);
+    })();
   };
   
   // Execute the swap using actual on-chain transactions
