@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useMultiWallet } from '@/context/MultiWalletContext';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { fundProgramYosAccount, checkProgramYosBalance } from '@/lib/helpers/fund-program';
-import { Loader2, InfoIcon } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 export default function FundProgramAccounts() {
   const { toast } = useToast();
@@ -85,14 +85,6 @@ export default function FundProgramAccounts() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Alert className="bg-amber-50 border-amber-200">
-          <InfoIcon className="h-4 w-4 text-amber-600" />
-          <AlertTitle className="text-amber-800">Maintenance Notice</AlertTitle>
-          <AlertDescription className="text-amber-700">
-            The program funding feature is currently in simulation mode for maintenance. Actual blockchain transactions are disabled.
-          </AlertDescription>
-        </Alert>
-        
         <div className="space-y-1">
           <Label htmlFor="amount">YOS Amount to Send</Label>
           <Input

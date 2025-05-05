@@ -72,36 +72,7 @@ export default function MultiWalletConnect() {
     }
   };
 
-  // Check if either Phantom or Solflare is installed
-  const isAnyWalletAvailable = !!(
-    (typeof window !== 'undefined' && window.solana && window.solana.isPhantom) || 
-    (typeof window !== 'undefined' && window.solflare)
-  );
-
   if (!connected) {
-    // Handle no wallet installed case
-    if (!isAnyWalletAvailable) {
-      return (
-        <>
-          <div className="flex flex-col">
-            <Button
-              className="bg-red-600 hover:bg-red-700 text-white font-medium"
-              onClick={handleConnectWallet}
-              disabled={connecting}
-            >
-              <Wallet className="h-4 w-4 mr-2" />
-              Wallet not found
-            </Button>
-            <div className="text-xs text-red-400 mt-1">
-              Please install a Solana wallet extension
-            </div>
-          </div>
-          <WalletSelectorModal />
-        </>
-      );
-    }
-    
-    // Standard connect button for installed wallets
     return (
       <>
         <Button

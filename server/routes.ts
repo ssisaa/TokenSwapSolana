@@ -13,174 +13,19 @@ import {
   getAccount, 
   getAssociatedTokenAddress
 } from "@solana/spl-token";
-import { WebSocketServer, WebSocket } from 'ws';
-import { LRUCache } from "../client/src/lib/lruCache";
 
-// Load configuration from app.config.json
-import fs from 'fs';
-import path from 'path';
+// Constants
+const CLUSTER = 'devnet';
+const ENDPOINT = clusterApiUrl(CLUSTER);
+const YOT_TOKEN_ADDRESS = '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF';
+const YOS_TOKEN_ADDRESS = 'GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n';
+const POOL_AUTHORITY = '7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK';
+const POOL_SOL_ACCOUNT = '7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS';
 
-// Load configuration from app.config.json in the project root
-const appConfigPath = path.join(process.cwd(), 'app.config.json');
-const appConfig = JSON.parse(fs.readFileSync(appConfigPath, 'utf8'));
-
-// Constants from central configuration
-const CLUSTER = appConfig.network;
-
-// RPC endpoints from config or fallback to default ones
-const RPC_ENDPOINTS = appConfig.rpcEndpoints?.[CLUSTER] || [
-  clusterApiUrl(CLUSTER),
-  'https://api.devnet.solana.com', // Default devnet endpoint without API key
-];
-const YOT_TOKEN_ADDRESS = appConfig.tokens.YOT;
-const YOS_TOKEN_ADDRESS = appConfig.tokens.YOS;
-const POOL_AUTHORITY = appConfig.accounts.poolAuthority;
-const POOL_SOL_ACCOUNT = appConfig.accounts.poolSol;
-const YOT_TOKEN_ACCOUNT = appConfig.accounts.yotToken;
-const YOS_TOKEN_ACCOUNT = appConfig.accounts.yosToken;
-
-// Connection manager for Solana RPC
-class SolanaConnectionManager {
-  private static instance: SolanaConnectionManager;
-  private connections: Connection[] = [];
-  private currentIndex = 0;
-  private requestCount = 0;
-  private cache = {
-    poolData: new LRUCache<string, any>(10, 30000), // 30 seconds
-    accountInfo: new LRUCache<string, any>(100, 10000), // 10 seconds
-    tokenAccounts: new LRUCache<string, any>(100, 15000) // 15 seconds
-  };
-  
-  private constructor() {
-    // Initialize connections to all endpoints
-    RPC_ENDPOINTS.forEach(endpoint => {
-      this.connections.push(new Connection(endpoint, 'confirmed'));
-    });
-    
-    // Set up periodic cache cleanup
-    setInterval(() => {
-      this.cache.poolData.cleanup();
-      this.cache.accountInfo.cleanup();
-      this.cache.tokenAccounts.cleanup();
-    }, 60000); // Every minute
-  }
-  
-  public static getInstance(): SolanaConnectionManager {
-    if (!SolanaConnectionManager.instance) {
-      SolanaConnectionManager.instance = new SolanaConnectionManager();
-    }
-    return SolanaConnectionManager.instance;
-  }
-  
-  public getConnection(): Connection {
-    // Basic round-robin with request counting for monitoring
-    this.requestCount++;
-    this.currentIndex = (this.currentIndex + 1) % this.connections.length;
-    return this.connections[this.currentIndex];
-  }
-  
-  public getCache(type: 'poolData' | 'accountInfo' | 'tokenAccounts'): LRUCache<string, any> {
-    return this.cache[type];
-  }
-  
-  public getRequestCount(): number {
-    return this.requestCount;
-  }
-}
-
-// Create a singleton connection manager
-const connectionManager = SolanaConnectionManager.getInstance();
-
-// Get a connection from the manager
-const getConnection = () => connectionManager.getConnection();
+// Create a connection to the Solana cluster
+const connection = new Connection(ENDPOINT, 'confirmed');
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Serve app.config.json from project root
-  app.get('/app.config.json', (req, res) => {
-    res.sendFile('app.config.json', { root: '.' });
-  });
-  // Add HTTP fallback route for pool data with caching
-  app.get('/api/pool-data', async (req, res) => {
-    try {
-      const cacheKey = 'pool_data';
-      const poolDataCache = connectionManager.getCache('poolData');
-      
-      // Check if we have cached data
-      const cachedData = poolDataCache.get(cacheKey);
-      if (cachedData) {
-        // Return cached data
-        return res.json(cachedData);
-      }
-      
-      // Get a connection from the manager
-      const conn = getConnection();
-      
-      // Get SOL balance
-      const solBalance = await conn.getBalance(new PublicKey(POOL_SOL_ACCOUNT)) / LAMPORTS_PER_SOL;
-      
-      // Get YOT token account
-      const yotTokenAccount = await getAssociatedTokenAddress(
-        new PublicKey(YOT_TOKEN_ADDRESS),
-        new PublicKey(POOL_AUTHORITY)
-      );
-      const yotAccount = await getAccount(conn, yotTokenAccount);
-      const yotMint = await getMint(conn, new PublicKey(YOT_TOKEN_ADDRESS));
-      const YOT_DECIMALS = yotMint.decimals;
-      const yotBalance = Number(yotAccount.amount) / Math.pow(10, YOT_DECIMALS);
-      
-      // Get YOS token account
-      const yosTokenAccount = await getAssociatedTokenAddress(
-        new PublicKey(YOS_TOKEN_ADDRESS),
-        new PublicKey(POOL_AUTHORITY)
-      );
-      
-      let yosBalance = 0;
-      try {
-        const yosAccount = await getAccount(conn, yosTokenAccount);
-        const yosMint = await getMint(conn, new PublicKey(YOS_TOKEN_ADDRESS));
-        const YOS_DECIMALS = yosMint.decimals;
-        yosBalance = Number(yosAccount.amount) / Math.pow(10, YOS_DECIMALS);
-      } catch (error) {
-        console.warn('Error fetching YOS balance, using 0:', error);
-      }
-      
-      // Calculate total value using SOL price from config or use a default
-      const solPrice = appConfig.parameters?.solPrice || 148.35;
-      const totalValue = solBalance * solPrice;
-      
-      // Create response data
-      const poolData = {
-        sol: solBalance,
-        yot: yotBalance,
-        yos: yosBalance,
-        totalValue,
-        timestamp: Date.now()
-      };
-      
-      // Cache the data
-      poolDataCache.set(cacheKey, poolData);
-      
-      // Return the data
-      res.json(poolData);
-    } catch (error) {
-      console.error('Error fetching pool data:', error);
-      
-      // Try to return cached data if available, even if it's stale
-      const poolDataCache = connectionManager.getCache('poolData');
-      const cachedData = poolDataCache.get('pool_data');
-      
-      if (cachedData) {
-        console.log('Returning stale cached data due to error');
-        return res.json({
-          ...cachedData,
-          stale: true
-        });
-      }
-      
-      res.status(500).json({ error: 'Failed to fetch pool data' });
-    }
-  });
-  
   // Setup authentication routes
   const { isAuthenticated } = setupAuth(app);
   // API route to get token information
@@ -198,11 +43,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Get a connection from the manager
-      const conn = getConnection();
-      
       // Get the token mint info
-      const mintInfo = await getMint(conn, publicKey);
+      const mintInfo = await getMint(connection, publicKey);
       
       res.json({
         address,
@@ -220,15 +62,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // API route to get pool information with connection pooling
+  // API route to get pool information
   app.get('/api/pool', async (req, res) => {
     try {
-      // Get connection from the manager
-      const conn = getConnection();
-      
       // Get SOL balance of the pool
       const poolSolAccount = new PublicKey(POOL_SOL_ACCOUNT);
-      const solBalance = await conn.getBalance(poolSolAccount);
+      const solBalance = await connection.getBalance(poolSolAccount);
       
       // Get YOT balance of the pool
       const poolAuthority = new PublicKey(POOL_AUTHORITY);
@@ -242,8 +81,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let yotBalance = 0;
       
       try {
-        const tokenAccountInfo = await getAccount(conn, yotTokenAccount);
-        const mintInfo = await getMint(conn, yotTokenMint);
+        const tokenAccountInfo = await getAccount(connection, yotTokenAccount);
+        const mintInfo = await getMint(connection, yotTokenMint);
         yotBalance = Number(tokenAccountInfo.amount) / Math.pow(10, mintInfo.decimals);
       } catch (error) {
         console.error('Error getting YOT balance:', error);
@@ -264,7 +103,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // API route to get recent transactions with connection pooling
+  // API route to get recent transactions
   app.get('/api/transactions/:address', async (req, res) => {
     try {
       const { address } = req.params;
@@ -280,20 +119,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Get a connection from the pool
-      const conn = getConnection();
-      
       // Get recent transactions
-      const transactions = await conn.getSignaturesForAddress(
+      const transactions = await connection.getSignaturesForAddress(
         publicKey, 
         { limit: parseInt(limit as string) }
       );
       
       // Get details for each transaction
       const transactionDetails = await Promise.all(
-        transactions.map(async (tx: any) => {
+        transactions.map(async (tx) => {
           try {
-            const txDetails = await conn.getTransaction(tx.signature, {
+            const txDetails = await connection.getTransaction(tx.signature, {
               maxSupportedTransactionVersion: 0,
             });
             
@@ -308,7 +144,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (txDetails) {
               // Check if transaction involved the pool SOL account
               const poolSolAccountStr = POOL_SOL_ACCOUNT;
-              const accountKeys = txDetails.transaction.message.accountKeys.map((key: any) => 
+              const accountKeys = txDetails.transaction.message.accountKeys.map(key => 
                 key.toBase58()
               );
               
@@ -317,7 +153,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (isSwap) {
                 // Further analyze to determine swap details
                 const hasYotTransfer = txDetails.meta?.logMessages?.some(
-                  (log: string) => log.includes('Transfer') && log.includes(YOT_TOKEN_ADDRESS)
+                  log => log.includes('Transfer') && log.includes(YOT_TOKEN_ADDRESS)
                 );
                 
                 if (hasYotTransfer) {
@@ -360,7 +196,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // API route to get wallet balances with connection pooling and caching
+  // API route to get wallet balances
   app.get('/api/balances/:address', async (req, res) => {
     try {
       const { address } = req.params;
@@ -375,20 +211,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Check cache first
-      const cacheKey = `balances_${address}`;
-      const accountCache = connectionManager.getCache('accountInfo');
-      const cachedBalances = accountCache.get(cacheKey);
-      
-      if (cachedBalances) {
-        return res.json(cachedBalances);
-      }
-      
-      // Get a connection from the pool
-      const conn = getConnection();
-      
       // Get SOL balance
-      const solBalance = await conn.getBalance(publicKey);
+      const solBalance = await connection.getBalance(publicKey);
       
       // Get YOT balance
       const yotTokenMint = new PublicKey(YOT_TOKEN_ADDRESS);
@@ -399,8 +223,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       let yotBalance = 0;
       try {
-        const tokenAccountInfo = await getAccount(conn, yotTokenAccount);
-        const mintInfo = await getMint(conn, yotTokenMint);
+        const tokenAccountInfo = await getAccount(connection, yotTokenAccount);
+        const mintInfo = await getMint(connection, yotTokenMint);
         yotBalance = Number(tokenAccountInfo.amount) / Math.pow(10, mintInfo.decimals);
       } catch (error) {
         // If the account doesn't exist, balance is 0
@@ -415,29 +239,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       let yosBalance = 0;
       try {
-        const tokenAccountInfo = await getAccount(conn, yosTokenAccount);
-        const mintInfo = await getMint(conn, yotTokenMint);
+        const tokenAccountInfo = await getAccount(connection, yosTokenAccount);
+        const mintInfo = await getMint(connection, yosTokenMint);
         yosBalance = Number(tokenAccountInfo.amount) / Math.pow(10, mintInfo.decimals);
       } catch (error) {
         // If the account doesn't exist, balance is 0
       }
       
-      // Calculate SOL USD value using price from config
-      const solPrice = appConfig.parameters?.solPrice || 148.35;
+      // Calculate SOL USD value (mock for now)
+      const solPrice = 100; // Mock SOL price in USD
       const solUsdValue = (solBalance / LAMPORTS_PER_SOL) * solPrice;
       
-      const balanceData = {
+      res.json({
         sol: solBalance / LAMPORTS_PER_SOL,
         solUsd: solUsdValue,
         yot: yotBalance,
-        yos: yosBalance,
-        timestamp: Date.now()
-      };
-      
-      // Cache the result
-      accountCache.set(cacheKey, balanceData);
-      
-      res.json(balanceData);
+        yos: yosBalance
+      });
     } catch (error) {
       console.error('Error fetching balances:', error);
       res.status(500).json({ 
@@ -743,169 +561,5 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
-  
-  // Set up WebSocket server with proper error handling
-  const wss = new WebSocketServer({ 
-    server: httpServer, 
-    path: '/ws',
-    // Add proper error handling for the server
-    clientTracking: true,
-    perMessageDeflate: {
-      zlibDeflateOptions: {
-        chunkSize: 1024,
-        memLevel: 7,
-        level: 3
-      },
-      zlibInflateOptions: {
-        chunkSize: 10 * 1024
-      },
-      // Don't use threshold for small packages
-      serverNoContextTakeover: true,
-      clientNoContextTakeover: true,
-      serverMaxWindowBits: 10,
-      concurrencyLimit: 10
-    }
-  });
-  
-  // Error handling at the server level
-  wss.on('error', (error) => {
-    console.error('WebSocket server error:', error);
-  });
-  
-  // Client connections map
-  const clients = new Map<WebSocket, { id: string, subscriptions: string[] }>();
-  
-  // Connection event
-  wss.on('connection', (ws, req) => {
-    const clientId = Math.random().toString(36).substring(2, 10);
-    const ip = req.socket.remoteAddress || 'unknown';
-    clients.set(ws, { id: clientId, subscriptions: [] });
-    
-    console.log(`WebSocket client connected: ${clientId} from ${ip}`);
-    
-    // Send initial connection confirmation with immediate data
-    ws.send(JSON.stringify({
-      type: 'connection',
-      status: 'connected',
-      clientId,
-      timestamp: Date.now()
-    }));
-    
-    // Message handling
-    ws.on('message', (message) => {
-      try {
-        const data = JSON.parse(message.toString());
-        
-        // Handle subscription requests
-        if (data.type === 'subscribe') {
-          const clientInfo = clients.get(ws);
-          if (clientInfo && data.channel) {
-            clientInfo.subscriptions.push(data.channel);
-            clients.set(ws, clientInfo);
-            
-            // Confirm subscription
-            ws.send(JSON.stringify({
-              type: 'subscription',
-              status: 'subscribed',
-              channel: data.channel
-            }));
-            
-            // If subscribing to pool updates, send initial data
-            if (data.channel === 'pool_updates') {
-              sendPoolData(ws);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('WebSocket message error:', error);
-        ws.send(JSON.stringify({
-          type: 'error',
-          message: 'Invalid message format'
-        }));
-      }
-    });
-    
-    // Handle disconnection
-    ws.on('close', () => {
-      const clientInfo = clients.get(ws);
-      if (clientInfo) {
-        console.log(`WebSocket client disconnected: ${clientInfo.id}`);
-        clients.delete(ws);
-      }
-    });
-  });
-  
-  // Set up periodic pool data updates
-  let lastPoolData: any = null;
-  
-  async function sendPoolData(client?: WebSocket) {
-    try {
-      // Create local variables for token balances with fallback values
-      let solBalance = 0;
-      let yotBalance = 0;
-      let yosBalance = 0;
-      
-      // Use static values instead of fetching from blockchain to avoid connection errors
-      // These are values from the last successful fetch
-      solBalance = 39.327196998 * LAMPORTS_PER_SOL;
-      yotBalance = 631442400.4973553;
-      yosBalance = 562922446.8943949;
-      
-      console.log("Using static pool balances to avoid blockchain connection issues:");
-      console.log(`SOL: ${solBalance / LAMPORTS_PER_SOL} SOL`);
-      console.log(`YOT: ${yotBalance} YOT`);
-      console.log(`YOS: ${yosBalance} YOS`);
-      
-      // Calculate values for the pool
-      const solPrice = 148.35; // Current SOL price in USD
-      const solValue = (solBalance / LAMPORTS_PER_SOL) * solPrice;
-      
-      // Calculate YOT and SOL value based on AMM constant product formula
-      const k = (solBalance / LAMPORTS_PER_SOL) * yotBalance; // Constant product k
-      const totalValue = solValue * 2; // Both sides of the pool have equal value
-      
-      // Create the pool data object with all values normalized
-      const poolData = {
-        sol: solBalance / LAMPORTS_PER_SOL,
-        yot: yotBalance,
-        yos: yosBalance,
-        totalValue,
-        constantProduct: k,
-        timestamp: Date.now()
-      };
-      
-      // Check if data has changed before broadcasting
-      if (JSON.stringify(poolData) !== JSON.stringify(lastPoolData)) {
-        lastPoolData = poolData;
-        
-        const message = JSON.stringify({
-          type: 'pool_update',
-          data: poolData
-        });
-        
-        // Send to specific client if provided, otherwise broadcast
-        if (client && client.readyState === WebSocket.OPEN) {
-          client.send(message);
-        } else {
-          // Broadcast to all subscribed clients
-          // Use Array.from to avoid iteration issues with TypeScript
-          Array.from(clients.entries()).forEach(([wsClient, info]) => {
-            if (
-              wsClient.readyState === WebSocket.OPEN && 
-              info.subscriptions.includes('pool_updates')
-            ) {
-              wsClient.send(message);
-            }
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching pool data for WebSocket:', error);
-    }
-  }
-  
-  // Poll for pool updates every 5 seconds
-  setInterval(sendPoolData, 5000);
-  
   return httpServer;
 }

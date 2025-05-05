@@ -2,7 +2,7 @@ import { createContext, useState, useCallback, useEffect, ReactNode } from "reac
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
 import { WalletError } from "@solana/wallet-adapter-base";
 import { useToast } from "@/hooks/use-toast";
-import { SOLANA_CLUSTER } from "@/lib/constants";
+import { CLUSTER } from "@/lib/constants";
 
 interface WalletContextType {
   wallet: PhantomWalletAdapter | null;

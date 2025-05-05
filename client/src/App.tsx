@@ -1,227 +1,65 @@
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { WalletProvider } from "@/context/WalletContext";
-import { MultiWalletProvider, useMultiWallet } from "@/context/MultiWalletContext";
+import { MultiWalletProvider } from "@/context/MultiWalletContext";
 import { AdminAuthProvider } from "@/hooks/use-admin-auth";
-import { useEffect } from "react";
-
-// Solana wallet adapter
-import { ConnectionProvider, WalletProvider as SolanaWalletProvider } from "@solana/wallet-adapter-react";
-import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
-import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
-import { SolflareWalletAdapter } from "@solana/wallet-adapter-solflare";
-import { clusterApiUrl } from "@solana/web3.js";
-import { useMemo } from "react";
-import { SOLANA_CLUSTER } from "@/lib/constants";
-
-// Import wallet adapter CSS
-import "@solana/wallet-adapter-react-ui/styles.css";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
+import Swap from "@/pages/Swap";
 import Stake from "@/pages/Stake";
 import Liquidity from "@/pages/Liquidity";
 import Memes from "@/pages/Memes";
 import Integration from "@/pages/Integration";
 import AdminPage from "@/pages/AdminPage";
-import ProgramFundingPage from "@/pages/admin-page";
 import TestPage from "@/pages/TestPage";
-import TokenTestingPage from "@/pages/TokenTestingPage";
-import Analytics from "@/pages/Analytics";
-import WalletPage from "@/pages/WalletPage";
-import SettingsPage from "@/pages/SettingsPage";
-import AffiliatePage from "@/pages/AffiliatePage";
-import LandingPage from "@/pages/LandingPage";
+import MultiHubSwapPage from "@/pages/MultiHubSwapPage";
 import Home from "@/pages/Home"; // Keep for compatibility with existing routes
-import SwapPage from "@/pages/SwapPage"; // New simplified swap page
-
-// Routes that should use the dashboard layout
-const dashboardRoutes = [
-  '/',
-  '/dashboard',
-  '/stake',
-  '/staking',
-  '/liquidity',
-  '/pool',
-  '/analytics',
-  '/wallet',
-  '/admin',
-  '/settings',
-  '/affiliate',
-  '/memes'
-];
 
 function Router() {
   return (
-    <div className="min-h-screen bg-[#0a0f1a]">
+    <div className="min-h-screen bg-dark-100">
       <Switch>
-        {/* Dashboard Layout Routes */}
-        <Route path="/">
-          <DashboardLayout>
-            <Dashboard />
-          </DashboardLayout>
-        </Route>
-        <Route path="/stake">
-          <DashboardLayout>
-            <Stake />
-          </DashboardLayout>
-        </Route>
-        <Route path="/staking">
-          <DashboardLayout>
-            <Stake />
-          </DashboardLayout>
-        </Route>
-        <Route path="/liquidity">
-          <DashboardLayout>
-            <Liquidity />
-          </DashboardLayout>
-        </Route>
-        <Route path="/pool">
-          <DashboardLayout>
-            <Liquidity />
-          </DashboardLayout>
-        </Route>
-        <Route path="/memes">
-          <DashboardLayout>
-            <Memes />
-          </DashboardLayout>
-        </Route>
-        <Route path="/admin">
-          <DashboardLayout>
-            <AdminPage />
-          </DashboardLayout>
-        </Route>
-        <Route path="/test">
-          <DashboardLayout>
-            <TestPage />
-          </DashboardLayout>
-        </Route>
+        {/* New Dashboard Routes */}
+        <Route path="/" component={Dashboard} />
+        <Route path="/swap" component={Swap} />
+        <Route path="/multi-hub-swap" component={MultiHubSwapPage} />
+        <Route path="/dashboard/multi-hub-swap" component={MultiHubSwapPage} />
+        <Route path="/stake" component={Stake} />
+        <Route path="/liquidity" component={Liquidity} />
+        <Route path="/memes" component={Memes} />
         
-        <Route path="/token-testing">
-          <DashboardLayout>
-            <TokenTestingPage />
-          </DashboardLayout>
-        </Route>
+        {/* Admin route */}
+        <Route path="/admin" component={AdminPage} />
         
-        <Route path="/analytics">
-          <DashboardLayout>
-            <Analytics />
-          </DashboardLayout>
-        </Route>
+        {/* Test route for token display */}
+        <Route path="/test" component={TestPage} />
         
-        <Route path="/wallet">
-          <DashboardLayout>
-            <WalletPage />
-          </DashboardLayout>
-        </Route>
+        {/* Keep original routes for backward compatibility */}
+        <Route path="/home" component={Home} />
+        <Route path="/integration" component={Integration} />
         
-        <Route path="/settings">
-          <DashboardLayout>
-            <SettingsPage />
-          </DashboardLayout>
-        </Route>
-        
-        <Route path="/affiliate">
-          <DashboardLayout>
-            <AffiliatePage />
-          </DashboardLayout>
-        </Route>
-        
-        <Route path="/program-funding">
-          <DashboardLayout>
-            <ProgramFundingPage />
-          </DashboardLayout>
-        </Route>
-        
-        {/* Landing page as root, with dashboard accessible via /dashboard */}
-        <Route path="/landing">
-          <LandingPage />
-        </Route>
-
-        {/* Legacy routes without dashboard layout */}
-        <Route path="/home">
-          <Home />
-        </Route>
-        <Route path="/integration">
-          <Integration />
-        </Route>
-        
-        {/* 404 Route */}
-        <Route>
-          <DashboardLayout>
-            <NotFound />
-          </DashboardLayout>
-        </Route>
+        <Route component={NotFound} />
       </Switch>
     </div>
   );
 }
 
-function AutoConnectWallet() {
-  const { connect, connecting, connected, wallets } = useMultiWallet();
-  
-  useEffect(() => {
-    console.log("Auto-connect effect running");
-    
-    if (!connected && !connecting) {
-      // Check for available wallets first
-      const availableWallets = wallets.filter(w => w.installed);
-      
-      if (availableWallets.length > 0) {
-        // Prefer Phantom wallet if installed, otherwise use the first available wallet
-        const preferredWallet = availableWallets.find(w => w.name === "Phantom") || availableWallets[0];
-        console.log(`Attempting to auto-connect to ${preferredWallet.name}`);
-        
-        connect(preferredWallet.name).catch((err: Error) => {
-          console.log(`Auto-connect to ${preferredWallet.name} failed:`, err.message);
-        });
-      } else {
-        console.log("No wallets detected for auto-connect. Please install Phantom or another Solana wallet.");
-      }
-    }
-  }, [connect, connecting, connected, wallets]);
-  
-  return null;
-}
-
 function App() {
-  // Set up Solana connection
-  const network = SOLANA_CLUSTER; // "devnet" or "mainnet-beta"
-  const endpoint = useMemo(() => clusterApiUrl(network), [network]);
-  
-  // Set up supported wallets
-  const wallets = useMemo(
-    () => [
-      new PhantomWalletAdapter(),
-      new SolflareWalletAdapter(),
-    ],
-    []
-  );
-
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Standard Solana wallet adapter context */}
-      <ConnectionProvider endpoint={endpoint}>
-        <SolanaWalletProvider wallets={wallets} autoConnect>
-          <WalletModalProvider>
-            {/* Custom wallet contexts */}
-            <MultiWalletProvider>
-              <WalletProvider>
-                <AdminAuthProvider>
-                  <TooltipProvider>
-                    <Toaster />
-                    <AutoConnectWallet />
-                    <Router />
-                  </TooltipProvider>
-                </AdminAuthProvider>
-              </WalletProvider>
-            </MultiWalletProvider>
-          </WalletModalProvider>
-        </SolanaWalletProvider>
-      </ConnectionProvider>
+      <MultiWalletProvider>
+        <WalletProvider>
+          <AdminAuthProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Router />
+            </TooltipProvider>
+          </AdminAuthProvider>
+        </WalletProvider>
+      </MultiWalletProvider>
     </QueryClientProvider>
   );
 }

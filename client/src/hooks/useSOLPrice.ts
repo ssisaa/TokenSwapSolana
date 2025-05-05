@@ -1,54 +1,48 @@
 import { useState, useEffect } from 'react';
-import { Connection } from '@solana/web3.js';
-import { ENDPOINT } from '@/lib/constants';
+import { useQuery } from '@tanstack/react-query';
 
-interface UseSOLPriceResult {
-  solPrice: number;
-  isLoading: boolean;
-  error: Error | null;
+// Interface for our price data
+interface SOLPriceData {
+  solana: {
+    usd: number;
+  };
 }
 
-/**
- * Hook to fetch the current SOL price
- * For demo purposes, this simulates a price that fluctuates slightly
- * In production, this would fetch from a price oracle or API
- */
-export function useSOLPrice(): UseSOLPriceResult {
-  const [solPrice, setSOLPrice] = useState<number>(22.45); // Initial SOL price estimate
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  useEffect(() => {
-    async function fetchSOLPrice() {
-      setIsLoading(true);
-      setError(null);
-
+export function useSOLPrice() {
+  const { data, isLoading, error } = useQuery<SOLPriceData>({
+    queryKey: ['sol-price'],
+    queryFn: async () => {
       try {
-        // In a real implementation, we would fetch from a price oracle or API
-        // For demonstration, we're using a simulated price with small random fluctuations
-        
-        // Add a small random fluctuation to simulate price changes
-        const fluctuation = (Math.random() * 0.2) - 0.1; // -0.1 to +0.1
-        const newPrice = 22.45 + fluctuation;
-        
-        setSOLPrice(newPrice);
-      } catch (err) {
-        console.error('Error fetching SOL price:', err);
-        setError(err instanceof Error ? err : new Error('Failed to fetch SOL price'));
-      } finally {
-        setIsLoading(false);
+        // Use CoinGecko API to get SOL price
+        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
+        if (!response.ok) {
+          throw new Error('Failed to fetch SOL price');
+        }
+        const data = await response.json();
+        console.log('Live SOL price from CoinGecko:', `$${data.solana.usd}`);
+        return data;
+      } catch (error) {
+        console.error('Error fetching SOL price:', error);
+        // Return fallback price if API fails
+        return { solana: { usd: 148.35 } }; // Fallback price
       }
-    }
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
+  });
 
-    fetchSOLPrice();
-    
-    // In a real app, we would set up an interval to refresh the price
-    const intervalId = setInterval(() => {
-      fetchSOLPrice();
-    }, 60000); // Refresh every minute
-    
-    return () => clearInterval(intervalId);
-  }, []);
+  // Extract the price value or use the fallback
+  const solPrice = data?.solana?.usd || 148.35;
 
-  return { solPrice, isLoading, error };
+  // Log when the hook is used
+  useEffect(() => {
+    console.log('Using SOL price:', `$${solPrice}`);
+  }, [solPrice]);
+
+  return {
+    solPrice,
+    isLoading,
+    error,
+  };
 }

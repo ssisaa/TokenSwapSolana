@@ -67,29 +67,19 @@ export class DatabaseStorage implements IStorage {
   }
   
   private async initializeDefaultSettings() {
-    try {
-      const settings = await this.getAdminSettings();
-      if (!settings) {
-        // Create initial admin settings with all required fields
-        await db.insert(adminSettings).values({
-          liquidityContributionPercentage: "33",
-          liquidityRewardsRateDaily: "0.05",
-          liquidityRewardsRateWeekly: "0.35",
-          liquidityRewardsRateMonthly: "1.5",
-          stakeRateDaily: "0.1",
-          stakeRateHourly: "0.004",
-          stakeRatePerSecond: "0.000001",
-          harvestThreshold: "1.0",
-          // Add the new fields that were missing
-          stakeThreshold: "10.0", 
-          unstakeThreshold: "10.0"
-        });
-        console.log("Initial admin settings created successfully");
-      }
-    } catch (error) {
-      console.error("Error initializing default settings:", error);
-      // The application can continue even if this fails
-      // since settings already exist in the database
+    const settings = await this.getAdminSettings();
+    if (!settings) {
+      // Create initial admin settings
+      await db.insert(adminSettings).values({
+        liquidityContributionPercentage: "33",
+        liquidityRewardsRateDaily: "0.05",
+        liquidityRewardsRateWeekly: "0.35",
+        liquidityRewardsRateMonthly: "1.5",
+        stakeRateDaily: "0.1",
+        stakeRateHourly: "0.004",
+        stakeRatePerSecond: "0.000001",
+        harvestThreshold: "100"
+      });
     }
   }
 

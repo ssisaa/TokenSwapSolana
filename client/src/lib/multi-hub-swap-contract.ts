@@ -13,30 +13,20 @@ import {
   createTransferInstruction,
   getAssociatedTokenAddress,
   createMintToInstruction,
-  createAssociatedTokenAccountInstruction,
-  getAccount
 } from '@solana/spl-token';
 import { Buffer } from 'buffer';
-import { 
-  config, 
-  getMultiHubProgramId, 
-  getMultiHubProgramPublicKey,
-  getTokenAddress,
-  getTokenPublicKey,
-  getEndpoint
-} from './config';
+import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, ENDPOINT, ADMIN_WALLET_ADDRESS } from './constants';
 
-// Program ID and Connection from config
-export const MULTI_HUB_SWAP_PROGRAM_ID = getMultiHubProgramId('v4');
+// Program ID from the deployed Anchor program
+export const MULTI_HUB_SWAP_PROGRAM_ID = 'Fg6PaFpoGXkYsidMpWxqSWib32jBzv4U5mpdKqHR3rXY';
 
 // Connection to Solana network
-export const connection = new Connection(getEndpoint(), 'confirmed');
+export const connection = new Connection(ENDPOINT, 'confirmed');
 
 // Instruction discriminators for the program
 const BUY_AND_DISTRIBUTE_DISCRIMINATOR = Buffer.from([97, 208, 4, 103, 223, 94, 26, 42]);
 const CLAIM_REWARD_DISCRIMINATOR = Buffer.from([140, 176, 3, 173, 23, 2, 90, 79]);
 const WITHDRAW_CONTRIBUTION_DISCRIMINATOR = Buffer.from([183, 18, 70, 156, 148, 109, 161, 34]);
-const UPDATE_PARAMS_DISCRIMINATOR = Buffer.from([220, 41, 129, 125, 38, 206, 99, 164]);
 
 /**
  * Find the program state PDA
@@ -68,44 +58,6 @@ function encodeU64(value: number): Buffer {
 }
 
 /**
- * Check if a token account exists for a given user and mint
- */
-async function doesTokenAccountExist(
-  owner: PublicKey,
-  mint: PublicKey
-): Promise<boolean> {
-  try {
-    const tokenAccount = await getAssociatedTokenAddress(mint, owner);
-    await getAccount(connection, tokenAccount);
-    return true;
-  } catch (error) {
-    return false;
-  }
-}
-
-/**
- * Create token account instruction if it doesn't exist
- */
-async function createTokenAccountInstructionIfNeeded(
-  owner: PublicKey,
-  mint: PublicKey,
-  transaction: Transaction
-): Promise<void> {
-  const exists = await doesTokenAccountExist(owner, mint);
-  if (!exists) {
-    const tokenAccount = await getAssociatedTokenAddress(mint, owner);
-    const createATA = createAssociatedTokenAccountInstruction(
-      owner,
-      tokenAccount,
-      owner,
-      mint
-    );
-    transaction.add(createATA);
-    console.log(`Adding instruction to create token account for mint ${mint.toString()}`);
-  }
-}
-
-/**
  * Buy and distribute YOT tokens with cashback in YOS
  * This implements the buy_and_distribute instruction from the program
  * 
@@ -134,71 +86,37 @@ export async function buyAndDistribute(
 
     const userPublicKey = wallet.publicKey;
     const program = new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID);
-    const yotMint = getTokenPublicKey('YOT');
-    const yosMint = getTokenPublicKey('YOS');
+    const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
+    const yosMint = new PublicKey(YOS_TOKEN_ADDRESS);
 
-    // Create a transaction
-    const transaction = new Transaction();
-
-    // 1. Add owner commission payment (initially 0.1% of SOL)
-    const ownerWallet = new PublicKey(config.accounts.admin);
-    
-    // Calculate commission amount using the admin fee rate from config
-    const estimatedSolValue = amountIn * 0.0000015; // Approximate SOL value of the YOT
-    // Get adminFeeRate from config (in basis points) - convert from basis points to percentage
-    const ownerCommissionPercent = config.parameters.swap.adminFeeRate / 100;
-    const commissionAmount = estimatedSolValue * (ownerCommissionPercent / 100);
-    const commissionLamports = Math.floor(commissionAmount * LAMPORTS_PER_SOL);
-    
-    console.log(`Adding owner commission: ${commissionAmount} SOL (${commissionLamports} lamports) to admin wallet ${config.accounts?.admin} at rate ${ownerCommissionPercent}%`);
-    
-    // Only add commission transaction if the amount is greater than 0
-    if (commissionLamports > 0) {
-      // Create a transfer instruction to send the commission to the owner wallet
-      const transferInstruction = SystemProgram.transfer({
-        fromPubkey: userPublicKey,
-        toPubkey: ownerWallet,
-        lamports: commissionLamports
-      });
-      
-      transaction.add(transferInstruction);
-    }
-
-    // 2. Ensure token accounts exist
     // Find user's token accounts
     const userYotAccount = await getAssociatedTokenAddress(yotMint, userPublicKey);
     const userYosAccount = await getAssociatedTokenAddress(yosMint, userPublicKey);
-    
-    // Create token accounts if they don't exist
-    await createTokenAccountInstructionIfNeeded(userPublicKey, yotMint, transaction);
-    await createTokenAccountInstructionIfNeeded(userPublicKey, yosMint, transaction);
 
-    // 3. Find program controlled accounts
-    const [programStateAddress] = findProgramStateAddress();
+    // Find program controlled accounts
     const [liquidityContributionAddress] = findLiquidityContributionAddress(userPublicKey);
     
     // Find vault and liquidity pool addresses
     // The vault holds user's YOT that will be distributed according to specified percentages
-    const vaultYotAddress = await getAssociatedTokenAddress(yotMint, programStateAddress, true);
+    const vaultYotAddress = await getAssociatedTokenAddress(yotMint, new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID), true);
     
     // The liquidity pool receives the 20% contribution
     // Half of this (10% of total) is kept as YOT, the other half is converted to SOL
-    const liquidityYotAddress = await getAssociatedTokenAddress(yotMint, programStateAddress, true);
+    const liquidityYotAddress = await getAssociatedTokenAddress(yotMint, new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID), true);
 
     // Convert amount to raw token amount
     const rawAmount = Math.floor(amountIn * Math.pow(10, 9)); // Assuming 9 decimals for YOT/YOS
 
-    // 4. Create the instruction data
+    // Create the instruction data
     const data = Buffer.concat([
       BUY_AND_DISTRIBUTE_DISCRIMINATOR,
       encodeU64(rawAmount)
     ]);
 
-    // 5. Create the instruction
+    // Create the instruction
     const instruction = new TransactionInstruction({
       keys: [
         { pubkey: userPublicKey, isSigner: true, isWritable: true },
-        { pubkey: programStateAddress, isSigner: false, isWritable: true },
         { pubkey: vaultYotAddress, isSigner: false, isWritable: true },
         { pubkey: userYotAccount, isSigner: false, isWritable: true },
         { pubkey: liquidityYotAddress, isSigner: false, isWritable: true },
@@ -213,15 +131,16 @@ export async function buyAndDistribute(
       data
     });
 
-    transaction.add(instruction);
-
     console.log("Preparing buyAndDistribute transaction with: ", {
       totalAmount: amountIn,
-      userPortion: amountIn * (buyUserPercent/100),
-      liquidityPortion: amountIn * (buyLiquidityPercent/100), // Auto-split 50/50 by contract
-      cashbackPortion: amountIn * (buyCashbackPercent/100),
+      userPortion: amountIn * 0.75,
+      liquidityPortion: amountIn * 0.20, // 10% YOT + 10% SOL automatically split by contract
+      cashbackPortion: amountIn * 0.05,
     });
 
+    // Create and sign transaction
+    const transaction = new Transaction().add(instruction);
+    
     // Set recent blockhash and fee payer
     transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
     transaction.feePayer = userPublicKey;
@@ -244,10 +163,6 @@ export async function buyAndDistribute(
 /**
  * Claim weekly YOS rewards from liquidity contributions
  * This implements the claim_weekly_reward instruction from the program
- * 
- * Features:
- * - Enforces a 7-day (604,800 seconds) waiting period between claims
- * - Calculates rewards as 1/52 of the yearly reward amount (based on contribution)
  */
 export async function claimWeeklyYosReward(wallet: any): Promise<{ signature: string, claimedAmount: number }> {
   try {
@@ -257,45 +172,23 @@ export async function claimWeeklyYosReward(wallet: any): Promise<{ signature: st
 
     const userPublicKey = wallet.publicKey;
     const program = new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID);
-    const yosMint = getTokenPublicKey('YOS');
+    const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
+    const yosMint = new PublicKey(YOS_TOKEN_ADDRESS);
 
-    // Create a transaction
-    const transaction = new Transaction();
-
-    // 1. Add owner commission payment based on admin fee rate
-    const ownerWallet = new PublicKey(config.accounts.admin);
-    
-    // We estimate a small fixed amount for commission on claims based on admin fee rate
-    const adminFeeRate = config.parameters.swap.adminFeeRate / 100; // Convert basis points to percentage
-    const commissionLamports = Math.floor(0.0001 * LAMPORTS_PER_SOL); // Fixed 0.0001 SOL for claims
-    
-    console.log(`Adding owner commission: ${0.0001} SOL (${commissionLamports} lamports) to admin wallet ${config.accounts?.admin} at rate ${adminFeeRate}%`);
-    
-    // Add commission transaction
-    const transferInstruction = SystemProgram.transfer({
-      fromPubkey: userPublicKey,
-      toPubkey: ownerWallet,
-      lamports: commissionLamports
-    });
-    
-    transaction.add(transferInstruction);
-
-    // 2. Ensure YOS token account exists
+    // Find user's token accounts
+    const userYotAccount = await getAssociatedTokenAddress(yotMint, userPublicKey);
     const userYosAccount = await getAssociatedTokenAddress(yosMint, userPublicKey);
-    await createTokenAccountInstructionIfNeeded(userPublicKey, yosMint, transaction);
 
-    // 3. Find program accounts
-    const [programStateAddress] = findProgramStateAddress();
+    // Find program controlled accounts
     const [liquidityContributionAddress] = findLiquidityContributionAddress(userPublicKey);
 
-    // 4. Create the instruction data
+    // Create the instruction data
     const data = CLAIM_REWARD_DISCRIMINATOR;
 
-    // 5. Create the instruction
+    // Create the instruction
     const instruction = new TransactionInstruction({
       keys: [
         { pubkey: userPublicKey, isSigner: true, isWritable: true },
-        { pubkey: programStateAddress, isSigner: false, isWritable: true },
         { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true },
         { pubkey: yosMint, isSigner: false, isWritable: true },
         { pubkey: userYosAccount, isSigner: false, isWritable: true },
@@ -305,8 +198,9 @@ export async function claimWeeklyYosReward(wallet: any): Promise<{ signature: st
       data
     });
 
-    transaction.add(instruction);
-
+    // Create and sign transaction
+    const transaction = new Transaction().add(instruction);
+    
     // Set recent blockhash and fee payer
     transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
     transaction.feePayer = userPublicKey;
@@ -320,6 +214,7 @@ export async function claimWeeklyYosReward(wallet: any): Promise<{ signature: st
     console.log("Claim reward transaction confirmed:", signature);
     
     // Get liquidity contribution account to calculate claimed amount
+    // This would typically be retrieved from on-chain data after the transaction
     const liquidityContributionInfo = await getLiquidityContributionInfo(userPublicKey.toString());
     const yearlyReward = liquidityContributionInfo.contributedAmount;
     const weeklyReward = yearlyReward / 52;
@@ -337,11 +232,6 @@ export async function claimWeeklyYosReward(wallet: any): Promise<{ signature: st
 /**
  * Withdraw liquidity contribution
  * This implements the withdraw_contribution instruction from the program
- * 
- * Features:
- * - Transfers the full contribution amount back to the user
- * - Verifies user ownership before allowing withdrawal
- * - Automatically stops reward generation when withdrawn
  */
 export async function withdrawLiquidityContribution(wallet: any): Promise<{ signature: string, withdrawnAmount: number }> {
   try {
@@ -351,50 +241,26 @@ export async function withdrawLiquidityContribution(wallet: any): Promise<{ sign
 
     const userPublicKey = wallet.publicKey;
     const program = new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID);
-    const yotMint = getTokenPublicKey('YOT');
+    const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
 
-    // Create a transaction
-    const transaction = new Transaction();
-
-    // 1. Add owner commission payment based on admin fee rate
-    const ownerWallet = new PublicKey(config.accounts.admin);
-    
-    // We estimate a small fixed amount for commission on withdrawals based on admin fee rate
-    const adminFeeRate = config.parameters.swap.adminFeeRate / 100; // Convert basis points to percentage
-    const commissionLamports = Math.floor(0.0001 * LAMPORTS_PER_SOL); // Fixed 0.0001 SOL for withdrawals
-    
-    console.log(`Adding owner commission: ${0.0001} SOL (${commissionLamports} lamports) to admin wallet ${config.accounts?.admin} at rate ${adminFeeRate}%`);
-    
-    // Add commission transaction
-    const transferInstruction = SystemProgram.transfer({
-      fromPubkey: userPublicKey,
-      toPubkey: ownerWallet,
-      lamports: commissionLamports
-    });
-    
-    transaction.add(transferInstruction);
-
-    // 2. Ensure YOT token account exists
+    // Find user's token account
     const userYotAccount = await getAssociatedTokenAddress(yotMint, userPublicKey);
-    await createTokenAccountInstructionIfNeeded(userPublicKey, yotMint, transaction);
 
-    // 3. Find program accounts
-    const [programStateAddress] = findProgramStateAddress();
+    // Find program controlled accounts
     const [liquidityContributionAddress] = findLiquidityContributionAddress(userPublicKey);
-    const liquidityYotAddress = await getAssociatedTokenAddress(yotMint, programStateAddress, true);
+    const liquidityYotAddress = await getAssociatedTokenAddress(yotMint, new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID), true);
 
     // Get the current contribution amount before withdrawal
     const liquidityContributionInfo = await getLiquidityContributionInfo(userPublicKey.toString());
     const withdrawnAmount = liquidityContributionInfo.contributedAmount;
 
-    // 4. Create the instruction data
+    // Create the instruction data
     const data = WITHDRAW_CONTRIBUTION_DISCRIMINATOR;
 
-    // 5. Create the instruction
+    // Create the instruction
     const instruction = new TransactionInstruction({
       keys: [
         { pubkey: userPublicKey, isSigner: true, isWritable: true },
-        { pubkey: programStateAddress, isSigner: false, isWritable: true },
         { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true },
         { pubkey: liquidityYotAddress, isSigner: false, isWritable: true },
         { pubkey: userYotAccount, isSigner: false, isWritable: true },
@@ -404,8 +270,9 @@ export async function withdrawLiquidityContribution(wallet: any): Promise<{ sign
       data
     });
 
-    transaction.add(instruction);
-
+    // Create and sign transaction
+    const transaction = new Transaction().add(instruction);
+    
     // Set recent blockhash and fee payer
     transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
     transaction.feePayer = userPublicKey;
@@ -449,7 +316,7 @@ export async function getLiquidityContributionInfo(walletAddressStr: string): Pr
       const accountInfo = await connection.getAccountInfo(liquidityContributionAddress);
       
       if (!accountInfo || !accountInfo.data) {
-        console.log("No liquidity contribution account found");
+        // Account doesn't exist, return default values
         return {
           contributedAmount: 0,
           startTimestamp: 0,
@@ -461,63 +328,42 @@ export async function getLiquidityContributionInfo(walletAddressStr: string): Pr
         };
       }
       
-      // Parse the account data
-      // Account data format (Borsh serialized):
-      // - bump (u8): 1 byte
-      // - user (PublicKey): 32 bytes
-      // - contribution_amount (u64): 8 bytes
-      // - start_time (i64): 8 bytes
-      // - last_claim_time (i64): 8 bytes
-      // - total_claimed (u64): 8 bytes
-      
+      // Parse the account data according to our schema
+      // Assuming data layout: 32 bytes for user pubkey, 8 bytes for amount, 8 bytes for start_time, 8 bytes for last_claim_time
       const data = accountInfo.data;
+      const amount = data.readBigUInt64LE(32);
+      const startTime = data.readBigInt64LE(40);
+      const lastClaimTime = data.readBigInt64LE(48);
       
-      // Skip the bump and pubkey
-      const contributionAmount = data.readBigUInt64LE(33); // 1 (bump) + 32 (pubkey)
-      const startTime = Number(data.readBigInt64LE(41)); // 33 + 8
-      const lastClaimTime = Number(data.readBigInt64LE(49)); // 41 + 8
-      const totalClaimed = data.readBigUInt64LE(57); // 49 + 8
+      // Convert to UI values
+      const contributedAmount = Number(amount) / Math.pow(10, 9); // Assuming 9 decimals for YOT
+      const startTimestamp = Number(startTime) * 1000; // Convert to milliseconds
+      const lastClaimTimeMs = Number(lastClaimTime) * 1000; // Convert to milliseconds
       
-      // Convert raw values to user-friendly format
-      const contributedAmountDecimal = Number(contributionAmount) / Math.pow(10, 9); // 9 decimals for YOT
-      const totalClaimedDecimal = Number(totalClaimed) / Math.pow(10, 9); // 9 decimals for YOS
+      // Calculate next claim time (7 days after last claim)
+      const nextClaimTime = lastClaimTimeMs + (7 * 24 * 60 * 60 * 1000);
+      const now = Date.now();
+      const canClaimReward = now >= nextClaimTime;
       
-      // Calculate if user can claim reward (7-day waiting period)
-      const now = Math.floor(Date.now() / 1000);
-      const secondsSinceLastClaim = now - lastClaimTime;
-      const waitingPeriod = 604800; // 7 days in seconds
-      const canClaim = secondsSinceLastClaim >= waitingPeriod;
+      // Calculate estimated weekly reward (1.92% of contributed amount - 100% APR / 52 weeks)
+      const estimatedWeeklyReward = contributedAmount * 0.0192;
       
-      // Calculate when next claim is available
-      let nextClaimAvailable = null;
-      if (!canClaim && lastClaimTime > 0) {
-        const nextClaimTime = lastClaimTime + waitingPeriod;
-        const timeRemaining = nextClaimTime - now;
-        
-        if (timeRemaining > 0) {
-          const days = Math.floor(timeRemaining / 86400);
-          const hours = Math.floor((timeRemaining % 86400) / 3600);
-          const minutes = Math.floor((timeRemaining % 3600) / 60);
-          
-          nextClaimAvailable = `${days}d ${hours}h ${minutes}m`;
-        }
-      }
-      
-      // Calculate estimated weekly reward (1/52 of contributed amount per year)
-      const estimatedWeeklyReward = contributedAmountDecimal / 52;
+      // Calculate total claimed YOS (estimating based on time since start)
+      const weeksSinceStart = Math.floor((now - startTimestamp) / (7 * 24 * 60 * 60 * 1000));
+      const totalClaimedYos = weeksSinceStart * estimatedWeeklyReward;
       
       return {
-        contributedAmount: contributedAmountDecimal,
-        startTimestamp: startTime,
-        lastClaimTime: lastClaimTime,
-        totalClaimedYos: totalClaimedDecimal,
-        canClaimReward: canClaim,
-        nextClaimAvailable,
+        contributedAmount,
+        startTimestamp,
+        lastClaimTime: lastClaimTimeMs,
+        totalClaimedYos,
+        canClaimReward,
+        nextClaimAvailable: canClaimReward ? null : new Date(nextClaimTime).toISOString(),
         estimatedWeeklyReward
       };
     } catch (error) {
-      console.error("Error parsing liquidity contribution account:", error);
-      // Return default values if account can't be parsed
+      console.error("Error fetching liquidity contribution account:", error);
+      // If there's an error fetching the account, assume it doesn't exist
       return {
         contributedAmount: 0,
         startTimestamp: 0,
@@ -545,81 +391,38 @@ export async function updateMultiHubSwapParameters(
   sellUserPercent: number = 75,
   sellLiquidityPercent: number = 20,
   sellCashbackPercent: number = 5,
-  weeklyRewardRate: number = 1.92, // Default is 1.92% per week (~100% APR)
-  ownerCommissionPercent: number = 0.1 // Default is 0.1% of SOL
-): Promise<string> {
+  weeklyRewardRate: number = 1.92
+) {
   try {
     if (!wallet || !wallet.publicKey) {
       throw new Error("Wallet not connected");
     }
 
-    const userPublicKey = wallet.publicKey;
-    const program = new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID);
+    // In a real implementation, we would:
+    // 1. Create an admin-only instruction to update parameters
+    // 2. Send and confirm a transaction
     
-    // Validate admin wallet
-    if (userPublicKey.toString() !== config.accounts?.admin) {
-      throw new Error("Only admin can update parameters");
-    }
-    
-    // Validate percentages
-    if (buyUserPercent + buyLiquidityPercent + buyCashbackPercent !== 100) {
-      throw new Error("Buy percentages must add up to 100%");
-    }
-    
-    if (sellUserPercent + sellLiquidityPercent + sellCashbackPercent !== 100) {
-      throw new Error("Sell percentages must add up to 100%");
-    }
-
-    // Find program state account
-    const [programStateAddress] = findProgramStateAddress();
-
-    // Encode parameters for the update
-    const data = Buffer.concat([
-      UPDATE_PARAMS_DISCRIMINATOR,
-      encodeU64(buyUserPercent),
-      encodeU64(buyLiquidityPercent),
-      encodeU64(buyCashbackPercent),
-      encodeU64(sellUserPercent),
-      encodeU64(sellLiquidityPercent),
-      encodeU64(sellCashbackPercent),
-      encodeU64(Math.floor(weeklyRewardRate * 100)), // Convert to basis points
-      encodeU64(Math.floor(ownerCommissionPercent * 100)) // Convert to basis points
-    ]);
-
-    // Create the update instruction
-    const updateInstruction = new TransactionInstruction({
-      keys: [
-        { pubkey: userPublicKey, isSigner: true, isWritable: true },
-        { pubkey: programStateAddress, isSigner: false, isWritable: true }
-      ],
-      programId: program,
-      data
-    });
-
-    // Create and sign transaction
-    const transaction = new Transaction().add(updateInstruction);
-    
-    // Set recent blockhash and fee payer
-    transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-    transaction.feePayer = userPublicKey;
-
-    // Sign and send transaction
-    const signedTransaction = await wallet.signTransaction(transaction);
-    const signature = await connection.sendRawTransaction(signedTransaction.serialize());
-    
-    await connection.confirmTransaction(signature, 'confirmed');
-    
-    console.log("Parameters updated successfully:", signature);
-    console.log("New parameters:", {
-      buyDistribution: { user: buyUserPercent, liquidity: buyLiquidityPercent, cashback: buyCashbackPercent },
-      sellDistribution: { user: sellUserPercent, liquidity: sellLiquidityPercent, cashback: sellCashbackPercent },
-      weeklyRewardRate,
-      ownerCommissionPercent
+    console.log("Admin would update these parameters on-chain:", {
+      buyDistribution: {
+        userPercent: buyUserPercent,
+        liquidityPercent: buyLiquidityPercent,
+        cashbackPercent: buyCashbackPercent
+      },
+      sellDistribution: {
+        userPercent: sellUserPercent,
+        liquidityPercent: sellLiquidityPercent,
+        cashbackPercent: sellCashbackPercent
+      },
+      weeklyRewardRate
     });
     
-    return signature;
+    // For now, we'll return a mock success response
+    return {
+      success: true,
+      message: "Parameters would be updated on-chain by admin"
+    };
   } catch (error) {
-    console.error("Error updating parameters:", error);
+    console.error("Error updating multi-hub swap parameters:", error);
     throw error;
   }
 }
@@ -629,153 +432,30 @@ export async function updateMultiHubSwapParameters(
  */
 export async function getMultiHubSwapStats() {
   try {
-    // Find program state account
-    const [programStateAddress] = findProgramStateAddress();
-
-    // Fetch program state account data
-    const accountInfo = await connection.getAccountInfo(programStateAddress);
+    // In a full implementation:
+    // 1. Get the program state account
+    // 2. Deserialize and return statistics
     
-    if (!accountInfo || !accountInfo.data) {
-      console.log("Program state not initialized");
-      // Return default values (constants defined in the protocol)
-      // For buy: 75% user, 20% liquidity, 5% cashback (as per protocol standards)
-      const buyUserPercent = 75;
-      const buyLiquidityPercent = config.parameters?.swap?.liquidityContributionRate / 100 || 20;
-      const buyCashbackPercent = config.parameters?.swap?.yosCashbackRate / 100 || 5;
-      
-      // For sell: 75% user, 20% liquidity, 5% cashback (as per protocol standards)
-      const sellUserPercent = 75;
-      const sellLiquidityPercent = config.parameters?.swap?.liquidityContributionRate / 100 || 20;
-      const sellCashbackPercent = config.parameters?.swap?.yosCashbackRate / 100 || 5;
-      
-      // Weekly reward rate is approximately 1.92% (100% APR / 52 weeks)
-      const weeklyRewardRate = 1.92;
-      const ownerCommissionPercent = config.parameters?.swap?.adminFeeRate / 100 || 0.1;
-      
-      return {
-        totalLiquidityContributed: 0,
-        totalUniqueContributors: 0,
-        totalYosDistributed: 0,
-        buyDistribution: {
-          userPercent: buyUserPercent,
-          liquidityPercent: buyLiquidityPercent,
-          cashbackPercent: buyCashbackPercent
-        },
-        sellDistribution: {
-          userPercent: sellUserPercent,
-          liquidityPercent: sellLiquidityPercent,
-          cashbackPercent: sellCashbackPercent
-        },
-        weeklyRewardRate,
-        ownerCommissionPercent
-      };
-    }
-    
-    // Parse the account data (simplified version)
-    const data = accountInfo.data;
-    
-    // Program state data format (Borsh serialized):
-    // - bump (u8): 1 byte
-    // - initialized (bool): 1 byte
-    // - admin (PublicKey): 32 bytes
-    // - total_liquidity (u64): 8 bytes
-    // - unique_contributors (u32): 4 bytes
-    // - total_yos_distributed (u64): 8 bytes
-    // - buy_user_percent (u8): 1 byte
-    // - buy_liquidity_percent (u8): 1 byte
-    // - buy_cashback_percent (u8): 1 byte
-    // - sell_user_percent (u8): 1 byte
-    // - sell_liquidity_percent (u8): 1 byte
-    // - sell_cashback_percent (u8): 1 byte
-    // - weekly_reward_rate (u16): 2 bytes (in basis points)
-    // - owner_commission_percent (u16): 2 bytes (in basis points)
-    
-    let offset = 2; // Skip bump and initialized
-    
-    // Skip admin pubkey
-    offset += 32;
-    
-    // Read program stats
-    const totalLiquidity = data.readBigUInt64LE(offset);
-    offset += 8;
-    
-    const uniqueContributors = data.readUInt32LE(offset);
-    offset += 4;
-    
-    const totalYosDistributed = data.readBigUInt64LE(offset);
-    offset += 8;
-    
-    // Read distribution percentages
-    const buyUserPercent = data.readUInt8(offset++);
-    const buyLiquidityPercent = data.readUInt8(offset++);
-    const buyCashbackPercent = data.readUInt8(offset++);
-    
-    const sellUserPercent = data.readUInt8(offset++);
-    const sellLiquidityPercent = data.readUInt8(offset++);
-    const sellCashbackPercent = data.readUInt8(offset++);
-    
-    // Read reward and commission rates
-    const weeklyRewardRateBps = data.readUInt16LE(offset);
-    offset += 2;
-    
-    const ownerCommissionBps = data.readUInt16LE(offset);
-    
-    // Convert to user-friendly values
-    const totalLiquidityDecimal = Number(totalLiquidity) / Math.pow(10, 9);
-    const totalYosDistributedDecimal = Number(totalYosDistributed) / Math.pow(10, 9);
-    const weeklyRewardRate = weeklyRewardRateBps / 100; // Convert from basis points
-    const ownerCommissionPercent = ownerCommissionBps / 100; // Convert from basis points
-    
+    // For now, we'll return simulated data
     return {
-      totalLiquidityContributed: totalLiquidityDecimal,
-      totalUniqueContributors: uniqueContributors,
-      totalYosDistributed: totalYosDistributedDecimal,
+      totalLiquidityContributed: 25000,
+      totalContributors: 12,
+      totalYosRewarded: 1250,
+      weeklyRewardRate: 1.92, // 1.92% per week (100% APR / 52 weeks)
+      yearlyAPR: 100, // 100% APR
       buyDistribution: {
-        userPercent: buyUserPercent,
-        liquidityPercent: buyLiquidityPercent,
-        cashbackPercent: buyCashbackPercent
+        userPercent: 75,
+        liquidityPercent: 20,
+        cashbackPercent: 5
       },
       sellDistribution: {
-        userPercent: sellUserPercent,
-        liquidityPercent: sellLiquidityPercent,
-        cashbackPercent: sellCashbackPercent
-      },
-      weeklyRewardRate,
-      ownerCommissionPercent
+        userPercent: 75,
+        liquidityPercent: 20,
+        cashbackPercent: 5
+      }
     };
   } catch (error) {
-    console.error("Error fetching multi-hub swap stats:", error);
-    // Return default values (constants defined in the protocol)
-    // For buy: 75% user, 20% liquidity, 5% cashback (as per protocol standards)
-    const buyUserPercent = 75;
-    const buyLiquidityPercent = config.parameters?.swap?.liquidityContributionRate / 100 || 20;
-    const buyCashbackPercent = config.parameters?.swap?.yosCashbackRate / 100 || 5;
-    
-    // For sell: 75% user, 20% liquidity, 5% cashback (as per protocol standards)
-    const sellUserPercent = 75;
-    const sellLiquidityPercent = config.parameters?.swap?.liquidityContributionRate / 100 || 20;
-    const sellCashbackPercent = config.parameters?.swap?.yosCashbackRate / 100 || 5;
-    
-    // Weekly reward rate is approximately 1.92% (100% APR / 52 weeks)
-    const weeklyRewardRate = 1.92;
-    const ownerCommissionPercent = config.parameters?.swap?.adminFeeRate / 100 || 0.1;
-    
-    return {
-      totalLiquidityContributed: 0,
-      totalUniqueContributors: 0,
-      totalYosDistributed: 0,
-      buyDistribution: {
-        userPercent: buyUserPercent,
-        liquidityPercent: buyLiquidityPercent,
-        cashbackPercent: buyCashbackPercent
-      },
-      sellDistribution: {
-        userPercent: sellUserPercent,
-        liquidityPercent: sellLiquidityPercent,
-        cashbackPercent: sellCashbackPercent
-      },
-      weeklyRewardRate,
-      ownerCommissionPercent
-    };
+    console.error("Error getting multi-hub swap stats:", error);
+    throw error;
   }
 }

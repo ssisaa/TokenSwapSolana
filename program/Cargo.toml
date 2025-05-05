@@ -1,12 +1,8 @@
 [package]
-name = "multihub-swap"
+name = "yot-staking"
 version = "0.1.0"
 edition = "2021"
-description = "Multi-Hub Swap program for Solana blockchain"
-
-# Must match the program ID in the entrypoint file
-[package.metadata.solana]
-program-id = "Cohae9agySEgC9gyJL1QHCJWw4q58R7Wshr3rpPJHU7L"
+description = "YOT token staking program for Solana blockchain"
 
 [features]
 no-entrypoint = []
@@ -17,18 +13,6 @@ thiserror = "1.0.40"
 spl-token = { version = "3.5.0", features = ["no-entrypoint"] }
 borsh = "0.10.3"
 borsh-derive = "0.10.3"
-arrayref = "0.3.7"
 
 [lib]
-name = "multihub_swap"
 crate-type = ["cdylib", "lib"]
-
-# Original fixed executable for multihub swap
-[[bin]]
-name = "multihub_swap_fixed"
-path = "src/multihub_swap.rs"
-
-# New improved implementation with robust YOS token account handling
-[[bin]]
-name = "multihub_swap_fixed_new"
-path = "src/multihub_swap_fixed_new.rs"

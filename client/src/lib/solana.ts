@@ -7,7 +7,6 @@ import {
   sendAndConfirmTransaction,
   Keypair
 } from '@solana/web3.js';
-import { withRetry, isRetriableNetworkError } from './solana-utils';
 import { 
   createTransferInstruction, 
   getAccount, 
@@ -28,12 +27,8 @@ import {
   SWAP_FEE
 } from './constants';
 
-// Create a connection to the Solana cluster with fallback mechanism
-export const connection = new Connection(ENDPOINT, {
-  commitment: 'confirmed',
-  confirmTransactionInitialTimeout: 60000, // 60 seconds
-  disableRetryOnRateLimit: false,
-});
+// Create a connection to the Solana cluster
+export const connection = new Connection(ENDPOINT, 'confirmed');
 
 // Convert lamports to SOL
 export function lamportsToSol(lamports: number): number {
@@ -46,125 +41,63 @@ export function solToLamports(sol: number): bigint {
   return BigInt(Math.round(sol * LAMPORTS_PER_SOL));
 }
 
-// Get SOL balance for a wallet with retry using the utility
+// Get SOL balance for a wallet
 export async function getSolBalance(publicKey: PublicKey): Promise<number> {
   try {
-    return await withRetry(
-      async () => {
-        const balance = await connection.getBalance(publicKey);
-        return lamportsToSol(balance);
-      },
-      {
-        maxRetries: 3,
-        onRetry: (attempt, error, backoffMs) => {
-          console.log(`Retrying SOL balance fetch (attempt ${attempt}/3) in ${backoffMs}ms...`);
-          console.error(`Error getting SOL balance:`, error);
-        }
-      }
-    );
-  } catch (error) {
-    // After all retries failed, log and return 0 for graceful degradation
-    console.error(`Failed to get SOL balance after multiple attempts:`, error);
-    return 0;
-  }
-}
-
-// Helper to get SOL balance for a wallet address string
-export async function getSOLBalance(walletAddress: string): Promise<number> {
-  try {
-    const publicKey = new PublicKey(walletAddress);
-    return await getSolBalance(publicKey);
+    const balance = await connection.getBalance(publicKey);
+    return lamportsToSol(balance);
   } catch (error) {
     console.error('Error getting SOL balance:', error);
-    return 0;
+    throw error;
   }
 }
 
-// Helper to get YOT balance for a wallet address string
-export async function getYOTBalance(walletAddress: string): Promise<number> {
-  try {
-    const publicKey = new PublicKey(walletAddress);
-    return await getTokenBalance(YOT_TOKEN_ADDRESS, publicKey);
-  } catch (error) {
-    console.error('Error getting YOT balance:', error);
-    return 0;
-  }
-}
-
-// Helper to get YOS balance for a wallet address string
-export async function getYOSBalance(walletAddress: string): Promise<number> {
-  try {
-    const publicKey = new PublicKey(walletAddress);
-    return await getTokenBalance(YOS_TOKEN_ADDRESS, publicKey);
-  } catch (error) {
-    console.error('Error getting YOS balance:', error);
-    return 0;
-  }
-}
-
-// Get token balance for a wallet with retry using our new utility
+// Get token balance for a wallet
 export async function getTokenBalance(
   tokenMintAddress: string,
   walletPublicKey: PublicKey
 ): Promise<number> {
-  const tokenMint = new PublicKey(tokenMintAddress);
-  const tokenSymbol = tokenMintAddress === YOT_TOKEN_ADDRESS ? "YOT" : 
-                      tokenMintAddress === YOS_TOKEN_ADDRESS ? "YOS" : "Unknown";
-  
-  console.log(`Fetching ${tokenSymbol} balance for wallet: ${walletPublicKey.toBase58()}`);
-  
   try {
-    // Get the associated token account address - this doesn't need retry as it's a local calculation
+    const tokenMint = new PublicKey(tokenMintAddress);
+    const tokenSymbol = tokenMintAddress === YOT_TOKEN_ADDRESS ? "YOT" : 
+                        tokenMintAddress === YOS_TOKEN_ADDRESS ? "YOS" : "Unknown";
+    
+    console.log(`Fetching ${tokenSymbol} balance for wallet: ${walletPublicKey.toBase58()}`);
+    
+    // Get the associated token account address
     const associatedTokenAddress = await getAssociatedTokenAddress(
       tokenMint,
       walletPublicKey
     );
     
     console.log(`Associated token account address: ${associatedTokenAddress.toBase58()}`);
-    
-    // Use retry utility for blockchain operations
-    return await withRetry(
-      async () => {
-        try {
-          // Get account info for the associated token account
-          const tokenAccountInfo = await getAccount(connection, associatedTokenAddress);
-          
-          // Get mint info to get decimals
-          const mintInfo = await getMint(connection, tokenMint);
-          
-          // Calculate the actual balance
-          const tokenBalance = Number(tokenAccountInfo.amount) / Math.pow(10, mintInfo.decimals);
-          console.log(`Found ${tokenSymbol} balance: ${tokenBalance}`);
-          
-          return tokenBalance;
-        } catch (error) {
-          if (error instanceof TokenAccountNotFoundError) {
-            // Token account doesn't exist yet - this is a valid state, return 0
-            console.log(`${tokenSymbol} token account not found for this wallet`);
-            return 0;
-          }
-          throw error; // Re-throw for retry handling
-        }
-      },
-      {
-        maxRetries: 3,
-        retryableError: (error) => {
-          // Don't retry token account not found errors
-          if (error instanceof TokenAccountNotFoundError) {
-            return false;
-          }
-          return isRetriableNetworkError(error);
-        },
-        onRetry: (attempt, error, backoffMs) => {
-          console.log(`Retrying ${tokenSymbol} balance fetch (attempt ${attempt}/3) in ${backoffMs}ms...`);
-          console.error(`Error getting ${tokenSymbol} balance:`, error);
-        }
+
+    try {
+      // Get account info for the associated token account
+      const tokenAccountInfo = await getAccount(connection, associatedTokenAddress);
+      
+      // Get mint info to get decimals
+      const mintInfo = await getMint(connection, tokenMint);
+      
+      // Calculate the actual balance
+      const tokenBalance = Number(tokenAccountInfo.amount) / Math.pow(10, mintInfo.decimals);
+      console.log(`Found ${tokenSymbol} balance: ${tokenBalance}`);
+      
+      return tokenBalance;
+    } catch (error) {
+      if (error instanceof TokenAccountNotFoundError) {
+        // Token account doesn't exist yet
+        console.log(`${tokenSymbol} token account not found for this wallet`);
+        
+        // If token account doesn't exist, balance is 0
+        return 0;
       }
-    );
+      throw error;
+    }
   } catch (error) {
-    console.error(`Failed to get ${tokenSymbol} balance after multiple attempts:`, error);
-    // Return 0 as a fallback - graceful degradation
-    return 0;
+    console.error(`Error getting ${tokenMintAddress === YOT_TOKEN_ADDRESS ? "YOT" : 
+                   tokenMintAddress === YOS_TOKEN_ADDRESS ? "YOS" : "token"} balance:`, error);
+    throw error;
   }
 }
 
@@ -187,67 +120,40 @@ export async function getTokenInfo(tokenMintAddress: string) {
   }
 }
 
-// Get pool balances with retry
+// Get pool balances
 export async function getPoolBalances() {
-  const poolSolAccount = new PublicKey(POOL_SOL_ACCOUNT);
-  const poolAuthority = new PublicKey(POOL_AUTHORITY);
-  const yotTokenMint = new PublicKey(YOT_TOKEN_ADDRESS);
-  const yotTokenAccount = new PublicKey(YOT_TOKEN_ACCOUNT);
-  const yosTokenMint = new PublicKey(YOS_TOKEN_ADDRESS);
-  const yosTokenAccount = new PublicKey(YOS_TOKEN_ACCOUNT);
-  
   try {
-    // Get SOL balance of the pool with retry
-    const solBalance = await withRetry(
-      async () => await connection.getBalance(poolSolAccount),
-      {
-        maxRetries: 3,
-        onRetry: (attempt, error, backoffMs) => {
-          console.log(`Retrying pool SOL balance fetch (attempt ${attempt}/3) in ${backoffMs}ms...`);
-        }
-      }
-    );
+    const poolSolAccount = new PublicKey(POOL_SOL_ACCOUNT);
+    const poolAuthority = new PublicKey(POOL_AUTHORITY);
+    const yotTokenMint = new PublicKey(YOT_TOKEN_ADDRESS);
+    const yotTokenAccount = new PublicKey(YOT_TOKEN_ACCOUNT);
+    const yosTokenMint = new PublicKey(YOS_TOKEN_ADDRESS);
+    const yosTokenAccount = new PublicKey(YOS_TOKEN_ACCOUNT);
     
-    // Get YOT balance with retry
+    // Get SOL balance of the pool
+    const solBalance = await connection.getBalance(poolSolAccount);
+    
     let yotBalance = 0;
+    let yosBalance = 0;
+    
     try {
-      yotBalance = await withRetry(
-        async () => {
-          const yotAccountInfo = await getAccount(connection, yotTokenAccount);
-          const yotMintInfo = await getMint(connection, yotTokenMint);
-          return Number(yotAccountInfo.amount) / Math.pow(10, yotMintInfo.decimals);
-        },
-        {
-          maxRetries: 3,
-          onRetry: (attempt, error, backoffMs) => {
-            console.log(`Retrying pool YOT balance fetch (attempt ${attempt}/3) in ${backoffMs}ms...`);
-          }
-        }
-      );
+      // Try to get YOT balance directly from the token account
+      const yotAccountInfo = await getAccount(connection, yotTokenAccount);
+      const yotMintInfo = await getMint(connection, yotTokenMint);
+      yotBalance = Number(yotAccountInfo.amount) / Math.pow(10, yotMintInfo.decimals);
     } catch (error) {
-      console.error('Error getting YOT token balance after retries:', error);
-      // Keep as 0 if all retries fail
+      console.error('Error getting YOT token balance:', error);
+      // If there's an error, we use 0 as the balance
     }
     
-    // Get YOS balance with retry
-    let yosBalance = 0;
     try {
-      yosBalance = await withRetry(
-        async () => {
-          const yosAccountInfo = await getAccount(connection, yosTokenAccount);
-          const yosMintInfo = await getMint(connection, yosTokenMint);
-          return Number(yosAccountInfo.amount) / Math.pow(10, yosMintInfo.decimals);
-        },
-        {
-          maxRetries: 3,
-          onRetry: (attempt, error, backoffMs) => {
-            console.log(`Retrying pool YOS balance fetch (attempt ${attempt}/3) in ${backoffMs}ms...`);
-          }
-        }
-      );
+      // Try to get YOS balance directly from the token account
+      const yosAccountInfo = await getAccount(connection, yosTokenAccount);
+      const yosMintInfo = await getMint(connection, yosTokenMint);
+      yosBalance = Number(yosAccountInfo.amount) / Math.pow(10, yosMintInfo.decimals);
     } catch (error) {
-      console.error('Error getting YOS token balance after retries:', error);
-      // Keep as 0 if all retries fail
+      console.error('Error getting YOS token balance:', error);
+      // If there's an error, we use 0 as the balance
     }
     
     console.log(`Pool balances fetched - SOL: ${lamportsToSol(solBalance)}, YOT: ${yotBalance}, YOS: ${yosBalance}`);
@@ -287,7 +193,7 @@ export async function getExchangeRate() {
     // Convert SOL from lamports for rate calculation
     const solBalanceInSol = lamportsToSol(solBalance);
     
-    // Calculate exchange rates using spot price (dy/dx at the current pool state)
+    // Calculate exchange rates using AMM formula (x * y = k)
     const solToYot = yotBalance / solBalanceInSol;
     const yotToSol = solBalanceInSol / yotBalance;
     
@@ -314,70 +220,34 @@ export async function getExchangeRate() {
   }
 }
 
-// Calculate the amount of YOT received for a given SOL amount using AMM formula (x * y = k)
+// Calculate the amount of YOT received for a given SOL amount
 export async function calculateSolToYot(solAmount: number) {
   try {
-    const { solBalance, yotBalance } = await getPoolBalances();
+    const { solToYot, yotPerSol } = await getExchangeRate();
+    // Use solToYot for consistency with existing code
+    const rate = solToYot !== 0 ? solToYot : yotPerSol;
     
-    // If either balance is zero, we can't calculate
-    if (solBalance === 0 || yotBalance === 0) {
-      throw new Error('Cannot calculate exchange rate: Pool balances unavailable');
-    }
-    
-    // Convert SOL from lamports for calculation
-    const solBalanceInSol = lamportsToSol(solBalance);
-    
-    // Apply fee to input amount
     const fee = solAmount * SWAP_FEE;
     const solAmountAfterFee = solAmount - fee;
-    
-    // Calculate YOT using AMM formula: dx = (y * dz) / (x + dz)
-    // Where x = solBalanceInSol, y = yotBalance, dz = solAmountAfterFee
-    const yotAmountOut = (yotBalance * solAmountAfterFee) / (solBalanceInSol + solAmountAfterFee);
-    
-    console.log(`AMM calculation for SOL→YOT swap:`);
-    console.log(`  Pool state: ${solBalanceInSol} SOL, ${yotBalance} YOT`);
-    console.log(`  Input: ${solAmount} SOL (${solAmountAfterFee} after ${SWAP_FEE*100}% fee)`);
-    console.log(`  Output: ${yotAmountOut} YOT`);
-    console.log(`  Effective rate: ${yotAmountOut / solAmountAfterFee} YOT per SOL`);
-    
-    return yotAmountOut;
+    return solAmountAfterFee * rate;
   } catch (error) {
-    console.error('Error calculating SOL to YOT using AMM formula:', error);
+    console.error('Error calculating SOL to YOT:', error);
     throw error;
   }
 }
 
-// Calculate the amount of SOL received for a given YOT amount using AMM formula (x * y = k)
+// Calculate the amount of SOL received for a given YOT amount
 export async function calculateYotToSol(yotAmount: number) {
   try {
-    const { solBalance, yotBalance } = await getPoolBalances();
+    const { yotToSol, solPerYot } = await getExchangeRate();
+    // Use yotToSol for consistency with existing code
+    const rate = yotToSol !== 0 ? yotToSol : solPerYot;
     
-    // If either balance is zero, we can't calculate
-    if (solBalance === 0 || yotBalance === 0) {
-      throw new Error('Cannot calculate exchange rate: Pool balances unavailable');
-    }
-    
-    // Convert SOL from lamports for calculation
-    const solBalanceInSol = lamportsToSol(solBalance);
-    
-    // Calculate SOL using AMM formula: dx = (y * dz) / (x + dz)
-    // Where x = yotBalance, y = solBalanceInSol, dz = yotAmount
-    const solAmountBeforeFee = (solBalanceInSol * yotAmount) / (yotBalance + yotAmount);
-    
-    // Apply fee to output amount
-    const fee = solAmountBeforeFee * SWAP_FEE;
-    const solAmountOut = solAmountBeforeFee - fee;
-    
-    console.log(`AMM calculation for YOT→SOL swap:`);
-    console.log(`  Pool state: ${yotBalance} YOT, ${solBalanceInSol} SOL`);
-    console.log(`  Input: ${yotAmount} YOT`);
-    console.log(`  Output: ${solAmountOut} SOL (after ${SWAP_FEE*100}% fee from ${solAmountBeforeFee})`);
-    console.log(`  Effective rate: ${solAmountOut / yotAmount} SOL per YOT`);
-    
-    return solAmountOut;
+    const solBeforeFee = yotAmount * rate;
+    const fee = solBeforeFee * SWAP_FEE;
+    return solBeforeFee - fee;
   } catch (error) {
-    console.error('Error calculating YOT to SOL using AMM formula:', error);
+    console.error('Error calculating YOT to SOL:', error);
     throw error;
   }
 }
@@ -765,17 +635,9 @@ export async function swapSolToYot(
 }
 
 // Create token account for a user
-/**
- * Create a token account if it doesn't exist with robust error handling and retries
- * @param tokenMintAddress The token mint address as string
- * @param wallet Connected wallet to use for signing and payment
- * @param ownerAddress Optional owner of the token account (defaults to wallet)
- * @returns Created or existing token account address, null if failed
- */
-export async function createTokenAccountIfNeeded(
+export async function createTokenAccount(
   tokenMintAddress: string,
-  wallet: any,  // Wallet adapter
-  ownerAddress?: PublicKey
+  wallet: any  // Wallet adapter
 ): Promise<PublicKey | null> {
   try {
     if (!wallet.publicKey) {
@@ -783,171 +645,96 @@ export async function createTokenAccountIfNeeded(
       return null;
     }
 
-    // If no owner specified, use the wallet's public key
-    const owner = ownerAddress || wallet.publicKey;
     const tokenMint = new PublicKey(tokenMintAddress);
-    
-    // Find the associated token account address with retry for network issues
-    const associatedTokenAddress = await withRetry(
-      async () => await getAssociatedTokenAddress(tokenMint, owner),
-      {
-        maxRetries: 3,
-        onRetry: (attempt) => console.log(`Retrying to get associated token address (attempt ${attempt}/3)`)
-      }
+    const associatedTokenAddress = await getAssociatedTokenAddress(
+      tokenMint,
+      wallet.publicKey
     );
-    
-    console.log(`Checking if token account exists: ${associatedTokenAddress.toBase58()}`);
-    
-    // Check if the account already exists with retry for network issues
+
+    // Check if the account already exists
     try {
-      await withRetry(
-        async () => {
-          await getAccount(connection, associatedTokenAddress);
-          return true;
-        },
-        {
-          maxRetries: 3,
-          onRetry: (attempt) => console.log(`Retrying to check token account (attempt ${attempt}/3)`)
-        }
-      );
-      
+      await getAccount(connection, associatedTokenAddress);
       console.log(`Token account already exists for ${tokenMintAddress}`);
       return associatedTokenAddress;
     } catch (error) {
-      if (!(error instanceof TokenAccountNotFoundError)) {
-        console.error('Unexpected error checking token account:', error);
-        throw error;
-      }
-      
-      console.log('Token account does not exist, creating...');
-      
-      // Create a transaction to create the token account
-      const transaction = new Transaction();
-      
-      transaction.add(
-        createAssociatedTokenAccountInstruction(
-          wallet.publicKey, // payer
-          associatedTokenAddress, // associated token account
-          owner, // owner
-          tokenMint // mint
-        )
-      );
-      
-      // Get blockhash with retry
-      const { blockhash, lastValidBlockHeight } = await withRetry(
-        async () => await connection.getLatestBlockhash(),
-        {
-          maxRetries: 3,
-          onRetry: (attempt) => console.log(`Retrying to get blockhash (attempt ${attempt}/3)`)
-        }
-      );
-      
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = wallet.publicKey;
-      
-      // Sign and send the transaction with the wallet with better error handling
-      try {
-        let signature;
+      if (error instanceof TokenAccountNotFoundError) {
+        // Create a transaction to create the token account
+        const transaction = new Transaction();
         
-        if (typeof wallet.sendTransaction === 'function') {
-          // Standard wallet adapter approach (Phantom)
-          signature = await withRetry(
-            async () => await wallet.sendTransaction(transaction, connection),
-            {
-              maxRetries: 2, // Fewer retries for user interactions
-              onRetry: (attempt) => console.log(`Retrying to send transaction (attempt ${attempt}/2)`)
-            }
-          );
-          
-          // Handle case where Solflare may return an object instead of a string
-          if (typeof signature === 'object' && signature !== null) {
-            // For Solflare wallet which might return an object with signature property
-            if (signature.signature) {
-              signature = signature.signature;
-            } else {
-              // Try to stringify and clean up the signature
-              const sigStr = JSON.stringify(signature);
-              if (sigStr) {
-                // Remove quotes and braces if they exist
-                signature = sigStr.replace(/[{}"]/g, '');
-              }
-            }
-          }
-        } else if (wallet.signAndSendTransaction && typeof wallet.signAndSendTransaction === 'function') {
-          // Some wallet adapters use signAndSendTransaction instead
-          const result = await withRetry(
-            async () => await wallet.signAndSendTransaction(transaction),
-            {
-              maxRetries: 2,
-              onRetry: (attempt) => console.log(`Retrying to sign and send transaction (attempt ${attempt}/2)`)
-            }
-          );
-          
-          // Handle various result formats
-          if (typeof result === 'string') {
-            signature = result;
-          } else if (typeof result === 'object' && result !== null) {
-            signature = result.signature || result.toString();
-          }
-        } else if (wallet.signTransaction && typeof wallet.signTransaction === 'function') {
-          // If the wallet can only sign but not send, we sign first then send manually
-          const signedTx = await wallet.signTransaction(transaction);
-          signature = await withRetry(
-            async () => await connection.sendRawTransaction(signedTx.serialize()),
-            {
-              maxRetries: 3,
-              onRetry: (attempt) => console.log(`Retrying to send raw transaction (attempt ${attempt}/3)`)
-            }
-          );
-        } else {
-          throw new Error("Wallet doesn't support transaction signing");
-        }
-        
-        // Wait for confirmation with retry
-        await withRetry(
-          async () => {
-            await connection.confirmTransaction({
-              signature,
-              blockhash,
-              lastValidBlockHeight
-            });
-            return true;
-          },
-          {
-            maxRetries: 5,
-            onRetry: (attempt) => console.log(`Retrying to confirm transaction (attempt ${attempt}/5)`)
-          }
+        transaction.add(
+          createAssociatedTokenAccountInstruction(
+            wallet.publicKey, // payer
+            associatedTokenAddress, // associated token account
+            wallet.publicKey, // owner
+            tokenMint // mint
+          )
         );
         
-        console.log(`Created token account ${associatedTokenAddress.toString()}`);
-        return associatedTokenAddress;
-      } catch (signError: any) {
-        // Special case: If the error contains "already in use" or similar, the account
-        // might have been created in a previous attempt but the confirmation failed
-        if (signError.message && (
-          signError.message.includes("already in use") || 
-          signError.message.includes("already exists")
-        )) {
-          console.log("Account may have been created in a previous attempt");
-          return associatedTokenAddress;
-        }
+        // Get blockhash
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+        transaction.recentBlockhash = blockhash;
+        transaction.feePayer = wallet.publicKey;
         
-        console.error('Error creating token account:', signError);
-        throw new Error(`Failed to create token account: ${signError instanceof Error ? signError.message : String(signError)}`);
+        // Sign and send the transaction with the wallet
+        try {
+          let signature;
+          
+          if (typeof wallet.sendTransaction === 'function') {
+            // Standard wallet adapter approach (Phantom)
+            signature = await wallet.sendTransaction(transaction, connection);
+            
+            // Handle case where Solflare may return an object instead of a string
+            if (typeof signature === 'object' && signature !== null) {
+              // For Solflare wallet which might return an object with signature property
+              if (signature.signature) {
+                signature = signature.signature;
+              } else {
+                // Try to stringify and clean up the signature
+                const sigStr = JSON.stringify(signature);
+                if (sigStr) {
+                  // Remove quotes and braces if they exist
+                  signature = sigStr.replace(/[{}"]/g, '');
+                }
+              }
+            }
+          } else if (wallet.signAndSendTransaction && typeof wallet.signAndSendTransaction === 'function') {
+            // Some wallet adapters use signAndSendTransaction instead
+            const result = await wallet.signAndSendTransaction(transaction);
+            // Handle various result formats
+            if (typeof result === 'string') {
+              signature = result;
+            } else if (typeof result === 'object' && result !== null) {
+              signature = result.signature || result.toString();
+            }
+          } else if (wallet.signTransaction && typeof wallet.signTransaction === 'function') {
+            // If the wallet can only sign but not send, we sign first then send manually
+            const signedTx = await wallet.signTransaction(transaction);
+            signature = await connection.sendRawTransaction(signedTx.serialize());
+          } else {
+            throw new Error("Wallet doesn't support transaction signing");
+          }
+          
+          // Wait for confirmation
+          await connection.confirmTransaction({
+            signature,
+            blockhash,
+            lastValidBlockHeight
+          });
+          
+          console.log(`Created token account ${associatedTokenAddress.toString()}`);
+          return associatedTokenAddress;
+        } catch (signError) {
+          console.error('Error creating token account:', signError);
+          throw new Error(`Failed to create token account: ${signError instanceof Error ? signError.message : String(signError)}`);
+        }
+      } else {
+        throw error;
       }
     }
   } catch (error) {
-    console.error('Error in createTokenAccountIfNeeded:', error);
+    console.error('Error in createTokenAccount:', error);
     throw error;
   }
-}
-
-// Original function maintained for backward compatibility
-export async function createTokenAccount(
-  tokenMintAddress: string,
-  wallet: any  // Wallet adapter
-): Promise<PublicKey | null> {
-  return createTokenAccountIfNeeded(tokenMintAddress, wallet);
 }
 
 // Execute a swap from YOT to SOL

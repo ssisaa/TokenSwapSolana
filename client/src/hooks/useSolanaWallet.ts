@@ -13,8 +13,7 @@ export function useWallet() {
       connected: multiWalletContext.connected,
       connecting: multiWalletContext.connecting,
       connect: multiWalletContext.connect,
-      disconnect: multiWalletContext.disconnect,
-      publicKey: multiWalletContext.publicKey || null
+      disconnect: multiWalletContext.disconnect
     };
   }
   
