@@ -888,6 +888,8 @@ export async function getSupportedTokens(): Promise<Array<{ symbol: string, addr
  */
 export async function initializeMultiHubSwap(
   wallet: any,
+  yotMint: PublicKey,
+  yosMint: PublicKey,
   lpContributionRate: number = 20,
   adminFeeRate: number = 0.1,
   yosCashbackRate: number = 5,
@@ -941,8 +943,8 @@ export async function initializeMultiHubSwap(
     keys: [
       { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
       { pubkey: programStateAddress, isSigner: false, isWritable: true },
-      { pubkey: new PublicKey(YOT_TOKEN_ADDRESS), isSigner: false, isWritable: false },
-      { pubkey: new PublicKey(YOS_TOKEN_ADDRESS), isSigner: false, isWritable: false },
+      { pubkey: yotMint, isSigner: false, isWritable: false },
+      { pubkey: yosMint, isSigner: false, isWritable: false },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
       { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
     ],

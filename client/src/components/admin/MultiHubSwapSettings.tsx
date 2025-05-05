@@ -70,6 +70,58 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
     fetchContractInfo();
   }, [wallet]);
 
+  // Initialize the Multi-Hub Swap contract
+  const initializeContract = async () => {
+    if (!wallet || !wallet.publicKey) {
+      toast({
+        title: "Wallet not connected",
+        description: "Please connect your wallet to initialize the contract",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!isAdmin) {
+      toast({
+        title: "Unauthorized",
+        description: "Only admin users can initialize the contract",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsInitializing(true);
+    try {
+      // Call the initialization function with YOT and YOS token addresses
+      await initializeMultiHubSwap(
+        wallet,
+        new PublicKey("2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF"), // YOT token address
+        new PublicKey("GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n"), // YOS token address
+        lpContributionRate,
+        adminFeeRate,
+        yosCashbackRate,
+        swapFeeRate,
+        referralRate
+      );
+
+      toast({
+        title: "Contract initialized successfully",
+        description: "The Multi-Hub Swap contract has been initialized on the blockchain",
+      });
+
+      // Refresh contract info
+      await fetchContractInfo();
+    } catch (error: any) {
+      toast({
+        title: "Failed to initialize contract",
+        description: error.message || "An error occurred while initializing the contract",
+        variant: "destructive",
+      });
+    } finally {
+      setIsInitializing(false);
+    }
+  };
+
   const fetchContractInfo = async () => {
     setIsLoading(true);
     try {
@@ -509,6 +561,38 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
                   </div>
                 </div>
               </div>
+
+              {!isInitialized && (
+                <Alert className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-900/30">
+                  <Upload className="h-4 w-4 text-blue-600 dark:text-blue-500" />
+                  <AlertTitle>Contract Initialization Required</AlertTitle>
+                  <AlertDescription className="text-blue-800 dark:text-blue-400">
+                    <p className="mb-4">
+                      The Multi-Hub Swap contract needs to be initialized before it can be used. 
+                      Initialization will set up the token addresses and initial parameters.
+                    </p>
+                    <div className="flex justify-end">
+                      <Button 
+                        onClick={initializeContract}
+                        disabled={isInitializing || !wallet?.publicKey}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        {isInitializing ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Initializing...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="mr-2 h-4 w-4" />
+                            Initialize Contract
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
 
               <div>
                 <h3 className="font-medium text-base mb-2">Current Parameters</h3>
