@@ -962,8 +962,8 @@ export async function performSwap(
   wallet: any,
   tokenFromMint: PublicKey,
   tokenToMint: PublicKey,
-  amountIn: number,
-  minAmountOut: number
+  amountIn: number | bigint,
+  minAmountOut: number | bigint
 ): Promise<string> {
   try {
     console.log("Starting swap using ConnectionManager for reliable network operations");
@@ -1041,18 +1041,49 @@ export async function performSwap(
     // Create a direct buffer encoding for the Rust-side SwapInstruction enum
     // The Swap variant has amount_in and min_amount_out fields
     
-    // Convert floating-point amounts to integer lamports
+    // Convert amounts to BigInt lamports, handling both number and BigInt inputs
     const DECIMALS = 9; // Most tokens use 9 decimals on Solana
-    const amountInLamports = Math.floor(amountIn * (10 ** DECIMALS));
-    const minAmountOutLamports = Math.floor(minAmountOut * (10 ** DECIMALS));
     
-    console.log(`Converting ${amountIn} tokens to ${amountInLamports} lamports`);
-    console.log(`Converting ${minAmountOut} min output to ${minAmountOutLamports} lamports`);
+    // Handle amountIn conversion
+    let amountInLamports: bigint;
+    if (typeof amountIn === 'bigint') {
+      // Already a BigInt, assume it's already in lamports format
+      amountInLamports = amountIn;
+    } else {
+      // Convert number to lamports
+      amountInLamports = BigInt(Math.floor(amountIn * (10 ** DECIMALS)));
+    }
+    
+    // Handle minAmountOut conversion
+    let minAmountOutLamports: bigint;
+    if (typeof minAmountOut === 'bigint') {
+      // Already a BigInt, assume it's already in lamports format
+      minAmountOutLamports = minAmountOut;
+    } else {
+      // Convert number to lamports
+      minAmountOutLamports = BigInt(Math.floor(minAmountOut * (10 ** DECIMALS)));
+    }
+    
+    console.log(`Using amounts: ${amountIn} tokens (${amountInLamports} lamports)`);
+    console.log(`Minimum out: ${minAmountOut} tokens (${minAmountOutLamports} lamports)`);
+    
+    // Verify amounts are within valid range for u64
+    const MAX_U64 = BigInt('18446744073709551615'); // 2^64 - 1
+    
+    if (amountInLamports > MAX_U64) {
+      console.warn(`Input amount ${amountInLamports} exceeds u64 max, capping at maximum`);
+      amountInLamports = MAX_U64;
+    }
+    
+    if (minAmountOutLamports > MAX_U64) {
+      console.warn(`Min output amount ${minAmountOutLamports} exceeds u64 max, capping at maximum`);
+      minAmountOutLamports = MAX_U64;
+    }
     
     // Create the swap instruction data using our improved direct buffer serialization approach
     const instructionData = buildSwapInstruction({
-      amountIn: BigInt(amountInLamports),
-      minAmountOut: BigInt(minAmountOutLamports)
+      amountIn: amountInLamports,
+      minAmountOut: minAmountOutLamports
     });
     
     console.log('Using direct buffer encoding for Swap instruction');

@@ -274,7 +274,15 @@ export async function performMultiHubSwap(
       
       // Check if the YOT account has sufficient balance
       const availableYOT = tokenAccountsInfo.yotAccount.balance || 0;
-      const minNeeded = swapEstimate.outAmount * 1.1; // Need at least 110% of estimated output
+      
+      // Handle different types for outAmount (number or bigint)
+      let minNeeded: number;
+      if (typeof swapEstimate.outAmount === 'bigint') {
+        // Convert BigInt to number with 10% buffer
+        minNeeded = Number(swapEstimate.outAmount) * 1.1;
+      } else {
+        minNeeded = swapEstimate.outAmount * 1.1; // Need at least 110% of estimated output
+      }
       
       if (availableYOT < minNeeded) {
         console.error(`Program only has ${availableYOT} YOT but needs at least ${minNeeded} YOT for this swap`);
