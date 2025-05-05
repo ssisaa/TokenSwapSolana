@@ -149,20 +149,15 @@ export async function buyAndDistribute(
     // Convert amount to raw token amount
     const rawAmount = Math.floor(amountIn * Math.pow(10, 9)); // Assuming 9 decimals for YOT/YOS
 
-    // Create the instruction data
-    // First byte is discriminator, then amount as u64 little-endian
-    const data = Buffer.alloc(9); // 1 byte discriminator + 8 bytes for u64
-    
-    // Copy discriminator byte (should be 4 for BUY_AND_DISTRIBUTE_IX)
-    BUY_AND_DISTRIBUTE_DISCRIMINATOR.copy(data, 0);
-    
-    // Encode amount as little-endian u64
+    // 1-byte discriminator + 8-byte amount
+    const instructionData = Buffer.from([4]);
     const amountBuf = Buffer.alloc(8);
     amountBuf.writeBigUInt64LE(BigInt(rawAmount), 0);
-    amountBuf.copy(data, 1);
+    const data = Buffer.concat([instructionData, amountBuf]);
     
-    console.log("Instruction data:", {
-      discriminator: data[0],
+    console.log("Instruction data (hex):", data.toString("hex"));
+    console.log("Instruction details:", {
+      discriminator: data[0], 
       rawAmount,
       amountBytes: Array.from(amountBuf),
       fullData: Array.from(data)
@@ -265,8 +260,8 @@ export async function distributeWeeklyYosReward(
     // Find program controlled accounts
     const [liquidityContributionAddress] = findLiquidityContributionAddress(userPublicKey);
 
-    // Create the instruction data
-    const data = CLAIM_REWARD_DISCRIMINATOR;
+    // Create the instruction data - simple direct approach with byte value 5
+    const data = Buffer.from([5]); // Direct byte for CLAIM_WEEKLY_REWARD_IX
 
     // Create the instruction with modified account list for auto-distribution
     const instruction = new TransactionInstruction({
@@ -355,8 +350,8 @@ export async function withdrawLiquidityContribution(wallet: any): Promise<{ sign
     const liquidityContributionInfo = await getLiquidityContributionInfo(userPublicKey.toString());
     const withdrawnAmount = liquidityContributionInfo.contributedAmount;
 
-    // Create the instruction data
-    const data = WITHDRAW_CONTRIBUTION_DISCRIMINATOR;
+    // Create the instruction data - simple direct approach with byte value 6
+    const data = Buffer.from([6]); // Direct byte for WITHDRAW_CONTRIBUTION_IX
 
     // Create the instruction
     const instruction = new TransactionInstruction({
