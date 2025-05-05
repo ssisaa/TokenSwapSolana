@@ -287,6 +287,24 @@ export default function FixedSwapPage() {
         console.log(`EXACT amount conversion: ${fromAmount} ${fromToken} -> ${rawFromAmount} lamports/raw units`);
         console.log(`EXACT amount conversion: ${toAmount} ${toToken} -> ${rawToAmount} lamports/raw units`);
         
+        // Track the swap transaction in case it fails and needs recovery
+        // This will register this transaction in localStorage for potential refund
+        const fromTokenMint = fromToken === SOL_SYMBOL ? 
+          'So11111111111111111111111111111111111111112' : 
+          yotTokenInfo.address;
+        
+        const toTokenMint = toToken === SOL_SYMBOL ? 
+          'So11111111111111111111111111111111111111112' : 
+          yotTokenInfo.address;
+        
+        // Start tracking this transaction for potential recovery
+        trackSwapTransaction(
+          wallet.publicKey,
+          fromTokenMint,
+          toTokenMint,
+          fromAmount
+        );
+        
         // Log detailed wallet display estimation
         console.log(`User should see approximately -${fromAmount} ${fromToken} in wallet confirmation`);
         
@@ -686,6 +704,15 @@ export default function FixedSwapPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Transaction Recovery Panel */}
+      {connected && wallet && (
+        <TransactionRecoveryPanel 
+          walletAddress={wallet.publicKey}
+          connected={connected}
+          wallet={wallet}
+        />
+      )}
     </div>
   );
 }
