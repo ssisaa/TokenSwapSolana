@@ -1227,7 +1227,7 @@ export async function performSwap(
           }
         }
         
-        // Additional validation for token accounts - using TOKEN_PROGRAM_ID constant from top of file
+        // ENHANCED: Additional validation for token accounts - using TOKEN_PROGRAM_ID constant from top of file
         if (accountType.includes("token")) {
           // Use the TOKEN_PROGRAM_ID constant defined at the top of the file
           
@@ -1242,6 +1242,28 @@ export async function performSwap(
           if (accountInfo.data.length < 165) {
             console.error(`INVALID TOKEN ACCOUNT DATA: ${accountType} account data is too small`);
             console.error(`Data length: ${accountInfo.data.length} bytes, Expected: at least 165 bytes`);
+            return false;
+          }
+          
+          // CRITICAL FIX: Try to parse as token account to ensure validity
+          try {
+            // This will throw if the account is not a valid token account
+            const tokenAccount = await getAccount(
+              connection,
+              pubkey,
+              undefined,
+              TOKEN_PROGRAM_ID
+            );
+            
+            console.log(`${accountType} account is a valid SPL token account`);
+            console.log(`Mint: ${tokenAccount.mint.toString()}`);
+            console.log(`Owner: ${tokenAccount.owner.toString()}`);
+            console.log(`Amount: ${tokenAccount.amount.toString()}`);
+            
+            return true;
+          } catch (tokenError) {
+            console.error(`${accountType} account failed token account validation:`, tokenError);
+            console.error('This will cause InvalidAccountData error during transaction');
             return false;
           }
         }
@@ -1911,12 +1933,29 @@ export async function performSwap(
         console.error('Swap simulation failed:', simulation.value.err);
         console.error('Simulation error details:', JSON.stringify(simulation.value.err));
         
-        // Provide more helpful error messages based on error type
-        if (JSON.stringify(simulation.value.err).includes('InvalidAccountData')) {
-          throw new Error(`Token account validation failed. This usually occurs when token accounts haven't been set up. Please use the "Verify & Fund Program Authority" and "Verify Token Accounts" buttons in the debug panel.`);
+        // Get the error as a string for checking
+        const errString = JSON.stringify(simulation.value.err);
+        
+        // Enhanced error handling with specific tips for different error types
+        if (errString.includes('InvalidAccountData')) {
+          const instructionIndex = errString.match(/\[(\d+)\s*,\s*"InvalidAccountData"\]/);
+          const index = instructionIndex ? instructionIndex[1] : 'unknown';
+          
+          // Check if the token account values in the UI match exactly what's being sent to the blockchain
+          console.error(`InvalidAccountData error at instruction index ${index}`);
+          
+          // Suggest specific fixes based on our detailed account debugging
+          throw new Error(`Token account validation failed at account index ${index}. This usually happens when token accounts haven't been set up properly. Please use the "Verify & Fund Program Authority" and "Verify Token Accounts" buttons in the debug panel.`);
+        } else if (errString.includes('Custom')) {
+          // Custom program error, likely amount-related
+          throw new Error(`Program reported an error: ${errString}. This could be due to insufficient balance or invalid transaction parameters.`);
+        } else if (errString.includes('InsufficientFunds')) {
+          // SOL balance issue
+          throw new Error(`Insufficient SOL balance for transaction fees. Please ensure your wallet has enough SOL.`);
         }
         
-        throw new Error(`Simulation failed: ${JSON.stringify(simulation.value.err)}`);
+        // Generic error fallback
+        throw new Error(`Simulation failed: ${errString}`);
       }
     } catch (simError) {
       console.error('Error during transaction simulation:', simError);

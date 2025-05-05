@@ -450,15 +450,18 @@ export async function performMultiHubSwap(
   // Ensure the estimate is a valid number to avoid transaction failures due to NaN or infinity
   // Use BigInt for large numbers to prevent numeric overflow
   
-  // Convert to number, apply slippage, then convert back to BigInt
+  // CRITICAL FIX: Process amounts as BigInt with proper rounding
+  // This fixes issues with decimal handling and prevents amount 
+  // display discrepancies between UI and wallet
   let minAmountOut: bigint;
   
   if (typeof swapEstimate.outAmount === 'bigint') {
-    // If it's already a BigInt, apply a 1% slippage directly
+    // If it's already a BigInt, apply a 1% slippage directly with proper BigInt math
     minAmountOut = swapEstimate.outAmount * BigInt(99) / BigInt(100);
   } else if (Number.isFinite(swapEstimate.outAmount)) {
-    // Convert from number with 1% slippage
-    minAmountOut = BigInt(Math.floor(Number(swapEstimate.outAmount) * 0.99));
+    // IMPORTANT: Use Math.round instead of Math.floor to prevent precision loss
+    // This fix is crucial for preventing the amount display discrepancy
+    minAmountOut = BigInt(Math.round(Number(swapEstimate.outAmount) * 0.99));
   } else {
     // Fallback to zero if there's an issue
     minAmountOut = BigInt(0);
