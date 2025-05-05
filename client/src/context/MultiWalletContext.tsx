@@ -5,6 +5,7 @@ import { WalletError, WalletAdapter } from '@solana/wallet-adapter-base';
 import { Cluster, PublicKey, Keypair, Transaction } from '@solana/web3.js';
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import { SOLANA_CLUSTER, ADMIN_WALLET_ADDRESS } from '../lib/constants';
+import { DemoWalletAdapter } from '../lib/DemoWalletAdapter';
 
 interface WalletInfo {
   name: string;
@@ -169,10 +170,9 @@ export function MultiWalletProvider({ children, cluster = SOLANA_CLUSTER as Clus
         console.error('Error initializing Solflare adapter:', error);
       }
       
-      // Import and use the DemoWalletAdapter
+      // Initialize and use the DemoWalletAdapter (already imported at the top via ES modules)
       try {
-        // Import synchronously to avoid async issues
-        const DemoWalletAdapter = require('../lib/DemoWalletAdapter').DemoWalletAdapter;
+        // Create a new instance of the adapter
         const demoAdapter = new DemoWalletAdapter();
         
         // Add the demo wallet first (for easy access)
