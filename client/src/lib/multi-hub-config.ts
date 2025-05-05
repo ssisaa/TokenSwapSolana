@@ -1,104 +1,98 @@
 /**
  * Multi-Hub Swap Configuration
- * This module isolates the Multi-Hub Swap program configuration
- * to prevent interference with existing staking functionality.
+ * Contains all the constants and settings for the Multi-Hub Swap functionality
  */
 
-import appConfig from '../../../app.config.json';
+// Contract addresses and program IDs
+export const MULTI_HUB_SWAP_CONFIG = {
+  programId: "SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE",
+  programState: "Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ",
+};
 
-// Token addresses from config
-export const YOT_TOKEN_ADDRESS = appConfig.solana?.tokens?.yot?.address || 
-  '2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF';
+// Token addresses
+export const SOL_TOKEN_ADDRESS = "So11111111111111111111111111111111111111112";
+export const YOT_TOKEN_ADDRESS = "2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF";
+export const YOS_TOKEN_ADDRESS = "GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n";
+export const USDC_DEVNET_ADDRESS = "9T7uw5dqaEmEC4McqyefzYsEg5hoC4e2oV8it1Uc4f1U";
 
-export const YOS_TOKEN_ADDRESS = appConfig.solana?.tokens?.yos?.address || 
-  'GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n';
+// Pool addresses
+export const SOL_YOT_POOL_INFO = {
+  poolAuthority: "7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK",
+  solAccount: "7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS",
+};
 
-// Multi-Hub Swap specific configuration
-export const MULTI_HUB_SWAP_CONFIG = appConfig.solana?.multiHubSwap || {
-  programId: 'SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE',
-  programState: 'Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ',
-  admin: 'AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ',
-  rates: {
-    lpContributionRate: 2000,  // 20.00%
-    adminFeeRate: 10,          // 0.10%
-    yosCashbackRate: 500,      // 5.00%
-    swapFeeRate: 30,           // 0.30%
-    referralRate: 50           // 0.50%
+// Default admin wallet
+export const ADMIN_WALLET = "AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ";
+
+// Distribution rates
+export const DEFAULT_DISTRIBUTION_RATES = {
+  userDistribution: 75, // 75% to the user
+  lpContribution: 20,   // 20% to the liquidity pool
+  yosCashback: 5,       // 5% as YOS cashback
+};
+
+// APR settings
+export const YOS_ANNUAL_APR = 100; // 100% APR for liquidity contributions
+export const WEEKLY_REWARD_RATE = 1.92; // 100% / 52 weeks = ~1.92% weekly
+export const SECONDS_PER_WEEK = 604800; // 7 days in seconds
+
+// Fee rates (in percent)
+export const DEFAULT_FEE_RATES = {
+  swapFee: 0.3,      // 0.3% swap fee
+  adminFee: 0.1,     // 0.1% admin fee
+  referralFee: 0.5,  // 0.5% referral fee
+};
+
+// RPC configuration
+export const SOLANA_RPC_URL = "https://api.devnet.solana.com";
+
+// Formatted rates for display
+export const FORMATTED_RATES = {
+  distributionRates: {
+    userReceives: `${DEFAULT_DISTRIBUTION_RATES.userDistribution}%`,
+    liquidityPool: `${DEFAULT_DISTRIBUTION_RATES.lpContribution}%`,
+    yosCashback: `${DEFAULT_DISTRIBUTION_RATES.yosCashback}%`,
   },
   rewards: {
-    weeklyRewardRate: 1.92,    // 1.92% weekly (100% APR / 52 weeks)
-    yearlyAPR: 100,            // 100% APR
-    claimPeriodDays: 7         // 7-day claim period
-  }
+    annualAPR: `${YOS_ANNUAL_APR}%`,
+    weeklyRate: `${WEEKLY_REWARD_RATE}%`,
+  },
+  fees: {
+    swapFee: `${DEFAULT_FEE_RATES.swapFee}%`,
+    adminFee: `${DEFAULT_FEE_RATES.adminFee}%`,
+    referralFee: `${DEFAULT_FEE_RATES.referralFee}%`,
+  },
 };
 
-// Token accounts
-export const YOT_TOKEN_ACCOUNT = appConfig.solana?.tokens?.yot?.account || 
-  'BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE';
+// Instruction discriminators for the multi-hub swap program
+export const BUY_AND_DISTRIBUTE_DISCRIMINATOR = Buffer.from([
+  6, 240, 93, 246, 87, 224, 215, 175, // 8-byte discriminator for buy_and_distribute
+]);
 
-export const YOS_TOKEN_ACCOUNT = appConfig.solana?.tokens?.yos?.account || 
-  'BLz2mfhb9qoPAtKuFNVfrj9uTEyChHKKbZsniS1eRaUB';
+export const CLAIM_REWARD_DISCRIMINATOR = Buffer.from([
+  146, 113, 97, 51, 55, 103, 32, 159, // 8-byte discriminator for claim_weekly_reward
+]);
 
-export const PROGRAM_YOS_ACCOUNT = appConfig.solana?.tokens?.yos?.programAccount || 
-  '5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz';
+export const WITHDRAW_CONTRIBUTION_DISCRIMINATOR = Buffer.from([
+  52, 21, 251, 13, 191, 179, 204, 196, // 8-byte discriminator for withdraw_contribution
+]);
 
-// Pool configuration
-export const POOL_AUTHORITY = appConfig.solana?.pool?.authority || 
-  '7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK';
+export const UPDATE_PARAMETERS_DISCRIMINATOR = Buffer.from([
+  98, 103, 208, 178, 254, 106, 239, 67, // 8-byte discriminator for update_parameters
+]);
 
-export const POOL_SOL_ACCOUNT = appConfig.solana?.pool?.solAccount || 
-  '7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS';
-
-// Network configuration
-export const SOLANA_NETWORK = appConfig.solana?.network || 'devnet';
-export const SOLANA_RPC_URL = appConfig.solana?.rpcUrl || 'https://api.devnet.solana.com';
-export const SOLANA_COMMITMENT = appConfig.solana?.commitment || 'confirmed';
-
-// AMM configuration 
-export const RAYDIUM_CONFIG = MULTI_HUB_SWAP_CONFIG.amm?.raydium || {
-  routerAddress: 'BVChZ3XFEwTMUk1o9i3HAf91H6mFxSwa5X2wFAWhYPhU',
-  usdc: '9T7uw5dqaEmEC4McqyefzYsEg5hoC4e2oV8it1Uc4f1U'
+// Router configurations for Jupiter/Raydium integrations
+export const RAYDIUM_ROUTER_CONFIG = {
+  routerAddress: "BVChZ3XFEwTMUk1o9i3HAf91H6mFxSwa5X2wFAWhYPhU", // Raydium router on devnet
 };
 
-export const JUPITER_CONFIG = MULTI_HUB_SWAP_CONFIG.amm?.jupiter || {
-  enabled: true,
-  priorityFee: 1000000
+// Exchange rate configuration (for devnet where there might not be reliable price feeds)
+export const DEFAULT_EXCHANGE_RATES = {
+  SOL_YOT: 15650,     // 1 SOL = 15,650 YOT
+  YOT_SOL: 0.000064,  // 1 YOT = 0.000064 SOL
+  USDC_YOT: 105.5,    // 1 USDC = 105.5 YOT
+  YOT_USDC: 0.0095,   // 1 YOT = 0.0095 USDC
 };
 
-// Instruction discriminators for the multi-hub swap contract
-export const INSTRUCTION_DISCRIMINATORS = {
-  INITIALIZE: Buffer.from([0]),
-  SWAP: Buffer.from([1]),
-  CLOSE_PROGRAM: Buffer.from([2]),
-  UPDATE_PARAMETERS: Buffer.from([3]),
-  BUY_AND_DISTRIBUTE: Buffer.from([4]),
-  CLAIM_WEEKLY_REWARD: Buffer.from([5]),
-  WITHDRAW_CONTRIBUTION: Buffer.from([6])
-};
-
-/**
- * Convert percentage to basis points
- * @param percentage Value as a percentage (e.g., 20.5 for 20.5%)
- * @returns Value in basis points (e.g., 2050 for 20.5%)
- */
-export function percentageToBasisPoints(percentage: number): number {
-  return Math.round(percentage * 100);
-}
-
-/**
- * Convert basis points to percentage
- * @param basisPoints Value in basis points (e.g., 2050 for 20.5%)
- * @returns Value as a percentage (e.g., 20.5 for 20.5%)
- */
-export function basisPointsToPercentage(basisPoints: number): number {
-  return basisPoints / 100;
-}
-
-// Convenience formatting for UI - all values as percentages
-export const FORMATTED_RATES = {
-  lpContributionRate: basisPointsToPercentage(MULTI_HUB_SWAP_CONFIG.rates.lpContributionRate),
-  adminFeeRate: basisPointsToPercentage(MULTI_HUB_SWAP_CONFIG.rates.adminFeeRate),
-  yosCashbackRate: basisPointsToPercentage(MULTI_HUB_SWAP_CONFIG.rates.yosCashbackRate),
-  swapFeeRate: basisPointsToPercentage(MULTI_HUB_SWAP_CONFIG.rates.swapFeeRate),
-  referralRate: basisPointsToPercentage(MULTI_HUB_SWAP_CONFIG.rates.referralRate)
-};
+// Set to true to enable debug logs
+export const DEBUG_MODE = true;

@@ -657,7 +657,8 @@ fn process_buy_and_distribute(
     Ok(())
 }
 
-// Claim weekly YOS rewards based on liquidity contribution
+// Auto-distribute weekly YOS rewards based on liquidity contribution
+// This can be called by anyone on behalf of a user after the 7-day waiting period
 fn process_claim_weekly_reward(
     program_id: &Pubkey, 
     accounts: &[AccountInfo]
@@ -665,22 +666,23 @@ fn process_claim_weekly_reward(
     let accounts_iter = &mut accounts.iter();
     
     // Parse accounts
-    let user = next_account_info(accounts_iter)?;
+    let caller = next_account_info(accounts_iter)?; // This could be any caller (admin, cron job, or user themselves)
+    let user_key = next_account_info(accounts_iter)?; // The user who will receive the rewards
     let liquidity_contribution_account = next_account_info(accounts_iter)?;
     let yos_mint = next_account_info(accounts_iter)?;
     let user_yos = next_account_info(accounts_iter)?;
     let token_program = next_account_info(accounts_iter)?;
     
-    // Verify user is a signer
-    if !user.is_signer {
-        msg!("User must sign ClaimWeeklyReward instruction");
+    // Verify caller is a signer
+    if !caller.is_signer {
+        msg!("Caller must be a signer");
         return Err(ProgramError::MissingRequiredSignature);
     }
     
-    // Verify liquidity contribution account
-    let (expected_liq_contrib, _) = find_liquidity_contribution_address(user.key, program_id);
+    // Verify liquidity contribution account belongs to the user
+    let (expected_liq_contrib, _) = find_liquidity_contribution_address(user_key.key, program_id);
     if expected_liq_contrib != *liquidity_contribution_account.key {
-        msg!("Invalid liquidity contribution account");
+        msg!("Invalid liquidity contribution account for this user");
         return Err(ProgramError::InvalidAccountData);
     }
     
@@ -689,15 +691,15 @@ fn process_claim_weekly_reward(
         &liquidity_contribution_account.data.borrow()
     )?;
     
-    // Verify user owns this contribution
-    if contribution.user != *user.key {
-        msg!("You don't own this liquidity contribution");
+    // Verify the contribution belongs to the specified user
+    if contribution.user != *user_key.key {
+        msg!("Contribution account doesn't match the specified user");
         return Err(ProgramError::InvalidAccountData);
     }
     
     // Check if contribution amount is valid
     if contribution.contributed_amount == 0 {
-        msg!("No liquidity contribution to claim rewards from");
+        msg!("No liquidity contribution to distribute rewards from");
         return Err(ProgramError::InvalidAccountData);
     }
     
@@ -708,8 +710,8 @@ fn process_claim_weekly_reward(
     
     const SECONDS_PER_WEEK: i64 = 604800; // 7 days
     if elapsed < SECONDS_PER_WEEK {
-        msg!("Too early to claim rewards. Must wait 7 days between claims.");
-        msg!("Last claim: {}, Now: {}, Elapsed: {}/{} seconds", 
+        msg!("Too early to distribute rewards. Must wait 7 days between distributions.");
+        msg!("Last distribution: {}, Now: {}, Elapsed: {}/{} seconds", 
             contribution.last_claim_time, now, elapsed, SECONDS_PER_WEEK);
         return Err(ProgramError::InvalidInstructionData);
     }
@@ -726,7 +728,7 @@ fn process_claim_weekly_reward(
         program_id,
     );
     
-    // Mint YOS rewards
+    // Mint YOS rewards directly to user's account
     invoke_signed(
         &token_instruction::mint_to(
             token_program.key,
@@ -751,7 +753,7 @@ fn process_claim_weekly_reward(
     // Serialize the updated contribution data
     contribution.serialize(&mut &mut liquidity_contribution_account.data.borrow_mut()[..])?;
     
-    msg!("Weekly reward of {} YOS claimed successfully", weekly_reward);
+    msg!("Weekly reward of {} YOS automatically distributed to user {}", weekly_reward, user_key.key);
     Ok(())
 }
 

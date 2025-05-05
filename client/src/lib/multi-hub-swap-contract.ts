@@ -190,45 +190,50 @@ export async function buyAndDistribute(
 }
 
 /**
- * Claim weekly YOS rewards from liquidity contributions
- * This implements the claim_weekly_reward instruction from the Anchor smart contract
+ * Distribute weekly YOS rewards automatically to users
+ * This implements the auto-distribution version of the claim_weekly_reward instruction
  * 
  * Features:
- * 1. Enforces a 7-day (604,800 seconds) waiting period between claims
- * 2. Calculates rewards as 1/52 of the yearly reward amount (based on contribution)
- * 3. Updates the last claim time in the LiquidityContribution account
+ * 1. Can be called by anyone (including admin or automated system) on behalf of users
+ * 2. Enforces a 7-day (604,800 seconds) waiting period between distributions
+ * 3. Calculates rewards as 1/52 of the yearly reward amount (based on contribution)
+ * 4. Updates the last claim time in the LiquidityContribution account
+ * 5. Automatically sends rewards directly to user wallets without manual claiming
  */
-export async function claimWeeklyYosReward(wallet: any): Promise<{ signature: string, claimedAmount: number }> {
+export async function distributeWeeklyYosReward(
+  adminWallet: any, 
+  userAddress: string
+): Promise<{ signature: string, distributedAmount: number }> {
   try {
-    if (!wallet || !wallet.publicKey) {
-      throw new Error("Wallet not connected");
+    if (!adminWallet || !adminWallet.publicKey) {
+      throw new Error("Admin wallet not connected");
     }
 
-    const userPublicKey = wallet.publicKey;
+    const adminPublicKey = adminWallet.publicKey;
+    const userPublicKey = new PublicKey(userAddress);
     const program = new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID);
     const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
     const yosMint = new PublicKey(YOS_TOKEN_ADDRESS);
 
-    // Check if reward is claimable (7-day waiting period)
-    const contributionInfo = await getLiquidityContributionInfo(userPublicKey.toString());
+    // Check if reward distribution is eligible (7-day waiting period)
+    const contributionInfo = await getLiquidityContributionInfo(userAddress);
     
     if (!contributionInfo.canClaimReward) {
-      const nextClaimDate = contributionInfo.nextClaimAvailable 
+      const nextDistributionDate = contributionInfo.nextClaimAvailable 
         ? new Date(contributionInfo.nextClaimAvailable).toLocaleDateString() 
         : 'unavailable';
       
       throw new Error(
-        `Cannot claim rewards yet. You must wait 7 days between claims. ` +
-        `Next claim available: ${nextClaimDate}`
+        `Cannot distribute rewards yet. Must wait 7 days between distributions. ` +
+        `Next distribution available: ${nextDistributionDate}`
       );
     }
     
     if (contributionInfo.contributedAmount === 0) {
-      throw new Error("You don't have any liquidity contributions to claim rewards from");
+      throw new Error("User doesn't have any liquidity contributions for reward distribution");
     }
 
     // Find user's token accounts
-    const userYotAccount = await getAssociatedTokenAddress(yotMint, userPublicKey);
     const userYosAccount = await getAssociatedTokenAddress(yosMint, userPublicKey);
 
     // Find program controlled accounts
@@ -237,10 +242,11 @@ export async function claimWeeklyYosReward(wallet: any): Promise<{ signature: st
     // Create the instruction data
     const data = CLAIM_REWARD_DISCRIMINATOR;
 
-    // Create the instruction
+    // Create the instruction with modified account list for auto-distribution
     const instruction = new TransactionInstruction({
       keys: [
-        { pubkey: userPublicKey, isSigner: true, isWritable: true },
+        { pubkey: adminPublicKey, isSigner: true, isWritable: true },
+        { pubkey: userPublicKey, isSigner: false, isWritable: true },
         { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true },
         { pubkey: yosMint, isSigner: false, isWritable: true },
         { pubkey: userYosAccount, isSigner: false, isWritable: true },
@@ -255,28 +261,45 @@ export async function claimWeeklyYosReward(wallet: any): Promise<{ signature: st
     
     // Set recent blockhash and fee payer
     transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-    transaction.feePayer = userPublicKey;
+    transaction.feePayer = adminPublicKey;
 
     // Sign and send transaction
-    const signedTransaction = await wallet.signTransaction(transaction);
+    const signedTransaction = await adminWallet.signTransaction(transaction);
     const signature = await connection.sendRawTransaction(signedTransaction.serialize());
     
     await connection.confirmTransaction(signature, 'confirmed');
     
-    console.log("Claim reward transaction confirmed:", signature);
+    console.log("Reward distribution transaction confirmed:", signature);
     
-    // Calculate the claimed reward amount (1/52 of yearly reward - 100% APR means 1.92% weekly)
+    // Calculate the distributed reward amount (1/52 of yearly reward - 100% APR means 1.92% weekly)
     const weeklyRewardRate = 0.0192; // 1.92% weekly (100% APR / 52 weeks)
-    const claimedAmount = contributionInfo.contributedAmount * weeklyRewardRate;
+    const distributedAmount = contributionInfo.contributedAmount * weeklyRewardRate;
     
-    console.log(`Claimed ${claimedAmount} YOS from ${contributionInfo.contributedAmount} YOT contribution`);
+    console.log(`Distributed ${distributedAmount} YOS to user ${userAddress} from ${contributionInfo.contributedAmount} YOT contribution`);
     
     return {
       signature,
-      claimedAmount
+      distributedAmount
     };
   } catch (error) {
-    console.error("Error in claimWeeklyYosReward:", error);
+    console.error("Error in distributeWeeklyYosReward:", error);
+    throw error;
+  }
+}
+
+/**
+ * Legacy function that redirects to the automated distribution
+ * Kept for backward compatibility with existing code
+ */
+export async function claimWeeklyYosReward(wallet: any): Promise<{ signature: string, claimedAmount: number }> {
+  try {
+    const result = await distributeWeeklyYosReward(wallet, wallet.publicKey.toString());
+    return {
+      signature: result.signature,
+      claimedAmount: result.distributedAmount
+    };
+  } catch (error) {
+    console.error("Error in legacy claimWeeklyYosReward:", error);
     throw error;
   }
 }

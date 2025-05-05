@@ -1,313 +1,570 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useMultiWallet } from '@/context/MultiWalletContext';
-import { toast } from '@/hooks/use-toast';
-import { Loader2, Save, Percent } from 'lucide-react';
-import { updateMultiHubSwapParameters, getMultiHubSwapStats } from '@/lib/multi-hub-swap';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { OWNER_COMMISSION_PERCENT } from '@/lib/constants';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { 
+  Cog, 
+  PercentIcon, 
+  RefreshCw, 
+  Key, 
+  Loader2,
+  AlertTriangle,
+  CheckCircle2,
+  Upload,
+  Settings,
+  Save
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Progress } from "@/components/ui/progress";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { PublicKey } from '@solana/web3.js';
+import { 
+  getMultiHubSwapStats, 
+  updateMultiHubSwapParameters,
+  MULTI_HUB_SWAP_PROGRAM_ID 
+} from "@/lib/multi-hub-swap-contract";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-export default function MultiHubSwapSettings() {
-  const { wallet } = useMultiWallet();
-  const queryClient = useQueryClient();
+interface MultiHubSwapSettingsProps {
+  wallet: any;
+  isAdmin: boolean;
+}
+
+const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({ 
+  wallet,
+  isAdmin 
+}) => {
+  const { toast } = useToast();
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [stats, setStats] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<string>("parameters");
   
-  // State for form fields
-  const [buyUserPercent, setBuyUserPercent] = useState<number>(75);
-  const [buyLiquidityPercent, setBuyLiquidityPercent] = useState<number>(20);
-  const [buyCashbackPercent, setBuyCashbackPercent] = useState<number>(5);
-  
-  const [sellUserPercent, setSellUserPercent] = useState<number>(75);
-  const [sellLiquidityPercent, setSellLiquidityPercent] = useState<number>(20);
-  const [sellCashbackPercent, setSellCashbackPercent] = useState<number>(5);
-  
-  const [weeklyRewardRate, setWeeklyRewardRate] = useState<number>(1.92);
-  const [activeTab, setActiveTab] = useState<string>('buy');
-  
-  // Query to get current settings
-  const { data: swapStats, isLoading: isLoadingStats } = useQuery({
-    queryKey: ['multi-hub-swap-stats-admin'],
-    queryFn: async () => {
-      return await getMultiHubSwapStats();
-    },
-    staleTime: 60 * 1000, // 1 minute
-  });
-  
-  // Mutation to update settings
-  const updateSettingsMutation = useMutation({
-    mutationFn: async () => {
-      if (!wallet) throw new Error("Wallet not connected");
-      
-      return await updateMultiHubSwapParameters(
-        wallet,
-        buyUserPercent,
-        buyLiquidityPercent,
-        buyCashbackPercent,
-        sellUserPercent,
-        sellLiquidityPercent,
-        sellCashbackPercent,
-        weeklyRewardRate
-      );
-    },
-    onSuccess: () => {
-      toast({
-        title: "Settings Updated",
-        description: "Multi-Hub Swap parameters have been updated successfully.",
-      });
-      // Invalidate relevant queries
-      queryClient.invalidateQueries({ queryKey: ['multi-hub-swap-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['multi-hub-swap-stats-admin'] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Update Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-  
-  // Load initial values from stats
+  // Parameter states
+  const [lpContributionRate, setLpContributionRate] = useState<number>(20);
+  const [adminFeeRate, setAdminFeeRate] = useState<number>(0.1);
+  const [yosCashbackRate, setYosCashbackRate] = useState<number>(5);
+  const [swapFeeRate, setSwapFeeRate] = useState<number>(0.3);
+  const [referralRate, setReferralRate] = useState<number>(0.5);
+
+  // Fetch contract info on component mount
   useEffect(() => {
-    if (swapStats) {
-      setBuyUserPercent(swapStats.buyDistribution.userPercent);
-      setBuyLiquidityPercent(swapStats.buyDistribution.liquidityPercent);
-      setBuyCashbackPercent(swapStats.buyDistribution.cashbackPercent);
+    fetchContractInfo();
+  }, [wallet]);
+
+  const fetchContractInfo = async () => {
+    setIsLoading(true);
+    try {
+      const programState = await getMultiHubSwapStats();
+      setStats(programState);
       
-      setSellUserPercent(swapStats.sellDistribution.userPercent);
-      setSellLiquidityPercent(swapStats.sellDistribution.liquidityPercent);
-      setSellCashbackPercent(swapStats.sellDistribution.cashbackPercent);
+      // Check if program is initialized
+      setIsInitialized(programState && programState.yotMint);
       
-      setWeeklyRewardRate(swapStats.weeklyRewardRate);
+      // Update state with current parameters
+      if (programState) {
+        setLpContributionRate(programState.lpContributionRate);
+        setAdminFeeRate(programState.adminFeeRate);
+        setYosCashbackRate(programState.yosCashbackRate);
+        setSwapFeeRate(programState.swapFeeRate);
+        setReferralRate(programState.referralRate);
+      }
+    } catch (error) {
+      console.error("Error fetching contract info:", error);
+      setIsInitialized(false);
+    } finally {
+      setIsLoading(false);
     }
-  }, [swapStats]);
-  
-  // Validate that percentages add up to 100%
-  const validateBuyPercentages = (): boolean => {
-    return buyUserPercent + buyLiquidityPercent + buyCashbackPercent === 100;
   };
-  
-  const validateSellPercentages = (): boolean => {
-    return sellUserPercent + sellLiquidityPercent + sellCashbackPercent === 100;
-  };
-  
-  // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validate percentages
-    if (!validateBuyPercentages()) {
+
+  // Save parameter changes
+  const saveParameters = async () => {
+    if (!wallet || !wallet.publicKey) {
       toast({
-        title: "Invalid Buy Percentages",
-        description: "Buy distribution percentages must add up to 100%.",
+        title: "Wallet not connected",
+        description: "Please connect your wallet to update parameters",
         variant: "destructive",
       });
       return;
     }
-    
-    if (!validateSellPercentages()) {
+
+    if (!isAdmin) {
       toast({
-        title: "Invalid Sell Percentages",
-        description: "Sell distribution percentages must add up to 100%.",
+        title: "Unauthorized",
+        description: "Only admin users can update parameters",
         variant: "destructive",
       });
       return;
     }
-    
-    updateSettingsMutation.mutate();
+
+    setIsSaving(true);
+    try {
+      // Validate parameters
+      if (lpContributionRate < 0 || lpContributionRate > 90) {
+        throw new Error("LP contribution rate must be between 0% and 90%");
+      }
+      
+      if (yosCashbackRate < 0 || yosCashbackRate > 20) {
+        throw new Error("YOS cashback rate must be between 0% and 20%");
+      }
+      
+      if (adminFeeRate < 0 || adminFeeRate > 5) {
+        throw new Error("Admin fee rate must be between 0% and 5%");
+      }
+      
+      if (swapFeeRate < 0 || swapFeeRate > 3) {
+        throw new Error("Swap fee rate must be between 0% and 3%");
+      }
+      
+      if (referralRate < 0 || referralRate > 5) {
+        throw new Error("Referral rate must be between 0% and 5%");
+      }
+      
+      if (lpContributionRate + yosCashbackRate > 95) {
+        throw new Error("Combined LP contribution and YOS cashback cannot exceed 95%");
+      }
+
+      // Verify user distribution percentage
+      const userDistributionPercent = 100 - lpContributionRate - yosCashbackRate;
+      if (userDistributionPercent < 5) {
+        throw new Error("User must receive at least 5% of the swap amount");
+      }
+
+      // Call the update function
+      await updateMultiHubSwapParameters(
+        wallet,
+        lpContributionRate,
+        adminFeeRate,
+        yosCashbackRate,
+        swapFeeRate,
+        referralRate
+      );
+
+      toast({
+        title: "Parameters updated successfully",
+        description: "The new parameters have been saved to the blockchain",
+      });
+
+      // Refresh contract info
+      await fetchContractInfo();
+    } catch (error: any) {
+      toast({
+        title: "Failed to update parameters",
+        description: error.message || "An error occurred while updating parameters",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
-  
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Settings className="mr-2 h-5 w-5" />
+            Multi-Hub Swap Settings
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex justify-center items-center py-10">
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Loading contract information...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Settings className="mr-2 h-5 w-5" />
+            Multi-Hub Swap Settings
+          </CardTitle>
+          <CardDescription>
+            Configure parameters for the Multi-Hub Swap contract
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Access Denied</AlertTitle>
+            <AlertDescription>
+              This section is restricted to admin users only.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>Multi-Hub Swap Settings</CardTitle>
+        <CardTitle className="flex items-center">
+          <Settings className="mr-2 h-5 w-5" />
+          Multi-Hub Swap Administration
+        </CardTitle>
         <CardDescription>
-          Configure the token distribution percentages and reward rates
+          Configure parameters and settings for the Multi-Hub Swap contract
         </CardDescription>
       </CardHeader>
-      
+
       <CardContent>
-        {isLoadingStats ? (
-          <div className="flex justify-center items-center p-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit}>
-            <Tabs defaultValue="buy" value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="mb-4">
-                <TabsTrigger value="buy">Buy Distribution</TabsTrigger>
-                <TabsTrigger value="sell">Sell Distribution</TabsTrigger>
-                <TabsTrigger value="rewards">Reward Rates</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="buy" className="space-y-4">
-                <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="buyUserPercent">User Percent</Label>
-                    <Input 
-                      id="buyUserPercent"
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={buyUserPercent}
-                      onChange={(e) => setBuyUserPercent(Number(e.target.value))}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Percentage of tokens sent directly to user
-                    </p>
+        <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid grid-cols-2 mb-4">
+            <TabsTrigger value="parameters">
+              <PercentIcon className="mr-2 h-4 w-4" />
+              Parameters
+            </TabsTrigger>
+            <TabsTrigger value="info">
+              <Key className="mr-2 h-4 w-4" />
+              Contract Info
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="parameters" className="space-y-4">
+            <div className="space-y-1">
+              <h3 className="font-medium text-base">Distribution Parameters</h3>
+              <p className="text-sm text-muted-foreground">
+                Configure how tokens are distributed during swaps
+              </p>
+            </div>
+
+            <Alert variant="default" className="bg-primary/5 border-primary/20">
+              <div className="flex justify-between items-center w-full">
+                <div>
+                  <AlertTitle>Current Distribution</AlertTitle>
+                  <AlertDescription>
+                    User: <strong>{100 - lpContributionRate - yosCashbackRate}%</strong>,
+                    LP: <strong>{lpContributionRate}%</strong>,
+                    YOS Cashback: <strong>{yosCashbackRate}%</strong>
+                  </AlertDescription>
+                </div>
+                <Progress 
+                  value={100} 
+                  className="h-3 w-40" 
+                  style={{
+                    background: `linear-gradient(to right, 
+                      #3b82f6 0%, 
+                      #3b82f6 ${100 - lpContributionRate - yosCashbackRate}%, 
+                      #10b981 ${100 - lpContributionRate - yosCashbackRate}%, 
+                      #10b981 ${100 - yosCashbackRate}%, 
+                      #f97316 ${100 - yosCashbackRate}%, 
+                      #f97316 100%)`
+                  }}
+                />
+              </div>
+            </Alert>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="lpContributionRate">
+                  LP Contribution Rate (%)
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary/10 text-primary text-xs">?</span>
+                      </TooltipTrigger>
+                      <TooltipContent className="w-80">
+                        <p>Percentage of the transaction amount that goes to the liquidity pool. Default: 20%</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </Label>
+                <Input
+                  id="lpContributionRate"
+                  type="number"
+                  min="0"
+                  max="90"
+                  step="0.1"
+                  value={lpContributionRate}
+                  onChange={(e) => setLpContributionRate(parseFloat(e.target.value))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="yosCashbackRate">
+                  YOS Cashback Rate (%)
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary/10 text-primary text-xs">?</span>
+                      </TooltipTrigger>
+                      <TooltipContent className="w-80">
+                        <p>Percentage of the transaction amount that gets minted as YOS tokens for cashback. Default: 5%</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </Label>
+                <Input
+                  id="yosCashbackRate"
+                  type="number"
+                  min="0"
+                  max="20"
+                  step="0.1"
+                  value={yosCashbackRate}
+                  onChange={(e) => setYosCashbackRate(parseFloat(e.target.value))}
+                />
+              </div>
+            </div>
+
+            <Separator className="my-4" />
+
+            <div className="space-y-1">
+              <h3 className="font-medium text-base">Fee Parameters</h3>
+              <p className="text-sm text-muted-foreground">
+                Configure swap fees and referral rewards
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="swapFeeRate">
+                  Swap Fee Rate (%)
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary/10 text-primary text-xs">?</span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Fee charged on each swap. Default: 0.3%</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </Label>
+                <Input
+                  id="swapFeeRate"
+                  type="number"
+                  min="0"
+                  max="3"
+                  step="0.01"
+                  value={swapFeeRate}
+                  onChange={(e) => setSwapFeeRate(parseFloat(e.target.value))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="adminFeeRate">
+                  Admin Fee Rate (%)
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary/10 text-primary text-xs">?</span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Fee sent to admin wallet. Default: 0.1%</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </Label>
+                <Input
+                  id="adminFeeRate"
+                  type="number"
+                  min="0"
+                  max="5"
+                  step="0.01"
+                  value={adminFeeRate}
+                  onChange={(e) => setAdminFeeRate(parseFloat(e.target.value))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="referralRate">
+                  Referral Rate (%)
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary/10 text-primary text-xs">?</span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Percentage paid to referrers. Default: 0.5%</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </Label>
+                <Input
+                  id="referralRate"
+                  type="number"
+                  min="0"
+                  max="5"
+                  step="0.01"
+                  value={referralRate}
+                  onChange={(e) => setReferralRate(parseFloat(e.target.value))}
+                />
+              </div>
+            </div>
+
+            <div className="pt-4">
+              <Alert variant="default" className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-900/30">
+                <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
+                <AlertTitle>Important Note</AlertTitle>
+                <AlertDescription className="text-yellow-800 dark:text-yellow-400">
+                  The sum of LP Contribution Rate and YOS Cashback Rate cannot exceed 95%. 
+                  Users must receive at least 5% of the swap amount.
+                </AlertDescription>
+              </Alert>
+            </div>
+
+            <div className="pt-4 flex justify-end">
+              <div className="space-x-2">
+                <Button 
+                  variant="outline" 
+                  onClick={fetchContractInfo}
+                  disabled={isSaving}
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Refresh
+                </Button>
+                <Button
+                  onClick={saveParameters}
+                  disabled={isSaving || !isInitialized || !wallet?.publicKey}
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      Save Parameters
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="info">
+            <div className="space-y-6">
+              <div>
+                <h3 className="font-medium text-base mb-2">Contract Information</h3>
+                <div className="bg-secondary/30 p-4 rounded-lg space-y-3">
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="text-sm text-muted-foreground">Program ID:</div>
+                    <div className="col-span-2 text-sm font-mono break-all">
+                      {MULTI_HUB_SWAP_PROGRAM_ID}
+                    </div>
                   </div>
                   
-                  <div className="space-y-2">
-                    <Label htmlFor="buyLiquidityPercent">Liquidity Percent</Label>
-                    <Input 
-                      id="buyLiquidityPercent"
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={buyLiquidityPercent}
-                      onChange={(e) => setBuyLiquidityPercent(Number(e.target.value))}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Percentage contributed to liquidity pool
-                    </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="text-sm text-muted-foreground">Admin:</div>
+                    <div className="col-span-2 text-sm font-mono break-all">
+                      {stats?.admin || "Not initialized"}
+                    </div>
                   </div>
                   
-                  <div className="space-y-2">
-                    <Label htmlFor="buyCashbackPercent">Cashback Percent</Label>
-                    <Input 
-                      id="buyCashbackPercent"
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={buyCashbackPercent}
-                      onChange={(e) => setBuyCashbackPercent(Number(e.target.value))}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Percentage given as YOS token cashback
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex justify-between items-center py-2 px-4 bg-muted rounded">
-                  <span>Total:</span>
-                  <span className={validateBuyPercentages() ? 'text-green-500' : 'text-red-500 font-bold'}>
-                    {buyUserPercent + buyLiquidityPercent + buyCashbackPercent}% 
-                    {validateBuyPercentages() ? ' ✓' : ' (must be 100%)'}
-                  </span>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="sell" className="space-y-4">
-                <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="sellUserPercent">User Percent</Label>
-                    <Input 
-                      id="sellUserPercent"
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={sellUserPercent}
-                      onChange={(e) => setSellUserPercent(Number(e.target.value))}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Percentage of tokens sent directly to user
-                    </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="text-sm text-muted-foreground">YOT Mint:</div>
+                    <div className="col-span-2 text-sm font-mono break-all">
+                      {stats?.yotMint || "Not initialized"}
+                    </div>
                   </div>
                   
-                  <div className="space-y-2">
-                    <Label htmlFor="sellLiquidityPercent">Liquidity Percent</Label>
-                    <Input 
-                      id="sellLiquidityPercent"
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={sellLiquidityPercent}
-                      onChange={(e) => setSellLiquidityPercent(Number(e.target.value))}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Percentage contributed to liquidity pool
-                    </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="text-sm text-muted-foreground">YOS Mint:</div>
+                    <div className="col-span-2 text-sm font-mono break-all">
+                      {stats?.yosMint || "Not initialized"}
+                    </div>
                   </div>
                   
-                  <div className="space-y-2">
-                    <Label htmlFor="sellCashbackPercent">Cashback Percent</Label>
-                    <Input 
-                      id="sellCashbackPercent"
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={sellCashbackPercent}
-                      onChange={(e) => setSellCashbackPercent(Number(e.target.value))}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Percentage given as YOS token cashback
-                    </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="text-sm text-muted-foreground">Status:</div>
+                    <div className="col-span-2">
+                      {isInitialized ? (
+                        <span className="flex items-center text-green-600">
+                          <CheckCircle2 className="h-4 w-4 mr-1" />
+                          Initialized
+                        </span>
+                      ) : (
+                        <span className="flex items-center text-amber-600">
+                          <AlertTriangle className="h-4 w-4 mr-1" />
+                          Not Initialized
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-                
-                <div className="flex justify-between items-center py-2 px-4 bg-muted rounded">
-                  <span>Total:</span>
-                  <span className={validateSellPercentages() ? 'text-green-500' : 'text-red-500 font-bold'}>
-                    {sellUserPercent + sellLiquidityPercent + sellCashbackPercent}% 
-                    {validateSellPercentages() ? ' ✓' : ' (must be 100%)'}
-                  </span>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="rewards" className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="weeklyRewardRate">Weekly Reward Rate (%)</Label>
-                  <Input 
-                    id="weeklyRewardRate"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    value={weeklyRewardRate}
-                    onChange={(e) => setWeeklyRewardRate(Number(e.target.value))}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Percentage of contributed liquidity paid weekly as YOS rewards
-                  </p>
-                </div>
-                
-                <div className="py-2 px-4 bg-muted rounded space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span>Equivalent Annual Rate:</span>
-                    <span className="font-semibold">{(weeklyRewardRate * 52).toFixed(2)}% APR</span>
+              </div>
+
+              <div>
+                <h3 className="font-medium text-base mb-2">Current Parameters</h3>
+                <div className="bg-secondary/30 p-4 rounded-lg space-y-3">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">LP Contribution:</span>
+                      <span className="font-medium">{lpContributionRate}%</span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">YOS Cashback:</span>
+                      <span className="font-medium">{yosCashbackRate}%</span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">User Receives:</span>
+                      <span className="font-medium">{100 - lpContributionRate - yosCashbackRate}%</span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Admin Fee:</span>
+                      <span className="font-medium">{adminFeeRate}%</span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Swap Fee:</span>
+                      <span className="font-medium">{swapFeeRate}%</span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Referral Rate:</span>
+                      <span className="font-medium">{referralRate}%</span>
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    This is an estimate based on consistent weekly distribution. Default is 1.92% weekly (100% APR).
-                  </p>
                 </div>
-              </TabsContent>
-            </Tabs>
-          </form>
-        )}
+              </div>
+
+              <div className="pt-4 flex justify-end">
+                <Button
+                  variant="outline"
+                  onClick={fetchContractInfo}
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Refresh Contract Info
+                </Button>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
       </CardContent>
-      
-      <CardFooter className="flex justify-end">
-        <Button 
-          type="submit" 
-          onClick={handleSubmit}
-          disabled={updateSettingsMutation.isPending || isLoadingStats}
-        >
-          {updateSettingsMutation.isPending ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="mr-2 h-4 w-4" />
-              Save Settings
-            </>
-          )}
-        </Button>
+
+      <CardFooter className="border-t pt-6 flex flex-col items-start">
+        <p className="text-sm text-muted-foreground">
+          Changes to swap parameters are immediately reflected in the smart contract. 
+          User swap distribution, liquidity contribution, and YOS cashback rates must add up to 100%.
+        </p>
       </CardFooter>
     </Card>
   );
-}
+};
+
+export default MultiHubSwapSettings;
