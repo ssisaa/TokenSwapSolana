@@ -1050,8 +1050,9 @@ export async function performSwap(
       // Already a BigInt, assume it's already in lamports format
       amountInLamports = amountIn;
     } else {
-      // Convert number to lamports
-      amountInLamports = BigInt(Math.floor(amountIn * (10 ** DECIMALS)));
+      // Convert number to lamports - handle multiplication safely
+      const rawAmount = Math.floor(amountIn * (10 ** DECIMALS));
+      amountInLamports = BigInt(rawAmount);
     }
     
     // Handle minAmountOut conversion
@@ -1060,8 +1061,9 @@ export async function performSwap(
       // Already a BigInt, assume it's already in lamports format
       minAmountOutLamports = minAmountOut;
     } else {
-      // Convert number to lamports
-      minAmountOutLamports = BigInt(Math.floor(minAmountOut * (10 ** DECIMALS)));
+      // Convert number to lamports - handle multiplication safely
+      const rawMinAmount = Math.floor(minAmountOut * (10 ** DECIMALS));
+      minAmountOutLamports = BigInt(rawMinAmount);
     }
     
     console.log(`Using amounts: ${amountIn} tokens (${amountInLamports} lamports)`);
@@ -1396,9 +1398,13 @@ export async function performSwap(
       );
       
       // We need the transfer amount plus extra for transaction fees (0.001 SOL should be enough)
-      const neededAmount = amountInLamports + 1000000; // amount + 0.001 SOL for fees
-      if (solBalance < neededAmount) {
-        throw new Error(`Insufficient SOL balance. You have ${solBalance / 1_000_000_000} SOL, but need at least ${neededAmount / 1_000_000_000} SOL (including fees).`);
+      const neededAmount = amountInLamports + BigInt(1000000); // amount + 0.001 SOL for fees
+      if (BigInt(solBalance) < neededAmount) {
+        // Convert to numbers for display, with appropriate decimal places
+        const solBalanceDecimal = Number(solBalance) / 1_000_000_000;
+        const neededAmountDecimal = Number(neededAmount) / 1_000_000_000;
+        
+        throw new Error(`Insufficient SOL balance. You have ${solBalanceDecimal.toFixed(6)} SOL, but need at least ${neededAmountDecimal.toFixed(6)} SOL (including fees).`);
       }
     }
     
