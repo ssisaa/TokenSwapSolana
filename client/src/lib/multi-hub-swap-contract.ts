@@ -15,8 +15,6 @@ import {
   createMintToInstruction,
 } from '@solana/spl-token';
 import { Buffer } from 'buffer';
-import { ADMIN_WALLET_ADDRESS } from './constants';
-
 // Import configuration from centralized configuration system
 import {
   solanaConfig,
@@ -25,6 +23,7 @@ import {
   YOS_TOKEN_ADDRESS,
   MULTI_HUB_SWAP_PROGRAM_ID,
   MULTI_HUB_SWAP_STATE,
+  MULTI_HUB_SWAP_ADMIN,
   SOLANA_RPC_URL,
   DEFAULT_DISTRIBUTION_RATES,
   DEFAULT_FEE_RATES,
@@ -284,8 +283,8 @@ export async function distributeWeeklyYosReward(
     
     console.log("Reward distribution transaction confirmed:", signature);
     
-    // Calculate the distributed reward amount (1/52 of yearly reward - 100% APR means 1.92% weekly)
-    const weeklyRewardRate = 0.0192; // 1.92% weekly (100% APR / 52 weeks)
+    // Calculate the distributed reward amount (from config - 100% APR means 1.92% weekly)
+    const weeklyRewardRate = solanaConfig.multiHubSwap.rewards.weeklyRewardRate / 100; // Convert from percentage to decimal
     const distributedAmount = contributionInfo.contributedAmount * weeklyRewardRate;
     
     console.log(`Distributed ${distributedAmount} YOS to user ${userAddress} from ${contributionInfo.contributedAmount} YOT contribution`);
@@ -903,7 +902,7 @@ export async function initializeMultiHubSwap(
   }
 
   // Verify admin privileges
-  if (wallet.publicKey.toString() !== ADMIN_WALLET_ADDRESS) {
+  if (wallet.publicKey.toString() !== MULTI_HUB_SWAP_ADMIN) {
     throw new Error("Only admin wallet can initialize the program");
   }
 

@@ -120,6 +120,7 @@ export const USDC_DEVNET_ADDRESS = solanaConfig.multiHubSwap.amm.raydium.usdc;
 export const MULTI_HUB_SWAP_PROGRAM_ID = solanaConfig.multiHubSwap.programId;
 export const MULTI_HUB_SWAP_STATE = solanaConfig.multiHubSwap.programState;
 export const MULTI_HUB_SWAP_ADMIN = solanaConfig.multiHubSwap.admin;
+export const ADMIN_WALLET_ADDRESS = solanaConfig.multiHubSwap.admin;
 
 // Pool information
 export const SOL_YOT_POOL_INFO = {
