@@ -1,0 +1,35 @@
+multi-hub-swap-contract.ts:299 Error in buyAndDistribute: SendTransactionError: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 2: invalid instruction data. 
+Logs: 
+[
+  "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+  "Program ComputeBudget111111111111111111111111111111 success",
+  "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+  "Program ComputeBudget111111111111111111111111111111 success",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE invoke [1]",
+  "Program log: Unknown instruction discriminator",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE consumed 2223 of 199700 compute units",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE failed: invalid instruction data"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at async buyAndDistribute (multi-hub-swap-contract.ts:291:23)
+    at async executeSwap (multi-hub-swap-contract.ts:748:23)
+    at async performSwap (MultiHubSwapCard.tsx:293:22)
+
+MultiHubSwapCard.tsx:359 Swap error: SendTransactionError: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 2: invalid instruction data. 
+Logs: 
+[
+  "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+  "Program ComputeBudget111111111111111111111111111111 success",
+  "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+  "Program ComputeBudget111111111111111111111111111111 success",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE invoke [1]",
+  "Program log: Unknown instruction discriminator",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE consumed 2223 of 199700 compute units",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE failed: invalid instruction data"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at async buyAndDistribute (multi-hub-swap-contract.ts:291:23)
+    at async executeSwap (multi-hub-swap-contract.ts:748:23)
+    at async performSwap (MultiHubSwapCard.tsx:293:22)
