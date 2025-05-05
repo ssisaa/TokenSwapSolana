@@ -26,11 +26,11 @@ import {
   getEndpoint
 } from './config';
 
-// Program ID from the deployed Anchor program
-export const MULTI_HUB_SWAP_PROGRAM_ID = 'Fg6PaFpoGXkYsidMpWxqSWib32jBzv4U5mpdKqHR3rXY';
+// Program ID and Connection from config
+export const MULTI_HUB_SWAP_PROGRAM_ID = getMultiHubProgramId('v4');
 
 // Connection to Solana network
-export const connection = new Connection(ENDPOINT, 'confirmed');
+export const connection = new Connection(getEndpoint(), 'confirmed');
 
 // Instruction discriminators for the program
 const BUY_AND_DISTRIBUTE_DISCRIMINATOR = Buffer.from([97, 208, 4, 103, 223, 94, 26, 42]);
@@ -134,21 +134,23 @@ export async function buyAndDistribute(
 
     const userPublicKey = wallet.publicKey;
     const program = new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID);
-    const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
-    const yosMint = new PublicKey(YOS_TOKEN_ADDRESS);
+    const yotMint = getTokenPublicKey('YOT');
+    const yosMint = getTokenPublicKey('YOS');
 
     // Create a transaction
     const transaction = new Transaction();
 
-    // 1. Add owner commission payment (0.1% of SOL)
-    const ownerWallet = new PublicKey(ADMIN_WALLET_ADDRESS);
+    // 1. Add owner commission payment (initially 0.1% of SOL)
+    const ownerWallet = new PublicKey(config.accounts.admin);
     
-    // Calculate commission amount (0.1% of the transaction value in SOL)
+    // Calculate commission amount using the admin fee rate from config
     const estimatedSolValue = amountIn * 0.0000015; // Approximate SOL value of the YOT
-    const commissionAmount = estimatedSolValue * (OWNER_COMMISSION_PERCENT / 100);
+    // Get adminFeeRate from config (in basis points) - convert from basis points to percentage
+    const ownerCommissionPercent = config.parameters.swap.adminFeeRate / 100;
+    const commissionAmount = estimatedSolValue * (ownerCommissionPercent / 100);
     const commissionLamports = Math.floor(commissionAmount * LAMPORTS_PER_SOL);
     
-    console.log(`Adding owner commission: ${commissionAmount} SOL (${commissionLamports} lamports) to admin wallet`);
+    console.log(`Adding owner commission: ${commissionAmount} SOL (${commissionLamports} lamports) to admin wallet ${config.accounts?.admin} at rate ${ownerCommissionPercent}%`);
     
     // Only add commission transaction if the amount is greater than 0
     if (commissionLamports > 0) {
@@ -255,18 +257,19 @@ export async function claimWeeklyYosReward(wallet: any): Promise<{ signature: st
 
     const userPublicKey = wallet.publicKey;
     const program = new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID);
-    const yosMint = new PublicKey(YOS_TOKEN_ADDRESS);
+    const yosMint = getTokenPublicKey('YOS');
 
     // Create a transaction
     const transaction = new Transaction();
 
-    // 1. Add owner commission payment (0.1% of SOL)
-    const ownerWallet = new PublicKey(ADMIN_WALLET_ADDRESS);
+    // 1. Add owner commission payment based on admin fee rate
+    const ownerWallet = new PublicKey(config.accounts.admin);
     
-    // We estimate a small fixed amount for commission on claims
-    const commissionLamports = Math.floor(0.0001 * LAMPORTS_PER_SOL); // 0.0001 SOL
+    // We estimate a small fixed amount for commission on claims based on admin fee rate
+    const adminFeeRate = config.parameters.swap.adminFeeRate / 100; // Convert basis points to percentage
+    const commissionLamports = Math.floor(0.0001 * LAMPORTS_PER_SOL); // Fixed 0.0001 SOL for claims
     
-    console.log(`Adding owner commission: ${0.0001} SOL (${commissionLamports} lamports) to admin wallet`);
+    console.log(`Adding owner commission: ${0.0001} SOL (${commissionLamports} lamports) to admin wallet ${config.accounts?.admin} at rate ${adminFeeRate}%`);
     
     // Add commission transaction
     const transferInstruction = SystemProgram.transfer({
@@ -348,16 +351,17 @@ export async function withdrawLiquidityContribution(wallet: any): Promise<{ sign
 
     const userPublicKey = wallet.publicKey;
     const program = new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID);
-    const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
+    const yotMint = getTokenPublicKey('YOT');
 
     // Create a transaction
     const transaction = new Transaction();
 
-    // 1. Add owner commission payment (0.1% of SOL)
-    const ownerWallet = new PublicKey(ADMIN_WALLET_ADDRESS);
+    // 1. Add owner commission payment based on admin fee rate
+    const ownerWallet = new PublicKey(config.accounts.admin);
     
-    // We estimate a small fixed amount for commission on withdrawals
-    const commissionLamports = Math.floor(0.0001 * LAMPORTS_PER_SOL); // 0.0001 SOL
+    // We estimate a small fixed amount for commission on withdrawals based on admin fee rate
+    const adminFeeRate = config.parameters.swap.adminFeeRate / 100; // Convert basis points to percentage
+    const commissionLamports = Math.floor(0.0001 * LAMPORTS_PER_SOL); // Fixed 0.0001 SOL for withdrawals
     
     console.log(`Adding owner commission: ${0.0001} SOL (${commissionLamports} lamports) to admin wallet`);
     
@@ -553,7 +557,7 @@ export async function updateMultiHubSwapParameters(
     const program = new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID);
     
     // Validate admin wallet
-    if (userPublicKey.toString() !== ADMIN_WALLET_ADDRESS) {
+    if (userPublicKey.toString() !== config.accounts?.admin) {
       throw new Error("Only admin can update parameters");
     }
     
