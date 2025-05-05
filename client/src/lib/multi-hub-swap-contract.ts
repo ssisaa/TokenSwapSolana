@@ -551,7 +551,14 @@ export async function buyAndDistribute(
     
     // Get program state and authority accounts
     const stateAccount = new PublicKey(MULTI_HUB_SWAP_STATE);
-    const programAuthority = new PublicKey(MULTI_HUB_SWAP_PROGRAM_AUTHORITY);
+    
+    // Find the program authority PDA - CRITICAL: this must be derived correctly
+    // This is the authority that the program uses for token operations
+    const [programAuthority, _] = PublicKey.findProgramAddressSync(
+      [Buffer.from("authority")],
+      new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
+    );
+    console.log("Dynamically derived program authority PDA:", programAuthority.toString());
     
     // Validate percentages match contract expectations
     if (buyUserPercent !== 75 || buyLiquidityPercent !== 20 || buyCashbackPercent !== 5) {
@@ -598,6 +605,7 @@ export async function buyAndDistribute(
     console.log("- Raw amount:", rawAmount.toString());
     
     // Create transaction instruction with accounts in EXACT order needed by Rust program
+    // CRITICAL: Order of accounts must match exactly what the Rust program expects
     const instruction = new TransactionInstruction({
       keys: [
         { pubkey: userPublicKey, isSigner: true, isWritable: true },          // user
@@ -611,11 +619,21 @@ export async function buyAndDistribute(
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // system_program
         { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },   // rent_sysvar
         { pubkey: stateAccount, isSigner: false, isWritable: true },          // program_state_account
-        { pubkey: programAuthority, isSigner: false, isWritable: false }      // program authority
+        { pubkey: programAuthority, isSigner: false, isWritable: false },     // program authority
+        { pubkey: poolAuthority, isSigner: false, isWritable: false }         // pool authority (owns pool token accounts)
       ],
       programId: program,
       data: instructionBuffer
     });
+    
+    // Create an approval instruction to delegate authority for token transfers
+    console.log("Creating approval instruction for program authority...");
+    const approveInstruction = createApproveInstruction(
+      userYotAccount,              // source account
+      programAuthority,            // delegate
+      userPublicKey,               // owner
+      rawAmount                    // amount
+    );
     
     // Create transaction with compute budget for complex operations
     const transaction = new Transaction();
@@ -635,9 +653,10 @@ export async function buyAndDistribute(
     transaction.lastValidBlockHeight = recentBlockhash.lastValidBlockHeight;
     transaction.feePayer = userPublicKey;
     
-    // Add instructions in order
+    // Add instructions in order - IMPORTANT: add approval BEFORE the swap instruction
     transaction.add(computeUnits);
     transaction.add(priorityFee);
+    transaction.add(approveInstruction);
     transaction.add(instruction);
     
     // Simulate the transaction before wallet signing
