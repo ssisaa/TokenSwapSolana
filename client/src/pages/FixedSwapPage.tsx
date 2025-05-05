@@ -499,7 +499,9 @@ export default function FixedSwapPage() {
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm text-muted-foreground">To</span>
                   <span className="text-sm text-muted-foreground">
-                    Balance: {toToken === SOL_SYMBOL ? "6.9898" : "159,627,437.145"} {toToken}
+                    Balance: {toToken === SOL_SYMBOL ? 
+                      (solBalance ? solBalance.toFixed(4) : "Loading...") : 
+                      (yotBalance ? yotBalance.toLocaleString() : "Loading...")} {toToken}
                   </span>
                 </div>
                 
