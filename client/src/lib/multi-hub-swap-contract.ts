@@ -772,16 +772,33 @@ export async function buyAndDistribute(
     console.log("Using improved transaction handling to fix numRequiredSignatures error");
     const transaction = await createAndSignTransaction(wallet, instruction, connection);
     
+    // CRITICAL: Simulate the transaction before requesting wallet signature
+    // This prevents the wallet from showing a red error screen
+    console.log("Simulating transaction to detect errors before wallet signature prompt...");
+    try {
+      const simResult = await connection.simulateTransaction(transaction);
+      
+      // Check for errors in the simulation
+      if (simResult.value.err) {
+        console.error("Transaction simulation failed:", simResult.value.err);
+        console.error("Log messages:", simResult.value.logs);
+        throw new Error(`Transaction would fail on-chain: ${JSON.stringify(simResult.value.err)}`);
+      }
+      
+      console.log("Simulation successful, proceeding with transaction signing");
+    } catch (error) {
+      console.error("Simulation failed:", error);
+      throw new Error(`Transaction would fail: ${error.message}`);
+    }
+    
     // Sign transaction with wallet
     const signedTransaction = await wallet.signTransaction(transaction);
     
-    // Skip simulation to avoid issues with numRequiredSignatures errors
-    console.log("Skipping simulation to avoid numRequiredSignatures error");
-    
-    // Send transaction with skipPreflight to bypass simulation errors
-    console.log("Sending transaction with skipPreflight=true...");
+    // Send the transaction but DO NOT skip preflight verification
+    // This ensures another simulation is run as a final check
+    console.log("Sending transaction with full preflight verification...");
     const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
-      skipPreflight: true,
+      skipPreflight: false, // IMPORTANT: don't skip preflight
       preflightCommitment: 'confirmed',
       maxRetries: 3
     });
@@ -912,16 +929,33 @@ export async function distributeWeeklyYosReward(
     console.log("Using improved transaction handling for weekly rewards distribution");
     const transaction = await createAndSignTransaction(adminWallet, instruction, connection);
     
+    // CRITICAL: Simulate the transaction before requesting wallet signature
+    // This prevents the wallet from showing a red error screen
+    console.log("Simulating transaction to detect errors before wallet signature prompt...");
+    try {
+      const simResult = await connection.simulateTransaction(transaction);
+      
+      // Check for errors in the simulation
+      if (simResult.value.err) {
+        console.error("Transaction simulation failed:", simResult.value.err);
+        console.error("Log messages:", simResult.value.logs);
+        throw new Error(`Transaction would fail on-chain: ${JSON.stringify(simResult.value.err)}`);
+      }
+      
+      console.log("Simulation successful, proceeding with transaction signing");
+    } catch (error) {
+      console.error("Simulation failed:", error);
+      throw new Error(`Transaction would fail: ${error.message}`);
+    }
+    
     // Sign the transaction
     const signedTransaction = await adminWallet.signTransaction(transaction);
     
-    // Skip simulation to avoid potential errors 
-    console.log("Skipping simulation to avoid potential errors");
-    
-    // Send transaction with skipPreflight
-    console.log("Sending transaction with skipPreflight=true...");
+    // Send the transaction but DO NOT skip preflight verification
+    // This ensures another simulation is run as a final check
+    console.log("Sending transaction with full preflight verification...");
     const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
-      skipPreflight: true,
+      skipPreflight: false, // IMPORTANT: don't skip preflight
       preflightCommitment: 'confirmed',
       maxRetries: 3
     });
