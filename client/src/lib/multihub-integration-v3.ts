@@ -275,26 +275,62 @@ export async function performMultiHubSwap(
       // Check if the YOT account has sufficient balance
       const availableYOT = tokenAccountsInfo.yotAccount.balance || 0;
       
-      // Handle different types for outAmount (number or bigint)
-      let minNeeded: number;
-      if (typeof swapEstimate.outAmount === 'bigint') {
-        // Convert BigInt to number with 10% buffer
-        minNeeded = Number(swapEstimate.outAmount) * 1.1;
-      } else {
-        minNeeded = swapEstimate.outAmount * 1.1; // Need at least 110% of estimated output
+      // Calculate expected output using AMM formula, regardless of what's in swapEstimate
+      // Import pool functions from solana.ts
+      const { getPoolBalances, lamportsToSol } = await import('./solana');
+      const { solBalance, yotBalance } = await getPoolBalances();
+      
+      // If either balance is zero, we can't calculate
+      if (solBalance <= 0 || yotBalance <= 0) {
+        throw new Error('Cannot perform swap: Pool balances unavailable');
       }
       
+      // Convert SOL from lamports for calculation
+      const solBalanceInSol = lamportsToSol(solBalance);
+      
+      // Convert input amount to SOL (if it's in lamports)
+      const amountInSol = typeof amountIn === 'bigint' 
+        ? Number(amountIn) / 1e9 
+        : amountIn;
+      
+      // Apply fee (0.3%) to input amount
+      const solAmountAfterFee = amountInSol * 0.997;
+      
+      // Calculate expected YOT using AMM formula: dx = (y * dz) / (x + dz)
+      // Where x = solBalanceInSol, y = yotBalance, dz = solAmountAfterFee
+      const expectedYotAmount = (yotBalance * solAmountAfterFee) / (solBalanceInSol + solAmountAfterFee);
+      
+      // Need at least 110% of expected output for safety
+      const minNeeded = expectedYotAmount * 1.1;
+      
+      console.log(`AMM calculation for SOL→YOT swap verification:`);
+      console.log(`  Pool state: ${solBalanceInSol} SOL, ${yotBalance} YOT`);
+      console.log(`  Input: ${amountInSol} SOL (${solAmountAfterFee} after 0.3% fee)`);
+      console.log(`  Expected output: ${expectedYotAmount} YOT (need ${minNeeded} with buffer)`);
+      console.log(`  Program has: ${availableYOT} YOT`);
+      
+      // Check if program has enough YOT
       if (availableYOT < minNeeded) {
-        // Calculate maximum allowed amount for a better error message
-        // Convert both to numbers for calculation (if they're not already)
-        const amountInNum = typeof amountIn === 'bigint' ? Number(amountIn) / 1e9 : Number(amountIn);
-        const availableYotNum = typeof availableYOT === 'bigint' ? Number(availableYOT) / 1e9 : Number(availableYOT);
-        const minNeededNum = typeof minNeeded === 'bigint' ? Number(minNeeded) / 1e9 : Number(minNeeded);
+        // Calculate maximum allowed amount using AMM formula
+        // We need to solve for the input amount that would result in outAmount = availableYOT*0.9
+        // (y * dz) / (x + dz) = availableYOT*0.9
+        // dz * y = availableYOT*0.9 * (x + dz)
+        // dz * y = availableYOT*0.9 * x + availableYOT*0.9 * dz
+        // dz * y - availableYOT*0.9 * dz = availableYOT*0.9 * x
+        // dz * (y - availableYOT*0.9) = availableYOT*0.9 * x
+        // dz = (availableYOT*0.9 * x) / (y - availableYOT*0.9)
         
-        const maxSolAmount = (amountInNum * availableYotNum / minNeededNum) * 0.9; // 90% of theoretical max to be safe
-        const formattedMaxAmount = maxSolAmount.toFixed(6);
+        const safeAvailableYot = availableYOT * 0.9; // Use 90% of what's available
         
-        console.error(`Program only has ${availableYotNum} YOT but needs at least ${minNeededNum} YOT for this swap`);
+        let maxSolAmount = 0;
+        if (yotBalance > safeAvailableYot) {
+          maxSolAmount = (safeAvailableYot * solBalanceInSol) / (yotBalance - safeAvailableYot);
+          maxSolAmount = maxSolAmount / 0.997; // Account for fee
+        }
+        
+        const formattedMaxAmount = Math.max(0, maxSolAmount).toFixed(6);
+        
+        console.error(`Program only has ${availableYOT} YOT but needs at least ${minNeeded} YOT for this swap`);
         console.error(`Maximum recommended SOL amount for swap: ${formattedMaxAmount} SOL`);
         
         throw new Error(`Insufficient YOT in the program account. The maximum recommended amount for SOL → YOT swap is ${formattedMaxAmount} SOL. Please try a smaller amount or try YOT → SOL swap direction first to fund the program, or visit the admin page to fund the program with YOT tokens.`);

@@ -284,11 +284,12 @@ export default function FixedSwapPage() {
           
         console.log(`Converted raw amounts: ${rawFromAmount} ${fromToken} -> ${rawToAmount} ${toToken}`);
         
-        // Create a swap estimate using the current exchange rate with corrected raw amounts
+        // We use outAmount: 0n (0 as BigInt) to let the program calculate the output
+        // This is critical to avoid unrealistic estimates that can't be fulfilled
         const swapEstimate: SwapEstimate = {
           provider: SwapProvider.Contract,
           inAmount: rawFromAmount,
-          outAmount: rawToAmount,
+          outAmount: BigInt(0), // Let the contract calculate this dynamically based on AMM formula
           rate: fromToken === SOL_SYMBOL ? exchangeRate : 1/exchangeRate,
           impact: 0.005, // Price impact is calculated by the contract
           fee: 0.003     // Fee is set by the contract
