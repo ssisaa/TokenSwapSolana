@@ -26,10 +26,11 @@ const appConfig = JSON.parse(fs.readFileSync(appConfigPath, 'utf8'));
 
 // Constants from central configuration
 const CLUSTER = appConfig.network;
-const RPC_ENDPOINTS = [
+
+// RPC endpoints from config or fallback to default ones
+const RPC_ENDPOINTS = appConfig.rpcEndpoints?.[CLUSTER] || [
   clusterApiUrl(CLUSTER),
-  'https://rpc-devnet.helius.xyz/?api-key=15319bf6-5525-43d0-8cdc-17f54a2c452a',
-  'https://rpc.ankr.com/solana_devnet'
+  'https://api.devnet.solana.com', // Default devnet endpoint without API key
 ];
 const YOT_TOKEN_ADDRESS = appConfig.tokens.YOT;
 const YOS_TOKEN_ADDRESS = appConfig.tokens.YOS;
@@ -143,8 +144,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.warn('Error fetching YOS balance, using 0:', error);
       }
       
-      // Calculate total value (simple estimation)
-      const totalValue = solBalance * 148.35; // Assuming $148.35 per SOL
+      // Calculate total value using SOL price from config or use a default
+      const solPrice = appConfig.parameters?.solPrice || 148.35;
+      const totalValue = solBalance * solPrice;
       
       // Create response data
       const poolData = {
@@ -420,8 +422,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // If the account doesn't exist, balance is 0
       }
       
-      // Calculate SOL USD value
-      const solPrice = 148.35; // SOL price in USD
+      // Calculate SOL USD value using price from config
+      const solPrice = appConfig.parameters?.solPrice || 148.35;
       const solUsdValue = (solBalance / LAMPORTS_PER_SOL) * solPrice;
       
       const balanceData = {
