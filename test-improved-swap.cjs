@@ -20,9 +20,9 @@ const appConfig = JSON.parse(fs.readFileSync('./app.config.json', 'utf8'));
 const solanaConfig = appConfig.solana;
 
 // Constants - Use values from app config
-const MULTI_HUB_SWAP_PROGRAM_ID = solanaConfig.programId;
-const YOT_TOKEN_ADDRESS = solanaConfig.tokens.yot;
-const YOS_TOKEN_ADDRESS = solanaConfig.tokens.yos;
+const MULTI_HUB_SWAP_PROGRAM_ID = solanaConfig.multiHubSwap.programId;
+const YOT_TOKEN_ADDRESS = solanaConfig.tokens.yot.address;
+const YOS_TOKEN_ADDRESS = solanaConfig.tokens.yos.address;
 const POOL_AUTHORITY = solanaConfig.pool.authority;
 const POOL_SOL_ACCOUNT = solanaConfig.pool.solAccount;
 
@@ -236,7 +236,20 @@ async function testSwap() {
     
     // Get PDAs
     const [programStateAccount] = findProgramStateAddress();
+    const configuredProgramState = new PublicKey(solanaConfig.multiHubSwap.programState);
     const [liquidityContributionAccount] = findLiquidityContributionAddress(wallet.publicKey);
+    
+    console.log('Program state from seed derivation:', programStateAccount.toString());
+    console.log('Program state from config:', configuredProgramState.toString());
+    
+    // Check if program accounts exist
+    const liquidityContributionInfo = await connection.getAccountInfo(liquidityContributionAccount);
+    console.log(`Liquidity contribution account exists: ${liquidityContributionInfo !== null}`);
+    
+    const programStateInfo = await connection.getAccountInfo(programStateAccount);
+    console.log(`Program state account exists: ${programStateInfo !== null}${programStateInfo ? ', size: ' + programStateInfo.data.length + ' bytes' : ''}`);
+    
+    // If the liquidity contribution account doesn't exist, it will be created during the transaction
     
     // Log all accounts for verification
     console.log('\nAccounts for swap:');
@@ -251,14 +264,18 @@ async function testSwap() {
     const amount = 0.01; // SOL amount to swap
     const rawAmount = Math.floor(amount * 1_000_000_000); // Convert to lamports
     
-    // Create instruction data with discriminator byte of 4 for BUY_AND_DISTRIBUTE
+    // Get the correct instruction discriminator from config
+    const buyAndDistributeDiscriminator = solanaConfig.multiHubSwap.instructionDiscriminators.buyAndDistribute;
+    console.log('Using discriminator from config:', buyAndDistributeDiscriminator);
+    
+    // Create instruction data with correct discriminator for BUY_AND_DISTRIBUTE
     const instructionData = Buffer.concat([
-      Buffer.from([4]), // BUY_AND_DISTRIBUTE discriminator
+      Buffer.from(buyAndDistributeDiscriminator), // BUY_AND_DISTRIBUTE discriminator from config
       encodeU64(rawAmount) // Amount as 8-byte little-endian u64
     ]);
     
     console.log('\nInstruction data:');
-    console.log('- Discriminator: 4 (BUY_AND_DISTRIBUTE)');
+    console.log('- Discriminator: buyAndDistribute');
     console.log('- Amount: 0.01 SOL');
     console.log('- Raw amount: ', rawAmount);
     console.log('- Full buffer hex:', instructionData.toString('hex'));
