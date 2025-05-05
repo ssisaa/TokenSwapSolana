@@ -31,6 +31,11 @@ import { connectionManager } from './connection-manager';
 // Program ID for the multihub swap V3/V4 contract from central config
 export const MULTIHUB_SWAP_PROGRAM_ID = config.programs.multiHub.v4;
 
+// Define essential Solana system addresses (used throughout the module)
+const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+const SYSTEM_PROGRAM_ID = new PublicKey('11111111111111111111111111111111');
+const SYSVAR_RENT_PUBKEY = new PublicKey('SysvarRent111111111111111111111111111111111');
+
 // Define token accounts for both authorities for dual implementation and fallback
 const POOL_AUTHORITY = "7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK";
 const PROGRAM_AUTHORITY = "Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ";
@@ -1410,9 +1415,7 @@ export async function performSwap(
     
     // Add token mint accounts to the transaction
     // Including the mint accounts is often required for proper validation
-    const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
-    const SYSTEM_PROGRAM_ID = new PublicKey('11111111111111111111111111111111');
-    const SYSVAR_RENT_PUBKEY = new PublicKey('SysvarRent111111111111111111111111111111111');
+    // Using the TOKEN_PROGRAM_ID, SYSTEM_PROGRAM_ID, and SYSVAR_RENT_PUBKEY defined at the top of the file
     
     // Perform additional validation and ensure APR accounts exist
     console.log(`Using tokenFromMint: ${tokenFromMint.toString()}`);
@@ -2056,7 +2059,7 @@ export async function mintTokensToProgramPDA(
     }
     
     // Get token accounts from mint
-    const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+    // Using the TOKEN_PROGRAM_ID defined at the top of the file
     
     // Create separate transactions for YOT and YOS to mint directly to PDAs
     if (amountYot > 0) {

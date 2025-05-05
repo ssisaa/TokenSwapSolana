@@ -1,0 +1,119 @@
+ror validating Program FROM token account 7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS: ReferenceError: Cannot access 'TOKEN_PROGRAM_ID' before initialization
+    at validateAccount (multihub-contract-v3.ts:1129:41)
+    at async Object.performSwap (multihub-contract-v3.ts:1177:29)
+    at async handleExecuteSwap (FixedSwapPage.tsx:226:23)
+validateAccount @ multihub-contract-v3.ts:1145
+await in validateAccount
+performSwap @ multihub-contract-v3.ts:1177
+await in performSwap
+performMultiHubSwap @ multihub-integration-v3.ts:409
+await in performMultiHubSwap
+handleExecuteSwap @ FixedSwapPage.tsx:226
+await in handleExecuteSwap
+callCallback2 @ chunk-276SZO74.js?v=c5448800:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c5448800:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c5448800:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c5448800:3736
+executeDispatch @ chunk-276SZO74.js?v=c5448800:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c5448800:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c5448800:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c5448800:7051
+(anonymous) @ chunk-276SZO74.js?v=c5448800:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c5448800:18913
+batchedUpdates @ chunk-276SZO74.js?v=c5448800:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c5448800:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c5448800:5478
+dispatchEvent @ chunk-276SZO74.js?v=c5448800:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c5448800:5449Understand this error
+multihub-contract-v3.ts:1178 PRIMARY FROM account 7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS valid: false
+multihub-contract-v3.ts:1217 Using PRIMARY YOT token account (TO): BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE
+multihub-contract-v3.ts:1106 Validating Program TO token account: BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE
+multihub-contract-v3.ts:1145 Error validating Program TO token account BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE: ReferenceError: Cannot access 'TOKEN_PROGRAM_ID' before initialization
+    at validateAccount (multihub-contract-v3.ts:1129:41)
+    at async Object.performSwap (multihub-contract-v3.ts:1232:27)
+    at async handleExecuteSwap (FixedSwapPage.tsx:226:23)
+validateAccount @ multihub-contract-v3.ts:1145
+await in validateAccount
+performSwap @ multihub-contract-v3.ts:1232
+await in performSwap
+performMultiHubSwap @ multihub-integration-v3.ts:409
+await in performMultiHubSwap
+handleExecuteSwap @ FixedSwapPage.tsx:226
+await in handleExecuteSwap
+callCallback2 @ chunk-276SZO74.js?v=c5448800:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c5448800:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c5448800:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c5448800:3736
+executeDispatch @ chunk-276SZO74.js?v=c5448800:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c5448800:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c5448800:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c5448800:7051
+(anonymous) @ chunk-276SZO74.js?v=c5448800:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c5448800:18913
+batchedUpdates @ chunk-276SZO74.js?v=c5448800:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c5448800:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c5448800:5478
+dispatchEvent @ chunk-276SZO74.js?v=c5448800:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c5448800:5449Understand this error
+multihub-contract-v3.ts:1233 PRIMARY TO account BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE valid: false
+multihub-contract-v3.ts:1106 Validating unknown account: ALNfRZWERhp8eDyBR5wcbeDVzz3yv61zQJz5wwW9GnN8
+multihub-contract-v3.ts:1243 Using FALLBACK YOT account (TO): ALNfRZWERhp8eDyBR5wcbeDVzz3yv61zQJz5wwW9GnN8
+multihub-contract-v3.ts:1266 Using PRIMARY YOS token account for cashback: 5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz
+multihub-contract-v3.ts:1106 Validating Program YOS token account: 5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz
+multihub-contract-v3.ts:1145 Error validating Program YOS token account 5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz: ReferenceError: Cannot access 'TOKEN_PROGRAM_ID' before initialization
+    at validateAccount (multihub-contract-v3.ts:1129:41)
+    at async Object.performSwap (multihub-contract-v3.ts:1269:31)
+    at async handleExecuteSwap (FixedSwapPage.tsx:226:23)
+validateAccount @ multihub-contract-v3.ts:1145
+await in validateAccount
+performSwap @ multihub-contract-v3.ts:1269
+await in performSwap
+performMultiHubSwap @ multihub-integration-v3.ts:409
+await in performMultiHubSwap
+handleExecuteSwap @ FixedSwapPage.tsx:226
+await in handleExecuteSwap
+callCallback2 @ chunk-276SZO74.js?v=c5448800:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c5448800:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c5448800:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c5448800:3736
+executeDispatch @ chunk-276SZO74.js?v=c5448800:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c5448800:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c5448800:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c5448800:7051
+(anonymous) @ chunk-276SZO74.js?v=c5448800:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c5448800:18913
+batchedUpdates @ chunk-276SZO74.js?v=c5448800:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c5448800:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c5448800:5478
+dispatchEvent @ chunk-276SZO74.js?v=c5448800:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c5448800:5449Understand this error
+multihub-contract-v3.ts:1270 PRIMARY YOS account valid: false
+multihub-contract-v3.ts:1106 Validating unknown account: 49APzC9EH1sBSA2uy5wsvX1qnBeeRyxHm7zgfcv9dYRA
+multihub-contract-v3.ts:1278 Using FALLBACK YOS account for cashback: 49APzC9EH1sBSA2uy5wsvX1qnBeeRyxHm7zgfcv9dYRA
+multihub-contract-v3.ts:1753 Error in swap function: Error: Required token accounts are invalid and fallback accounts were also invalid
+    at Object.performSwap (multihub-contract-v3.ts:1286:13)
+    at async handleExecuteSwap (FixedSwapPage.tsx:226:23)
+performSwap @ multihub-contract-v3.ts:1753
+await in performSwap
+performMultiHubSwap @ multihub-integration-v3.ts:409
+await in performMultiHubSwap
+handleExecuteSwap @ FixedSwapPage.tsx:226
+await in handleExecuteSwap
+callCallback2 @ chunk-276SZO74.js?v=c5448800:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c5448800:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c5448800:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c5448800:3736
+executeDispatch @ chunk-276SZO74.js?v=c5448800:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c5448800:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c5448800:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c5448800:7051
+(anonymous) @ chunk-276SZO74.js?v=c5448800:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c5448800:18913
+batchedUpdates @ chunk-276SZO74.js?v=c5448800:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c5448800:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c5448800:5478
+dispatchEvent @ chunk-276SZO74.js?v=c5448800:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c5448800:5449Understand this error
+FixedSwapPage.tsx:248 Swap failed: Error: Required token accounts are invalid and fallback accounts were also invalid
+    at Object.performSwap (multihub-contract-v3.ts:1286:13)
+    at async handleExecuteSwap (FixedSwapPage.tsx:226:23)
