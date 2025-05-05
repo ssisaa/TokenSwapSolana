@@ -507,9 +507,7 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
                 <div className="flex justify-between">
                   <Label htmlFor="from-amount">From</Label>
                   {wallet?.publicKey && (
-                    <Label className="text-xs text-muted-foreground">
-                      Balance: 123.45 {fromToken.symbol}
-                    </Label>
+                    <BalanceDisplay wallet={wallet} tokenAddress={fromToken.address} symbol={fromToken.symbol} />
                   )}
                 </div>
 
@@ -526,14 +524,11 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
                       onChange={(e) => setFromAmount(e.target.value)}
                     />
                     <div className="absolute right-2 top-2.5">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-5 text-xs px-1.5"
-                        onClick={() => setFromAmount("123.45")} // Should be wallet balance in real app
-                      >
-                        MAX
-                      </Button>
+                      <MaxBalanceButton 
+                        wallet={wallet} 
+                        tokenAddress={fromToken.address} 
+                        setAmount={setFromAmount} 
+                      />
                     </div>
                   </div>
 
@@ -689,7 +684,10 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
                 <Button
                   className="w-full"
                   disabled={!fromAmount || parseFloat(fromAmount) <= 0 || swapLoading || !wallet?.publicKey}
-                  onClick={executeSwap}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    performSwap();
+                  }}
                 >
                   {swapLoading ? (
                     <div className="flex items-center">
@@ -963,5 +961,91 @@ function getTimeRemaining(nextClaimTimeISO: string): string {
     return `${minutes}m remaining`;
   }
 }
+
+// MAX button component that sets the input to the user's maximum balance
+const MaxBalanceButton = ({ 
+  wallet, 
+  tokenAddress, 
+  setAmount 
+}: { 
+  wallet: any, 
+  tokenAddress: string, 
+  setAmount: (amount: string) => void 
+}) => {
+  const [loading, setLoading] = useState(false);
+
+  const handleMaxClick = async () => {
+    if (!wallet || !wallet.publicKey) return;
+    
+    try {
+      setLoading(true);
+      const balance = await getTokenBalance(wallet, tokenAddress);
+      
+      // If it's SOL, leave some for gas fees
+      let maxAmount = balance;
+      if (tokenAddress === SOL_TOKEN_ADDRESS && balance > 0.01) {
+        maxAmount = balance - 0.01; // Reserve 0.01 SOL for transaction fees
+      }
+      
+      setAmount(maxAmount.toString());
+    } catch (error) {
+      console.error("Error fetching max balance:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="h-5 text-xs px-1.5"
+      onClick={handleMaxClick}
+      disabled={loading}
+    >
+      {loading ? <span className="animate-pulse">...</span> : "MAX"}
+    </Button>
+  );
+};
+
+// Component to display real-time token balance from blockchain
+const BalanceDisplay = ({ wallet, tokenAddress, symbol }: { wallet: any, tokenAddress: string, symbol: string }) => {
+  const [balance, setBalance] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (wallet && wallet.publicKey) {
+        try {
+          setLoading(true);
+          const tokenBalance = await getTokenBalance(wallet, tokenAddress);
+          setBalance(tokenBalance);
+        } catch (error) {
+          console.error("Error fetching balance:", error);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchBalance();
+    // Set up an interval to refresh the balance every 30 seconds
+    const intervalId = setInterval(fetchBalance, 30000);
+    
+    return () => clearInterval(intervalId);
+  }, [wallet, tokenAddress]);
+
+  return (
+    <Label className="text-xs text-muted-foreground">
+      Balance: {loading ? (
+        <span className="animate-pulse">...</span>
+      ) : balance !== null ? (
+        `${balance.toFixed(balance < 0.01 ? 6 : 4)} ${symbol}`
+      ) : (
+        "Error"
+      )}
+    </Label>
+  );
+};
 
 export default MultiHubSwapCard;
