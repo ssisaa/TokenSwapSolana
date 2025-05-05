@@ -14,6 +14,7 @@ import {
   createTransferInstruction,
   getAssociatedTokenAddress,
   createMintToInstruction,
+  createAssociatedTokenAccountInstruction
 } from '@solana/spl-token';
 import { Buffer } from 'buffer';
 // Import configuration from centralized configuration system
@@ -81,10 +82,89 @@ export function findVaultTokenAddress(tokenMint: PublicKey): [PublicKey, number]
  * Uses exact same seed as the Rust program: ["liquidity", token_mint]
  */
 export function findLiquidityTokenAddress(tokenMint: PublicKey): [PublicKey, number] {
+  // CRITICAL: Need to use "liquidity" seed to match the Rust program
   return PublicKey.findProgramAddressSync(
     [Buffer.from("liquidity"), tokenMint.toBuffer()],
     new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
   );
+}
+
+/**
+ * Create PDA token accounts needed for the Multi-Hub Swap program if they don't exist
+ * @param wallet The connected wallet
+ * @param tokenMintsToCreate A map of token mint addresses to their token account PDAs
+ * @returns The transaction signature if accounts were created, null if no accounts needed creation
+ */
+export async function createProgramTokenAccounts(
+  wallet: any,
+  tokenAccountsToCreate: {
+    accountPubkey: PublicKey,
+    ownerPubkey: PublicKey,
+    mintPubkey: PublicKey
+  }[]
+): Promise<string | null> {
+  if (!wallet || !wallet.publicKey) {
+    throw new Error("Wallet not connected");
+  }
+  
+  if (tokenAccountsToCreate.length === 0) {
+    return null;
+  }
+  
+  try {
+    const userPublicKey = wallet.publicKey;
+    
+    // Setup transaction and instructions
+    const transaction = new Transaction();
+    const instructions: TransactionInstruction[] = [];
+    
+    // Add instructions for each token account to create
+    for (const { accountPubkey, ownerPubkey, mintPubkey } of tokenAccountsToCreate) {
+      // Check if the account already exists
+      const accountInfo = await connection.getAccountInfo(accountPubkey);
+      
+      if (!accountInfo) {
+        console.log(`Creating token account ${accountPubkey.toString()} for mint ${mintPubkey.toString()}`);
+        
+        // Create the associated token account
+        instructions.push(
+          createAssociatedTokenAccountInstruction(
+            userPublicKey, // payer
+            accountPubkey, // account to create
+            ownerPubkey,   // owner (PDA for vault/liquidity accounts)
+            mintPubkey     // token mint
+          )
+        );
+      } else {
+        console.log(`Token account ${accountPubkey.toString()} already exists`);
+      }
+    }
+    
+    // If no instructions, return null
+    if (instructions.length === 0) {
+      return null;
+    }
+    
+    // Add all instructions to the transaction
+    instructions.forEach(instruction => transaction.add(instruction));
+    
+    // Set recent blockhash and fee payer
+    transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+    transaction.feePayer = userPublicKey;
+    
+    // Sign and send transaction
+    const signedTransaction = await wallet.signTransaction(transaction);
+    const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+    
+    // Wait for confirmation
+    await connection.confirmTransaction(signature, 'confirmed');
+    
+    console.log(`Created ${instructions.length} token accounts. Signature: ${signature}`);
+    return signature;
+  } catch (error) {
+    console.error("Error creating token accounts:", error);
+    throw error;
+  }
 }
 
 /**
@@ -317,6 +397,11 @@ export async function buyAndDistribute(
     const userYotAccount = await getAssociatedTokenAddress(yotMint, userPublicKey);
     const userYosAccount = await getAssociatedTokenAddress(yosMint, userPublicKey);
 
+    // Check if user YOS account exists and create it if not
+    const userYosAccountInfo = await connection.getAccountInfo(userYosAccount);
+    const createUserYosAccount = !userYosAccountInfo;
+    console.log("User YOS account exists:", !!userYosAccountInfo);
+
     // Find program controlled accounts
     const [liquidityContributionAddress] = findLiquidityContributionAddress(userPublicKey);
     const [programStateAddress] = findProgramStateAddress();
@@ -343,12 +428,62 @@ export async function buyAndDistribute(
     // Use PDA with "liquidity" seed per the Rust contract
     const [liquidityYotAddress] = findLiquidityTokenAddress(yotMint);
     
+    // Check if vault and liquidity token accounts exist
+    const vaultYotAccountInfo = await connection.getAccountInfo(vaultYotAddress);
+    const liquidityYotAccountInfo = await connection.getAccountInfo(liquidityYotAddress);
+    
     console.log("Token Accounts:");
     console.log("- User YOT:", userYotAccount.toString());
-    console.log("- User YOS:", userYosAccount.toString());
-    console.log("- Vault YOT:", vaultYotAddress.toString());
-    console.log("- Liquidity YOT:", liquidityYotAddress.toString());
+    console.log("- User YOS:", userYosAccount.toString(), createUserYosAccount ? " (needs creation)" : "");
+    console.log("- Vault YOT:", vaultYotAddress.toString(), vaultYotAccountInfo ? "" : " (needs creation)");
+    console.log("- Liquidity YOT:", liquidityYotAddress.toString(), liquidityYotAccountInfo ? "" : " (needs creation)");
 
+    // Create program token accounts if they don't exist
+    // First, create arrays of token accounts that need to be created
+    const accountsToCreate: {
+      accountPubkey: PublicKey,
+      ownerPubkey: PublicKey,
+      mintPubkey: PublicKey
+    }[] = [];
+    
+    // Check user YOS account first
+    if (createUserYosAccount) {
+      accountsToCreate.push({
+        accountPubkey: userYosAccount,
+        ownerPubkey: userPublicKey,
+        mintPubkey: yosMint
+      });
+    }
+    
+    // Check vault YOT account
+    if (!vaultYotAccountInfo) {
+      accountsToCreate.push({
+        accountPubkey: vaultYotAddress,
+        ownerPubkey: programAuthorityAddress,
+        mintPubkey: yotMint
+      });
+    }
+    
+    // Check liquidity YOT account
+    if (!liquidityYotAccountInfo) {
+      accountsToCreate.push({
+        accountPubkey: liquidityYotAddress,
+        ownerPubkey: programAuthorityAddress,
+        mintPubkey: yotMint
+      });
+    }
+    
+    // Create token accounts if needed
+    if (accountsToCreate.length > 0) {
+      console.log(`Creating ${accountsToCreate.length} token accounts for the swap...`);
+      const setupSignature = await createProgramTokenAccounts(wallet, accountsToCreate);
+      if (setupSignature) {
+        console.log("Token account setup complete:", setupSignature);
+      }
+    } else {
+      console.log("All required token accounts already exist.");
+    }
+    
     // Convert amount to raw token amount
     const rawAmount = Math.floor(amountIn * Math.pow(10, 9)); // Assuming 9 decimals for YOT/YOS
 
