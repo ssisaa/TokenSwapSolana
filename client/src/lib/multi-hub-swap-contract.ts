@@ -438,50 +438,23 @@ export async function buyAndDistribute(
     console.log("- Vault YOT:", vaultYotAddress.toString(), vaultYotAccountInfo ? "" : " (needs creation)");
     console.log("- Liquidity YOT:", liquidityYotAddress.toString(), liquidityYotAccountInfo ? "" : " (needs creation)");
 
-    // Create program token accounts if they don't exist
-    // First, create arrays of token accounts that need to be created
-    const accountsToCreate: {
-      accountPubkey: PublicKey,
-      ownerPubkey: PublicKey,
-      mintPubkey: PublicKey
-    }[] = [];
+    // IMPORTANT: We're NOT creating any token accounts from the client side
+    // The Solana program itself should handle token account creation if needed.
+    // For user YOS account, if it doesn't exist, it will be created via CPI from the Rust program
+    // For vault and liquidity accounts, they are PDA-based and should also be created by the program
     
-    // Check user YOS account first
+    console.log("Let the program handle token account creation - client-side creation is problematic");
+    
     if (createUserYosAccount) {
-      accountsToCreate.push({
-        accountPubkey: userYosAccount,
-        ownerPubkey: userPublicKey,
-        mintPubkey: yosMint
-      });
+      console.log("User YOS account doesn't exist. Let the program handle its creation if needed.");
     }
     
-    // Check vault YOT account
     if (!vaultYotAccountInfo) {
-      accountsToCreate.push({
-        accountPubkey: vaultYotAddress,
-        ownerPubkey: programAuthorityAddress,
-        mintPubkey: yotMint
-      });
+      console.log("Vault YOT account doesn't exist. Let the program handle its creation if needed.");
     }
     
-    // Check liquidity YOT account
     if (!liquidityYotAccountInfo) {
-      accountsToCreate.push({
-        accountPubkey: liquidityYotAddress,
-        ownerPubkey: programAuthorityAddress,
-        mintPubkey: yotMint
-      });
-    }
-    
-    // Create token accounts if needed
-    if (accountsToCreate.length > 0) {
-      console.log(`Creating ${accountsToCreate.length} token accounts for the swap...`);
-      const setupSignature = await createProgramTokenAccounts(wallet, accountsToCreate);
-      if (setupSignature) {
-        console.log("Token account setup complete:", setupSignature);
-      }
-    } else {
-      console.log("All required token accounts already exist.");
+      console.log("Liquidity YOT account doesn't exist. Let the program handle its creation if needed.");
     }
     
     // Convert amount to raw token amount
