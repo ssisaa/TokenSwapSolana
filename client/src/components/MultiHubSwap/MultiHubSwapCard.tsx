@@ -59,7 +59,8 @@ import {
   getTokenBalance, 
   isSwapSupported,
   getSupportedTokens,
-  buyAndDistribute
+  buyAndDistribute,
+  getExchangeRate
 } from "@/lib/multi-hub-swap-contract";
 import { 
   FORMATTED_RATES,
@@ -119,6 +120,7 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
   const [claimLoading, setClaimLoading] = useState(false);
   const [withdrawLoading, setWithdrawLoading] = useState(false);
   const [slippage, setSlippage] = useState("1.0");
+  const [exchangeRateDisplay, setExchangeRateDisplay] = useState("");
 
   // Liquidity contribution state
   const [contributionInfo, setContributionInfo] = useState<{
@@ -186,32 +188,47 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
     if (wallet && wallet.publicKey && fromToken && toToken) {
       try {
         console.log("Fetching exchange rate with wallet:", wallet.publicKey.toString());
-        const { exchangeRate } = await getExpectedOutput(
-          fromToken.address,
-          toToken.address,
-          1.0 // Get rate for 1 token
-        );
+        console.log(`Getting rate for ${fromToken.symbol} to ${toToken.symbol}`);
         
-        console.log(`Real exchange rate from blockchain: 1 ${fromToken.symbol} = ${exchangeRate} ${toToken.symbol}`);
+        // Get the exchange rate directly from blockchain AMM data
+        const rate = await getExchangeRate(fromToken.address, toToken.address);
+        
+        console.log(`Real AMM exchange rate from blockchain: 1 ${fromToken.symbol} = ${rate} ${toToken.symbol}`);
+        
+        // Update display text for the rate
+        let rateDisplay = `1 ${fromToken.symbol} ≈ ${Math.floor(rate).toLocaleString()} ${toToken.symbol}`;
+        if (fromToken.symbol === 'YOT' && toToken.symbol === 'SOL') {
+          // For YOT to SOL, use more decimals since the rate is very small
+          rateDisplay = `1 ${fromToken.symbol} ≈ ${rate.toFixed(8)} ${toToken.symbol}`;
+        }
+        setExchangeRateDisplay(rateDisplay);
         
         // Update the to amount based on real exchange rate
-        if (fromAmount) {
-          const calculated = parseFloat(fromAmount) * exchangeRate;
+        if (fromAmount && parseFloat(fromAmount) > 0) {
+          const calculated = parseFloat(fromAmount) * rate;
+          console.log(`Calculated output: ${parseFloat(fromAmount)} ${fromToken.symbol} * ${rate} = ${calculated} ${toToken.symbol}`);
           setToAmount(calculated.toFixed(calculated < 0.1 ? 6 : 2));
+        } else {
+          setToAmount("");
         }
       } catch (error) {
         console.error("Error fetching exchange rate:", error);
         // Fallback to estimated rate if blockchain data fetch fails
-        if (fromAmount) {
+        if (fromAmount && parseFloat(fromAmount) > 0) {
           const rate = estimateExchangeRate();
           console.log(`Using fallback exchange rate: 1 ${fromToken.symbol} = ${rate} ${toToken.symbol}`);
+          setExchangeRateDisplay(`1 ${fromToken.symbol} ≈ ${rate} ${toToken.symbol} (estimated)`);
+          
           const calculated = parseFloat(fromAmount) * rate;
           setToAmount(calculated.toFixed(calculated < 0.1 ? 6 : 2));
+        } else {
+          setToAmount("");
         }
       }
     } else {
       console.warn("Cannot fetch exchange rate: wallet not connected or tokens not selected", 
         { wallet: !!wallet, publicKey: !!wallet?.publicKey, fromToken: !!fromToken, toToken: !!toToken });
+      setToAmount("");
     }
   };
 
@@ -222,12 +239,12 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
   
   // Update to amount when from amount changes
   useEffect(() => {
-    if (fromAmount) {
+    if (fromAmount && parseFloat(fromAmount) > 0) {
       fetchExchangeRate();
     } else {
       setToAmount("");
     }
-  }, [fromAmount]);
+  }, [fromAmount, fromToken, toToken]);
 
   // Execute the swap transaction
   const performSwap = async () => {
