@@ -745,12 +745,17 @@ export async function buyAndDistribute(
     // First, we need to create a token approval instruction so the program can transfer tokens on behalf of the user
     // This is required to fix the "owner does not match" error (0x4)
     
-    // CRITICAL FIX: Use the exact hardcoded program authority PDA address
-    // This address must match exactly what the Rust program expects
-    console.log("Using hardcoded program authority PDA");
-    const swapProgramAuthority = new PublicKey(MULTI_HUB_SWAP_PROGRAM_AUTHORITY);
+    // CRITICAL FIX: Use the pool authority specified in the config
+    // The Token Program expects the owner (not delegate) to match when transferring tokens
+    console.log("Using pool authority from config instead of program authority PDA");
+    // Get the official pool authority from config - this account owns the pool token accounts
+    const authorityFromPool = new PublicKey(solanaConfig.pool.authority);
+    console.log(`Pool authority: ${authorityFromPool.toString()}`);
     
-    console.log("CRITICAL FIX: Adding token approval for program authority", swapProgramAuthority.toString());
+    // We also need to pass the program PDA authority for reference - this is the program's authority PDA
+    const programAuthority = new PublicKey(MULTI_HUB_SWAP_PROGRAM_AUTHORITY);
+    
+    console.log("CRITICAL FIX: Adding token approval for program authority", programAuthority.toString());
     
     // Create the approval instruction - need to delegate authority to the program
     // Using the Token Program's createApproveInstruction to set proper delegation
@@ -760,7 +765,7 @@ export async function buyAndDistribute(
     // This is done before calling the program's instruction
     const approveInstruction = createApproveInstruction(
       userYotAccount,                   // source account (owned by the user)
-      swapProgramAuthority,             // delegate account (program PDA)
+      programAuthority,                 // delegate account (program PDA)
       userPublicKey,                    // owner of source account
       rawAmount                         // amount
     );
@@ -782,8 +787,10 @@ export async function buyAndDistribute(
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // system_program
         { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, // rent_sysvar
         { pubkey: programStateAccount, isSigner: false, isWritable: true }, // program_state_account
-        // CRITICAL: Add the swap program authority as a signer to resolve the "owner does not match" error
-        { pubkey: swapProgramAuthority, isSigner: false, isWritable: false } // program authority
+        // CRITICAL: Add the program authority as a signer to resolve the "owner does not match" error
+        { pubkey: programAuthority, isSigner: false, isWritable: false }, // program authority
+        // Also add the pool authority since it owns the token accounts
+        { pubkey: authorityFromPool, isSigner: false, isWritable: false } // pool authority (owns token accounts)
       ],
       programId: program,
       data: instructionData

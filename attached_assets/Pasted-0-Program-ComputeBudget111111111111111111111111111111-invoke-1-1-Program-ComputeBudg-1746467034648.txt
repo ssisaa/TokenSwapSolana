@@ -1,0 +1,97 @@
+0
+: 
+"Program ComputeBudget111111111111111111111111111111 invoke [1]"
+1
+: 
+"Program ComputeBudget111111111111111111111111111111 success"
+2
+: 
+"Program ComputeBudget111111111111111111111111111111 invoke [1]"
+3
+: 
+"Program ComputeBudget111111111111111111111111111111 success"
+4
+: 
+"Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [1]"
+5
+: 
+"Program log: Instruction: Approve"
+6
+: 
+"Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 2903 of 999700 compute units"
+7
+: 
+"Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success"
+8
+: 
+"Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE invoke [1]"
+9
+: 
+"Program log: BuyAndDistribute Instruction"
+10
+: 
+"Program log: BuyAndDistribute amount: 20000000"
+11
+: 
+"Program log: Distribution amounts:"
+12
+: 
+"Program log: Total: 20000000"
+13
+: 
+"Program log: User portion: 15000000"
+14
+: 
+"Program log: Liquidity portion: 4000000"
+15
+: 
+"Program log: YOS cashback: 1000000"
+16
+: 
+"Program log: Creating new liquidity contribution account"
+17
+: 
+"Program 11111111111111111111111111111111 invoke [2]"
+18
+: 
+"Program 11111111111111111111111111111111 success"
+19
+: 
+"Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]"
+20
+: 
+"Program log: Instruction: Transfer"
+21
+: 
+"Program log: Error: owner does not match"
+22
+: 
+"Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 4497 of 978017 compute units"
+23
+: 
+"Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA failed: custom program error: 0x4"
+24
+: 
+"Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE consumed 23277 of 996797 compute units"
+25
+: 
+"Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE failed: custom program error: 0x4"
+length
+: 
+26
+[[Prototype]]
+: 
+Array(0)
+multi-hub-swap-contract.ts:852 Simulation failed: Error: Transaction would fail on-chain: {"InstructionError":[3,{"Custom":4}]}
+    at buyAndDistribute (multi-hub-swap-contract.ts:847:15)
+    at async executeSwap (multi-hub-swap-contract.ts:1598:25)
+    at async performSwap (MultiHubSwapCard.tsx:313:22)
+multi-hub-swap-contract.ts:907 Error in buyAndDistribute: Error: Transaction would fail: Transaction would fail on-chain: {"InstructionError":[3,{"Custom":4}]}
+    at buyAndDistribute (multi-hub-swap-contract.ts:853:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1598:25)
+    at async performSwap (MultiHubSwapCard.tsx:313:22)
+
+multi-hub-swap-contract.ts:1626 [SWAP_DEBUG] Critical transaction failure: Error: Transaction would fail: Transaction would fail on-chain: {"InstructionError":[3,{"Custom":4}]}
+    at buyAndDistribute (multi-hub-swap-contract.ts:853:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1598:25)
+    at async performSwap (MultiHubSwapCard.tsx:313:22)
