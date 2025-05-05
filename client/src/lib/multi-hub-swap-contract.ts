@@ -138,16 +138,38 @@ export async function buyAndDistribute(
     // Find program controlled accounts
     const [liquidityContributionAddress] = findLiquidityContributionAddress(userPublicKey);
     const [programStateAddress] = findProgramStateAddress();
+    const [programAuthorityAddress] = PublicKey.findProgramAddressSync(
+      [Buffer.from("authority")],
+      new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
+    );
     
-    console.log("Program State Account:", programStateAddress.toString());
+    console.log("PDA Addresses:");
+    console.log("- Program State:", programStateAddress.toString());
+    console.log("- Program Authority:", programAuthorityAddress.toString());
+    console.log("- Liquidity Contribution:", liquidityContributionAddress.toString());
     
     // Find vault and liquidity pool addresses
-    // The vault holds user's YOT that will be distributed according to specified percentages
-    const vaultYotAddress = await getAssociatedTokenAddress(yotMint, new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID), true);
+    // IMPORTANT: Create separate accounts for vault and liquidity to match program expectations
     
-    // The liquidity pool receives the 20% contribution
-    // Half of this (10% of total) is kept as YOT, the other half is converted to SOL
-    const liquidityYotAddress = await getAssociatedTokenAddress(yotMint, new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID), true);
+    // 1. vault_yot - The temporary vault that holds tokens during distribution
+    const vaultYotAddress = await getAssociatedTokenAddress(
+      yotMint, 
+      programAuthorityAddress, 
+      true
+    );
+    
+    // 2. liquidity_yot - The account that receives and holds the liquidity contribution
+    const liquidityYotAddress = await getAssociatedTokenAddress(
+      yotMint, 
+      new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID), 
+      true
+    );
+    
+    console.log("Token Accounts:");
+    console.log("- User YOT:", userYotAccount.toString());
+    console.log("- User YOS:", userYosAccount.toString());
+    console.log("- Vault YOT:", vaultYotAddress.toString());
+    console.log("- Liquidity YOT:", liquidityYotAddress.toString());
 
     // Convert amount to raw token amount
     const rawAmount = Math.floor(amountIn * Math.pow(10, 9)); // Assuming 9 decimals for YOT/YOS
