@@ -2169,6 +2169,17 @@ async function getTokenAccountCreateInstruction(
     // CRITICAL FIX: Pool Authority is now the owner for program token accounts
     const poolAuthorityAddress = new PublicKey(POOL_AUTHORITY);
     
+    // SPECIAL CASE: If this is the user's wallet, we need to handle it differently
+    if (account.equals(wallet.publicKey)) {
+      console.log(`Account ${account.toString()} is the user's wallet - special handling required`);
+      
+      // For a wallet, we don't need to create an ATA - just return the wallet address
+      return {
+        instruction: null,  // No instruction needed
+        address: account    // Just use the wallet address
+      };
+    }
+    
     // ENHANCED TYPE DETECTION: Check if the account name contains token type names
     if (accountName.includes('YOT')) {
       mint = new PublicKey(YOT_TOKEN_MINT);
@@ -2187,6 +2198,16 @@ async function getTokenAccountCreateInstruction(
       owner = poolAuthorityAddress; // Use Pool Authority instead of Program Authority
     } else {
       owner = wallet.publicKey;
+    }
+    
+    // CRITICAL FIX: Special case for wallet address - if the account is the user's wallet,
+    // no need to create an ATA since we'll use the wallet directly for SOL operations
+    if (account.equals(wallet.publicKey)) {
+      console.log(`Account ${account.toString()} is the user's wallet - no ATA creation needed`);
+      return {
+        instruction: null,
+        address: account
+      };
     }
     
     // IMPORTANT FIX FOR INVALIDSEEDS ERROR:
@@ -2208,6 +2229,16 @@ async function getTokenAccountCreateInstruction(
     if (!derivedTokenAddress.equals(account)) {
       console.warn(`MISMATCH: Derived address ${derivedTokenAddress.toString()} doesn't match expected ${account.toString()}`);
       console.log(`Using correct derived address to prevent InvalidSeeds error`);
+      
+      // CRITICAL FIX: For special cases where we KNOW the addresses won't match 
+      // (like the user wallet vs a derived ATA), handle differently
+      if (account.equals(wallet.publicKey) && accountName.includes('User Token From')) {
+        console.log("Special case: User wallet address vs ATA mismatch - using wallet address");
+        return {
+          instruction: null,
+          address: account  // Keep the wallet address for SOL operations
+        };
+      }
     }
     
     // Create the token account with explicit program IDs
