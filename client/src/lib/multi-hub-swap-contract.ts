@@ -11,6 +11,7 @@ import {
 } from '@solana/web3.js';
 import {
   TOKEN_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
   createTransferInstruction,
   getAssociatedTokenAddress,
   createMintToInstruction,
@@ -95,58 +96,50 @@ export function findLiquidityTokenAddress(tokenMint: PublicKey): [PublicKey, num
  * @param tokenMintsToCreate A map of token mint addresses to their token account PDAs
  * @returns The transaction signature if accounts were created, null if no accounts needed creation
  */
-export async function createProgramTokenAccounts(
+/**
+ * Creates a user's token account if needed
+ * IMPORTANT: Only use this for user-owned accounts, NOT PDA-owned accounts!
+ * 
+ * @param wallet The user's wallet
+ * @param mintAddress The token mint address
+ * @returns The transaction signature if account was created, null otherwise
+ */
+export async function createUserTokenAccount(
   wallet: any,
-  tokenAccountsToCreate: {
-    accountPubkey: PublicKey,
-    ownerPubkey: PublicKey,
-    mintPubkey: PublicKey
-  }[]
+  mintAddress: PublicKey
 ): Promise<string | null> {
   if (!wallet || !wallet.publicKey) {
     throw new Error("Wallet not connected");
   }
-  
-  if (tokenAccountsToCreate.length === 0) {
-    return null;
-  }
-  
+
   try {
     const userPublicKey = wallet.publicKey;
     
-    // Setup transaction and instructions
-    const transaction = new Transaction();
-    const instructions: TransactionInstruction[] = [];
+    // Find the associated token address for the user
+    const associatedTokenAddress = await getAssociatedTokenAddress(
+      mintAddress,
+      userPublicKey
+    );
     
-    // Add instructions for each token account to create
-    for (const { accountPubkey, ownerPubkey, mintPubkey } of tokenAccountsToCreate) {
-      // Check if the account already exists
-      const accountInfo = await connection.getAccountInfo(accountPubkey);
-      
-      if (!accountInfo) {
-        console.log(`Creating token account ${accountPubkey.toString()} for mint ${mintPubkey.toString()}`);
-        
-        // Create the associated token account
-        instructions.push(
-          createAssociatedTokenAccountInstruction(
-            userPublicKey, // payer
-            accountPubkey, // account to create
-            ownerPubkey,   // owner (PDA for vault/liquidity accounts)
-            mintPubkey     // token mint
-          )
-        );
-      } else {
-        console.log(`Token account ${accountPubkey.toString()} already exists`);
-      }
-    }
-    
-    // If no instructions, return null
-    if (instructions.length === 0) {
+    // Check if the account already exists
+    const accountInfo = await connection.getAccountInfo(associatedTokenAddress);
+    if (accountInfo) {
+      console.log(`User token account ${associatedTokenAddress.toString()} already exists`);
       return null;
     }
     
-    // Add all instructions to the transaction
-    instructions.forEach(instruction => transaction.add(instruction));
+    console.log(`Creating user token account for mint ${mintAddress.toString()}`);
+    
+    // Create transaction
+    const transaction = new Transaction();
+    transaction.add(
+      createAssociatedTokenAccountInstruction(
+        userPublicKey, // payer
+        associatedTokenAddress, // token account address
+        userPublicKey, // owner (user wallet)
+        mintAddress // token mint
+      )
+    );
     
     // Set recent blockhash and fee payer
     transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
@@ -159,11 +152,12 @@ export async function createProgramTokenAccounts(
     // Wait for confirmation
     await connection.confirmTransaction(signature, 'confirmed');
     
-    console.log(`Created ${instructions.length} token accounts. Signature: ${signature}`);
+    console.log(`User token account created: ${associatedTokenAddress.toString()}`);
     return signature;
   } catch (error) {
-    console.error("Error creating token accounts:", error);
-    throw error;
+    console.error("Error creating user token account:", error);
+    // Continue execution even if this fails
+    return null;
   }
 }
 
@@ -438,23 +432,51 @@ export async function buyAndDistribute(
     console.log("- Vault YOT:", vaultYotAddress.toString(), vaultYotAccountInfo ? "" : " (needs creation)");
     console.log("- Liquidity YOT:", liquidityYotAddress.toString(), liquidityYotAccountInfo ? "" : " (needs creation)");
 
-    // IMPORTANT: We're NOT creating any token accounts from the client side
-    // The Solana program itself should handle token account creation if needed.
-    // For user YOS account, if it doesn't exist, it will be created via CPI from the Rust program
-    // For vault and liquidity accounts, they are PDA-based and should also be created by the program
-    
-    console.log("Let the program handle token account creation - client-side creation is problematic");
+    // Try to create the user YOS account if needed
+    // For PDA-owned accounts (vault and liquidity), we'll let the program handle them
     
     if (createUserYosAccount) {
-      console.log("User YOS account doesn't exist. Let the program handle its creation if needed.");
+      console.log("User YOS account doesn't exist. Creating it now...");
+      
+      try {
+        // Create a transaction specifically for creating the user token account
+        const transaction = new Transaction();
+        transaction.add(
+          createAssociatedTokenAccountInstruction(
+            userPublicKey,  // payer
+            userYosAccount, // ata address
+            userPublicKey,  // owner (user)
+            yosMint         // mint
+          )
+        );
+        
+        // Set recent blockhash and fee payer
+        transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+        transaction.feePayer = userPublicKey;
+        
+        // Sign and send transaction
+        console.log("Creating user YOS token account...");
+        const signedTransaction = await wallet.signTransaction(transaction);
+        const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+        
+        // Wait for confirmation
+        await connection.confirmTransaction(signature, 'confirmed');
+        console.log("✅ User YOS token account created successfully:", signature);
+      } catch (error) {
+        console.warn("Failed to create user YOS account:", error);
+        console.log("Continuing with swap anyway - the program might create it or fail");
+      }
     }
     
+    // For PDA-owned accounts, let the program create them through CPIs
+    console.log("PDA-owned token accounts must be created by the program itself:");
+    
     if (!vaultYotAccountInfo) {
-      console.log("Vault YOT account doesn't exist. Let the program handle its creation if needed.");
+      console.log("- Vault YOT account doesn't exist. Program should create it.");
     }
     
     if (!liquidityYotAccountInfo) {
-      console.log("Liquidity YOT account doesn't exist. Let the program handle its creation if needed.");
+      console.log("- Liquidity YOT account doesn't exist. Program should create it.");
     }
     
     // Convert amount to raw token amount
@@ -576,6 +598,8 @@ export async function buyAndDistribute(
     console.log("- Discriminator (first byte):", instructionData[0]);
     console.log("- Amount bytes (little-endian u64):", Array.from(instructionData.slice(1, 9)));
     
+    // CRITICAL: Add the ASSOCIATED_TOKEN_PROGRAM_ID as an account for token creation
+    // The program needs this to create token accounts via CPI calls
     const instruction = new TransactionInstruction({
       keys: [
         { pubkey: userPublicKey, isSigner: true, isWritable: true },
@@ -588,8 +612,8 @@ export async function buyAndDistribute(
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+        { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // ADDED: Associated Token Program
         { pubkey: programStateAccount, isSigner: false, isWritable: true } // Make sure this is writable!
-        // Removing the program_authority account as it's not expected by the Rust program
       ],
       programId: program,
       data: instructionData
@@ -721,6 +745,7 @@ export async function distributeWeeklyYosReward(
     console.log("6. token_program: ", TOKEN_PROGRAM_ID.toString());
 
     // Create the instruction with proper account list matching the Rust code
+    // Also adding ASSOCIATED_TOKEN_PROGRAM_ID for token account creation if needed
     const instruction = new TransactionInstruction({
       keys: [
         { pubkey: adminPublicKey, isSigner: true, isWritable: true },
@@ -728,8 +753,9 @@ export async function distributeWeeklyYosReward(
         { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true },
         { pubkey: yosMint, isSigner: false, isWritable: true },
         { pubkey: userYosAccount, isSigner: false, isWritable: true },
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }
-        // Removing program_authority and program_state as they're not expected by the Rust program
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // Added for token account creation
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false } // Added for token account creation
       ],
       programId: program,
       data
