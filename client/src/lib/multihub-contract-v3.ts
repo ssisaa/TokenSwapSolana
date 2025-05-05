@@ -1138,15 +1138,19 @@ export async function performSwap(
     // Convert amounts to BigInt lamports, handling both number and BigInt inputs
     const DECIMALS = 9; // Most tokens use 9 decimals on Solana
     
-    // Handle amountIn conversion
+    // CRITICAL FIX: More precise numerical conversion for wallet display amounts
     let amountInLamports: bigint;
     if (typeof amountIn === 'bigint') {
       // Already a BigInt, assume it's already in lamports format
       amountInLamports = amountIn;
+      console.log(`EXACT CONVERSION: Using direct BigInt value ${amountInLamports} lamports`);
     } else {
-      // Convert number to lamports - handle multiplication safely
-      const rawAmount = Math.floor(amountIn * (10 ** DECIMALS));
-      amountInLamports = BigInt(rawAmount);
+      // CRITICAL FIX: Convert to string with fixed decimals first to avoid float imprecision
+      // This ensures the amount shown in the wallet matches the UI amount exactly
+      // Format: convert to string with 9 decimals, remove the decimal point, then convert to BigInt
+      const amountStr = amountIn.toFixed(9).replace('.', '');
+      amountInLamports = BigInt(amountStr);
+      console.log(`EXACT CONVERSION: ${amountIn} tokens → ${amountStr} string → ${amountInLamports} lamports`);
     }
     
     // Handle minAmountOut conversion
