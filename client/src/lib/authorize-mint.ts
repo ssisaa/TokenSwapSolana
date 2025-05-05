@@ -35,6 +35,30 @@ export async function setProgramAsMintAuthority(wallet: any) {
     console.log("Program authority PDA:", programAuthority.toString());
     console.log("Authority bump seed:", bump);
     
+    // Get mint info to check the current authority directly
+    const mintInfo = await connection.getAccountInfo(yosMint);
+    if (!mintInfo) {
+      throw new Error("YOS mint account not found");
+    }
+    
+    // Parse mint info to extract current authority
+    const mintAuthorityOption = mintInfo.data[0];
+    let currentAuthority = "No authority set";
+    
+    if (mintAuthorityOption !== 0) {
+      const mintAuthorityBytes = mintInfo.data.slice(4, 36);
+      const mintAuthority = new PublicKey(mintAuthorityBytes);
+      currentAuthority = mintAuthority.toString();
+    }
+    
+    console.log("Current mint authority:", currentAuthority);
+    console.log("Admin wallet:", adminPublicKey.toString());
+    
+    if (currentAuthority !== adminPublicKey.toString()) {
+      console.warn("WARNING: Current mint authority does not match your wallet address!");
+      console.warn("This transaction may fail if you are not the current mint authority.");
+    }
+    
     // Create set authority instruction
     const instruction = createSetAuthorityInstruction(
       yosMint,             // Token mint account
@@ -47,8 +71,15 @@ export async function setProgramAsMintAuthority(wallet: any) {
     
     // Create transaction
     const transaction = new Transaction().add(instruction);
-    transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    transaction.lastValidBlockHeight = lastValidBlockHeight;
     transaction.feePayer = adminPublicKey;
+    
+    console.log("Transaction prepared with:");
+    console.log("- Blockhash:", blockhash);
+    console.log("- Fee payer:", adminPublicKey.toString());
+    console.log("- Using universal transaction helper for cross-wallet compatibility");
     
     // Use the universal transaction helper to handle different wallet types
     const signature = await sendTransaction(wallet, transaction, connection);
@@ -112,6 +143,10 @@ export async function checkYosMintAuthority(): Promise<{
     const mintAuthority = new PublicKey(mintAuthorityBytes);
     
     const isCorrect = mintAuthority.equals(programAuthority);
+    
+    console.log("Current mint authority:", mintAuthority.toString());
+    console.log("Expected program authority:", programAuthority.toString());
+    console.log("Are they equal?", isCorrect);
     
     return {
       isCorrect,
