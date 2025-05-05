@@ -239,7 +239,8 @@ export async function buyAndDistribute(
     
     // Write the discriminator as the first byte
     // CRITICAL: This MUST be 4 for BUY_AND_DISTRIBUTE_IX
-    instructionData.writeUInt8(4, 0);
+    // Use the constant from config to ensure consistency
+    instructionData[0] = BUY_AND_DISTRIBUTE_DISCRIMINATOR[0];
     
     // Write the amount as a little-endian u64 (8 bytes)
     // CRITICAL: The Rust program expects a little-endian u64 that's EXACTLY 8 bytes
@@ -415,7 +416,8 @@ export async function distributeWeeklyYosReward(
 
     // Create the instruction data - direct byte approach
     // This must match what's in the Rust program in match instruction_data.first()
-    const data = Buffer.from([5]); // 5 for CLAIM_WEEKLY_REWARD_IX
+    // Use the constant from config to ensure consistency
+    const data = CLAIM_REWARD_DISCRIMINATOR; // 5 for CLAIM_WEEKLY_REWARD_IX
     
     console.log("CLAIM_WEEKLY_REWARD instruction preparation:");
     console.log("- Instruction data:", data.toString("hex"));
@@ -542,7 +544,8 @@ export async function withdrawLiquidityContribution(wallet: any): Promise<{ sign
 
     // Create the instruction data - direct byte approach matching Rust code
     // This must match what's in the Rust program in match instruction_data.first()
-    const data = Buffer.from([6]); // 6 for WITHDRAW_CONTRIBUTION_IX
+    // Use the constant from config to ensure consistency
+    const data = WITHDRAW_CONTRIBUTION_DISCRIMINATOR; // 6 for WITHDRAW_CONTRIBUTION_IX
     
     console.log("WITHDRAW_CONTRIBUTION instruction preparation:");
     console.log("- Instruction data:", data.toString("hex"));
@@ -762,7 +765,8 @@ export async function updateMultiHubSwapParameters(
     const data = Buffer.alloc(1 + 5 * 8); // 1 byte discrim + 5 u64 values (8 bytes each)
     
     // Set discriminator as first byte - must be 3 for UPDATE_PARAMETERS_IX
-    data[0] = 3;
+    // Use the constant from config to ensure consistency
+    data[0] = UPDATE_PARAMETERS_DISCRIMINATOR[0];
     
     // Write the parameters as u64 values - explicit little-endian
     const params = [
