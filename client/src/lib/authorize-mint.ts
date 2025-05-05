@@ -4,10 +4,9 @@
  */
 
 import { 
-  Connection, PublicKey, Keypair, Transaction, sendAndConfirmTransaction, 
+  Connection, PublicKey, Transaction 
 } from '@solana/web3.js';
 import { SOLANA_RPC_URL, YOS_TOKEN_ADDRESS, MULTI_HUB_SWAP_PROGRAM_ID } from './config';
-import { ADMIN_KEYPAIR } from './multi-swap-admin';
 import { 
   TOKEN_PROGRAM_ID, createSetAuthorityInstruction, AuthorityType
 } from '@solana/spl-token';
@@ -15,11 +14,12 @@ import {
 /**
  * Set the YOS mint authority to the program authority PDA
  * This only needs to be run once by the admin
+ * @param wallet The wallet from which to send the transaction
  */
-export async function setProgramAsMintAuthority() {
+export async function setProgramAsMintAuthority(wallet: any) {
   try {
     const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
-    const adminKeypair = ADMIN_KEYPAIR;
+    const adminPublicKey = wallet.publicKey;
     const yosMint = new PublicKey(YOS_TOKEN_ADDRESS);
     const programId = new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID);
     
@@ -29,35 +29,28 @@ export async function setProgramAsMintAuthority() {
       programId
     );
     
-    console.log("Admin wallet:", adminKeypair.publicKey.toString());
+    console.log("Admin wallet:", adminPublicKey.toString());
     console.log("YOS mint:", yosMint.toString());
     console.log("Program authority PDA:", programAuthority.toString());
     console.log("Authority bump seed:", bump);
     
     // Create set authority instruction
     const instruction = createSetAuthorityInstruction(
-      yosMint,                  // Token mint account
-      adminKeypair.publicKey,   // Current authority (admin)
+      yosMint,             // Token mint account
+      adminPublicKey,      // Current authority (admin)
       AuthorityType.MintTokens, // Authority type
-      programAuthority,         // New authority (program PDA)
-      [],                       // Multisig signers (empty for single signer)
-      TOKEN_PROGRAM_ID          // Token program ID
+      programAuthority,    // New authority (program PDA)
+      [],                  // Multisig signers (empty for single signer)
+      TOKEN_PROGRAM_ID     // Token program ID
     );
     
-    // Create and sign transaction
+    // Create transaction
     const transaction = new Transaction().add(instruction);
     transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-    transaction.feePayer = adminKeypair.publicKey;
+    transaction.feePayer = adminPublicKey;
     
-    // Sign with admin keypair
-    transaction.sign(adminKeypair);
-    
-    // Send and confirm transaction
-    const signature = await sendAndConfirmTransaction(
-      connection, 
-      transaction, 
-      [adminKeypair]
-    );
+    // Request wallet to sign and send transaction
+    const signature = await wallet.sendTransaction(transaction, connection);
     
     console.log("✅ Successfully set program authority PDA as mint authority for YOS token");
     console.log("Transaction signature:", signature);

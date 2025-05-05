@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 
 export default function AuthorizeTokens() {
   const { toast } = useToast();
-  const { connected } = useMultiWallet();
+  const { connected, wallet } = useMultiWallet();
   const [loading, setLoading] = useState(false);
   const [authorityStatus, setAuthorityStatus] = useState<{
     checked: boolean;
@@ -59,7 +59,11 @@ export default function AuthorizeTokens() {
   async function handleSetAuthority() {
     setLoading(true);
     try {
-      const result = await setProgramAsMintAuthority();
+      if (!wallet) {
+        throw new Error("Wallet not connected");
+      }
+      
+      const result = await setProgramAsMintAuthority(wallet);
       
       if (result.success) {
         toast({
