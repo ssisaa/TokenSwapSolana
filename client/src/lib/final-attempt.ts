@@ -11,6 +11,8 @@ import {
   SystemProgram,
   TransactionInstruction,
   SYSVAR_RENT_PUBKEY,
+  VersionedTransaction,
+  MessageV0
 } from '@solana/web3.js';
 
 // Hardcoded token program ID
@@ -34,6 +36,9 @@ const PROGRAM_SOL_ACCOUNT = new PublicKey('7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd
 const PROGRAM_YOS_ACCOUNT = new PublicKey('5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz');
 const USER_YOT_ACCOUNT = new PublicKey('8ufUyc9yA5j2uJqHRwxi7XZZR8gKg8dwKBg2J168yvk4');
 const USER_YOS_ACCOUNT = new PublicKey('8QGzzUxJ5X88LwMW6gBd7zc5Re6FbjHhFv52oj5WMfSz');
+
+// Constants from the error message
+const MYSTERY_ADDRESS = new PublicKey('Eh8fHudZ4Rkb1MrzXSHRWP8SoubpBM4BhEHBmoJg17F8');
 
 // PDAs - hardcoded from logs
 const PROGRAM_STATE = new PublicKey('2sR6kFJfCa7oG9hrMWxeTK6ESir7PNZe4vky2JDiNrKC');
@@ -108,7 +113,8 @@ export async function finalAttempt(
     const accounts = [
       { pubkey: wallet.publicKey, isSigner: true, isWritable: true },         // User wallet          [0]
       { pubkey: PROGRAM_STATE, isSigner: false, isWritable: true },           // Program state        [1]
-      { pubkey: PROGRAM_AUTHORITY, isSigner: false, isWritable: true },       // Program authority    [2]
+      // CRITICAL FIX: This address might be what the contract is expecting instead
+      { pubkey: MYSTERY_ADDRESS, isSigner: false, isWritable: true },         // MYSTERY ADDRESS      [2]
       { pubkey: POOL_AUTHORITY, isSigner: false, isWritable: true },          // Pool authority       [3]
       
       // User token accounts - special handling for SOL vs tokens
@@ -141,7 +147,10 @@ export async function finalAttempt(
       // System programs
       { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },       // Token Program       [13]
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },// System Program      [14]
-      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }      // Rent sysvar         [15]
+      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },     // Rent sysvar         [15]
+      
+      // CRITICAL FIX: Include the original program authority as a fallback
+      { pubkey: PROGRAM_AUTHORITY, isSigner: false, isWritable: true }        // Program authority    [16]
     ];
     
     // Log all account addresses being used
@@ -225,16 +234,45 @@ export async function finalAttempt(
       throw new Error(`Transaction simulation failed: ${simError.message || JSON.stringify(simError)}`);
     }
     
-    // Send the transaction
-    console.log('Sending transaction to network...');
-    const signature = await wallet.sendTransaction(transaction, connection);
-    console.log('Transaction sent:', signature);
+    // Try to use versioned transactions as a last resort
+    try {
+      // First attempt: Standard (legacy) transaction
+      console.log('Sending standard (legacy) transaction to network...');
+      const signature = await wallet.sendTransaction(transaction, connection);
+      console.log('Legacy transaction sent:', signature);
+      
+      // Wait for confirmation
+      await connection.confirmTransaction(signature, 'confirmed');
+      console.log('Transaction confirmed!');
+      
+      return signature;
+    } catch (legacyError) {
+      console.error('Legacy transaction failed:', legacyError);
+      
+      // Second attempt: Try with versioned transaction
+      console.log('Attempting to use versioned transaction as fallback...');
+      
+      // Create new versioned transaction
+      const versionedTx = new VersionedTransaction(
+        MessageV0.compile({
+          payerKey: wallet.publicKey,
+          recentBlockhash: transaction.recentBlockhash!,
+          instructions: transaction.instructions
+        })
+      );
+      
+      // Sign with wallet
+      const signature = await wallet.signAndSendTransaction(versionedTx);
+      console.log('Versioned transaction sent:', signature);
+      
+      // Wait for confirmation
+      await connection.confirmTransaction(signature, 'confirmed');
+      console.log('Versioned transaction confirmed!');
+      
+      return signature;
+    }
     
-    // Wait for confirmation
-    await connection.confirmTransaction(signature, 'confirmed');
-    console.log('Transaction confirmed!');
-    
-    return signature;
+    // Returns are handled in the try-catch blocks above
   } catch (error) {
     console.error('Error in finalAttempt swap:', error);
     throw error;
