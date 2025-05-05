@@ -68,7 +68,9 @@ const SYSVAR_RENT_PUBKEY = new PublicKey('SysvarRent1111111111111111111111111111
 
 // Define token accounts from config for both authorities for dual implementation and fallback
 const POOL_AUTHORITY = config.accounts?.poolAuthority || "7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK";
-const PROGRAM_AUTHORITY = "Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ"; // PDA - cannot be configured
+// Program authority is a PDA derived from the program ID
+// This is derived dynamically using findProgramAuthorityAddress()
+// We no longer have a hardcoded authority as it's deterministically derived
 
 // Primary token accounts (Pool Authority) from config
 const DEFAULT_SOL_TOKEN_ACCOUNT = config.accounts?.poolSol || "7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS";
@@ -77,8 +79,11 @@ const DEFAULT_YOS_TOKEN_ACCOUNT = config.accounts?.yosToken || "5eQTdriuNrWaVdbL
 
 // Fallback token accounts (Program Authority ATAs)
 // These are associated token accounts dynamically derived based on the Program Authority PDA
-const FALLBACK_YOT_TOKEN_ACCOUNT = "ALNfRZWERhp8eDyBR5wcbeDVzz3yv61zQJz5wwW9GnN8";
-const FALLBACK_YOS_TOKEN_ACCOUNT = "49APzC9EH1sBSA2uy5wsvX1qnBeeRyxHm7zgfcv9dYRA";
+// We derive these dynamically using findProgramAuthorityAddress() rather than hardcoding them
+// But keep these constants for backwards compatibility during the transition
+// Empty string values will be replaced with dynamically derived values when needed
+const FALLBACK_YOT_TOKEN_ACCOUNT = ""; // Will be derived dynamically as needed
+const FALLBACK_YOS_TOKEN_ACCOUNT = ""; // Will be derived dynamically as needed
 
 // Token addresses from central config
 export const YOT_TOKEN_MINT = config.tokens.YOT;

@@ -52,6 +52,7 @@
     "yosToken": "5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz"
   },
   "parameters": {
+    "solPrice": 148.35,
     "swap": {
       "liquidityContributionRate": 2000,
       "adminFeeRate": 10,
