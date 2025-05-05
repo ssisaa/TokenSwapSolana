@@ -34,7 +34,10 @@ import { PublicKey } from '@solana/web3.js';
 import { 
   getMultiHubSwapStats, 
   updateMultiHubSwapParameters,
-  MULTI_HUB_SWAP_PROGRAM_ID 
+  initializeMultiHubSwap,
+  MULTI_HUB_SWAP_PROGRAM_ID,
+  YOT_TOKEN_ADDRESS,
+  YOS_TOKEN_ADDRESS
 } from "@/lib/multi-hub-swap-contract";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -51,6 +54,7 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
   const [isInitialized, setIsInitialized] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
   const [stats, setStats] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<string>("parameters");
   

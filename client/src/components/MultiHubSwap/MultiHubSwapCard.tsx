@@ -676,7 +676,7 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
 
               {/* Exchange rate info */}
               <div className="text-sm text-muted-foreground flex justify-between">
-                <span>1 {fromToken.symbol} ≈ {estimateExchangeRate()} {toToken.symbol}</span>
+                <span>{exchangeRateDisplay || `1 ${fromToken.symbol} ≈ ${estimateExchangeRate()} ${toToken.symbol}`}</span>
                 <span>
                   Slippage:{" "}
                   <span className="font-medium text-foreground">{slippage}%</span>
