@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { InfoIcon, CheckCircle2, AlertTriangle, LoaderIcon, KeyIcon, AlertCircle } from 'lucide-react';
 import { checkYosMintAuthority, setProgramAsMintAuthority } from '@/lib/authorize-mint';
+import { PublicKey } from '@solana/web3.js';
 import { useMultiWallet } from '@/context/MultiWalletContext';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
@@ -68,7 +69,21 @@ export default function AuthorizeTokens() {
         throw new Error("Wallet not connected");
       }
       
-      const result = await setProgramAsMintAuthority(wallet);
+      // Use custom authority if specified and checkbox is checked
+      const customAuthorityValue = useCustomAuthority && customAuthority ? customAuthority.trim() : undefined;
+      
+      // Extra validation for custom authority
+      if (customAuthorityValue) {
+        try {
+          // This will throw if the address is invalid
+          const _ = new PublicKey(customAuthorityValue);
+          console.log("Using custom authority:", customAuthorityValue);
+        } catch (err) {
+          throw new Error("Invalid custom authority address. Please provide a valid Solana public key.");
+        }
+      }
+      
+      const result = await setProgramAsMintAuthority(wallet, customAuthorityValue);
       
       if (result.success) {
         toast({
@@ -76,6 +91,11 @@ export default function AuthorizeTokens() {
           description: "Program authority PDA is now the mint authority for YOS token",
           variant: "default",
         });
+        
+        // Reset the custom authority fields after successful execution
+        setUseCustomAuthority(false);
+        setCustomAuthority('');
+        
         // Refresh the status
         await handleCheckAuthority();
       } else {
@@ -168,7 +188,77 @@ export default function AuthorizeTokens() {
             <div>YOS Token: <span className="text-blue-600 dark:text-blue-400">2SWCnck3vLAVKaLkAjVtNnsVJVGYmGzyNVnte48SQRop</span></div>
             <div>Program ID: <span className="text-blue-600 dark:text-blue-400">SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE</span></div>
             <div>Program Authority PDA: <span className="text-green-600 dark:text-green-400">Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ</span></div>
+            <div className="flex items-center gap-2">
+              Current Authority from Screenshot: 
+              <span className="text-yellow-600 dark:text-yellow-400">CoWdKZ7SJNtBH2FBcKwAYcYOTV7lYSgsv82JEHAufS</span>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-6 px-2 font-medium text-xs"
+                onClick={() => {
+                  navigator.clipboard.writeText("CoWdKZ7SJNtBH2FBcKwAYcYOTV7lYSgsv82JEHAufS");
+                  toast({
+                    title: "Copied to clipboard",
+                    description: "Authority address has been copied to clipboard",
+                    variant: "default",
+                  });
+                }}
+              >
+                Copy
+              </Button>
+            </div>
           </div>
+          
+          {!authorityStatus.isCorrect && authorityStatus.checked && (
+            <div className="mt-4 border p-4 rounded-md bg-amber-50 dark:bg-amber-950">
+              <div className="flex items-center space-x-2 mb-2">
+                <Checkbox 
+                  id="use-custom-authority" 
+                  checked={useCustomAuthority}
+                  onCheckedChange={(checked) => setUseCustomAuthority(checked === true)}
+                />
+                <Label 
+                  htmlFor="use-custom-authority"
+                  className="text-sm font-medium cursor-pointer"
+                >
+                  Specify current mint authority (if different from your wallet)
+                </Label>
+              </div>
+              
+              {useCustomAuthority && (
+                <div className="space-y-2 mt-2">
+                  <Label htmlFor="custom-authority" className="text-sm">Current Authority Public Key</Label>
+                  <Input
+                    id="custom-authority"
+                    value={customAuthority}
+                    onChange={(e) => setCustomAuthority(e.target.value)}
+                    placeholder="Enter the current mint authority public key"
+                    className="font-mono text-xs"
+                  />
+                  <div className="flex gap-2 flex-wrap mt-1">
+                    {authorityStatus.currentAuthority && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => setCustomAuthority(authorityStatus.currentAuthority || '')}
+                      >
+                        Use detected value: {authorityStatus.currentAuthority?.substring(0, 8)}...
+                      </Button>
+                    )}
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setCustomAuthority("CoWdKZ7SJNtBH2FBcKwAYcYOTV7lYSgsv82JEHAufS")}
+                    >
+                      Use screenshot value
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </CardContent>
       <CardFooter className="flex flex-col sm:flex-row gap-2 justify-end">
