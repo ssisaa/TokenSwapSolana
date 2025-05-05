@@ -247,7 +247,10 @@ async function testSwap() {
     console.log(`Liquidity contribution account exists: ${liquidityContributionInfo !== null}`);
     
     const programStateInfo = await connection.getAccountInfo(programStateAccount);
-    console.log(`Program state account exists: ${programStateInfo !== null}${programStateInfo ? ', size: ' + programStateInfo.data.length + ' bytes' : ''}`);
+    console.log(`Program state account (derived) exists: ${programStateInfo !== null}${programStateInfo ? ', size: ' + programStateInfo.data.length + ' bytes' : ''}`);
+    
+    const configuredProgramStateInfo = await connection.getAccountInfo(configuredProgramState);
+    console.log(`Program state account (config) exists: ${configuredProgramStateInfo !== null}${configuredProgramStateInfo ? ', size: ' + configuredProgramStateInfo.data.length + ' bytes' : ''}`);
     
     // If the liquidity contribution account doesn't exist, it will be created during the transaction
     
@@ -258,7 +261,7 @@ async function testSwap() {
     console.log('- User YOS account:', userYosAccount.toString());
     console.log('- Pool YOT account:', poolYotAccount.toString());
     console.log('- Liquidity contribution account:', liquidityContributionAccount.toString());
-    console.log('- Program state account:', programStateAccount.toString());
+    console.log('- Program state account (derived):', programStateAccount.toString());
     
     // Create swap instruction data - Use buy_and_distribute (buyAndDistributeInstruction)
     const amount = 0.01; // SOL amount to swap
@@ -281,6 +284,7 @@ async function testSwap() {
     console.log('- Full buffer hex:', instructionData.toString('hex'));
     
     // Create the instruction with the exact account order expected by the Rust program
+    // IMPORTANT: We need to use the seed-derived program state account since the config value is empty (0 bytes)
     const instruction = {
       keys: [
         { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
@@ -293,7 +297,7 @@ async function testSwap() {
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // token_program
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // system_program
         { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, // rent_sysvar
-        { pubkey: programStateAccount, isSigner: false, isWritable: true } // program_state
+        { pubkey: programStateAccount, isSigner: false, isWritable: true } // program_state from seed derivation
       ],
       programId: new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID),
       data: instructionData
