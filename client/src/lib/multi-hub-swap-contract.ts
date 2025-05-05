@@ -142,43 +142,86 @@ function createTransactionWithComputeBudget(instruction: TransactionInstruction)
  * Note: This implementation uses the simplest form of simulation to avoid type errors.
  * The web3.js types can be inconsistent between versions.
  */
+/**
+ * Safely simulates a transaction and provides detailed logs for debugging
+ * This function will never throw, only log errors and return a success/failure status
+ */
 async function safelySimulateTransaction(connection: Connection, transaction: Transaction): Promise<boolean> {
   try {
-    console.log("Attempting to simulate transaction safely...");
+    console.log("📊 SIMULATION: Attempting to simulate transaction before sending...");
     
-    // Use the basic form of simulateTransaction - explicitly casting for type safety
-    const simResult = await connection.simulateTransaction(transaction as any);
+    // Use the basic form of simulateTransaction with explicit options
+    const simResult = await connection.simulateTransaction(transaction, {
+      sigVerify: false,
+      commitment: 'confirmed',
+      replaceRecentBlockhash: true
+    });
 
     // Check if simulation results are available
     if (!simResult || !simResult.value) {
-      console.error("❌ Simulation result is undefined or malformed");
+      console.error("❌ SIMULATION: Result is undefined or malformed");
       return false;
     }
 
     // Check for errors in the simulation
     if (simResult.value.err) {
-      console.error("❌ Simulation failed:", simResult.value.err);
+      console.error("❌ SIMULATION FAILED:", simResult.value.err);
       
       // Log simulation logs if available
       if (simResult.value.logs) {
-        console.log("Simulation logs:");
-        simResult.value.logs.forEach((log, i) => console.log(`Log ${i}:`, log));
+        console.log("📋 SIMULATION LOGS:");
+        simResult.value.logs.forEach((log, i) => console.log(`#${i}: ${log}`));
+        
+        // Additional analysis of logs
+        const programLogs = simResult.value.logs.filter(log => 
+          log.includes("Program log:") || 
+          log.includes("Program return:")
+        );
+        
+        if (programLogs.length > 0) {
+          console.log("\n🔍 PROGRAM SPECIFIC LOGS:");
+          programLogs.forEach((log, i) => console.log(`#${i}: ${log}`));
+        }
+        
+        // Look for specific error patterns
+        const errorLogs = simResult.value.logs.filter(log => 
+          log.includes("failed") || 
+          log.includes("Error") || 
+          log.includes("error") ||
+          log.includes("invalid")
+        );
+        
+        if (errorLogs.length > 0) {
+          console.log("\n⚠️ ERROR INDICATORS IN LOGS:");
+          errorLogs.forEach((log, i) => console.log(`#${i}: ${log}`));
+        }
       }
       
       return false;
     }
     
     // Simulation succeeded, log any available logs
-    console.log("✅ Simulation succeeded. Logs:");
+    console.log("✅ SIMULATION SUCCEEDED. Logs:");
     if (simResult.value.logs) {
-      simResult.value.logs.forEach((log, i) => console.log(`Log ${i}:`, log));
+      simResult.value.logs.forEach((log, i) => console.log(`#${i}: ${log}`));
     } else {
       console.log("No simulation logs available");
     }
     
     return true;
-  } catch (error) {
-    console.error("Error during transaction simulation:", error);
+  } catch (error: any) {
+    console.error("❌ CRITICAL ERROR during transaction simulation:", error);
+    
+    // Try to extract more information from the error
+    if (error?.logs) {
+      console.log("📋 ERROR LOGS:");
+      error.logs.forEach((log: string, i: number) => console.log(`#${i}: ${log}`));
+    }
+    
+    if (error?.message) {
+      console.log("📝 ERROR MESSAGE:", error.message);
+    }
+    
     return false;
   }
 }
@@ -307,18 +350,25 @@ export async function buyAndDistribute(
         },
     `);
     
-    // Create simple buffer with discriminator and amount
-    // This must match EXACTLY what the Rust program expects
+    // STRICT FORMAT: Create buffer with EXACTLY the format the Rust program expects
+    // 1. A single byte for the instruction type (4 = BUY_AND_DISTRIBUTE_IX)
+    // 2. Followed by an 8-byte little-endian u64 for the amount
+    // Total: 9 bytes
+    
+    // METHOD 1: Manual buffer creation with explicit writing
     const instructionData = Buffer.alloc(9); // 1 byte discriminator + 8 bytes for amount
     
-    // Write the discriminator as the first byte
-    // CRITICAL: This MUST be 4 for BUY_AND_DISTRIBUTE_IX
-    // Use the constant from config to ensure consistency
-    instructionData[0] = BUY_AND_DISTRIBUTE_DISCRIMINATOR[0];
+    // Write discriminator byte (4) directly without using Buffer.from()
+    instructionData.writeUInt8(4, 0); // Write value 4 at position 0
     
-    // Write the amount as a little-endian u64 (8 bytes)
-    // CRITICAL: The Rust program expects a little-endian u64 that's EXACTLY 8 bytes
+    // Write amount as little-endian u64 (8 bytes)
     instructionData.writeBigUInt64LE(BigInt(rawAmount), 1);
+    
+    // Verify data was written correctly
+    if (instructionData[0] !== 4) {
+      console.error("CRITICAL ERROR: Discriminator byte was not set correctly!");
+      throw new Error("Failed to set instruction discriminator correctly");
+    }
     
     // Log EVERYTHING for debugging
     console.log("MOST CRITICAL - Instruction data ultra debug:");
