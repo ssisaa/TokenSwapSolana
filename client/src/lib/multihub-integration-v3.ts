@@ -350,8 +350,20 @@ export async function performMultiHubSwap(
     // CRITICAL FIX: Make the funding of program authority optional
     // This prevents the entire swap from failing if the funding transaction fails
     try {
-      // Only try to fund if we're not in simulation mode
-      const solFundingAmount = 0.05; // Reduced amount to 0.05 SOL
+      // CRITICAL FIX: Don't use a fixed amount! Instead, use the actual fromAmount if it's SOL
+      // This ensures the wallet confirmation matches the UI display
+      let solFundingAmount;
+      
+      if (fromTokenInfo.symbol === "SOL") {
+        // If we're swapping from SOL, use the actual amount being swapped
+        // Convert from bigint to number with proper decimals
+        // We display this in the UI, so wallet confirmation should match
+        solFundingAmount = Number(fromAmount) / 1e9;
+      } else {
+        // Default fallback if swapping TO SOL (not FROM SOL)
+        solFundingAmount = 0.05;
+      }
+      
       console.log(`Attempting to fund Program Authority with ${solFundingAmount} SOL...`);
       
       // Try to fund, but don't let failures stop the swap
