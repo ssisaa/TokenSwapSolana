@@ -244,7 +244,7 @@ export function findProgramAuthorityAddress(): [PublicKey, number] {
   // Use the program ID from config for PDA derivation
   return PublicKey.findProgramAddressSync(
     [Buffer.from('authority')],
-    new PublicKey(MULTIHUB_SWAP_PROGRAM_ID)
+    MULTIHUB_SWAP_PROGRAM_PUBKEY
   );
 }
 
@@ -306,7 +306,7 @@ export async function checkStateAccount(
     }
     
     // The account exists, check owner
-    const programId = new PublicKey(MULTIHUB_SWAP_PROGRAM_ID);
+    const programId = MULTIHUB_SWAP_PROGRAM_PUBKEY;
     const hasCorrectOwner = stateInfo.owner.equals(programId);
     
     // Check size - the Rust code expects 32*3 + 8*5 = 136 bytes (as defined in the contract)
@@ -453,7 +453,7 @@ export function findProgramStateAddress(): [PublicKey, number] {
   // Use the program ID from config for PDA derivation
   return PublicKey.findProgramAddressSync(
     [Buffer.from('state')],
-    new PublicKey(MULTIHUB_SWAP_PROGRAM_ID)
+    MULTIHUB_SWAP_PROGRAM_PUBKEY
   );
 }
 
