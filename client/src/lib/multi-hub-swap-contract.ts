@@ -391,15 +391,15 @@ export async function buyAndDistribute(
     // METHOD 1: Manual buffer creation with explicit writing
     const instructionData = Buffer.alloc(9); // 1 byte discriminator + 8 bytes for amount
     
-    // Write discriminator byte (4) directly without using Buffer.from()
+    // Write discriminator byte (4) using the constant from config
     // CRITICAL: This matches the Rust program expectation of BUY_AND_DISTRIBUTE_IX = 4
-    instructionData.writeUInt8(4, 0); // Write value 4 at position 0
+    instructionData.writeUInt8(BUY_AND_DISTRIBUTE_DISCRIMINATOR[0], 0); // Write value 4 at position 0
     
     // Write amount as little-endian u64 (8 bytes) - EXACT match for Rust's u64::from_le_bytes
     instructionData.writeBigUInt64LE(BigInt(rawAmount), 1);
     
     // Verify data was written correctly
-    if (instructionData[0] !== 4) {
+    if (instructionData[0] !== BUY_AND_DISTRIBUTE_DISCRIMINATOR[0]) {
       console.error("CRITICAL ERROR: Discriminator byte was not set correctly!");
       throw new Error("Failed to set instruction discriminator correctly");
     }
