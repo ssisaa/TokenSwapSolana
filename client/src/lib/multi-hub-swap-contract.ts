@@ -34,6 +34,16 @@ export const MULTI_HUB_SWAP_PROGRAM_ID = MULTI_HUB_SWAP_CONFIG.programId;
 // Program State PDA 
 export const MULTI_HUB_SWAP_PROGRAM_STATE = MULTI_HUB_SWAP_CONFIG.programState;
 
+// Instruction types for the program
+export enum MultiHubSwapInstructionType {
+  Initialize = 0,
+  Swap = 1,
+  Contribute = 2,
+  ClaimRewards = 3,
+  WithdrawLiquidity = 4,
+  UpdateParameters = 5
+}
+
 // Connection to Solana network
 export const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
 
@@ -845,6 +855,89 @@ export async function getSupportedTokens(): Promise<Array<{ symbol: string, addr
  * Get global statistics for the multi-hub swap program
  * Fetches and deserializes the ProgramState
  */
+/**
+ * Initialize the Multi-Hub Swap program
+ * This can only be called by an admin wallet
+ */
+export async function initializeMultiHubSwap(
+  wallet: any,
+  lpContributionRate: number = 20,
+  adminFeeRate: number = 0.1,
+  yosCashbackRate: number = 5,
+  swapFeeRate: number = 0.3,
+  referralRate: number = 0.5
+): Promise<string> {
+  if (!wallet || !wallet.publicKey) {
+    throw new Error("Wallet not connected");
+  }
+
+  // Verify admin privileges
+  if (wallet.publicKey.toString() !== ADMIN_WALLET_ADDRESS) {
+    throw new Error("Only admin wallet can initialize the program");
+  }
+
+  // Connect to Solana
+  const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
+  
+  // Create the program state account
+  const [programStateAddress] = findProgramStateAddress();
+  
+  // Create a transaction to initialize the program
+  const transaction = new Transaction();
+  
+  // Encode the initialization data
+  const data = Buffer.alloc(33); // 1 byte for instruction type + 32 bytes for parameters
+  data.writeUInt8(MultiHubSwapInstructionType.Initialize, 0);
+  
+  // Convert percentages to basis points (1% = 100 basis points)
+  // Pack parameters into the buffer
+  let offset = 1;
+  const lpContributionBasisPoints = Math.round(lpContributionRate * 100);
+  const adminFeeBasisPoints = Math.round(adminFeeRate * 100);
+  const yosCashbackBasisPoints = Math.round(yosCashbackRate * 100);
+  const swapFeeBasisPoints = Math.round(swapFeeRate * 100);
+  const referralBasisPoints = Math.round(referralRate * 100);
+  
+  data.writeUInt16LE(lpContributionBasisPoints, offset);
+  offset += 2;
+  data.writeUInt16LE(adminFeeBasisPoints, offset);
+  offset += 2;
+  data.writeUInt16LE(yosCashbackBasisPoints, offset);
+  offset += 2;
+  data.writeUInt16LE(swapFeeBasisPoints, offset);
+  offset += 2;
+  data.writeUInt16LE(referralBasisPoints, offset);
+  offset += 2;
+  
+  // Create the instruction
+  const instruction = new TransactionInstruction({
+    keys: [
+      { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
+      { pubkey: programStateAddress, isSigner: false, isWritable: true },
+      { pubkey: new PublicKey(YOT_TOKEN_ADDRESS), isSigner: false, isWritable: false },
+      { pubkey: new PublicKey(YOS_TOKEN_ADDRESS), isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+    ],
+    programId: new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID),
+    data
+  });
+  
+  transaction.add(instruction);
+  
+  try {
+    // Sign and send the transaction
+    const signature = await wallet.sendTransaction(transaction, connection);
+    await connection.confirmTransaction(signature, 'confirmed');
+    
+    console.log("Multi-Hub Swap program initialized:", signature);
+    return signature;
+  } catch (error) {
+    console.error("Failed to initialize Multi-Hub Swap program:", error);
+    throw error;
+  }
+}
+
 export async function getMultiHubSwapStats() {
   try {
     // Get program state address
