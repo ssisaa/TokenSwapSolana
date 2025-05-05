@@ -137,6 +137,9 @@ export async function buyAndDistribute(
 
     // Find program controlled accounts
     const [liquidityContributionAddress] = findLiquidityContributionAddress(userPublicKey);
+    const [programStateAddress] = findProgramStateAddress();
+    
+    console.log("Program State Account:", programStateAddress.toString());
     
     // Find vault and liquidity pool addresses
     // The vault holds user's YOT that will be distributed according to specified percentages
@@ -177,6 +180,18 @@ export async function buyAndDistribute(
     });
 
     // Create the instruction
+    // IMPORTANT: Accounts must be in the EXACT same order as expected by the program:
+    // 1. user (signer)
+    // 2. vault_yot
+    // 3. user_yot
+    // 4. liquidity_yot
+    // 5. yos_mint
+    // 6. user_yos
+    // 7. liquidity_contribution_account
+    // 8. token_program
+    // 9. system_program
+    // 10. rent_sysvar
+    // 11. program_state_account (this was missing!)
     const instruction = new TransactionInstruction({
       keys: [
         { pubkey: userPublicKey, isSigner: true, isWritable: true },
@@ -188,7 +203,8 @@ export async function buyAndDistribute(
         { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true },
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }
+        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+        { pubkey: programStateAddress, isSigner: false, isWritable: false }
       ],
       programId: program,
       data
