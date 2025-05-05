@@ -203,9 +203,9 @@ export default function MultihubV3DebugPanel() {
     }
   };
   
-  // Function to verify program token accounts
+  // Enhanced function to verify token accounts with automatic creation if missing
   const verifyTokenAccounts = async () => {
-    if (!connection) return;
+    if (!connection || !publicKey) return;
     
     setIsTokenAccountsLoading(true);
     setTokenAccountsResult(null);
@@ -220,13 +220,19 @@ export default function MultihubV3DebugPanel() {
         originalConsoleLog(...args);
       };
       
+      // First step: Get the program authority and state addresses
+      const [programAuthorityAddress] = multihubContract.findProgramAuthorityAddress();
+      const [programStateAddress] = multihubContract.findProgramStateAddress();
+      console.log(`Program Authority PDA: ${programAuthorityAddress.toString()}`);
+      console.log(`Program State PDA: ${programStateAddress.toString()}`);
+      
       // Run the token account verification function from MultihubIntegrationV3
       const result = await MultihubIntegrationV3.verifyProgramTokenAccounts(connection);
       
-      // Restore console.log
-      console.log = originalConsoleLog;
+      // Check if any accounts are missing and need to be created
+      const needsTokenAccounts = !result.solAccount.exists || !result.yotAccount.exists || !result.yosAccount.exists;
       
-      // Update tokenAccountsResult state
+      // Update tokenAccountsResult state with initial check
       setTokenAccountsResult({
         programAuthorityAddress: result.programAuthorityAddress.toString(),
         yotAccount: {
@@ -246,16 +252,171 @@ export default function MultihubV3DebugPanel() {
         },
       });
       
+      if (needsTokenAccounts) {
+        console.log("Some token accounts are missing, will attempt to create them...");
+        
+        try {
+          // Import necessary token functions
+          const { 
+            getAssociatedTokenAddress, 
+            createAssociatedTokenAccountInstruction, 
+            TOKEN_PROGRAM_ID, 
+            ASSOCIATED_TOKEN_PROGRAM_ID 
+          } = await import('@solana/spl-token');
+          
+          const { Transaction } = await import('@solana/web3.js');
+          
+          // Prepare Transaction
+          const tx = new Transaction();
+          const { blockhash } = await connection.getLatestBlockhash();
+          tx.recentBlockhash = blockhash;
+          tx.feePayer = publicKey;
+          
+          // Get token mint addresses
+          const yotMint = new PublicKey(multihubContract.YOT_TOKEN_MINT);
+          const yosMint = new PublicKey(multihubContract.YOS_TOKEN_MINT);
+          const solMint = new PublicKey('So11111111111111111111111111111111111111112');
+          
+          let creationInstructionsAdded = false;
+          
+          // SOL token account (if needed)
+          if (!result.solAccount.exists) {
+            console.log("Creating SOL token account for program authority...");
+            const solTokenAccount = await getAssociatedTokenAddress(
+              solMint,
+              programAuthorityAddress,
+              true,
+              TOKEN_PROGRAM_ID,
+              ASSOCIATED_TOKEN_PROGRAM_ID
+            );
+            
+            const createSolAtaIx = createAssociatedTokenAccountInstruction(
+              publicKey,
+              solTokenAccount,
+              programAuthorityAddress,
+              solMint,
+              TOKEN_PROGRAM_ID,
+              ASSOCIATED_TOKEN_PROGRAM_ID
+            );
+            
+            tx.add(createSolAtaIx);
+            creationInstructionsAdded = true;
+            console.log(`Added instruction to create SOL token account: ${solTokenAccount.toString()}`);
+          }
+          
+          // YOT token account (if needed)
+          if (!result.yotAccount.exists) {
+            console.log("Creating YOT token account for program authority...");
+            const yotTokenAccount = await getAssociatedTokenAddress(
+              yotMint,
+              programAuthorityAddress,
+              true,
+              TOKEN_PROGRAM_ID,
+              ASSOCIATED_TOKEN_PROGRAM_ID
+            );
+            
+            const createYotAtaIx = createAssociatedTokenAccountInstruction(
+              publicKey,
+              yotTokenAccount,
+              programAuthorityAddress,
+              yotMint,
+              TOKEN_PROGRAM_ID,
+              ASSOCIATED_TOKEN_PROGRAM_ID
+            );
+            
+            tx.add(createYotAtaIx);
+            creationInstructionsAdded = true;
+            console.log(`Added instruction to create YOT token account: ${yotTokenAccount.toString()}`);
+          }
+          
+          // YOS token account (if needed)
+          if (!result.yosAccount.exists) {
+            console.log("Creating YOS token account for program authority...");
+            const yosTokenAccount = await getAssociatedTokenAddress(
+              yosMint,
+              programAuthorityAddress,
+              true,
+              TOKEN_PROGRAM_ID,
+              ASSOCIATED_TOKEN_PROGRAM_ID
+            );
+            
+            const createYosAtaIx = createAssociatedTokenAccountInstruction(
+              publicKey,
+              yosTokenAccount,
+              programAuthorityAddress,
+              yosMint,
+              TOKEN_PROGRAM_ID,
+              ASSOCIATED_TOKEN_PROGRAM_ID
+            );
+            
+            tx.add(createYosAtaIx);
+            creationInstructionsAdded = true;
+            console.log(`Added instruction to create YOS token account: ${yosTokenAccount.toString()}`);
+          }
+          
+          // Only send transaction if there are instructions to process
+          if (creationInstructionsAdded) {
+            console.log("Sending transaction to create missing token accounts...");
+            const signature = await wallet.sendTransaction(tx, connection);
+            console.log(`Transaction sent: ${signature}`);
+            
+            // Wait for confirmation
+            await connection.confirmTransaction(signature, 'confirmed');
+            console.log(`Transaction confirmed: ${signature}`);
+            
+            // After token creation, verify again to get updated status
+            const updatedResult = await MultihubIntegrationV3.verifyProgramTokenAccounts(connection);
+            
+            // Update tokenAccountsResult state with new result
+            setTokenAccountsResult({
+              programAuthorityAddress: updatedResult.programAuthorityAddress.toString(),
+              yotAccount: {
+                address: updatedResult.yotAccount.address.toString(),
+                exists: updatedResult.yotAccount.exists,
+                balance: updatedResult.yotAccount.balance,
+              },
+              yosAccount: {
+                address: updatedResult.yosAccount.address.toString(),
+                exists: updatedResult.yosAccount.exists,
+                balance: updatedResult.yosAccount.balance,
+              },
+              solAccount: {
+                address: updatedResult.solAccount.address.toString(),
+                exists: updatedResult.solAccount.exists,
+                balance: updatedResult.solAccount.balance,
+              },
+            });
+            
+            toast({
+              title: "Token Accounts Created",
+              description: "Missing program token accounts were created successfully",
+            });
+          }
+        } catch (createError) {
+          console.error("Error creating token accounts:", createError);
+          toast({
+            title: "Account Creation Failed",
+            description: createError instanceof Error ? createError.message : "Failed to create token accounts",
+            variant: "destructive",
+          });
+        }
+      } else {
+        console.log("All token accounts exist, no creation needed");
+        toast({
+          title: "Token Accounts Verified",
+          description: "All program token accounts exist and are ready for use",
+        });
+      }
+      
+      // Restore console.log
+      console.log = originalConsoleLog;
+      
       // Update debug info with new logs
       setDebugInfo(prevLogs => {
         const newLogs = prevLogs ? prevLogs + '\n\n=== TOKEN ACCOUNTS VERIFICATION ===\n' : '=== TOKEN ACCOUNTS VERIFICATION ===\n';
         return newLogs + logs.join('\n') + '\n' + JSON.stringify(result, null, 2);
       });
       
-      toast({
-        title: "Token Accounts Verification Complete",
-        description: "Program token accounts have been verified",
-      });
     } catch (error) {
       console.error("Error verifying token accounts:", error);
       setDebugInfo(prevLogs => prevLogs + `\n\nError verifying token accounts: ${error instanceof Error ? error.message : String(error)}`);

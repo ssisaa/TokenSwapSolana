@@ -1156,8 +1156,8 @@ export async function performSwap(
       minAmountOutLamports = minAmountOut;
     } else {
       // Convert number to lamports - handle multiplication safely
-      const rawMinAmount = Math.floor(minAmountOut * (10 ** DECIMALS));
-      minAmountOutLamports = BigInt(rawMinAmount);
+      // Fixed: minAmountOut already in lamports, do not multiply
+      minAmountOutLamports = BigInt(minAmountOut);
     }
     
     console.log(`Using amounts: ${amountIn} tokens (${amountInLamports} lamports)`);
@@ -1860,93 +1860,33 @@ export async function performSwap(
       data: Buffer.from(swapData)
     }));
     
-    // CRITICAL FIX: Enhanced error handling for InvalidAccountData
-    // First verify that all token accounts exist with proper owners
-    console.log('Verifying token accounts before simulation...');
-    try {
-      // Verify FROM token ATA
-      const fromAccount = await connectionManager.executeWithFallback(
-        conn => conn.getAccountInfo(tokenFromMintATA)
-      );
-      if (!fromAccount) {
-        throw new Error(`Token account for source token (${tokenFromMint.toString()}) doesn't exist`);
-      }
-      
-      // Verify TO token ATA
-      const toAccount = await connectionManager.executeWithFallback(
-        conn => conn.getAccountInfo(tokenToMintATA)
-      );
-      if (!toAccount) {
-        throw new Error(`Token account for destination token (${tokenToMint.toString()}) doesn't exist`);
-      }
-      
-      // Verify YOS token ATA
-      const yosAccount = await connectionManager.executeWithFallback(
-        conn => conn.getAccountInfo(yosTokenProgramATA)
-      );
-      if (!yosAccount) {
-        console.warn(`YOS token account (${yosTokenProgramATA.toString()}) doesn't exist - cashback may fail`);
-      }
-      
-      console.log('All token accounts verified successfully');
-    } catch (verifyError) {
-      console.error('Token account verification failed:', verifyError);
-      throw new Error(`Token account verification failed: ${verifyError.message}. Try using the "Verify Token Accounts" button.`);
-    }
-    
     // Simulate the transaction to check for errors with detailed output
     console.log('Simulating swap transaction...');
-    let simulation;
-    try {
-      simulation = await connectionManager.executeWithFallback(
-        conn => conn.simulateTransaction(transaction, undefined, true)
-      );
-      
-      // Log detailed simulation results
-      if (simulation?.value?.logs) {
-        console.log('Detailed swap simulation logs:', simulation.value.logs);
-      }
-      
-      if (simulation?.value?.err) {
-        console.error('Swap simulation failed:', simulation.value.err);
-        console.error('Simulation error details:', JSON.stringify(simulation.value.err));
-        
-        // Provide more helpful error messages based on error type
-        if (JSON.stringify(simulation.value.err).includes('InvalidAccountData')) {
-          throw new Error(`Token account validation failed. This usually occurs when token accounts haven't been set up. Please use the "Verify & Fund Program Authority" and "Verify Token Accounts" buttons in the debug panel.`);
-        }
-        
-        throw new Error(`Simulation failed: ${JSON.stringify(simulation.value.err)}`);
-      }
-    } catch (simError) {
-      console.error('Error during transaction simulation:', simError);
-      // If it's already our custom error, re-throw it
-      if (simError.message && (
-          simError.message.includes('Token account validation failed') ||
-          simError.message.includes('Token account verification failed')
-      )) {
-        throw simError;
-      }
-      throw new Error(`Transaction simulation error: ${simError.message}`);
+    const simulation = await connectionManager.executeWithFallback(
+      conn => conn.simulateTransaction(transaction, undefined, true)
+    );
+    
+    // Log detailed simulation results
+    console.log('Detailed swap simulation logs:', simulation.value.logs);
+    
+    if (simulation.value.err) {
+      console.error('Swap simulation failed:', simulation.value.err);
+      console.error('Simulation error details:', JSON.stringify(simulation.value.err));
+      throw new Error(`Simulation failed: ${JSON.stringify(simulation.value.err)}`);
     }
     
     // Send the transaction
     console.log('Sending swap transaction...');
-    try {
-      const signature = await wallet.sendTransaction(transaction, connectionManager.getConnection());
-      console.log('Swap transaction sent:', signature);
-      
-      // Wait for confirmation using ConnectionManager for reliability
-      await connectionManager.executeWithFallback(
-        conn => conn.confirmTransaction(signature, 'confirmed')
-      );
-      
-      console.log('Swap transaction confirmed:', signature);
-      return signature;
-    } catch (sendError) {
-      console.error('Error sending swap transaction:', sendError);
-      throw new Error(`Failed to send swap transaction: ${sendError.message}`);
-    }
+    const signature = await wallet.sendTransaction(transaction, connectionManager.getConnection());
+    console.log('Swap transaction sent:', signature);
+    
+    // Wait for confirmation using ConnectionManager for reliability
+    await connectionManager.executeWithFallback(
+      conn => conn.confirmTransaction(signature, 'confirmed')
+    );
+    
+    console.log('Swap transaction confirmed:', signature);
+    return signature;
   } catch (error) {
     console.error('Error in swap function:', error);
     throw error;
@@ -2400,3 +2340,89 @@ export default {
   mintTokensToProgramPDA,
   transferTokensToPDA
 };
+
+
+// Fixed: ensureTokenAccount now validates, creates, and verifies mint match
+async function ensureTokenAccount(
+  connection: Connection,
+  wallet: any,
+  mint: PublicKey,
+  transaction: Transaction
+): Promise<PublicKey> {
+  const ata = await getAssociatedTokenAddress(
+    mint,
+    wallet.publicKey,
+    false,
+    TOKEN_PROGRAM_ID,
+    ASSOCIATED_TOKEN_PROGRAM_ID
+  );
+
+  try {
+    const accountInfo = await connection.getAccountInfo(ata);
+    if (accountInfo === null) {
+      console.log(`Token account ${ata.toBase58()} does not exist. Creating.`);
+      const createIx = createAssociatedTokenAccountInstruction(
+        wallet.publicKey,
+        ata,
+        wallet.publicKey,
+        mint,
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+      transaction.add(createIx);
+    } else {
+      const account = await getAccount(connection, ata);
+      if (!account || !account.mint.equals(mint)) {
+        throw new Error('Invalid SPL token account for mint: ' + mint.toBase58());
+      }
+    }
+  } catch (e) {
+    console.error('Failed to validate or create associated token account', e);
+    throw e;
+  }
+
+  return ata;
+}
+
+
+// Fixed: ensureTokenAccount now validates, creates, and verifies mint match
+async function ensureTokenAccount(
+  connection: Connection,
+  wallet: any,
+  mint: PublicKey,
+  transaction: Transaction
+): Promise<PublicKey> {
+  const ata = await getAssociatedTokenAddress(
+    mint,
+    wallet.publicKey,
+    false,
+    TOKEN_PROGRAM_ID,
+    ASSOCIATED_TOKEN_PROGRAM_ID
+  );
+
+  try {
+    const accountInfo = await connection.getAccountInfo(ata);
+    if (accountInfo === null) {
+      console.log(`Token account ${ata.toBase58()} does not exist. Creating.`);
+      const createIx = createAssociatedTokenAccountInstruction(
+        wallet.publicKey,
+        ata,
+        wallet.publicKey,
+        mint,
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+      transaction.add(createIx);
+    } else {
+      const account = await getAccount(connection, ata);
+      if (!account || !account.mint.equals(mint)) {
+        throw new Error('Invalid SPL token account for mint: ' + mint.toBase58());
+      }
+    }
+  } catch (e) {
+    console.error('Failed to validate or create associated token account', e);
+    throw e;
+  }
+
+  return ata;
+}
