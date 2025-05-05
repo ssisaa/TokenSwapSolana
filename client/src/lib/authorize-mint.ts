@@ -10,6 +10,7 @@ import { SOLANA_RPC_URL, YOS_TOKEN_ADDRESS, MULTI_HUB_SWAP_PROGRAM_ID } from './
 import { 
   TOKEN_PROGRAM_ID, createSetAuthorityInstruction, AuthorityType
 } from '@solana/spl-token';
+import { sendTransaction } from './transaction-helper';
 
 /**
  * Set the YOS mint authority to the program authority PDA
@@ -49,8 +50,8 @@ export async function setProgramAsMintAuthority(wallet: any) {
     transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
     transaction.feePayer = adminPublicKey;
     
-    // Request wallet to sign and send transaction
-    const signature = await wallet.sendTransaction(transaction, connection);
+    // Use the universal transaction helper to handle different wallet types
+    const signature = await sendTransaction(wallet, transaction, connection);
     
     console.log("✅ Successfully set program authority PDA as mint authority for YOS token");
     console.log("Transaction signature:", signature);
