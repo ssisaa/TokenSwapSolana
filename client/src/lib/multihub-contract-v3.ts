@@ -29,6 +29,7 @@ import {
 } from '@solana/spl-token';
 import { config } from './config';
 import { connectionManager } from './connection-manager';
+import { validateTokenAccount as validateSplTokenAccount } from './validateTokenAccount';
 
 // Program ID for the multihub swap V3/V4 contract from central config
 export const MULTIHUB_SWAP_PROGRAM_ID = config.programs.multiHub.v4;
@@ -1197,84 +1198,62 @@ export async function performSwap(
     console.log("Primary authority: Pool Authority PDA", POOL_AUTHORITY);
     console.log("Fallback authority: Program Authority PDA", PROGRAM_AUTHORITY);
     
-    // CRITICAL FIX: Enhanced account validation with detailed error reporting
-    // This function checks if the account exists and is valid for the expected operation
-    // Using the TOKEN_PROGRAM_ID defined at the top of the file
-    const validateAccount = async (pubkey: PublicKey, accountType = "unknown"): Promise<boolean> => {
+    // CRITICAL FIX: Use our enhanced token account validation
+    // (We import the function at the top of the file)
+    
+    // IMPROVED: Enhanced account validation with comprehensive error reporting
+    // This function now handles all possible token account validation scenarios
+    const validateAccount = async (pubkey: PublicKey, accountType = "unknown", expectedMint?: PublicKey, accountIndex = 0): Promise<boolean> => {
       try {
-        console.log(`Validating ${accountType} account: ${pubkey.toString()}`);
+        console.log(`🧪 Enhanced validation for ${accountType} account: ${pubkey.toString()}`);
         
-        // Attempt to get account info with retries
+        // Check if this is the Program Authority account (special case)
+        const programAuthorityPDA = new PublicKey(PROGRAM_AUTHORITY);
+        if (accountType === "Program Authority" || pubkey.equals(programAuthorityPDA)) {
+          console.log(`💡 Validating Program Authority PDA: ${pubkey.toString()}`);
+          
+          // Get account info with retries
+          const accountInfo = await connectionManager.executeWithFallback(
+            conn => conn.getAccountInfo(pubkey)
+          );
+          
+          if (!accountInfo) {
+            console.warn(`⚠️ Program authority PDA doesn't exist yet, it will be created as part of the transaction`);
+            return true; // Allow creation during transaction
+          }
+          
+          // Special validation for program authority
+          if (accountInfo.data.length > 0) {
+            console.warn(`⚠️ WARNING: Program authority has data (${accountInfo.data.length} bytes) which may cause InvalidAccountData`);
+            console.log(`Proceeding anyway since this is a PDA used for signing`);
+          }
+          
+          return true; // Program Authority validation passes
+        }
+        
+        // For token accounts, use the comprehensive validation
+        if (accountType.includes("token")) {
+          // Token validation with the expectedMint if provided
+          if (expectedMint) {
+            return await validateSplTokenAccount(connection, pubkey, expectedMint);
+          } else {
+            return await validateSplTokenAccount(connection, pubkey);
+          }
+        }
+        
+        // Default validation for other account types
         const accountInfo = await connectionManager.executeWithFallback(
           conn => conn.getAccountInfo(pubkey)
         );
         
         if (!accountInfo) {
-          console.error(`MISSING ACCOUNT: ${accountType} account ${pubkey.toString()} does not exist!`);
-          console.error('This will cause an InvalidAccountData error in the transaction');
+          console.error(`❌ Account does not exist: ${pubkey.toString()}`);
           return false;
-        }
-        
-        // Additional validation for program authority (index 2)
-        if (accountType === "Program Authority" && accountInfo.data.length > 0) {
-          console.warn('WARNING: Program authority has data which may cause InvalidAccountData');
-          console.warn(`Data length: ${accountInfo.data.length} bytes`);
-          // This is likely the cause of the InvalidAccountData error at index 2
-          
-          // Check if Program Authority is actually a token account
-          // This could be the cause of the InvalidAccountData error
-          const programAuthorityPDA = new PublicKey(PROGRAM_AUTHORITY);
-          if (pubkey.equals(programAuthorityPDA)) {
-            console.log("Program Authority PDA should not have any data - this may be the cause of InvalidAccountData");
-            // Since this is a PDA used for authority, we should proceed anyway
-            return true;
-          }
-        }
-        
-        // ENHANCED: Additional validation for token accounts - using TOKEN_PROGRAM_ID constant from top of file
-        if (accountType.includes("token")) {
-          // Use the TOKEN_PROGRAM_ID constant defined at the top of the file
-          
-          // Check owner is TOKEN_PROGRAM_ID (0x06...)
-          if (!accountInfo.owner.equals(TOKEN_PROGRAM_ID)) {
-            console.error(`INVALID TOKEN ACCOUNT: ${accountType} account is not owned by Token Program`);
-            console.error(`Owner: ${accountInfo.owner.toString()}, Expected: ${TOKEN_PROGRAM_ID.toString()}`);
-            return false;
-          }
-          
-          // For token accounts, check minimum data length (165 bytes for token accounts)
-          if (accountInfo.data.length < 165) {
-            console.error(`INVALID TOKEN ACCOUNT DATA: ${accountType} account data is too small`);
-            console.error(`Data length: ${accountInfo.data.length} bytes, Expected: at least 165 bytes`);
-            return false;
-          }
-          
-          // CRITICAL FIX: Try to parse as token account to ensure validity
-          try {
-            // This will throw if the account is not a valid token account
-            const tokenAccount = await getAccount(
-              connection,
-              pubkey,
-              undefined,
-              TOKEN_PROGRAM_ID
-            );
-            
-            console.log(`${accountType} account is a valid SPL token account`);
-            console.log(`Mint: ${tokenAccount.mint.toString()}`);
-            console.log(`Owner: ${tokenAccount.owner.toString()}`);
-            console.log(`Amount: ${tokenAccount.amount.toString()}`);
-            
-            return true;
-          } catch (tokenError) {
-            console.error(`${accountType} account failed token account validation:`, tokenError);
-            console.error('This will cause InvalidAccountData error during transaction');
-            return false;
-          }
         }
         
         return true;
       } catch (err) {
-        console.error(`Error validating ${accountType} account ${pubkey.toString()}:`, err);
+        console.error(`❌ Error validating ${accountType} account ${pubkey.toString()}:`, err);
         return false;
       }
     };
