@@ -150,6 +150,15 @@ async function safelySimulateTransaction(connection: Connection, transaction: Tr
   try {
     console.log("📊 SIMULATION: Attempting to simulate transaction before sending...");
     
+    // Extract the instruction data for debugging
+    if (transaction.instructions.length > 0) {
+      const instructionData = transaction.instructions[0].data;
+      console.log("📊 Instruction data analysis:");
+      console.log(`- Data length: ${instructionData.length} bytes`);
+      console.log(`- Discriminator byte: ${instructionData[0]}`);
+      console.log(`- Full data (hex): ${instructionData.toString('hex')}`);
+    }
+    
     // Use the basic form of simulateTransaction with correct parameters
     // First parameter: transaction
     // Second parameter: optional signers array (we pass empty array)
@@ -169,6 +178,26 @@ async function safelySimulateTransaction(connection: Connection, transaction: Tr
     // Check for errors in the simulation
     if (simResult.value.err) {
       console.error("❌ SIMULATION FAILED:", simResult.value.err);
+      
+      // Additional error analysis
+      if (typeof simResult.value.err === 'object') {
+        const errorObj = simResult.value.err as any;
+        
+        // Look for specific InstructionError patterns
+        if (errorObj.InstructionError) {
+          const [index, error] = errorObj.InstructionError;
+          console.error(`❌ Error in instruction ${index}:`, error);
+          
+          if (error.Custom === 1) {
+            console.error("❗ Detected Unknown Instruction Discriminator error - verify the instruction byte is correct");
+            console.error("💡 SOLUTION: Make sure the discriminator bytes match between client and program:");
+            console.error("   - Client uses BUY_AND_DISTRIBUTE_DISCRIMINATOR = Buffer.from([4])");
+            console.error("   - Program expects BUY_AND_DISTRIBUTE_IX = 4");
+          } else if (error.Custom === 0) {
+            console.error("❗ Detected invalid account data - check account ownership and initialization");
+          }
+        }
+      }
       
       // Log simulation logs if available
       if (simResult.value.logs) {
@@ -191,7 +220,8 @@ async function safelySimulateTransaction(connection: Connection, transaction: Tr
           log.includes("failed") || 
           log.includes("Error") || 
           log.includes("error") ||
-          log.includes("invalid")
+          log.includes("invalid") ||
+          log.includes("Unknown instruction")
         );
         
         if (errorLogs.length > 0) {
