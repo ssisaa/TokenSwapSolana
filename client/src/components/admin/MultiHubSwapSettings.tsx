@@ -94,16 +94,42 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
 
     setIsInitializing(true);
     try {
+      // Enhanced logging for debugging
+      console.log("================ CONTRACT INITIALIZATION ================");
+      console.log("Admin wallet address:", wallet.publicKey.toString());
+      console.log("MULTI_HUB_SWAP_PROGRAM_ID:", MULTI_HUB_SWAP_PROGRAM_ID);
+      
+      const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
+      const yosMint = new PublicKey(YOS_TOKEN_ADDRESS);
+      console.log("YOT mint address:", yotMint.toString());
+      console.log("YOS mint address:", yosMint.toString());
+      
+      // PDA verification
+      const [programStateAddress, stateBump] = PublicKey.findProgramAddressSync(
+        [Buffer.from("state")],
+        new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
+      );
+      console.log("Program state PDA:", programStateAddress.toString(), "with bump:", stateBump);
+      
+      // Display parameters
+      console.log("Initialization parameters:");
+      console.log(`- LP Contribution Rate: ${lpContributionRate}%`);
+      console.log(`- Admin Fee Rate: ${adminFeeRate}%`);
+      console.log(`- YOS Cashback Rate: ${yosCashbackRate}%`);
+      console.log(`- Swap Fee Rate: ${swapFeeRate}%`);
+      console.log(`- Referral Rate: ${referralRate}%`);
+      console.log("==================================================");
+      
       // Call the initialization function with YOT and YOS token addresses
       await initializeMultiHubSwap(
         wallet,
-        new PublicKey(YOT_TOKEN_ADDRESS), // YOT token address
-        new PublicKey(YOS_TOKEN_ADDRESS), // YOS token address
-        lpContributionRate,
-        adminFeeRate,
-        yosCashbackRate,
-        swapFeeRate,
-        referralRate
+        yotMint,
+        yosMint,
+        lpContributionRate / 100, // Convert from percentage to decimal
+        adminFeeRate / 100,
+        yosCashbackRate / 100,
+        swapFeeRate / 100,
+        referralRate / 100
       );
 
       toast({
@@ -114,6 +140,7 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
       // Refresh contract info
       await fetchContractInfo();
     } catch (error: any) {
+      console.error("Contract initialization failed:", error);
       toast({
         title: "Failed to initialize contract",
         description: error.message || "An error occurred while initializing the contract",

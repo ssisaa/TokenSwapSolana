@@ -918,43 +918,70 @@ export async function initializeMultiHubSwap(
   // Connect to Solana
   const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
   
-  // Create the program state account
-  const [programStateAddress] = findProgramStateAddress();
+  // Create the program state account using the same seed as in the Rust program
+  const [programStateAddress, programStateBump] = findProgramStateAddress();
+  console.log("Program state PDA:", programStateAddress.toString());
+  
+  // Create the program authority account
+  const [programAuthority, authorityBump] = PublicKey.findProgramAddressSync(
+    [Buffer.from("authority")],
+    new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
+  );
+  console.log("Program authority PDA:", programAuthority.toString());
   
   // Create a transaction to initialize the program
   const transaction = new Transaction();
   
-  // Encode the initialization data
-  const data = Buffer.alloc(33); // 1 byte for instruction type + 32 bytes for parameters
+  // Create the instruction with modified data format to match Rust program
+  // The Rust program expects: instruction_type(1) + admin(32) + yot_mint(32) + yos_mint(32) + 5 rates(8*5)
+  const data = Buffer.alloc(1 + 32*3 + 8*5);
+  
+  // Set instruction type
   data.writeUInt8(MultiHubSwapInstructionType.Initialize, 0);
-  
-  // Convert percentages to basis points (1% = 100 basis points)
-  // Pack parameters into the buffer
   let offset = 1;
-  const lpContributionBasisPoints = Math.round(lpContributionRate * 100);
-  const adminFeeBasisPoints = Math.round(adminFeeRate * 100);
-  const yosCashbackBasisPoints = Math.round(yosCashbackRate * 100);
-  const swapFeeBasisPoints = Math.round(swapFeeRate * 100);
-  const referralBasisPoints = Math.round(referralRate * 100);
   
-  data.writeUInt16LE(lpContributionBasisPoints, offset);
-  offset += 2;
-  data.writeUInt16LE(adminFeeBasisPoints, offset);
-  offset += 2;
-  data.writeUInt16LE(yosCashbackBasisPoints, offset);
-  offset += 2;
-  data.writeUInt16LE(swapFeeBasisPoints, offset);
-  offset += 2;
-  data.writeUInt16LE(referralBasisPoints, offset);
-  offset += 2;
+  // Add admin public key
+  wallet.publicKey.toBuffer().copy(data, offset);
+  offset += 32;
   
-  // Create the instruction
+  // Add token mints
+  yotMint.toBuffer().copy(data, offset);
+  offset += 32;
+  yosMint.toBuffer().copy(data, offset);
+  offset += 32;
+  
+  // Convert percentages to basis points with correct scaling 
+  // These should be u64 values as expected by the Rust program
+  const lpContributionBasisPoints = BigInt(Math.round(lpContributionRate * 10000));
+  const adminFeeBasisPoints = BigInt(Math.round(adminFeeRate * 10000));
+  const yosCashbackBasisPoints = BigInt(Math.round(yosCashbackRate * 10000));
+  const swapFeeBasisPoints = BigInt(Math.round(swapFeeRate * 10000));
+  const referralBasisPoints = BigInt(Math.round(referralRate * 10000));
+  
+  // Write u64 values in little-endian format
+  data.writeBigUInt64LE(lpContributionBasisPoints, offset);
+  offset += 8;
+  data.writeBigUInt64LE(adminFeeBasisPoints, offset);
+  offset += 8;
+  data.writeBigUInt64LE(yosCashbackBasisPoints, offset);
+  offset += 8;
+  data.writeBigUInt64LE(swapFeeBasisPoints, offset);
+  offset += 8;
+  data.writeBigUInt64LE(referralBasisPoints, offset);
+  
+  console.log("Initialization parameters:");
+  console.log(`- LP Contribution: ${lpContributionRate * 100}% (${lpContributionBasisPoints} basis points)`);
+  console.log(`- Admin Fee: ${adminFeeRate * 100}% (${adminFeeBasisPoints} basis points)`);
+  console.log(`- YOS Cashback: ${yosCashbackRate * 100}% (${yosCashbackBasisPoints} basis points)`);
+  console.log(`- Swap Fee: ${swapFeeRate * 100}% (${swapFeeBasisPoints} basis points)`);
+  console.log(`- Referral Rate: ${referralRate * 100}% (${referralBasisPoints} basis points)`);
+  
+  // Create the instruction with accounts that match the Rust program
   const instruction = new TransactionInstruction({
     keys: [
       { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
       { pubkey: programStateAddress, isSigner: false, isWritable: true },
-      { pubkey: yotMint, isSigner: false, isWritable: false },
-      { pubkey: yosMint, isSigner: false, isWritable: false },
+      { pubkey: programAuthority, isSigner: false, isWritable: false },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
       { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
     ],
@@ -967,8 +994,9 @@ export async function initializeMultiHubSwap(
   try {
     // Sign and send the transaction
     const signature = await wallet.sendTransaction(transaction, connection);
-    await connection.confirmTransaction(signature, 'confirmed');
+    console.log("Initialization transaction sent. Waiting for confirmation...");
     
+    await connection.confirmTransaction(signature, 'confirmed');
     console.log("Multi-Hub Swap program initialized:", signature);
     return signature;
   } catch (error) {

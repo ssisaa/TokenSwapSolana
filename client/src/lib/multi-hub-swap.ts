@@ -44,9 +44,10 @@ export function rawToUiAmount(rawAmount: bigint | number, decimals: number): num
 }
 
 // Find PDA addresses
+// CRITICAL: Seed must match the Rust program's "state" seed
 export function findProgramStateAddress(): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
-    [Buffer.from("program-state")],
+    [Buffer.from("state")],
     new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
   );
 }
