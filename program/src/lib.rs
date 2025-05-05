@@ -1,7 +1,5 @@
 // Import our multi_hub_swap module
 mod multi_hub_swap;
-// Import our new manual serialization module
-mod manual_serialization;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
@@ -199,8 +197,8 @@ pub fn process_instruction(
             
             msg!("BuyAndDistribute amount: {}", amount);
             
-            // Use our new manual serialization implementation instead of Borsh
-            crate::manual_serialization::process_buy_and_distribute(program_id, accounts, amount)
+            // Directly call the multi_hub_swap implementation
+            crate::multi_hub_swap::process_buy_and_distribute(program_id, accounts, amount)
         },
         
         Some(5) => {

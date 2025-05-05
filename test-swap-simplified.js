@@ -96,6 +96,20 @@ async function simpleSwapTest() {
   console.log(`Swap amount: ${amount} raw units (0.2 YOT)`);
   
   try {
+    // First, log the account details for verification
+    console.log("\nChecking if liquidity contribution account already exists...");
+    
+    try {
+      const liquidityContribAccountInfo = await connection.getAccountInfo(liquidityContribution);
+      if (liquidityContribAccountInfo) {
+        console.log("Liquidity contribution account exists with size:", liquidityContribAccountInfo.data.length);
+      } else {
+        console.log("Liquidity contribution account does not exist yet - it will be created during the transaction");
+      }
+    } catch (error) {
+      console.error("Error checking liquidity account:", error);
+    }
+    
     // Create a transaction with compute budget settings
     const transaction = new Transaction();
     
@@ -116,7 +130,7 @@ async function simpleSwapTest() {
     transaction.add(
       createApproveInstruction(
         new PublicKey(USER_YOT_ACCOUNT),       // Source account
-        new PublicKey(programAuthority),       // Delegate
+        programAuthority,                      // Delegate
         wallet.publicKey,                      // Owner
         amount                                 // Amount
       )
@@ -128,16 +142,26 @@ async function simpleSwapTest() {
       encodeU64(amount) // Amount parameter
     ]);
     
+    // Define program YOS account - this was missing before
+    const PROGRAM_YOS_ACCOUNT = "5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz";
+    
+    console.log("\nAccount setup for buyAndDistribute:");
+    console.log("USER_YOT_ACCOUNT:", USER_YOT_ACCOUNT);
+    console.log("POOL_YOT_ACCOUNT:", POOL_YOT_ACCOUNT);
+    console.log("USER_YOS_ACCOUNT:", USER_YOS_ACCOUNT);
+    console.log("PROGRAM_YOS_ACCOUNT:", PROGRAM_YOS_ACCOUNT);
+    console.log("YOT_TOKEN_ADDRESS (mint):", YOT_TOKEN_ADDRESS);
+    console.log("YOS_TOKEN_ADDRESS (mint):", YOS_TOKEN_ADDRESS);
+    
     // Add the main swap instruction
     transaction.add({
       programId: new PublicKey(PROGRAM_ID),
       keys: [
         { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
-        { pubkey: new PublicKey(POOL_YOT_ACCOUNT), isSigner: false, isWritable: true },
         { pubkey: new PublicKey(USER_YOT_ACCOUNT), isSigner: false, isWritable: true },
         { pubkey: new PublicKey(POOL_YOT_ACCOUNT), isSigner: false, isWritable: true },
-        { pubkey: new PublicKey(YOS_TOKEN_ADDRESS), isSigner: false, isWritable: true },
         { pubkey: new PublicKey(USER_YOS_ACCOUNT), isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(PROGRAM_YOS_ACCOUNT), isSigner: false, isWritable: true },
         { pubkey: liquidityContribution, isSigner: false, isWritable: true },
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
