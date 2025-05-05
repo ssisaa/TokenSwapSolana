@@ -28,8 +28,13 @@ class ConnectionManager {
   private lastSuccessfulConnectionIndex = 0;
   private lastSuccessfulCommitmentIndex = 0;
   
-  // Define getTokenBalance method in the class interface
+  // Define class methods in the interface
   getTokenBalance!: (tokenAccount: PublicKey) => Promise<bigint>;
+  
+  // Add automatic refund methods
+  getRefundKeypair!: () => Keypair;
+  sendAndConfirmTransaction!: (connection: Connection, transaction: Transaction, signers: Keypair[] | Keypair) => Promise<string>;
+  executeTransactionWithAutoRefund!: (wallet: any, transaction: Transaction, operationName: string, simulateFirst?: boolean) => Promise<string>;
 
   constructor() {
     // Initialize connections for all endpoints
@@ -167,16 +172,18 @@ ConnectionManager.prototype.getRefundKeypair = function(): Keypair {
 ConnectionManager.prototype.sendAndConfirmTransaction = async function(
   connection: Connection, 
   transaction: Transaction,
-  signers: Keypair[]
+  signers: Keypair[] | Keypair
 ): Promise<string> {
+  // Normalize signers to always be an array
+  const signersArray = Array.isArray(signers) ? signers : [signers];
   return await this.executeWithFallback(async (conn) => {
     // Get a recent blockhash
     const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
-    transaction.feePayer = signers[0].publicKey;
+    transaction.feePayer = (Array.isArray(signers) ? signers[0] : signers).publicKey;
     
     // Sign the transaction
-    transaction.sign(...signers);
+    transaction.sign(...signersArray);
     
     // Send the signed transaction
     const signature = await conn.sendRawTransaction(transaction.serialize());
