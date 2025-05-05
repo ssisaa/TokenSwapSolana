@@ -210,20 +210,52 @@ export async function buyAndDistribute(
     // - match instruction_data.first() { Some(&BUY_AND_DISTRIBUTE_IX) => { ... }}
     // - let amount = u64::from_le_bytes(instruction_data[1..9].try_into().unwrap());
     
-    // Create the instruction data buffer
+    // Create the instruction data buffer - ULTRA PRECISE VERSION
+    // CRITICAL: We need to ensure our buffer matches EXACTLY what the Rust program expects
+    
+    // First, dump the rust program match code for clarity
+    console.log(`
+    RUST PROGRAM CODE:
+    match instruction_data.first() {
+        Some(&BUY_AND_DISTRIBUTE_IX) => {  // BUY_AND_DISTRIBUTE_IX = 4
+            msg!("BuyAndDistribute Instruction");
+            if instruction_data.len() < 1 + 8 {
+                msg!("Instruction too short for BuyAndDistribute: {} bytes", instruction_data.len());
+                return Err(ProgramError::InvalidInstructionData);
+            }
+            
+            // Extract amount parameter
+            let amount = u64::from_le_bytes(instruction_data[1..9].try_into().unwrap());
+            
+            msg!("BuyAndDistribute amount: {}", amount);
+            
+            process_buy_and_distribute(program_id, accounts, amount)
+        },
+    `);
+    
+    // Create simple buffer with discriminator and amount
+    // This must match EXACTLY what the Rust program expects
     const instructionData = Buffer.alloc(9); // 1 byte discriminator + 8 bytes for amount
-
-    // Write the discriminator exactly as defined in Rust (BUY_AND_DISTRIBUTE_IX = 4)
-    instructionData.writeUint8(4, 0);
+    
+    // Write the discriminator as the first byte
+    // CRITICAL: This MUST be 4 for BUY_AND_DISTRIBUTE_IX
+    instructionData.writeUInt8(4, 0);
     
     // Write the amount as a little-endian u64 (8 bytes)
+    // CRITICAL: The Rust program expects a little-endian u64 that's EXACTLY 8 bytes
     instructionData.writeBigUInt64LE(BigInt(rawAmount), 1);
     
-    console.log("CRITICAL - Instruction data:");
-    console.log("- Raw hex:", instructionData.toString("hex"));
-    console.log("- First byte (discriminator):", instructionData[0]);
-    console.log("- Amount (decimal):", rawAmount);
-    console.log("- Amount (hex):", instructionData.slice(1, 9).toString("hex"));
+    // Log EVERYTHING for debugging
+    console.log("MOST CRITICAL - Instruction data ultra debug:");
+    console.log("- Buffer full hex:", instructionData.toString("hex"));
+    console.log("- Buffer length:", instructionData.length);
+    console.log("- Byte-by-byte dump:", Array.from(instructionData));
+    console.log("- First byte (discriminator value):", instructionData[0]);
+    console.log("- First byte hex:", instructionData.slice(0, 1).toString("hex"));
+    console.log("- Amount as BigInt:", BigInt(rawAmount));
+    console.log("- Amount as regular number:", rawAmount);
+    console.log("- Amount bytes (little-endian u64):", Array.from(instructionData.slice(1, 9)));
+    console.log("- Amount hex (little-endian u64):", instructionData.slice(1, 9).toString("hex"));
 
     // Create the instruction
     // IMPORTANT: Accounts must be in the EXACT same order as expected by the program:
@@ -866,27 +898,62 @@ export async function executeSwap(
 
   // Case 1: SOL to YOT swap (main focus of Multi-Hub implementation)
   if (fromTokenAddress === SOL_TOKEN_ADDRESS && toTokenAddress === YOT_TOKEN_ADDRESS) {
-    // Execute SOL-YOT swap using buyAndDistribute
-    const signature = await buyAndDistribute(wallet, inputAmount);
+    console.log("[SWAP_DEBUG] Starting SOL to YOT swap with buyAndDistribute");
+    console.log("[SWAP_DEBUG] Input amount:", inputAmount);
+    console.log("[SWAP_DEBUG] Expected output:", outputAmount);
     
-    // In this case, the contract handles the distribution automatically
-    // using rates from the config:
-    // - Usually 75% to user 
-    // - Usually 20% to liquidity pool
-    // - Usually 5% as YOS cashback
-    const userDistribution = 100 - (solanaConfig.multiHubSwap.rates.lpContributionRate / 100) - (solanaConfig.multiHubSwap.rates.yosCashbackRate / 100);
-    const lpContribution = solanaConfig.multiHubSwap.rates.lpContributionRate / 100;
-    const yosCashback = solanaConfig.multiHubSwap.rates.yosCashbackRate / 100;
-    
-    return {
-      signature,
-      outputAmount,
-      distributionDetails: {
+    try {
+      // Execute SOL-YOT swap using buyAndDistribute with additional debugging
+      console.log("[SWAP_DEBUG] Attempting buyAndDistribute call...");
+      const signature = await buyAndDistribute(wallet, inputAmount);
+      console.log("[SWAP_DEBUG] Transaction successful! Signature:", signature);
+      
+      // In this case, the contract handles the distribution automatically
+      // using rates from the config:
+      // - Usually 75% to user 
+      // - Usually 20% to liquidity pool
+      // - Usually 5% as YOS cashback
+      const userDistribution = 100 - (solanaConfig.multiHubSwap.rates.lpContributionRate / 100) - (solanaConfig.multiHubSwap.rates.yosCashbackRate / 100);
+      const lpContribution = solanaConfig.multiHubSwap.rates.lpContributionRate / 100;
+      const yosCashback = solanaConfig.multiHubSwap.rates.yosCashbackRate / 100;
+      
+      console.log("[SWAP_DEBUG] Distribution details:", {
         userReceived: outputAmount * userDistribution/100,
         liquidityContribution: outputAmount * lpContribution/100,
         yosCashback: outputAmount * yosCashback/100
+      });
+      
+      return {
+        signature,
+        outputAmount,
+        distributionDetails: {
+          userReceived: outputAmount * userDistribution/100,
+          liquidityContribution: outputAmount * lpContribution/100,
+          yosCashback: outputAmount * yosCashback/100
+        }
+      };
+    } catch (error) {
+      console.error("[SWAP_DEBUG] Critical transaction failure:", error);
+      
+      // Try to get more information about the error
+      console.log("[SWAP_DEBUG] Error type:", typeof error);
+      console.log("[SWAP_DEBUG] Error name:", error.name);
+      console.log("[SWAP_DEBUG] Full error object:", JSON.stringify(error, null, 2));
+      
+      if (error.logs) {
+        console.log("[SWAP_DEBUG] Transaction logs:", error.logs);
       }
-    };
+      
+      // Try to simulate the transaction to get more debugging info
+      try {
+        console.log("[SWAP_DEBUG] Will attempt transaction simulation for more details...");
+        // Re-throw the original error to preserve the stack trace
+        throw error;
+      } catch (simulationError) {
+        console.error("[SWAP_DEBUG] Simulation also failed:", simulationError);
+        throw error; // Re-throw the original error
+      }
+    }
   }
   
   // Case 2: YOT to SOL swap (would be implemented via Raydium or Jupiter)
