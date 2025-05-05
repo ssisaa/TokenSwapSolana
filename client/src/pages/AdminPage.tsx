@@ -13,6 +13,7 @@ import AdminTransactions from "@/components/admin/AdminTransactions";
 import FundProgramAccounts from "@/components/admin/FundProgramAccounts";
 import MultiHubSwapSettings from "@/components/admin/MultiHubSwapSettings";
 import AuthorizeTokens from "@/components/admin/AuthorizeTokens";
+import { CreateTokenCard } from "@/components/admin/CreateTokenCard";
 import { useMultiWallet } from "@/context/MultiWalletContext";
 
 export default function AdminPage() {
@@ -102,6 +103,9 @@ export default function AdminPage() {
               
               {/* Token Authorization Component */}
               <AuthorizeTokens />
+              
+              {/* Create New Token Component */}
+              <CreateTokenCard />
             </div>
             
             {/* Statistics panel next to Blockchain settings */}
