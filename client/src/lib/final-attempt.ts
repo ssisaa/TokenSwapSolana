@@ -33,6 +33,7 @@ const POOL_AUTHORITY = new PublicKey('7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKp
 
 // Pool token accounts
 const POOL_SOL_ACCOUNT = new PublicKey('7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS');
+const USER_SOL_ACCOUNT = new PublicKey('AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ'); // The wallet address used for SOL ops
 const PROGRAM_YOT_ACCOUNT = new PublicKey('BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE');
 const PROGRAM_YOS_ACCOUNT = new PublicKey('5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz');
 
@@ -128,16 +129,16 @@ export async function finalAttempt(
       { pubkey: PROGRAM_AUTHORITY, isSigner: false, isWritable: true },       // PROGRAM AUTHORITY    [2]
       { pubkey: POOL_AUTHORITY, isSigner: false, isWritable: true },          // Pool authority       [3]
       
-      // CRITICAL FIX: We need to create a DIFFERENT token account for SOL operations
-      // Do NOT use wallet.publicKey again - this was causing duplicate accounts!
-      // For SOL operations, specifically use the POOL_SOL_ACCOUNT to avoid duplicates
+      // CRITICAL FIX: Use different accounts to avoid duplications
+      // Use USER_SOL_ACCOUNT for SOL operations instead of POOL_SOL_ACCOUNT
+      // This way each account only appears once in the array
       { 
-        pubkey: isSOLToYOT ? POOL_SOL_ACCOUNT : USER_YOT_ACCOUNT,             // User FROM account    [4]
+        pubkey: isSOLToYOT ? USER_SOL_ACCOUNT : USER_YOT_ACCOUNT,             // User FROM account    [4]
         isSigner: false,    // NEVER mark any account as signer more than once
         isWritable: true 
       },
       { 
-        pubkey: isSOLToYOT ? USER_YOT_ACCOUNT : POOL_SOL_ACCOUNT,             // User TO account      [5]
+        pubkey: isSOLToYOT ? USER_YOT_ACCOUNT : USER_SOL_ACCOUNT,             // User TO account      [5]
         isSigner: false,    // NEVER mark any account as signer more than once
         isWritable: true 
       },
@@ -264,9 +265,9 @@ export async function finalAttempt(
         
         // CRITICAL FIX: We need to use DIFFERENT token accounts here too to avoid duplicates
         // Do NOT use wallet.publicKey again - this was causing duplicate accounts!
-        { pubkey: isSOLToYOT ? POOL_SOL_ACCOUNT : USER_YOT_ACCOUNT,            // User FROM account    [4]
+        { pubkey: isSOLToYOT ? USER_SOL_ACCOUNT : USER_YOT_ACCOUNT,            // User FROM account    [4]
           isSigner: false, isWritable: true },
-        { pubkey: isSOLToYOT ? USER_YOT_ACCOUNT : POOL_SOL_ACCOUNT,            // User TO account      [5]
+        { pubkey: isSOLToYOT ? USER_YOT_ACCOUNT : USER_SOL_ACCOUNT,            // User TO account      [5]
           isSigner: false, isWritable: true },
         { pubkey: USER_YOS_ACCOUNT, isSigner: false, isWritable: true },       // User YOS account     [6]
         
