@@ -354,11 +354,11 @@ export async function performMultiHubSwap(
       // This ensures the wallet confirmation matches the UI display
       let solFundingAmount;
       
-      if (fromTokenInfo.symbol === "SOL") {
+      if (tokenFrom.symbol === "SOL") {
         // If we're swapping from SOL, use the actual amount being swapped
         // Convert from bigint to number with proper decimals
         // We display this in the UI, so wallet confirmation should match
-        solFundingAmount = Number(fromAmount) / 1e9;
+        solFundingAmount = Number(amountIn) / 1e9;
       } else {
         // Default fallback if swapping TO SOL (not FROM SOL)
         solFundingAmount = 0.05;

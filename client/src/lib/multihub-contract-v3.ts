@@ -1866,37 +1866,55 @@ export async function performSwap(
     }));
     
     // CRITICAL FIX: Enhanced error handling for InvalidAccountData
-    // First verify that all token accounts exist with proper owners
-    console.log('Verifying token accounts before simulation...');
+    // First verify that all token accounts exist with proper owners using validateTokenAccount
+    console.log('Verifying token accounts before simulation with comprehensive validation...');
+    
     try {
-      // Verify FROM token ATA
-      const fromAccount = await connectionManager.executeWithFallback(
-        conn => conn.getAccountInfo(tokenFromMintATA)
+      // Import validateTokenAccount if not already available
+      const { validateTokenAccount } = await import('./validateTokenAccount');
+      
+      // Use our comprehensive token account validation function
+      // Verify FROM token ATA (program authority)
+      const fromTokenValidated = await validateTokenAccount(
+        connection,
+        tokenFromMintATA,
+        tokenFromMint
       );
-      if (!fromAccount) {
-        throw new Error(`Token account for source token (${tokenFromMint.toString()}) doesn't exist`);
+      
+      if (!fromTokenValidated) {
+        console.error(`Token account validation failed for FROM token: ${tokenFromMintATA.toString()}`);
+        throw new Error(`Program's ${tokenFromMint.toString()} token account not properly set up. Click "Verify & Fund Program Authority" first.`);
       }
       
-      // Verify TO token ATA
-      const toAccount = await connectionManager.executeWithFallback(
-        conn => conn.getAccountInfo(tokenToMintATA)
+      // Verify TO token ATA (program authority)
+      const toTokenValidated = await validateTokenAccount(
+        connection, 
+        tokenToMintATA,
+        tokenToMint
       );
-      if (!toAccount) {
-        throw new Error(`Token account for destination token (${tokenToMint.toString()}) doesn't exist`);
+      
+      if (!toTokenValidated) {
+        console.error(`Token account validation failed for TO token: ${tokenToMintATA.toString()}`);
+        throw new Error(`Program's ${tokenToMint.toString()} token account not properly set up. Click "Verify & Fund Program Authority" first.`);
       }
       
-      // Verify YOS token ATA
-      const yosAccount = await connectionManager.executeWithFallback(
-        conn => conn.getAccountInfo(yosTokenProgramATA)
+      // Verify YOS token ATA (program authority)
+      const yosTokenValidated = await validateTokenAccount(
+        connection,
+        yosTokenProgramATA,
+        new PublicKey(YOS_TOKEN_MINT)
       );
-      if (!yosAccount) {
-        console.warn(`YOS token account (${yosTokenProgramATA.toString()}) doesn't exist - cashback may fail`);
+      
+      if (!yosTokenValidated) {
+        console.warn(`YOS token account validation failed: ${yosTokenProgramATA.toString()}`);
+        // Non-blocking warning since cashback is optional
+        console.warn("YOS token account validation failed - cashback might not work");
       }
       
-      console.log('All token accounts verified successfully');
+      console.log('✅ All token accounts SUCCESSFULLY validated with comprehensive checks');
     } catch (verifyError) {
-      console.error('Token account verification failed:', verifyError);
-      throw new Error(`Token account verification failed: ${verifyError.message}. Try using the "Verify Token Accounts" button.`);
+      console.error('Token account validation failed:', verifyError);
+      throw new Error(`Token account validation failed: ${verifyError.message}. Please click "Verify Token Accounts" button in the debug panel.`);
     }
     
     // Simulate the transaction to check for errors with detailed output
@@ -1977,6 +1995,7 @@ export async function performSwap(
 
 /**
  * Helper function to create a token account instruction based on account name pattern
+ * ENHANCED: Better handling of User Token accounts with improved logic for SOL
  */
 async function getTokenAccountCreateInstruction(
   connection: Connection,
@@ -1992,12 +2011,14 @@ async function getTokenAccountCreateInstruction(
     // CRITICAL FIX: Pool Authority is now the owner for program token accounts
     const poolAuthorityAddress = new PublicKey(POOL_AUTHORITY);
     
+    // ENHANCED TYPE DETECTION: Check if the account name contains token type names
     if (accountName.includes('YOT')) {
       mint = new PublicKey(YOT_TOKEN_MINT);
     } else if (accountName.includes('YOS')) {
       mint = new PublicKey(YOS_TOKEN_MINT);
-    } else if (accountName.includes('SOL')) {
-      mint = new PublicKey('So11111111111111111111111111111111111111112');
+    } else if (accountName.includes('SOL') || accountName.includes('User Token From')) {
+      // For User Token FROM accounts when performing SOL swaps, assume SOL wrapped token
+      mint = new PublicKey('So11111111111111111111111111111111111111112'); // Wrapped SOL mint
     } else {
       console.warn(`Unknown token type in account name: ${accountName}`);
       return null;

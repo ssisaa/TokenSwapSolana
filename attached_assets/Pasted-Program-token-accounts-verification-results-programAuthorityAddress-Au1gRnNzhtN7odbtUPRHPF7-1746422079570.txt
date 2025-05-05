@@ -1,0 +1,312 @@
+Program token accounts verification results: {
+  "programAuthorityAddress": "Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ",
+  "yotAccount": {
+    "address": "BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE",
+    "exists": true,
+    "balance": 631442400.4973553
+  },
+  "yosAccount": {
+    "address": "5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz",
+    "exists": true,
+    "balance": 562922446.8943949
+  },
+  "solAccount": {
+    "address": "7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS",
+    "exists": true,
+    "balance": 12
+  }
+}
+solana.ts:253 Pool balances fetched - SOL: 39.327196998, YOT: 631442400.4973553, YOS: 562922446.8943949
+multihub-integration-v3.ts:306 AMM calculation for SOL→YOT swap verification:
+multihub-integration-v3.ts:307   Pool state: 39.327196998 SOL, 631442400.4973553 YOT
+multihub-integration-v3.ts:308   Input: 0.2 SOL (0.19940000000000002 after 0.3% fee)
+multihub-integration-v3.ts:309   Expected output: 3185440.291395274 YOT (need 3503984.3205348016 with buffer)
+multihub-integration-v3.ts:310   Program has: 631442400.4973553 YOT
+multihub-integration-v3.ts:383 Skipping program authority funding due to error: ReferenceError: fromTokenInfo is not defined
+    at Object.performMultiHubSwap (multihub-integration-v3.ts:357:7)
+    at async handleExecuteSwap (FixedSwapPage.tsx:306:23)
+performMultiHubSwap @ multihub-integration-v3.ts:383
+await in performMultiHubSwap
+handleExecuteSwap @ FixedSwapPage.tsx:306
+await in handleExecuteSwap
+callCallback2 @ chunk-276SZO74.js?v=c5448800:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c5448800:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c5448800:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c5448800:3736
+executeDispatch @ chunk-276SZO74.js?v=c5448800:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c5448800:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c5448800:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c5448800:7051
+(anonymous) @ chunk-276SZO74.js?v=c5448800:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c5448800:18913
+batchedUpdates @ chunk-276SZO74.js?v=c5448800:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c5448800:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c5448800:5478
+dispatchEvent @ chunk-276SZO74.js?v=c5448800:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c5448800:5449Understand this warning
+multihub-integration-v3.ts:384 Continuing swap without funding program authority - might fail if authority has no SOL
+multihub-integration-v3.ts:175 Preparing for swap transaction with V3
+multihub-integration-v3.ts:420 Using token decimals - From: 9, To: 9
+multihub-integration-v3.ts:449 Using token verification results from the comprehensive program token account check
+multihub-integration-v3.ts:460 Performing swap with original amount: 200000000 (0.2 tokens)
+multihub-integration-v3.ts:482 Minimum amount out: 0 (0 tokens)
+multihub-contract-v3.ts:1064 Starting swap using ConnectionManager for reliable network operations
+multihub-contract-v3.ts:1087 Program Authority currently has 1.46 SOL
+multihub-contract-v3.ts:1100 Program Authority already has sufficient funds. Skipping funding instruction.
+multihub-contract-v3.ts:945 Ensuring token account exists for mint: So11111111111111111111111111111111111111112
+multihub-contract-v3.ts:955 SOL balance: 5.008851213 SOL
+multihub-contract-v3.ts:945 Ensuring token account exists for mint: 2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF
+multihub-contract-v3.ts:979 Expected ATA address for mint 2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF: 8ufUyc9yA5j2uJqHRwxi7XZZR8gKg8dwKBg2J168yvk4
+multihub-contract-v3.ts:1012 Token account exists. Getting token info for 8ufUyc9yA5j2uJqHRwxi7XZZR8gKg8dwKBg2J168yvk4
+multihub-contract-v3.ts:1021 Token account for 2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF: 8ufUyc9yA5j2uJqHRwxi7XZZR8gKg8dwKBg2J168yvk4
+multihub-contract-v3.ts:1022 Balance: 157685978371513503 (Owner: AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ)
+multihub-contract-v3.ts:945 Ensuring token account exists for mint: GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n
+multihub-contract-v3.ts:979 Expected ATA address for mint GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n: 8QGzzUxJ5X88LwMW6gBd7zc5Re6FbjHhFv52oj5WMfSz
+multihub-contract-v3.ts:1012 Token account exists. Getting token info for 8QGzzUxJ5X88LwMW6gBd7zc5Re6FbjHhFv52oj5WMfSz
+multihub-contract-v3.ts:1021 Token account for GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n: 8QGzzUxJ5X88LwMW6gBd7zc5Re6FbjHhFv52oj5WMfSz
+multihub-contract-v3.ts:1022 Balance: 336977254435731472 (Owner: AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ)
+multihub-contract-v3.ts:1147 EXACT CONVERSION: Using direct BigInt value 200000000 lamports
+multihub-contract-v3.ts:1168 Using amounts: 200000000 tokens (200000000 lamports)
+multihub-contract-v3.ts:1169 Minimum out: 0 tokens (0 lamports)
+multihub-contract-v3.ts:150 Building swap instruction with:
+multihub-contract-v3.ts:151 Amount In: 200000000 (0.2 tokens)
+multihub-contract-v3.ts:152 Min Amount Out: 0 (0 tokens)
+multihub-contract-v3.ts:195 Verifying instruction data:
+multihub-contract-v3.ts:196 - Discriminator: 1 (should be 1)
+multihub-contract-v3.ts:197 - AmountIn: 200000000 (should match 200000000)
+multihub-contract-v3.ts:198 - MinAmountOut: 0 (should match 0)
+multihub-contract-v3.ts:199 - Total data size: 17 bytes (should be 17)
+multihub-contract-v3.ts:1190 Using direct buffer encoding for Swap instruction
+multihub-contract-v3.ts:1191 Swap instruction data length: 17
+multihub-contract-v3.ts:1192 Swap instruction data bytes: (17) [1, 0, 194, 235, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+multihub-contract-v3.ts:1197 Implementing dual authority approach with fallback logic
+multihub-contract-v3.ts:1198 Primary authority: Pool Authority PDA 7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK
+multihub-contract-v3.ts:1199 Fallback authority: Program Authority PDA Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ
+multihub-contract-v3.ts:1269 Using PRIMARY SOL token account (FROM): 7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS
+multihub-contract-v3.ts:1208 🧪 Enhanced validation for Program FROM token account: 7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS
+validateTokenAccount.ts:20 🔍 Validating token account: 7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS
+validateTokenAccount.ts:65 ✅ Valid SPL token account verified: 7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS
+validateTokenAccount.ts:66    Mint: So11111111111111111111111111111111111111112
+validateTokenAccount.ts:67    Owner: 7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK
+validateTokenAccount.ts:68    Balance: 12000000000 lamports
+multihub-contract-v3.ts:1291 PRIMARY FROM account 7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS valid: true
+multihub-contract-v3.ts:1330 Using PRIMARY YOT token account (TO): BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE
+multihub-contract-v3.ts:1208 🧪 Enhanced validation for Program TO token account: BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE
+validateTokenAccount.ts:20 🔍 Validating token account: BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE
+validateTokenAccount.ts:65 ✅ Valid SPL token account verified: BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE
+validateTokenAccount.ts:66    Mint: 2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF
+validateTokenAccount.ts:67    Owner: 7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK
+validateTokenAccount.ts:68    Balance: 631442400497355404 lamports
+multihub-contract-v3.ts:1348 PRIMARY TO account BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE valid: true
+multihub-contract-v3.ts:1381 Using PRIMARY YOS token account for cashback: 5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz
+multihub-contract-v3.ts:1208 🧪 Enhanced validation for Program YOS token account: 5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz
+validateTokenAccount.ts:20 🔍 Validating token account: 5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz
+validateTokenAccount.ts:65 ✅ Valid SPL token account verified: 5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz
+validateTokenAccount.ts:66    Mint: GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n
+validateTokenAccount.ts:67    Owner: FQR49Y4StPZDEp87wDMBCKLeLe1rmyLkjgrWyXAqXiaC
+validateTokenAccount.ts:68    Balance: 562922446894394790 lamports
+multihub-contract-v3.ts:1385 PRIMARY YOS account valid: true
+multihub-contract-v3.ts:1475 Program's 2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF balance: 631442400.4973553
+multihub-contract-v3.ts:1497 Token accounts for program operation: {tokenFromAccount: 'AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ', tokenFromBalance: '5008851213', tokenToAccount: '8ufUyc9yA5j2uJqHRwxi7XZZR8gKg8dwKBg2J168yvk4', tokenFromMintATA: '7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS', tokenToMintATA: 'BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE', …}
+multihub-contract-v3.ts:1537 Using tokenFromMint: So11111111111111111111111111111111111111112
+multihub-contract-v3.ts:1538 Using tokenToMint: 2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF
+multihub-contract-v3.ts:1539 Using YOS mint: GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n
+multihub-contract-v3.ts:1554 Verifying account accessibility before swap...
+multihub-contract-v3.ts:1586 WARNING: User Token From account exists but has no data!
+performSwap @ multihub-contract-v3.ts:1586
+await in performSwap
+performMultiHubSwap @ multihub-integration-v3.ts:485
+await in performMultiHubSwap
+handleExecuteSwap @ FixedSwapPage.tsx:306
+await in handleExecuteSwap
+callCallback2 @ chunk-276SZO74.js?v=c5448800:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c5448800:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c5448800:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c5448800:3736
+executeDispatch @ chunk-276SZO74.js?v=c5448800:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c5448800:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c5448800:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c5448800:7051
+(anonymous) @ chunk-276SZO74.js?v=c5448800:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c5448800:18913
+batchedUpdates @ chunk-276SZO74.js?v=c5448800:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c5448800:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c5448800:5478
+dispatchEvent @ chunk-276SZO74.js?v=c5448800:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c5448800:5449Understand this warning
+multihub-contract-v3.ts:1590 Creating missing token account: User Token From
+multihub-contract-v3.ts:2002 Unknown token type in account name: User Token From
+getTokenAccountCreateInstruction @ multihub-contract-v3.ts:2002
+performSwap @ multihub-contract-v3.ts:1593
+await in performSwap
+performMultiHubSwap @ multihub-integration-v3.ts:485
+await in performMultiHubSwap
+handleExecuteSwap @ FixedSwapPage.tsx:306
+await in handleExecuteSwap
+callCallback2 @ chunk-276SZO74.js?v=c5448800:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c5448800:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c5448800:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c5448800:3736
+executeDispatch @ chunk-276SZO74.js?v=c5448800:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c5448800:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c5448800:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c5448800:7051
+(anonymous) @ chunk-276SZO74.js?v=c5448800:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c5448800:18913
+batchedUpdates @ chunk-276SZO74.js?v=c5448800:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c5448800:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c5448800:5478
+dispatchEvent @ chunk-276SZO74.js?v=c5448800:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c5448800:5449Understand this warning
+multihub-contract-v3.ts:1676 === TRANSACTION SETUP ===
+multihub-contract-v3.ts:1677 Program Authority PDA: Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ
+multihub-contract-v3.ts:1678 Pool Authority PDA: 7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK
+multihub-contract-v3.ts:1679 Using token accounts with fallback logic
+multihub-contract-v3.ts:1680 From token account: 7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS
+multihub-contract-v3.ts:1681 To token account: BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE
+multihub-contract-v3.ts:1682 YOS token account: 5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz
+multihub-contract-v3.ts:1699 Program Authority balance: 1.46 SOL
+multihub-contract-v3.ts:1700 Pool Authority balance: 6.738486134 SOL
+multihub-contract-v3.ts:1738 Instruction data bytes: (17) [1, 0, 194, 235, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+multihub-contract-v3.ts:1741 ============ ACCOUNT VALIDATION ============
+multihub-contract-v3.ts:1742 Program State PDA: 2sR6kFJfCa7oG9hrMWxeTK6ESir7PNZe4vky2JDiNrKC
+multihub-contract-v3.ts:1743 Program Authority PDA: Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ
+multihub-contract-v3.ts:1744 Pool Authority: 7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK
+multihub-contract-v3.ts:1745 Token From Account: AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ
+multihub-contract-v3.ts:1746 Token To Account: 8ufUyc9yA5j2uJqHRwxi7XZZR8gKg8dwKBg2J168yvk4
+multihub-contract-v3.ts:1747 YOS Token Account: 8QGzzUxJ5X88LwMW6gBd7zc5Re6FbjHhFv52oj5WMfSz
+multihub-contract-v3.ts:1748 Program Token From ATA: 7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS
+multihub-contract-v3.ts:1749 Program Token To ATA: BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE
+multihub-contract-v3.ts:1750 Program YOS ATA: 5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz
+multihub-contract-v3.ts:1764 Program Authority (PDA) balance: 1.46 SOL
+multihub-contract-v3.ts:1768 Pool Authority balance: 6.738486134 SOL
+multihub-contract-v3.ts:1208 🧪 Enhanced validation for Program Authority account: Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ
+multihub-contract-v3.ts:1213 💡 Validating Program Authority PDA: Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ
+multihub-contract-v3.ts:1789 Program Authority PDA validation passed - no unexpected data found
+multihub-contract-v3.ts:1798 Creating transaction instruction with EXACT account order matching Rust program
+multihub-contract-v3.ts:1870 Verifying token accounts before simulation...
+FixedSwapPage.tsx:170 Got actual SOL balance from wallet: 5.008851213 SOL
+solana.ts:114 Fetching YOT balance for wallet: AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ
+solana.ts:123 Associated token account address: 8ufUyc9yA5j2uJqHRwxi7XZZR8gKg8dwKBg2J168yvk4
+multihub-contract-v3.ts:1896 All token accounts verified successfully
+multihub-contract-v3.ts:1903 Simulating swap transaction...
+solana.ts:137 Found YOT balance: 157685978.37151352
+FixedSwapPage.tsx:177 Got actual YOT balance from wallet: 157685978.37151352 YOT
+multihub-contract-v3.ts:1912 Detailed swap simulation logs: (11) ['Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE invoke [1]', 'Program log: Manual Swap Instruction', 'Program log: Swap params: Amount In: 200000000, Min Out: 0', 'Program log: Starting token swap', 'Program log: Amount in: 200000000', 'Program log: Min amount out: 0', 'Program log: Program authority account: Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ', 'Program log: Expected authority PDA: Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ', 'Program log: Error unpacking user_token_from_account: InvalidAccountData', 'Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE consumed 39413 of 200000 compute units', 'Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE failed: invalid account data for instruction']
+multihub-contract-v3.ts:1916 Swap simulation failed: {InstructionError: Array(2)}
+performSwap @ multihub-contract-v3.ts:1916
+await in performSwap
+performMultiHubSwap @ multihub-integration-v3.ts:485
+await in performMultiHubSwap
+handleExecuteSwap @ FixedSwapPage.tsx:306
+await in handleExecuteSwap
+callCallback2 @ chunk-276SZO74.js?v=c5448800:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c5448800:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c5448800:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c5448800:3736
+executeDispatch @ chunk-276SZO74.js?v=c5448800:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c5448800:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c5448800:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c5448800:7051
+(anonymous) @ chunk-276SZO74.js?v=c5448800:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c5448800:18913
+batchedUpdates @ chunk-276SZO74.js?v=c5448800:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c5448800:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c5448800:5478
+dispatchEvent @ chunk-276SZO74.js?v=c5448800:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c5448800:5449Understand this error
+multihub-contract-v3.ts:1917 Simulation error details: {"InstructionError":[0,"InvalidAccountData"]}
+performSwap @ multihub-contract-v3.ts:1917
+await in performSwap
+performMultiHubSwap @ multihub-integration-v3.ts:485
+await in performMultiHubSwap
+handleExecuteSwap @ FixedSwapPage.tsx:306
+await in handleExecuteSwap
+callCallback2 @ chunk-276SZO74.js?v=c5448800:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c5448800:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c5448800:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c5448800:3736
+executeDispatch @ chunk-276SZO74.js?v=c5448800:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c5448800:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c5448800:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c5448800:7051
+(anonymous) @ chunk-276SZO74.js?v=c5448800:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c5448800:18913
+batchedUpdates @ chunk-276SZO74.js?v=c5448800:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c5448800:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c5448800:5478
+dispatchEvent @ chunk-276SZO74.js?v=c5448800:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c5448800:5449Understand this error
+multihub-contract-v3.ts:1928 InvalidAccountData error at instruction index 0
+performSwap @ multihub-contract-v3.ts:1928
+await in performSwap
+performMultiHubSwap @ multihub-integration-v3.ts:485
+await in performMultiHubSwap
+handleExecuteSwap @ FixedSwapPage.tsx:306
+await in handleExecuteSwap
+callCallback2 @ chunk-276SZO74.js?v=c5448800:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c5448800:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c5448800:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c5448800:3736
+executeDispatch @ chunk-276SZO74.js?v=c5448800:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c5448800:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c5448800:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c5448800:7051
+(anonymous) @ chunk-276SZO74.js?v=c5448800:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c5448800:18913
+batchedUpdates @ chunk-276SZO74.js?v=c5448800:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c5448800:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c5448800:5478
+dispatchEvent @ chunk-276SZO74.js?v=c5448800:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c5448800:5449Understand this error
+multihub-contract-v3.ts:1944 Error during transaction simulation: Error: Token account validation failed at account index 0. This usually happens when token accounts haven't been set up properly. Please use the "Verify & Fund Program Authority" and "Verify Token Accounts" buttons in the debug panel.
+    at Object.performSwap (multihub-contract-v3.ts:1931:17)
+    at async handleExecuteSwap (FixedSwapPage.tsx:306:23)
+performSwap @ multihub-contract-v3.ts:1944
+await in performSwap
+performMultiHubSwap @ multihub-integration-v3.ts:485
+await in performMultiHubSwap
+handleExecuteSwap @ FixedSwapPage.tsx:306
+await in handleExecuteSwap
+callCallback2 @ chunk-276SZO74.js?v=c5448800:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c5448800:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c5448800:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c5448800:3736
+executeDispatch @ chunk-276SZO74.js?v=c5448800:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c5448800:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c5448800:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c5448800:7051
+(anonymous) @ chunk-276SZO74.js?v=c5448800:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c5448800:18913
+batchedUpdates @ chunk-276SZO74.js?v=c5448800:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c5448800:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c5448800:5478
+dispatchEvent @ chunk-276SZO74.js?v=c5448800:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c5448800:5449Understand this error
+multihub-contract-v3.ts:1973 Error in swap function: Error: Token account validation failed at account index 0. This usually happens when token accounts haven't been set up properly. Please use the "Verify & Fund Program Authority" and "Verify Token Accounts" buttons in the debug panel.
+    at Object.performSwap (multihub-contract-v3.ts:1931:17)
+    at async handleExecuteSwap (FixedSwapPage.tsx:306:23)
+performSwap @ multihub-contract-v3.ts:1973
+await in performSwap
+performMultiHubSwap @ multihub-integration-v3.ts:485
+await in performMultiHubSwap
+handleExecuteSwap @ FixedSwapPage.tsx:306
+await in handleExecuteSwap
+callCallback2 @ chunk-276SZO74.js?v=c5448800:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c5448800:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c5448800:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c5448800:3736
+executeDispatch @ chunk-276SZO74.js?v=c5448800:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c5448800:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c5448800:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c5448800:7051
+(anonymous) @ chunk-276SZO74.js?v=c5448800:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c5448800:18913
+batchedUpdates @ chunk-276SZO74.js?v=c5448800:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c5448800:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c5448800:5478
+dispatchEvent @ chunk-276SZO74.js?v=c5448800:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c5448800:5449Understand this error
+FixedSwapPage.tsx:328 Swap failed: Error: Token account validation failed at account index 0. This usually happens when token accounts haven't been set up properly. Please use the "Verify & Fund Program Authority" and "Verify Token Accounts" buttons in the debug panel.
+    at Object.performSwap (multihub-contract-v3.ts:1931:17)
+    at async handleExecuteSwap (FixedSwapPage.tsx:306:23)

@@ -1,0 +1,117 @@
+wap simulation failed: {InstructionError: Array(2)}
+performSwap @ multihub-contract-v3.ts:1916
+await in performSwap
+performMultiHubSwap @ multihub-integration-v3.ts:485
+await in performMultiHubSwap
+handleExecuteSwap @ FixedSwapPage.tsx:306
+await in handleExecuteSwap
+callCallback2 @ chunk-276SZO74.js?v=c5448800:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c5448800:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c5448800:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c5448800:3736
+executeDispatch @ chunk-276SZO74.js?v=c5448800:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c5448800:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c5448800:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c5448800:7051
+(anonymous) @ chunk-276SZO74.js?v=c5448800:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c5448800:18913
+batchedUpdates @ chunk-276SZO74.js?v=c5448800:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c5448800:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c5448800:5478
+dispatchEvent @ chunk-276SZO74.js?v=c5448800:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c5448800:5449Understand this error
+multihub-contract-v3.ts:1917 Simulation error details: {"InstructionError":[0,"InvalidAccountData"]}
+performSwap @ multihub-contract-v3.ts:1917
+await in performSwap
+performMultiHubSwap @ multihub-integration-v3.ts:485
+await in performMultiHubSwap
+handleExecuteSwap @ FixedSwapPage.tsx:306
+await in handleExecuteSwap
+callCallback2 @ chunk-276SZO74.js?v=c5448800:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c5448800:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c5448800:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c5448800:3736
+executeDispatch @ chunk-276SZO74.js?v=c5448800:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c5448800:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c5448800:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c5448800:7051
+(anonymous) @ chunk-276SZO74.js?v=c5448800:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c5448800:18913
+batchedUpdates @ chunk-276SZO74.js?v=c5448800:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c5448800:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c5448800:5478
+dispatchEvent @ chunk-276SZO74.js?v=c5448800:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c5448800:5449Understand this error
+multihub-contract-v3.ts:1928 InvalidAccountData error at instruction index 0
+performSwap @ multihub-contract-v3.ts:1928
+await in performSwap
+performMultiHubSwap @ multihub-integration-v3.ts:485
+await in performMultiHubSwap
+handleExecuteSwap @ FixedSwapPage.tsx:306
+await in handleExecuteSwap
+callCallback2 @ chunk-276SZO74.js?v=c5448800:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c5448800:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c5448800:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c5448800:3736
+executeDispatch @ chunk-276SZO74.js?v=c5448800:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c5448800:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c5448800:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c5448800:7051
+(anonymous) @ chunk-276SZO74.js?v=c5448800:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c5448800:18913
+batchedUpdates @ chunk-276SZO74.js?v=c5448800:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c5448800:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c5448800:5478
+dispatchEvent @ chunk-276SZO74.js?v=c5448800:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c5448800:5449Understand this error
+multihub-contract-v3.ts:1944 Error during transaction simulation: Error: Token account validation failed at account index 0. This usually happens when token accounts haven't been set up properly. Please use the "Verify & Fund Program Authority" and "Verify Token Accounts" buttons in the debug panel.
+    at Object.performSwap (multihub-contract-v3.ts:1931:17)
+    at async handleExecuteSwap (FixedSwapPage.tsx:306:23)
+performSwap @ multihub-contract-v3.ts:1944
+await in performSwap
+performMultiHubSwap @ multihub-integration-v3.ts:485
+await in performMultiHubSwap
+handleExecuteSwap @ FixedSwapPage.tsx:306
+await in handleExecuteSwap
+callCallback2 @ chunk-276SZO74.js?v=c5448800:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c5448800:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c5448800:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c5448800:3736
+executeDispatch @ chunk-276SZO74.js?v=c5448800:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c5448800:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c5448800:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c5448800:7051
+(anonymous) @ chunk-276SZO74.js?v=c5448800:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c5448800:18913
+batchedUpdates @ chunk-276SZO74.js?v=c5448800:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c5448800:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c5448800:5478
+dispatchEvent @ chunk-276SZO74.js?v=c5448800:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c5448800:5449Understand this error
+multihub-contract-v3.ts:1973 Error in swap function: Error: Token account validation failed at account index 0. This usually happens when token accounts haven't been set up properly. Please use the "Verify & Fund Program Authority" and "Verify Token Accounts" buttons in the debug panel.
+    at Object.performSwap (multihub-contract-v3.ts:1931:17)
+    at async handleExecuteSwap (FixedSwapPage.tsx:306:23)
+performSwap @ multihub-contract-v3.ts:1973
+await in performSwap
+performMultiHubSwap @ multihub-integration-v3.ts:485
+await in performMultiHubSwap
+handleExecuteSwap @ FixedSwapPage.tsx:306
+await in handleExecuteSwap
+callCallback2 @ chunk-276SZO74.js?v=c5448800:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=c5448800:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=c5448800:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=c5448800:3736
+executeDispatch @ chunk-276SZO74.js?v=c5448800:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=c5448800:7034
+processDispatchQueue @ chunk-276SZO74.js?v=c5448800:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=c5448800:7051
+(anonymous) @ chunk-276SZO74.js?v=c5448800:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=c5448800:18913
+batchedUpdates @ chunk-276SZO74.js?v=c5448800:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=c5448800:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=c5448800:5478
+dispatchEvent @ chunk-276SZO74.js?v=c5448800:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=c5448800:5449Understand this error
+FixedSwapPage.tsx:328 Swap failed: Error: Token account validation failed at account index 0. This usually happens when token accounts haven't been set up properly. Please use the "Verify & Fund Program Authority" and "Verify Token Accounts" buttons in the debug panel.
+    at Object.performSwap (multihub-contract-v3.ts:1931:17)
+    at async handleExecuteSwap (FixedSwapPage.tsx:306:23)
