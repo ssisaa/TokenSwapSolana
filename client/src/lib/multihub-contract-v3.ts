@@ -1150,14 +1150,14 @@ export async function performSwap(
     }
     
     // Handle minAmountOut conversion
+    // Handle minAmountOut conversion
     let minAmountOutLamports: bigint;
     if (typeof minAmountOut === 'bigint') {
       // Already a BigInt, assume it's already in lamports format
       minAmountOutLamports = minAmountOut;
     } else {
-      // Convert number to lamports - handle multiplication safely
-      const rawMinAmount = Math.floor(minAmountOut * (10 ** DECIMALS));
-      minAmountOutLamports = BigInt(rawMinAmount);
+      // Fixed: minAmountOut already in lamports, do not multiply
+      minAmountOutLamports = BigInt(minAmountOut);
     }
     
     console.log(`Using amounts: ${amountIn} tokens (${amountInLamports} lamports)`);

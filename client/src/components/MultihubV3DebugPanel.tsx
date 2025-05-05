@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { ReloadIcon } from "@radix-ui/react-icons";
 import { CircleAlert, CircleCheck, InfoIcon, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { type PublicKey } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 import { Badge } from "@/components/ui/badge";
 
 export default function MultihubV3DebugPanel() {
