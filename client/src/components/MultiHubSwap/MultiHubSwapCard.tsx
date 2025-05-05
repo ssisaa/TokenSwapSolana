@@ -36,6 +36,8 @@ import {
   RefreshCw,
   ArrowDown,
   Shield,
+  Info,
+  AlertCircle,
 } from "lucide-react";
 import {
   Tooltip,
@@ -44,15 +46,28 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
-
+import { Badge } from "@/components/ui/badge";
 import { PublicKey } from "@solana/web3.js";
+
+// Swap functionality imports
 import {
-  buyAndDistribute,
   distributeWeeklyYosReward,
   getLiquidityContributionInfo,
   withdrawLiquidityContribution
 } from "@/lib/multi-hub-swap-contract";
-import { FORMATTED_RATES } from "@/lib/multi-hub-config";
+import { 
+  executeSwap, 
+  getExpectedOutput, 
+  getTokenBalance, 
+  isSwapSupported,
+  getSupportedTokens 
+} from "@/lib/swap-router";
+import { 
+  FORMATTED_RATES,
+  SOL_TOKEN_ADDRESS,
+  YOT_TOKEN_ADDRESS,
+  DEFAULT_DISTRIBUTION_RATES 
+} from "@/lib/multi-hub-config";
 
 // Token type definition
 interface Token {
@@ -177,7 +192,7 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
   };
 
   // Execute the swap transaction
-  const executeSwap = async () => {
+  const performSwap = async () => {
     if (!wallet || !wallet.publicKey) {
       toast({
         title: "Wallet not connected",
@@ -196,31 +211,56 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
       return;
     }
 
+    // Check if swap is supported
+    if (!isSwapSupported(fromToken.address, toToken.address)) {
+      toast({
+        title: "Unsupported swap pair",
+        description: `Swapping from ${fromToken.symbol} to ${toToken.symbol} is not currently supported`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check wallet balance
+    const balance = await getTokenBalance(wallet, fromToken.address);
+    if (balance < parseFloat(fromAmount)) {
+      toast({
+        title: "Insufficient balance",
+        description: `You only have ${balance.toFixed(4)} ${fromToken.symbol} available`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSwapLoading(true);
     try {
-      // Only YOT swaps use the buyAndDistribute function
-      if (toToken.symbol === "YOT") {
-        const signature = await buyAndDistribute(
-          wallet,
-          parseFloat(fromAmount)
-        );
+      // Execute the swap using our swap router
+      const result = await executeSwap(
+        wallet,
+        fromToken.address,
+        toToken.address,
+        parseFloat(fromAmount),
+        parseFloat(slippage)
+      );
 
+      // Display success message with distribution details
+      if (result.distributionDetails) {
         toast({
           title: "Swap successful!",
           description: (
             <div className="flex flex-col gap-1">
-              <p>Transaction ID: {signature.slice(0, 8)}...{signature.slice(-8)}</p>
+              <p>Transaction ID: {result.signature.slice(0, 8)}...{result.signature.slice(-8)}</p>
               <p>
-                Received: {(parseFloat(toAmount) * 0.75).toFixed(2)} {toToken.symbol} (75%)
+                Received: {result.distributionDetails.userReceived.toFixed(2)} {toToken.symbol} ({DEFAULT_DISTRIBUTION_RATES.userDistribution}%)
               </p>
               <p>
-                LP Contribution: {(parseFloat(toAmount) * 0.20).toFixed(2)} {toToken.symbol} (20%)
+                LP Contribution: {result.distributionDetails.liquidityContribution.toFixed(2)} {toToken.symbol} ({DEFAULT_DISTRIBUTION_RATES.lpContribution}%)
               </p>
               <p>
-                YOS Cashback: {(parseFloat(toAmount) * 0.05).toFixed(2)} YOS (5%)
+                YOS Cashback: {result.distributionDetails.yosCashback.toFixed(2)} YOS ({DEFAULT_DISTRIBUTION_RATES.yosCashback}%)
               </p>
               <a 
-                href={`https://explorer.solana.com/tx/${signature}?cluster=devnet`}
+                href={`https://explorer.solana.com/tx/${result.signature}?cluster=devnet`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-500 hover:underline"
@@ -235,13 +275,25 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
         const info = await getLiquidityContributionInfo(wallet.publicKey.toString());
         setContributionInfo(info);
       } else {
-        // Simulate other swaps (in production, this would call a different function)
-        setTimeout(() => {
-          toast({
-            title: "Swap simulated",
-            description: "This swap functionality is under development",
-          });
-        }, 2000);
+        toast({
+          title: "Swap successful!",
+          description: (
+            <div className="flex flex-col gap-1">
+              <p>Transaction ID: {result.signature.slice(0, 8)}...{result.signature.slice(-8)}</p>
+              <p>
+                Received: {result.outputAmount.toFixed(4)} {toToken.symbol}
+              </p>
+              <a 
+                href={`https://explorer.solana.com/tx/${result.signature}?cluster=devnet`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:underline"
+              >
+                View on Explorer
+              </a>
+            </div>
+          ),
+        });
       }
     } catch (error: any) {
       toast({
@@ -249,6 +301,7 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
         description: error.message || "An error occurred during the swap",
         variant: "destructive",
       });
+      console.error("Swap error:", error);
     } finally {
       setSwapLoading(false);
     }
