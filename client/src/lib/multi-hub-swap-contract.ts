@@ -89,14 +89,14 @@ export function findLiquidityTokenAddress(tokenMint: PublicKey): [PublicKey, num
 
 /**
  * Find the liquidity contribution account for a user
- * CRITICAL: Must use "liquidity" seed to match Rust program exactly
- * Rust: Pubkey::find_program_address(&[b"liquidity", user_key.as_ref()], program_id)
+ * CRITICAL: Must use "liq" seed to match Rust program exactly
+ * Rust: Pubkey::find_program_address(&[b"liq", user.as_ref()], program_id)
  */
 export function findLiquidityContributionAddress(userWallet: PublicKey): [PublicKey, number] {
-  // CRITICAL FIX: Use "liquidity" seed to match Rust program exactly
-  // This matches the Rust code: `&[b"liquidity", user_key.as_ref()]`
+  // CRITICAL FIX: Use "liq" seed to match Rust program exactly
+  // This matches the Rust code: `&[b"liq", user.as_ref()]`
   return PublicKey.findProgramAddressSync(
-    [Buffer.from("liquidity"), userWallet.toBuffer()],
+    [Buffer.from("liq"), userWallet.toBuffer()],
     new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
   );
 }
@@ -197,8 +197,8 @@ async function safelySimulateTransaction(connection: Connection, transaction: Tr
           if (error.Custom === 1) {
             console.error("❗ Detected Unknown Instruction Discriminator error - verify the instruction byte is correct");
             console.error("💡 SOLUTION: Make sure the discriminator bytes match between client and program:");
-            console.error("   - Client uses BUY_AND_DISTRIBUTE_DISCRIMINATOR = Buffer.from([4])");
-            console.error("   - Program expects BUY_AND_DISTRIBUTE_IX = 4");
+            console.error("   - Client uses BUY_AND_DISTRIBUTE_DISCRIMINATOR = Buffer.from([1])");
+            console.error("   - Program expects BUY_AND_DISTRIBUTE_IX = 1");
           } else if (error.Custom === 0) {
             console.error("❗ Detected invalid account data - check account ownership and initialization");
           }
@@ -353,11 +353,11 @@ export async function buyAndDistribute(
     const rawAmount = Math.floor(amountIn * Math.pow(10, 9)); // Assuming 9 decimals for YOT/YOS
 
     // 1-byte discriminator + 8-byte amount
-    // IMPORTANT: Program expects BUY_AND_DISTRIBUTE_IX (4) as the first byte
+    // IMPORTANT: Program expects BUY_AND_DISTRIBUTE_IX (1) as the first byte
     // followed by the amount as an 8-byte little-endian u64 value
     
     console.log("BUY_AND_DISTRIBUTE instruction preparation:");
-    console.log("- Expected discriminator from program: BUY_AND_DISTRIBUTE_IX = 4");
+    console.log("- Expected discriminator from program: BUY_AND_DISTRIBUTE_IX = 1");
     console.log("- Raw amount (u64):", rawAmount);
     
     // CRITICAL FIX: Create the EXACT instruction data format the Rust contract expects
@@ -390,16 +390,16 @@ export async function buyAndDistribute(
     `);
     
     // STRICT FORMAT: Create buffer with EXACTLY the format the Rust program expects
-    // 1. A single byte for the instruction type (4 = BUY_AND_DISTRIBUTE_IX)
+    // 1. A single byte for the instruction type (1 = BUY_AND_DISTRIBUTE_IX)
     // 2. Followed by an 8-byte little-endian u64 for the amount
     // Total: 9 bytes
     
     // METHOD 1: Manual buffer creation with explicit writing
     const instructionData = Buffer.alloc(9); // 1 byte discriminator + 8 bytes for amount
     
-    // Write discriminator byte (4) using the constant from config
-    // CRITICAL: This matches the Rust program expectation of BUY_AND_DISTRIBUTE_IX = 4
-    instructionData.writeUInt8(BUY_AND_DISTRIBUTE_DISCRIMINATOR[0], 0); // Write value 4 at position 0
+    // Write discriminator byte (1) using the constant from config
+    // CRITICAL: This matches the Rust program expectation of BUY_AND_DISTRIBUTE_IX = 1
+    instructionData.writeUInt8(BUY_AND_DISTRIBUTE_DISCRIMINATOR[0], 0); // Write value 1 at position 0
     
     // Write amount as little-endian u64 (8 bytes) - EXACT match for Rust's u64::from_le_bytes
     instructionData.writeBigUInt64LE(BigInt(rawAmount), 1);
