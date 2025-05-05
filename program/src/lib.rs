@@ -10,705 +10,672 @@ use solana_program::{
     pubkey::Pubkey,
     rent::Rent,
     system_instruction,
-    sysvar::{clock::Clock, Sysvar},
+    sysvar::Sysvar,
 };
-use spl_token::state::{Account as TokenAccount};
-use std::convert::TryInto;
+use arrayref::array_ref;
+use spl_token::{instruction as token_instruction, state::Account as TokenAccount};
 
-// Declare program entrypoint
+// Define the program ID here (will be replaced during deployment)
+solana_program::declare_id!("SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE");
+
+// We still need these structs for storing program state and instruction parameters
+// but we don't use Borsh for instruction deserialization anymore
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
+pub enum SwapInstruction {
+    Initialize {
+        admin: Pubkey,
+        yot_mint: Pubkey,
+        yos_mint: Pubkey,
+        lp_contribution_rate: u64,
+        admin_fee_rate: u64,
+        yos_cashback_rate: u64,
+        swap_fee_rate: u64,
+        referral_rate: u64,
+    },
+    Swap {
+        amount_in: u64,
+        min_amount_out: u64,
+    },
+    CloseProgram,
+}
+
+// Program state stored in a PDA (still uses Borsh for storage)
+#[derive(BorshSerialize, BorshDeserialize, Debug, Default)]
+pub struct ProgramState {
+    pub admin: Pubkey,
+    pub yot_mint: Pubkey,
+    pub yos_mint: Pubkey,
+    pub lp_contribution_rate: u64,
+    pub admin_fee_rate: u64,
+    pub yos_cashback_rate: u64,
+    pub swap_fee_rate: u64,
+    pub referral_rate: u64,
+}
+
+// Entrypoint is defined in lib.rs but we declare it here for standalone testing
 entrypoint!(process_instruction);
 
-// CRITICAL FIX: Add display normalization factor to fix wallet display issue
-// Based on the observed behavior, Phantom Wallet scales YOS tokens incorrectly
-// This factor is applied during token transfers to normalize the display
-// Derived from precise calculation: 262,285.36 ÷ 28.32 = 9,260.43
-const YOS_DISPLAY_NORMALIZATION_FACTOR: u64 = 9_260;
-
-// Instruction types
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
-pub enum StakingInstruction {
-    // Initialize staking program with YOT and YOS token addresses
-    // Requires admin signature
-    Initialize {
-        // YOT token mint address
-        yot_mint: Pubkey,
-        // YOS token mint address
-        yos_mint: Pubkey,
-        // Staking rate in basis points (1/100 of 1%)
-        stake_rate_per_second: u64,
-        // Minimum YOS for harvest in basis points
-        harvest_threshold: u64,
-    },
-    
-    // Stake YOT tokens
-    // Requires user signature
-    Stake {
-        amount: u64,
-    },
-    
-    // Unstake YOT tokens
-    // Requires user signature
-    Unstake {
-        amount: u64,
-    },
-    
-    // Harvest YOS rewards
-    // Requires user signature
-    Harvest,
-    
-    // Update staking parameters
-    // Requires admin signature
-    UpdateParameters {
-        stake_rate_per_second: u64,
-        harvest_threshold: u64,
-    },
-}
-
-// Program state stored in a PDA - KEPT EXACTLY THE SAME as before
-// IMPORTANT: Do not modify this struct to maintain compatibility
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
-pub struct ProgramState {
-    // Admin public key that can update parameters
-    pub admin: Pubkey,
-    // YOT token mint address
-    pub yot_mint: Pubkey,
-    // YOS token mint address
-    pub yos_mint: Pubkey,
-    // Staking rate in basis points (1/100 of 1%)
-    pub stake_rate_per_second: u64,
-    // Minimum YOS for harvest in basis points
-    pub harvest_threshold: u64,
-}
-
-// Staking account data for each user
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
-pub struct StakingAccount {
-    // User's wallet address
-    pub owner: Pubkey,
-    // Amount of YOT staked
-    pub staked_amount: u64,
-    // Timestamp when staking began (in seconds)
-    pub start_timestamp: i64,
-    // Last time rewards were harvested
-    pub last_harvest_time: i64,
-    // Total rewards harvested so far
-    pub total_harvested: u64,
-}
-
-// Program logic
+// Direct manual parsing of instruction data without intermediate Borsh deserialization
 pub fn process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
-    // Decode instruction data
-    let instruction = StakingInstruction::try_from_slice(instruction_data)?;
-    
-    match instruction {
-        StakingInstruction::Initialize {
-            yot_mint,
-            yos_mint,
-            stake_rate_per_second,
-            harvest_threshold,
-        } => {
+    // First byte is the instruction discriminator
+    match instruction_data.first() {
+        Some(0) => {
+            msg!("Manual Initialize Instruction");
+            let mut offset = 1;
+            if instruction_data.len() < 1 + 32*3 + 8*5 {
+                msg!("Instruction too short for Initialize: {} bytes", instruction_data.len());
+                return Err(ProgramError::InvalidInstructionData);
+            }
+
+            // Extract public keys using newer method instead of deprecated Pubkey::new
+            let admin = Pubkey::from(*array_ref![instruction_data, offset, 32]);
+            offset += 32;
+            let yot_mint = Pubkey::from(*array_ref![instruction_data, offset, 32]);
+            offset += 32;
+            let yos_mint = Pubkey::from(*array_ref![instruction_data, offset, 32]);
+            offset += 32;
+
+            // Extract rates (all u64 in little-endian)
+            let lp_contribution_rate = u64::from_le_bytes(
+                instruction_data[offset..offset + 8].try_into().unwrap(),
+            );
+            offset += 8;
+            let admin_fee_rate = u64::from_le_bytes(
+                instruction_data[offset..offset + 8].try_into().unwrap(),
+            );
+            offset += 8;
+            let yos_cashback_rate = u64::from_le_bytes(
+                instruction_data[offset..offset + 8].try_into().unwrap(),
+            );
+            offset += 8;
+            let swap_fee_rate = u64::from_le_bytes(
+                instruction_data[offset..offset + 8].try_into().unwrap(),
+            );
+            offset += 8;
+            let referral_rate = u64::from_le_bytes(
+                instruction_data[offset..offset + 8].try_into().unwrap(),
+            );
+
+            msg!("Parsed Initialize params:");
+            msg!("Admin: {}", admin);
+            msg!("YOT Mint: {}", yot_mint);
+            msg!("YOS Mint: {}", yos_mint);
+            msg!("Rates: LP {} | Fee {} | Cashback {} | Swap {} | Referral {}",
+                lp_contribution_rate,
+                admin_fee_rate,
+                yos_cashback_rate,
+                swap_fee_rate,
+                referral_rate);
+
+            // Call the initialize handler with the parsed parameters
             process_initialize(
                 program_id,
                 accounts,
+                admin,
                 yot_mint,
                 yos_mint,
-                stake_rate_per_second,
-                harvest_threshold,
+                lp_contribution_rate,
+                admin_fee_rate,
+                yos_cashback_rate,
+                swap_fee_rate,
+                referral_rate,
             )
-        }
+        },
         
-        StakingInstruction::Stake { amount } => {
-            process_stake(program_id, accounts, amount)
-        }
+        Some(1) => {
+            msg!("Manual Swap Instruction");
+            if instruction_data.len() < 1 + 8 + 8 {
+                msg!("Instruction too short for Swap: {} bytes", instruction_data.len());
+                return Err(ProgramError::InvalidInstructionData);
+            }
+            
+            // Extract swap parameters
+            let amount_in = u64::from_le_bytes(instruction_data[1..9].try_into().unwrap());
+            let min_amount_out = u64::from_le_bytes(instruction_data[9..17].try_into().unwrap());
+            
+            msg!("Swap params: Amount In: {}, Min Out: {}", amount_in, min_amount_out);
+            
+            // Call the swap handler with the parsed parameters
+            process_swap(program_id, accounts, amount_in, min_amount_out)
+        },
         
-        StakingInstruction::Unstake { amount } => {
-            process_unstake(program_id, accounts, amount)
-        }
+        Some(2) => {
+            msg!("Manual CloseProgram Instruction");
+            // Call the close program handler
+            process_close_program(program_id, accounts)
+        },
         
-        StakingInstruction::Harvest => {
-            process_harvest(program_id, accounts)
-        }
-        
-        StakingInstruction::UpdateParameters {
-            stake_rate_per_second,
-            harvest_threshold,
-        } => {
+        Some(3) => {
+            msg!("Manual UpdateParameters Instruction");
+            if instruction_data.len() < 1 + 8*5 {
+                msg!("Instruction too short for UpdateParameters: {} bytes", instruction_data.len());
+                return Err(ProgramError::InvalidInstructionData);
+            }
+            
+            // Extract updated parameters
+            let lp_contribution_rate = u64::from_le_bytes(instruction_data[1..9].try_into().unwrap());
+            let admin_fee_rate = u64::from_le_bytes(instruction_data[9..17].try_into().unwrap());
+            let yos_cashback_rate = u64::from_le_bytes(instruction_data[17..25].try_into().unwrap());
+            let swap_fee_rate = u64::from_le_bytes(instruction_data[25..33].try_into().unwrap());
+            let referral_rate = u64::from_le_bytes(instruction_data[33..41].try_into().unwrap());
+            
+            msg!("Update params: LP {} | Fee {} | Cashback {} | Swap {} | Referral {}",
+                lp_contribution_rate,
+                admin_fee_rate,
+                yos_cashback_rate,
+                swap_fee_rate,
+                referral_rate);
+            
+            // Call the update parameters handler
             process_update_parameters(
                 program_id,
                 accounts,
-                stake_rate_per_second,
-                harvest_threshold,
+                lp_contribution_rate,
+                admin_fee_rate,
+                yos_cashback_rate,
+                swap_fee_rate,
+                referral_rate,
             )
+        },
+        
+        _ => {
+            msg!("Unknown instruction discriminator");
+            Err(ProgramError::InvalidInstructionData)
         }
     }
 }
 
-// Initialize the staking program
-fn process_initialize(
+// Find program state PDA address
+pub fn find_program_state_address(program_id: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(&[b"state"], program_id)
+}
+
+// Find program authority PDA address
+pub fn find_program_authority_address(program_id: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(&[b"authority"], program_id)
+}
+
+// Initialize the swap program with token accounts and parameters
+// This version uses direct field initialization with buffer parsing
+pub fn process_initialize(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
+    admin: Pubkey,
     yot_mint: Pubkey,
     yos_mint: Pubkey,
-    stake_rate_per_second: u64,
-    harvest_threshold: u64,
+    lp_contribution_rate: u64,
+    admin_fee_rate: u64,
+    yos_cashback_rate: u64,
+    swap_fee_rate: u64,
+    referral_rate: u64,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    
     // Get accounts
-    let admin_account = next_account_info(account_info_iter)?;
-    let program_state_account = next_account_info(account_info_iter)?;
-    let system_program = next_account_info(account_info_iter)?;
+    let accounts_iter = &mut accounts.iter();
     
-    // Verify admin signature (mandatory signature verification)
-    if !admin_account.is_signer {
+    // Extract accounts
+    let payer_account = next_account_info(accounts_iter)?;
+    let program_state_account = next_account_info(accounts_iter)?;
+    let program_authority_account = next_account_info(accounts_iter)?;
+    let system_program_account = next_account_info(accounts_iter)?;
+    let _rent_sysvar_account = next_account_info(accounts_iter)?;  // Prefixed with underscore since it's unused
+    
+    // Validate accounts
+    if !payer_account.is_signer {
+        msg!("Payer account must be a signer");
         return Err(ProgramError::MissingRequiredSignature);
     }
     
-    // Calculate PDA for program state account
-    let (pda, bump_seed) = Pubkey::find_program_address(&[b"program_state"], program_id);
-    if pda != *program_state_account.key {
+    // Verify program state PDA
+    let (expected_program_state, program_state_bump) = find_program_state_address(program_id);
+    if expected_program_state != *program_state_account.key {
+        msg!("❌ Invalid program state account");
         return Err(ProgramError::InvalidAccountData);
     }
     
-    // Create program state account
-    let rent = Rent::get()?;
-    let rent_lamports = rent.minimum_balance(std::mem::size_of::<ProgramState>());
+    // Verify program authority PDA
+    let (expected_program_authority, program_authority_bump) = find_program_authority_address(program_id);
+    if expected_program_authority != *program_authority_account.key {
+        msg!("❌ Invalid program authority account");
+        return Err(ProgramError::InvalidAccountData);
+    }
     
-    // Create account
-    invoke_signed(
-        &system_instruction::create_account(
-            admin_account.key,
-            program_state_account.key,
-            rent_lamports,
-            std::mem::size_of::<ProgramState>() as u64,
-            program_id,
-        ),
-        &[
-            admin_account.clone(),
-            program_state_account.clone(),
-            system_program.clone(),
-        ],
-        &[&[b"program_state", &[bump_seed]]],
-    )?;
+    // Calculate space for program state
+    let space = 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8; // 3 pubkeys + 5 u64 rates
+    
+    // Check if the account already exists and validate it
+    if !program_state_account.data_is_empty() {
+        // If it exists, check owner and size
+        if program_state_account.owner != program_id {
+            msg!("❌ State account not owned by this program");
+            return Err(ProgramError::IncorrectProgramId);
+        }
+        
+        if program_state_account.data_len() < space {
+            msg!("❌ State account too small: expected {}, got {}", space, program_state_account.data_len());
+            return Err(ProgramError::AccountDataTooSmall);
+        }
+        
+        msg!("✓ Program state account already exists and is valid");
+    } else {
+        // Create program state account if it doesn't exist
+        let rent = Rent::get()?;
+        let required_lamports = rent.minimum_balance(space);
+        msg!("Creating program state with {} bytes", space);
+        msg!("Rent-exempt balance: {} lamports", required_lamports);
+        
+        invoke_signed(
+            &system_instruction::create_account(
+                payer_account.key,
+                program_state_account.key,
+                required_lamports,
+                space as u64,
+                program_id,
+            ),
+            &[
+                payer_account.clone(),
+                program_state_account.clone(),
+                system_program_account.clone(),
+            ],
+            &[&[b"state", &[program_state_bump]]],
+        )?;
+    }
     
     // Initialize program state
     let program_state = ProgramState {
-        admin: *admin_account.key,
+        admin,
         yot_mint,
         yos_mint,
-        stake_rate_per_second,
-        harvest_threshold,
+        lp_contribution_rate,
+        admin_fee_rate,
+        yos_cashback_rate,
+        swap_fee_rate,
+        referral_rate,
     };
     
-    // Save program state
-    program_state.serialize(&mut *program_state_account.try_borrow_mut_data()?)?;
+    msg!("Initialized program state:");
+    msg!("Admin: {}", admin);
+    msg!("YOT mint: {}", yot_mint);
+    msg!("YOS mint: {}", yos_mint);
+    msg!("LP contribution rate: {}", lp_contribution_rate);
+    msg!("Admin fee rate: {}", admin_fee_rate);
+    msg!("YOS cashback rate: {}", yos_cashback_rate);
+    msg!("Swap fee rate: {}", swap_fee_rate);
+    msg!("Referral rate: {}", referral_rate);
     
-    msg!("Staking program initialized successfully");
+    // Serialize and store program state
+    program_state.serialize(&mut &mut program_state_account.data.borrow_mut()[..])?;
     
     Ok(())
 }
 
-// Process stake instruction
-fn process_stake(
+// Perform a token swap through multihub
+pub fn process_swap(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
-    amount: u64,
+    amount_in: u64,
+    min_amount_out: u64,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
+    msg!("Starting token swap");
+    msg!("Amount in: {}", amount_in);
+    msg!("Min amount out: {}", min_amount_out);
     
     // Get accounts
-    let user_account = next_account_info(account_info_iter)?;
-    let user_yot_token_account = next_account_info(account_info_iter)?;
-    let program_yot_token_account = next_account_info(account_info_iter)?;
-    let user_staking_account = next_account_info(account_info_iter)?;
-    let program_state_account = next_account_info(account_info_iter)?;
-    let token_program = next_account_info(account_info_iter)?;
-    let clock = next_account_info(account_info_iter)?;
-    let system_program = next_account_info(account_info_iter)?;
+    let accounts_iter = &mut accounts.iter();
     
-    // Verify user signature (mandatory signature verification)
+    // Extract all required accounts
+    let user_account = next_account_info(accounts_iter)?;
+    let program_state_account = next_account_info(accounts_iter)?;
+    let program_authority_account = next_account_info(accounts_iter)?;
+    
+    // User token accounts
+    let user_token_from_account = next_account_info(accounts_iter)?;
+    let user_token_to_account = next_account_info(accounts_iter)?;
+    let user_yos_token_account = next_account_info(accounts_iter)?;
+    
+    // Program token accounts
+    let program_token_from_account = next_account_info(accounts_iter)?;
+    let program_token_to_account = next_account_info(accounts_iter)?;
+    let program_yos_token_account = next_account_info(accounts_iter)?;
+    
+    // Token mints
+    let _token_from_mint = next_account_info(accounts_iter)?;
+    let _token_to_mint = next_account_info(accounts_iter)?;
+    let _yos_token_mint = next_account_info(accounts_iter)?;
+    
+    // System accounts
+    let token_program = next_account_info(accounts_iter)?;
+    let _system_program = next_account_info(accounts_iter)?;
+    let _rent_sysvar = next_account_info(accounts_iter)?;
+    
+    // Validate accounts
     if !user_account.is_signer {
+        msg!("User account must be a signer");
         return Err(ProgramError::MissingRequiredSignature);
     }
     
-    // Get program state
+    // Verify program state PDA
+    let (expected_program_state, _program_state_bump) = find_program_state_address(program_id);
+    if expected_program_state != *program_state_account.key {
+        msg!("❌ Invalid program state account");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Validate that state account exists, is owned by this program, and has correct size
+    if program_state_account.data_is_empty() {
+        msg!("❌ Program state account is empty");
+        return Err(ProgramError::UninitializedAccount);
+    }
+    
+    if program_state_account.owner != program_id {
+        msg!("❌ Program state account has wrong owner, expected {}, got {}", program_id, program_state_account.owner);
+        return Err(ProgramError::IncorrectProgramId);
+    }
+    
+    // Verify program authority PDA and validate it
+    let (expected_program_authority, program_authority_bump) = find_program_authority_address(program_id);
+    
+    // Add debug logs to help troubleshooting
+    msg!("Program authority account: {}", program_authority_account.key);
+    msg!("Expected authority PDA: {}", expected_program_authority);
+    
+    if expected_program_authority != *program_authority_account.key {
+        msg!("❌ Invalid program authority");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Deserialize program state
     let program_state = ProgramState::try_from_slice(&program_state_account.data.borrow())?;
     
-    // Verify token accounts
-    let user_token_account = TokenAccount::unpack(&user_yot_token_account.data.borrow())?;
-    if user_token_account.owner != *user_account.key {
-        return Err(ProgramError::InvalidAccountData);
-    }
+    // ***** SAFE TOKEN ACCOUNT HANDLING *****
+    // Only deserialize token accounts with proper error handling
+    let user_token_from = match TokenAccount::unpack(&user_token_from_account.data.borrow()) {
+        Ok(account) => account,
+        Err(err) => {
+            msg!("Error unpacking user_token_from_account: {:?}", err);
+            return Err(ProgramError::InvalidAccountData);
+        }
+    };
     
-    if user_token_account.mint != program_state.yot_mint {
-        return Err(ProgramError::InvalidAccountData);
-    }
+    let program_token_from = match TokenAccount::unpack(&program_token_from_account.data.borrow()) {
+        Ok(account) => account,
+        Err(err) => {
+            msg!("Error unpacking program_token_from_account: {:?}", err);
+            return Err(ProgramError::InvalidAccountData);
+        }
+    };
     
-    // Ensure user has enough tokens
-    if user_token_account.amount < amount {
+    let program_token_to = match TokenAccount::unpack(&program_token_to_account.data.borrow()) {
+        Ok(account) => account,
+        Err(err) => {
+            msg!("Error unpacking program_token_to_account: {:?}", err);
+            return Err(ProgramError::InvalidAccountData);
+        }
+    };
+    
+    // Calculate amounts
+    // LP contribution: 20% of amount_in goes to LP
+    let lp_contribution_amount = (amount_in * program_state.lp_contribution_rate) / 10000;
+    
+    // Admin fee: 0.1% of amount_in
+    let admin_fee_amount = (amount_in * program_state.admin_fee_rate) / 10000;
+    
+    // YOS cashback: 5% of amount_in
+    let yos_cashback_amount = (amount_in * program_state.yos_cashback_rate) / 10000;
+    
+    // Swap fee: 0.3% of amount_in
+    let swap_fee_amount = (amount_in * program_state.swap_fee_rate) / 10000;
+    
+    // Referral payment: 0.5% of amount_in (not implemented yet)
+    let referral_amount = (amount_in * program_state.referral_rate) / 10000;
+    
+    // Net amount for swap
+    let net_swap_amount = amount_in - lp_contribution_amount - admin_fee_amount - swap_fee_amount - referral_amount;
+    
+    msg!("Swap calculations:");
+    msg!("LP contribution: {} ({} basis points)", lp_contribution_amount, program_state.lp_contribution_rate);
+    msg!("Admin fee: {} ({} basis points)", admin_fee_amount, program_state.admin_fee_rate);
+    msg!("YOS cashback: {} ({} basis points)", yos_cashback_amount, program_state.yos_cashback_rate);
+    msg!("Swap fee: {} ({} basis points)", swap_fee_amount, program_state.swap_fee_rate);
+    msg!("Referral amount: {} ({} basis points)", referral_amount, program_state.referral_rate);
+    msg!("Net amount for swap: {}", net_swap_amount);
+    
+    // Verify token amounts
+    if user_token_from.amount < amount_in {
+        msg!("Insufficient token balance for swap");
         return Err(ProgramError::InsufficientFunds);
     }
     
-    // Get clock for timestamp
-    let clock = Clock::from_account_info(clock)?;
-    let current_time = clock.unix_timestamp;
-    
-    // Calculate staking account PDA
-    let seeds = [
-        b"staking", 
-        user_account.key.as_ref(),
-    ];
-    let (staking_pda, bump_seed) = Pubkey::find_program_address(&seeds, program_id);
-    
-    // Check if staking account exists, if not create it
-    if user_staking_account.data_is_empty() {
-        let rent = Rent::get()?;
-        let rent_lamports = rent.minimum_balance(std::mem::size_of::<StakingAccount>());
-        
-        // Create staking account
-        invoke_signed(
-            &system_instruction::create_account(
-                user_account.key,
-                &staking_pda,
-                rent_lamports,
-                std::mem::size_of::<StakingAccount>() as u64,
-                program_id,
-            ),
-            &[
-                user_account.clone(),
-                user_staking_account.clone(),
-                system_program.clone(),
-            ],
-            &[&[b"staking", user_account.key.as_ref(), &[bump_seed]]],
-        )?;
-        
-        // Initialize new staking account
-        let staking_data = StakingAccount {
-            owner: *user_account.key,
-            staked_amount: amount,
-            start_timestamp: current_time,
-            last_harvest_time: current_time,
-            total_harvested: 0,
-        };
-        
-        staking_data.serialize(&mut *user_staking_account.try_borrow_mut_data()?)?;
-    } else {
-        // Update existing staking account
-        let mut staking_data = StakingAccount::try_from_slice(&user_staking_account.data.borrow())?;
-        
-        // Verify the owner
-        if staking_data.owner != *user_account.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
-        
-        // Update staked amount
-        staking_data.staked_amount = staking_data.staked_amount.checked_add(amount)
-            .ok_or(ProgramError::InvalidArgument)?; // Use InvalidArgument instead of ArithmeticOverflow
-        
-        staking_data.serialize(&mut *user_staking_account.try_borrow_mut_data()?)?;
-    }
-    
-    // Transfer tokens from user to program
+    // Transfer tokens from user to program (full amount)
     invoke(
-        &spl_token::instruction::transfer(
+        &token_instruction::transfer(
             token_program.key,
-            user_yot_token_account.key,
-            program_yot_token_account.key,
+            user_token_from_account.key,
+            program_token_from_account.key,
             user_account.key,
             &[],
-            amount,
+            amount_in,
         )?,
         &[
-            user_yot_token_account.clone(),
-            program_yot_token_account.clone(),
+            user_token_from_account.clone(),
+            program_token_from_account.clone(),
             user_account.clone(),
             token_program.clone(),
         ],
     )?;
     
-    msg!("Staked {} YOT tokens", amount as f64 / 1_000_000_000.0);
+    // Send tokens back to user (output tokens)
+    // For simplicity in this example, let's assume the output amount 
+    // is 90% of the input (minus fees)
+    let amount_out = (net_swap_amount * 90) / 100;
     
-    Ok(())
-}
-
-// Process unstake instruction with improved reward and error handling
-fn process_unstake(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
-    amount: u64,
-) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    
-    // Get accounts
-    let user_account = next_account_info(account_info_iter)?;
-    let user_yot_token_account = next_account_info(account_info_iter)?;
-    let program_yot_token_account = next_account_info(account_info_iter)?;
-    let user_yos_token_account = next_account_info(account_info_iter)?;
-    let program_yos_token_account = next_account_info(account_info_iter)?;
-    let user_staking_account = next_account_info(account_info_iter)?;
-    let program_state_account = next_account_info(account_info_iter)?;
-    let token_program = next_account_info(account_info_iter)?;
-    let program_authority = next_account_info(account_info_iter)?;
-    let clock = next_account_info(account_info_iter)?;
-    
-    // Verify user signature (mandatory signature verification)
-    if !user_account.is_signer {
-        return Err(ProgramError::MissingRequiredSignature);
+    // Verify min amount out
+    if amount_out < min_amount_out {
+        msg!("Output amount {} less than minimum {}", amount_out, min_amount_out);
+        return Err(ProgramError::InvalidArgument);
     }
     
-    // Calculate PDA for program authority
-    let (authority_pda, authority_bump) = Pubkey::find_program_address(&[b"authority"], program_id);
-    if authority_pda != *program_authority.key {
-        return Err(ProgramError::InvalidAccountData);
-    }
-    
-    // Get staking data
-    let mut staking_data = StakingAccount::try_from_slice(&user_staking_account.data.borrow())?;
-    
-    // Verify staking account ownership
-    if staking_data.owner != *user_account.key {
-        return Err(ProgramError::InvalidAccountData);
-    }
-    
-    // Check sufficient staked amount
-    if staking_data.staked_amount < amount {
-        return Err(ProgramError::InsufficientFunds);
-    }
-    
-    // Get program state - IMPORTANT: We need this to get the CURRENT staking rate
-    let program_state = ProgramState::try_from_slice(&program_state_account.data.borrow())?;
-    
-    // Get current time
-    let clock = Clock::from_account_info(clock)?;
-    let current_time = clock.unix_timestamp;
-    
-    // Calculate time staked since last harvest
-    let time_staked_seconds = current_time.checked_sub(staking_data.last_harvest_time)
-        .ok_or(ProgramError::InvalidArgument)?;
-    
-    // EMERGENCY LINEAR FIX: Using linear interest calculation
-    // Convert staking rate from basis points to percentage
-    let rate_percentage = (program_state.stake_rate_per_second as f64) / 1_000_000.0;
-    
-    // Convert from percentage to decimal
-    let rate_decimal = rate_percentage / 100.0;
-    
-    // Convert raw amount to token units for calculation
-    let principal_tokens = staking_data.staked_amount as f64 / 1_000_000_000.0;
-    
-    // SIMPLE LINEAR INTEREST: principal * rate * time
-    // No exponentiation, no compounding
-    let rewards_token_units = principal_tokens * rate_decimal * time_staked_seconds as f64;
-    
-    // Convert back to raw token units for blockchain storage - this is critical for proper results
-    let raw_rewards = (rewards_token_units * 1_000_000_000.0) as u64;
-    
-    // Log all values for transparency and debugging
-    msg!("Unstake: Staked amount: {} tokens ({} raw units)", principal_tokens, staking_data.staked_amount);
-    msg!("Unstake: Rate: {}% per second ({} decimal)", rate_percentage, rate_decimal);
-    msg!("Unstake: Time staked: {} seconds", time_staked_seconds);
-    msg!("Unstake: Calculated rewards: {} tokens ({} raw units)", rewards_token_units, raw_rewards);
-    
-    // Update staking data
-    staking_data.last_harvest_time = current_time;
-    
-    // Only add to total harvested if there are rewards to claim
-    if raw_rewards > 0 {
-        staking_data.total_harvested = staking_data.total_harvested.checked_add(raw_rewards)
-            .ok_or(ProgramError::InvalidArgument)?;
-    }
-    
-    // Reduce staked amount
-    staking_data.staked_amount = staking_data.staked_amount.checked_sub(amount)
-        .ok_or(ProgramError::InvalidArgument)?;
-    
-    // Save updated staking data
-    staking_data.serialize(&mut *user_staking_account.try_borrow_mut_data()?)?;
-    
-    // Transfer YOT tokens back to user (this should ALWAYS happen)
-    let transfer_amount = amount; // No division - use raw amount directly
-    
-    // Transfer YOT tokens back to user (this should ALWAYS happen)
+    // Transfer output tokens from program to user
     invoke_signed(
-        &spl_token::instruction::transfer(
+        &token_instruction::transfer(
             token_program.key,
-            program_yot_token_account.key,
-            user_yot_token_account.key,
-            program_authority.key,
+            program_token_to_account.key,
+            user_token_to_account.key,
+            program_authority_account.key,
             &[],
-            transfer_amount, // No division - use the raw amount directly
+            amount_out,
         )?,
         &[
-            program_yot_token_account.clone(),
-            user_yot_token_account.clone(),
-            program_authority.clone(),
+            program_token_to_account.clone(),
+            user_token_to_account.clone(),
+            program_authority_account.clone(),
             token_program.clone(),
         ],
-        &[&[b"authority", &[authority_bump]]],
+        &[&[b"authority", &[program_authority_bump]]],
     )?;
     
-    // Only attempt to transfer YOS rewards if there are rewards to claim
-    if raw_rewards > 0 {
-        let program_yos_info = match spl_token::state::Account::unpack(&program_yos_token_account.data.borrow()) {
-            Ok(token_account) => token_account,
-            Err(error) => {
-                msg!("Error unpacking program YOS token account: {:?}", error);
-                msg!("Unstaked {} YOT tokens but YOS rewards transfer failed", amount as f64 / 1_000_000_000.0);
-                return Ok(());
-            }
-        };
-        
-        let program_yos_balance = program_yos_info.amount;
-        
-        // Check if program has enough YOS tokens to transfer rewards
-        if program_yos_balance >= raw_rewards {
-            // CRITICAL FIX: Adjust the YOS reward amount to fix wallet display issue
-            // We keep the internal accounting in full precision, but adjust the
-            // actual transfer amount to fix the wallet display
-            
-            // CRITICAL FIX: Apply display normalization factor to raw rewards
-            // This will make the rewards display correctly in Phantom Wallet
-            // while maintaining proper accounting internally
-            let display_adjusted_rewards = raw_rewards / YOS_DISPLAY_NORMALIZATION_FACTOR;
-            
-            // Log the adjustment for transparency
-            msg!("DISPLAY FIX: Normalizing YOS display by dividing raw amount {} by factor {}",
-                 raw_rewards, YOS_DISPLAY_NORMALIZATION_FACTOR);
-            msg!("DISPLAY FIX: Transfer amount after adjustment: {} YOS", 
-                 display_adjusted_rewards as f64 / 1_000_000_000.0);
-            
-            // Only attempt to transfer if there's a non-zero amount after adjustment
-            if display_adjusted_rewards > 0 {
-                // Attempt to transfer YOS rewards, but handle errors without failing
-                match invoke_signed(
-                    &spl_token::instruction::transfer(
-                        token_program.key,
-                        program_yos_token_account.key,
-                        user_yos_token_account.key,
-                        program_authority.key,
-                        &[],
-                        display_adjusted_rewards, // CRITICAL FIX: Use normalized amount
-                    )?,
-                    &[
-                        program_yos_token_account.clone(),
-                        user_yos_token_account.clone(),
-                        program_authority.clone(),
-                        token_program.clone(),
-                    ],
-                    &[&[b"authority", &[authority_bump]]],
-                ) {
-                    Ok(_) => {
-                        msg!("Unstaked {} YOT tokens and transferred {} YOS rewards", 
-                             amount as f64 / 1_000_000_000.0, 
-                             display_adjusted_rewards as f64 / 1_000_000_000.0);
-                        msg!("Original YOS rewards (internal accounting): {} YOS", 
-                             raw_rewards as f64 / 1_000_000_000.0);
-                    },
-                    Err(error) => {
-                        // If YOS transfer fails, log the error but don't fail the entire unstaking process
-                        msg!("WARNING: Failed to transfer YOS rewards: {:?}", error);
-                        msg!("Unstaked {} YOT tokens but YOS rewards transfer failed", 
-                             amount as f64 / 1_000_000_000.0);
-                    }
-                }
-            } else {
-                msg!("YOS rewards too small after display adjustment (would be 0). Skipping YOS transfer.");
-            }
-        } else {
-            // Not enough YOS in program account - log the issue but continue with unstaking
-            msg!("WARNING: Insufficient YOS tokens in program account for rewards. Available: {}, Required: {}", 
-                 program_yos_balance, raw_rewards);
-            msg!("Unstaked {} YOT tokens but YOS rewards were not transferred due to insufficient program balance", 
-                 amount as f64 / 1_000_000_000.0);
-        }
-    } else {
-        msg!("Unstaked {} YOT tokens", amount as f64 / 1_000_000_000.0);
-    }
-    
-    Ok(())
-}
-
-// Process harvest instruction
-fn process_harvest(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
-) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    
-    // Get accounts
-    let user_account = next_account_info(account_info_iter)?;
-    let user_yos_token_account = next_account_info(account_info_iter)?;
-    let program_yos_token_account = next_account_info(account_info_iter)?;
-    let user_staking_account = next_account_info(account_info_iter)?;
-    let program_state_account = next_account_info(account_info_iter)?;
-    let token_program = next_account_info(account_info_iter)?;
-    let program_authority = next_account_info(account_info_iter)?;
-    let clock = next_account_info(account_info_iter)?;
-    
-    // Verify user signature (mandatory signature verification)
-    if !user_account.is_signer {
-        return Err(ProgramError::MissingRequiredSignature);
-    }
-    
-    // Calculate authority PDA
-    let (authority_pda, authority_bump) = Pubkey::find_program_address(&[b"authority"], program_id);
-    if authority_pda != *program_authority.key {
-        return Err(ProgramError::InvalidAccountData);
-    }
-    
-    // Get program state
-    let program_state = ProgramState::try_from_slice(&program_state_account.data.borrow())?;
-    
-    // Get staking data
-    let mut staking_data = StakingAccount::try_from_slice(&user_staking_account.data.borrow())?;
-    
-    // Verify staking account ownership
-    if staking_data.owner != *user_account.key {
-        return Err(ProgramError::InvalidAccountData);
-    }
-    
-    // Check if user has staked tokens
-    if staking_data.staked_amount == 0 {
-        return Err(ProgramError::InsufficientFunds);
-    }
-    
-    // Get current time
-    let clock = Clock::from_account_info(clock)?;
-    let current_time = clock.unix_timestamp;
-    
-    // Calculate time staked since last harvest
-    let time_staked_seconds = current_time.checked_sub(staking_data.last_harvest_time)
-        .ok_or(ProgramError::InvalidArgument)?;
-    
-    // EMERGENCY LINEAR FIX: Using linear interest calculation
-    // Convert staking rate from basis points to percentage
-    let rate_percentage = (program_state.stake_rate_per_second as f64) / 1_000_000.0;
-    
-    // Convert from percentage to decimal
-    let rate_decimal = rate_percentage / 100.0;
-    
-    // Convert raw amount to token units for calculation
-    let principal_tokens = staking_data.staked_amount as f64 / 1_000_000_000.0;
-    
-    // SIMPLE LINEAR INTEREST: principal * rate * time
-    // No exponentiation, no compounding
-    let rewards_token_units = principal_tokens * rate_decimal * time_staked_seconds as f64;
-    
-    // Convert back to raw token units for blockchain storage - this is critical for proper results
-    let raw_rewards = (rewards_token_units * 1_000_000_000.0) as u64;
-    
-    // Log all values for transparency and debugging
-    msg!("Harvest: Staked amount: {} tokens ({} raw units)", principal_tokens, staking_data.staked_amount);
-    msg!("Harvest: Rate: {}% per second ({} decimal)", rate_percentage, rate_decimal);
-    msg!("Harvest: Time staked: {} seconds", time_staked_seconds);
-    msg!("Harvest: Calculated rewards: {} tokens ({} raw units)", rewards_token_units, raw_rewards);
-    
-    // Check rewards meet minimum threshold
-    if raw_rewards < program_state.harvest_threshold {
-        return Err(ProgramError::InsufficientFunds);
-    }
-    
-    // Get YOS token account info
-    let program_yos_info = match spl_token::state::Account::unpack(&program_yos_token_account.data.borrow()) {
-        Ok(token_account) => token_account,
-        Err(error) => {
-            msg!("Error unpacking program YOS token account: {:?}", error);
-            return Err(ProgramError::InvalidAccountData);
-        }
-    };
-    
-    let program_yos_balance = program_yos_info.amount;
-    
-    if program_yos_balance < raw_rewards {
-        return Err(ProgramError::InsufficientFunds);
-    }
-    
-    // Update staking data
-    staking_data.last_harvest_time = current_time;
-    staking_data.total_harvested = staking_data.total_harvested.checked_add(raw_rewards)
-        .ok_or(ProgramError::InvalidArgument)?;
-    
-    // Save updated staking data
-    staking_data.serialize(&mut *user_staking_account.try_borrow_mut_data()?)?;
-    
-    // CRITICAL FIX: Apply display normalization factor to raw rewards
-    // This will make the rewards display correctly in Phantom Wallet
-    // while maintaining proper accounting internally
-    let display_adjusted_rewards = raw_rewards / YOS_DISPLAY_NORMALIZATION_FACTOR;
-    
-    // Log the adjustment for transparency
-    msg!("DISPLAY FIX: Normalizing YOS display by dividing raw amount {} by factor {}",
-         raw_rewards, YOS_DISPLAY_NORMALIZATION_FACTOR);
-    msg!("DISPLAY FIX: Transfer amount after adjustment: {} YOS", 
-         display_adjusted_rewards as f64 / 1_000_000_000.0);
-    
-    // Transfer YOS rewards to user (using display-adjusted amount)
+    // Send YOS cashback to user
     invoke_signed(
-        &spl_token::instruction::transfer(
+        &token_instruction::transfer(
             token_program.key,
             program_yos_token_account.key,
             user_yos_token_account.key,
-            program_authority.key,
+            program_authority_account.key,
             &[],
-            display_adjusted_rewards, // CRITICAL FIX: Use normalized amount
+            yos_cashback_amount,
         )?,
         &[
             program_yos_token_account.clone(),
             user_yos_token_account.clone(),
-            program_authority.clone(),
+            program_authority_account.clone(),
             token_program.clone(),
         ],
-        &[&[b"authority", &[authority_bump]]],
+        &[&[b"authority", &[program_authority_bump]]],
     )?;
     
-    // Log the proper decimal format for clarity
-    msg!("Harvested {} YOS rewards (raw amount: {})", 
-         display_adjusted_rewards as f64 / 1_000_000_000.0, raw_rewards);
-    msg!("Original YOS rewards (internal accounting): {} YOS", 
-         raw_rewards as f64 / 1_000_000_000.0);
+    msg!("Swap successful");
+    msg!("Amount in: {}", amount_in);
+    msg!("Amount out: {}", amount_out);
+    msg!("YOS cashback: {}", yos_cashback_amount);
     
     Ok(())
 }
 
-fn process_update_parameters(
+// Close the program and reclaim rent
+pub fn process_close_program(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
-    stake_rate_per_second: u64,
-    harvest_threshold: u64,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-    
     // Get accounts
-    let admin_account = next_account_info(account_info_iter)?;
-    let program_state_account = next_account_info(account_info_iter)?;
+    let accounts_iter = &mut accounts.iter();
     
-    // Verify admin signature (mandatory signature verification)
-    if !admin_account.is_signer {
-        return Err(ProgramError::MissingRequiredSignature);
-    }
+    // Extract accounts
+    let admin_account = next_account_info(accounts_iter)?;
+    let program_state_account = next_account_info(accounts_iter)?;
+    let program_authority_account = next_account_info(accounts_iter)?;
+    let _system_program = next_account_info(accounts_iter)?;  // Prefixed with underscore since it's unused
     
-    // Get program state
-    let mut program_state = ProgramState::try_from_slice(&program_state_account.data.borrow())?;
-    
-    // Verify caller is admin
-    if program_state.admin != *admin_account.key {
+    // Verify program state PDA
+    let (expected_program_state, program_state_bump) = find_program_state_address(program_id);
+    if expected_program_state != *program_state_account.key {
+        msg!("❌ Invalid program state account");
         return Err(ProgramError::InvalidAccountData);
     }
     
+    // Validate that state account exists, is owned by this program, and has correct size
+    if program_state_account.data_is_empty() {
+        msg!("❌ Program state account is empty");
+        return Err(ProgramError::UninitializedAccount);
+    }
+    
+    if program_state_account.owner != program_id {
+        msg!("❌ Program state account has wrong owner, expected {}, got {}", program_id, program_state_account.owner);
+        return Err(ProgramError::IncorrectProgramId);
+    }
+    
+    // Verify program authority PDA 
+    let (expected_program_authority, _program_authority_bump) = find_program_authority_address(program_id);
+    
+    // Add debug logs to help troubleshooting
+    msg!("Program authority account: {}", program_authority_account.key);
+    msg!("Expected authority PDA: {}", expected_program_authority);
+    
+    if expected_program_authority != *program_authority_account.key {
+        msg!("❌ Invalid program authority");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Deserialize program state
+    let program_state = match ProgramState::try_from_slice(&program_state_account.data.borrow()) {
+        Ok(state) => state,
+        Err(err) => {
+            msg!("Error deserializing program state: {:?}", err);
+            return Err(ProgramError::InvalidAccountData);
+        }
+    };
+    
+    // Verify admin signature
+    if !admin_account.is_signer {
+        msg!("Admin account must be a signer");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+    
+    // Only admin can close the program
+    if program_state.admin != *admin_account.key {
+        msg!("Only the admin can close the program");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Transfer lamports from program state to admin (reclaim rent)
+    let state_lamports = program_state_account.lamports();
+    /**program_state_account.lamports.borrow_mut() = 0;
+    **admin_account.lamports.borrow_mut() += state_lamports;
+    
+    msg!("Program closed successfully");
+    msg!("Transferred {} lamports back to admin", state_lamports);
+    
+    Ok(())
+}
+
+// Update program parameters (admin only)
+pub fn process_update_parameters(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    lp_contribution_rate: u64,
+    admin_fee_rate: u64,
+    yos_cashback_rate: u64,
+    swap_fee_rate: u64,
+    referral_rate: u64,
+) -> ProgramResult {
+    // Get accounts
+    let accounts_iter = &mut accounts.iter();
+    
+    // Extract accounts
+    let admin_account = next_account_info(accounts_iter)?;
+    let program_state_account = next_account_info(accounts_iter)?;
+    
+    // Verify program state PDA
+    let (expected_program_state, _program_state_bump) = find_program_state_address(program_id);
+    if expected_program_state != *program_state_account.key {
+        msg!("❌ Invalid program state account");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Validate that state account exists, is owned by this program
+    if program_state_account.data_is_empty() {
+        msg!("❌ Program state account is empty");
+        return Err(ProgramError::UninitializedAccount);
+    }
+    
+    if program_state_account.owner != program_id {
+        msg!("❌ Program state account has wrong owner, expected {}, got {}", program_id, program_state_account.owner);
+        return Err(ProgramError::IncorrectProgramId);
+    }
+    
+    // Verify admin signature
+    if !admin_account.is_signer {
+        msg!("Admin account must be a signer");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+    
+    // Deserialize program state
+    let mut program_state = ProgramState::try_from_slice(&program_state_account.data.borrow())?;
+    
+    // Only admin can update parameters
+    if program_state.admin != *admin_account.key {
+        msg!("Only the admin can update parameters");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Validate parameters
+    if lp_contribution_rate > 10000 || 
+       admin_fee_rate > 10000 || 
+       yos_cashback_rate > 10000 || 
+       swap_fee_rate > 10000 || 
+       referral_rate > 10000 {
+        msg!("Parameter rates must be <= 10000 (100%)");
+        return Err(ProgramError::InvalidArgument);
+    }
+    
     // Update parameters
-    program_state.stake_rate_per_second = stake_rate_per_second;
-    program_state.harvest_threshold = harvest_threshold;
+    program_state.lp_contribution_rate = lp_contribution_rate;
+    program_state.admin_fee_rate = admin_fee_rate;
+    program_state.yos_cashback_rate = yos_cashback_rate;
+    program_state.swap_fee_rate = swap_fee_rate;
+    program_state.referral_rate = referral_rate;
     
-    // Save updated program state
-    program_state.serialize(&mut *program_state_account.try_borrow_mut_data()?)?;
+    // Serialize and store updated program state
+    program_state.serialize(&mut &mut program_state_account.data.borrow_mut()[..])?;
     
-    // Log updates
-    msg!("Updated stake rate to {}% per second", stake_rate_per_second as f64 / 1_000_000.0);
-    msg!("Updated harvest threshold to {} YOS tokens", harvest_threshold as f64 / 1_000_000_000.0);
+    msg!("Parameters updated successfully:");
+    msg!("LP contribution rate: {}", program_state.lp_contribution_rate);
+    msg!("Admin fee rate: {}", program_state.admin_fee_rate);
+    msg!("YOS cashback rate: {}", program_state.yos_cashback_rate);
+    msg!("Swap fee rate: {}", program_state.swap_fee_rate);
+    msg!("Referral rate: {}", program_state.referral_rate);
     
     Ok(())
 }

@@ -10,17 +10,47 @@
       "yot": {
         "address": "2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF", 
         "decimals": 9,
-        "name": "YOT Token"
+        "name": "YOT Token",
+        "account": "BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE"
       },
       "yos": {
         "address": "GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n",
         "decimals": 9,
-        "name": "YOS Staking Token"
+        "name": "YOS Staking Token",
+        "account": "BLz2mfhb9qoPAtKuFNVfrj9uTEyChHKKbZsniS1eRaUB",
+        "programAccount": "5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz"
       }
     },
     "pool": {
       "authority": "7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK",
       "solAccount": "7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS"
+    },
+    "multiHubSwap": {
+      "programId": "SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE",
+      "programState": "Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ",
+      "admin": "AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ",
+      "rates": {
+        "lpContributionRate": 2000,
+        "adminFeeRate": 10,
+        "yosCashbackRate": 500,
+        "swapFeeRate": 30,
+        "referralRate": 50
+      },
+      "amm": {
+        "raydium": {
+          "routerAddress": "BVChZ3XFEwTMUk1o9i3HAf91H6mFxSwa5X2wFAWhYPhU",
+          "usdc": "9T7uw5dqaEmEC4McqyefzYsEg5hoC4e2oV8it1Uc4f1U"
+        },
+        "jupiter": {
+          "enabled": true,
+          "priorityFee": 1000000
+        }
+      },
+      "rewards": {
+        "weeklyRewardRate": 1.92,
+        "yearlyAPR": 100,
+        "claimPeriodDays": 7
+      }
     }
   },
   
