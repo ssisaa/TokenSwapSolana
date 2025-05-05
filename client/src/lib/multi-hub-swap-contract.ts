@@ -766,17 +766,22 @@ export async function updateMultiHubSwapParameters(
     );
     
     // Log all accounts for debugging purposes
+    // CRITICAL: We must exactly match what the program expects in the process_update_parameters function
+    // In lines 436-437, it only gets 2 accounts:
+    // let admin_account = next_account_info(accounts_iter)?;            // 1
+    // let program_state_account = next_account_info(accounts_iter)?;    // 2
+    // The program_authority is not required for this function
+    
     console.log("UPDATE_PARAMETERS accounts:");
     console.log("1. admin: ", wallet.publicKey.toString(), "(signer)");
     console.log("2. program_state: ", programState.toString());
-    console.log("3. program_authority: ", programAuthorityAddress.toString());
     
     // Create instruction
     const instruction = new TransactionInstruction({
       keys: [
         { pubkey: wallet.publicKey, isSigner: true, isWritable: false },
-        { pubkey: programState, isSigner: false, isWritable: true },
-        { pubkey: programAuthorityAddress, isSigner: false, isWritable: false }
+        { pubkey: programState, isSigner: false, isWritable: true }
+        // Removing program_authority as it's not expected by the Rust program
       ],
       programId: new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID),
       data
