@@ -3,10 +3,14 @@
  * This is necessary for program-controlled tokens like YOS
  */
 
-import { Connection, PublicKey, Transaction, TransactionInstruction, sendAndConfirmTransaction, Keypair } from '@solana/web3.js';
+import { 
+  Connection, PublicKey, Keypair, Transaction, sendAndConfirmTransaction, 
+} from '@solana/web3.js';
 import { SOLANA_RPC_URL, YOS_TOKEN_ADDRESS, MULTI_HUB_SWAP_PROGRAM_ID } from './config';
 import { ADMIN_KEYPAIR } from './multi-swap-admin';
-import { TOKEN_PROGRAM_ID, createSetAuthorityInstruction, AuthorityType } from '@solana/spl-token';
+import { 
+  TOKEN_PROGRAM_ID, createSetAuthorityInstruction, AuthorityType
+} from '@solana/spl-token';
 
 /**
  * Set the YOS mint authority to the program authority PDA
@@ -20,7 +24,7 @@ export async function setProgramAsMintAuthority() {
     const programId = new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID);
     
     // Derive the program authority PDA
-    const [programAuthority, _bump] = PublicKey.findProgramAddressSync(
+    const [programAuthority, bump] = PublicKey.findProgramAddressSync(
       [Buffer.from("authority")],
       programId
     );
@@ -28,6 +32,7 @@ export async function setProgramAsMintAuthority() {
     console.log("Admin wallet:", adminKeypair.publicKey.toString());
     console.log("YOS mint:", yosMint.toString());
     console.log("Program authority PDA:", programAuthority.toString());
+    console.log("Authority bump seed:", bump);
     
     // Create set authority instruction
     const instruction = createSetAuthorityInstruction(
@@ -35,7 +40,7 @@ export async function setProgramAsMintAuthority() {
       adminKeypair.publicKey,   // Current authority (admin)
       AuthorityType.MintTokens, // Authority type
       programAuthority,         // New authority (program PDA)
-      [],                       // Signers (empty for instructions)
+      [],                       // Multisig signers (empty for single signer)
       TOKEN_PROGRAM_ID          // Token program ID
     );
     
@@ -44,6 +49,7 @@ export async function setProgramAsMintAuthority() {
     transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
     transaction.feePayer = adminKeypair.publicKey;
     
+    // Sign with admin keypair
     transaction.sign(adminKeypair);
     
     // Send and confirm transaction
@@ -54,10 +60,12 @@ export async function setProgramAsMintAuthority() {
     );
     
     console.log("✅ Successfully set program authority PDA as mint authority for YOS token");
-    return { success: true };
-  } catch (error) {
+    console.log("Transaction signature:", signature);
+    
+    return { success: true, signature };
+  } catch (error: any) {
     console.error("Failed to set program as mint authority:", error);
-    return { success: false, error };
+    return { success: false, error: error.message };
   }
 }
 
@@ -67,7 +75,8 @@ export async function setProgramAsMintAuthority() {
 export async function checkYosMintAuthority(): Promise<{
   isCorrect: boolean,
   currentAuthority: string,
-  expectedAuthority: string
+  expectedAuthority: string,
+  authorityBump: number
 }> {
   try {
     const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
@@ -75,10 +84,15 @@ export async function checkYosMintAuthority(): Promise<{
     const programId = new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID);
     
     // Derive the program authority PDA
-    const [programAuthority, _bump] = PublicKey.findProgramAddressSync(
+    const [programAuthority, bump] = PublicKey.findProgramAddressSync(
       [Buffer.from("authority")],
       programId
     );
+    
+    console.log("Checking mint authority...");
+    console.log("YOS mint:", yosMint.toString());
+    console.log("Expected authority (PDA):", programAuthority.toString());
+    console.log("Authority bump seed:", bump);
     
     // Get mint info
     const mintInfo = await connection.getAccountInfo(yosMint);
@@ -87,6 +101,19 @@ export async function checkYosMintAuthority(): Promise<{
     }
     
     // Parse mint info - the mint authority is at bytes 4-35
+    const mintAuthorityOption = mintInfo.data[0]; // First byte indicates if authority is present
+    
+    if (mintAuthorityOption === 0) {
+      // No mint authority set
+      return {
+        isCorrect: false,
+        currentAuthority: "No authority set",
+        expectedAuthority: programAuthority.toString(),
+        authorityBump: bump
+      };
+    }
+    
+    // Extract mint authority (bytes 4-35)
     const mintAuthorityBytes = mintInfo.data.slice(4, 36);
     const mintAuthority = new PublicKey(mintAuthorityBytes);
     
@@ -95,9 +122,10 @@ export async function checkYosMintAuthority(): Promise<{
     return {
       isCorrect,
       currentAuthority: mintAuthority.toString(),
-      expectedAuthority: programAuthority.toString()
+      expectedAuthority: programAuthority.toString(),
+      authorityBump: bump
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error checking YOS mint authority:", error);
     throw error;
   }

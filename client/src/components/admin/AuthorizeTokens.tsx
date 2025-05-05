@@ -3,17 +3,21 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
-import { InfoIcon, CheckCircle2, AlertTriangle, LoaderIcon } from 'lucide-react';
+import { InfoIcon, CheckCircle2, AlertTriangle, LoaderIcon, KeyIcon, AlertCircle } from 'lucide-react';
 import { checkYosMintAuthority, setProgramAsMintAuthority } from '@/lib/authorize-mint';
+import { useMultiWallet } from '@/context/MultiWalletContext';
+import { Badge } from '@/components/ui/badge';
 
 export default function AuthorizeTokens() {
   const { toast } = useToast();
+  const { connected } = useMultiWallet();
   const [loading, setLoading] = useState(false);
   const [authorityStatus, setAuthorityStatus] = useState<{
     checked: boolean;
     isCorrect?: boolean;
     currentAuthority?: string;
     expectedAuthority?: string;
+    authorityBump?: number;
   }>({ checked: false });
 
   async function handleCheckAuthority() {
@@ -24,7 +28,8 @@ export default function AuthorizeTokens() {
         checked: true,
         isCorrect: result.isCorrect,
         currentAuthority: result.currentAuthority,
-        expectedAuthority: result.expectedAuthority
+        expectedAuthority: result.expectedAuthority,
+        authorityBump: result.authorityBump
       });
       
       if (result.isCorrect) {
@@ -67,7 +72,7 @@ export default function AuthorizeTokens() {
       } else {
         toast({
           title: "Failed to Set Authority",
-          description: "An error occurred while setting the mint authority",
+          description: result.error || "An error occurred while setting the mint authority",
           variant: "destructive",
         });
       }
@@ -85,10 +90,15 @@ export default function AuthorizeTokens() {
   return (
     <Card className="w-full shadow-md">
       <CardHeader>
-        <CardTitle>Token Authorization</CardTitle>
-        <CardDescription>
-          Check and fix YOS token mint authority to enable YOS rewards
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Token Authorization</CardTitle>
+            <CardDescription>
+              Check and fix YOS token mint authority to enable YOS rewards
+            </CardDescription>
+          </div>
+          <KeyIcon className="h-5 w-5 text-blue-500" />
+        </div>
       </CardHeader>
       <CardContent>
         {authorityStatus.checked && (
@@ -112,10 +122,25 @@ export default function AuthorizeTokens() {
                 ? "The YOS token mint authority is correctly set to the program authority PDA."
                 : "The YOS token mint authority is not set to the program authority PDA. This will prevent YOS rewards from being minted."}
               
-              <div className="mt-2 text-sm font-mono">
+              <div className="mt-2 space-y-1 text-sm font-mono">
                 <div>Current: <span className="font-semibold">{authorityStatus.currentAuthority}</span></div>
                 <div>Expected: <span className="font-semibold">{authorityStatus.expectedAuthority}</span></div>
+                {authorityStatus.authorityBump !== undefined && (
+                  <div className="flex items-center">
+                    Bump Seed: <Badge variant="outline" className="ml-2 font-mono">{authorityStatus.authorityBump}</Badge>
+                  </div>
+                )}
               </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {!connected && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Wallet Not Connected</AlertTitle>
+            <AlertDescription>
+              Connect an admin wallet to check and set token authorities
             </AlertDescription>
           </Alert>
         )}
@@ -125,6 +150,8 @@ export default function AuthorizeTokens() {
             <InfoIcon className="h-5 w-5 text-blue-500" />
             <p className="text-sm text-muted-foreground">
               The program must be authorized as the mint authority for the YOS token to enable rewards.
+              This PDA account (<code>Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ</code>) is derived using
+              the seed "authority" and must be set as the mint authority for YOS.
             </p>
           </div>
         </div>
@@ -133,14 +160,14 @@ export default function AuthorizeTokens() {
         <Button 
           variant="outline" 
           onClick={handleCheckAuthority}
-          disabled={loading}
+          disabled={loading || !connected}
         >
           {loading ? <LoaderIcon className="mr-2 h-4 w-4 animate-spin" /> : null}
           Check Authority
         </Button>
         <Button 
           onClick={handleSetAuthority}
-          disabled={loading || (authorityStatus.checked && authorityStatus.isCorrect)}
+          disabled={loading || !connected || (authorityStatus.checked && authorityStatus.isCorrect)}
         >
           {loading ? <LoaderIcon className="mr-2 h-4 w-4 animate-spin" /> : null}
           Set Program as Authority
