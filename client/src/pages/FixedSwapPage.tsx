@@ -25,6 +25,8 @@ import { finalAttempt } from "@/lib/final-attempt";
 import { directSwap } from "@/lib/direct-swap";
 // CONTRACT MATCH - Exactly follows the Rust contract account order
 import { contractMatch } from "@/lib/contract-match";
+// SIMPLE SWAP - Ultra minimal implementation for SOL-YOT swaps only
+import { simpleSwap } from "@/lib/simple-swap";
 
 // Constants
 const CONTRIBUTION_PERCENT = 20;

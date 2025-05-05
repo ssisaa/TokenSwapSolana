@@ -65,14 +65,14 @@ export async function contractMatch(
   isSOLToYOT: boolean, // true = SOL->YOT, false = YOT->SOL
   amountIn: number // UI amount (e.g. 1.5 SOL or 1000 YOT)
 ): Promise<string> {
-  console.log(`CONTRACT MATCH IMPLEMENTATION: ${isSOLToYOT ? "SOL → YOT" : "YOT → SOL"} for ${amountIn}`);
+  console.log(`MINIMAL SWAP: ${isSOLToYOT ? "SOL → YOT" : "YOT → SOL"} for ${amountIn}`);
   
   try {
     // Convert UI amount to raw amount (lamports/tokens)
     const decimals = 9; // Both SOL and YOT have 9 decimals
     const rawAmount = BigInt(Math.floor(amountIn * 10 ** decimals));
     
-    // Start by getting token accounts for the user
+    // Exact token account addresses from super-simple-swap.ts
     const USER_YOT_ACCOUNT = new PublicKey('8ufUyc9yA5j2uJqHRwxi7XZZR8gKg8dwKBg2J168yvk4');
     const USER_YOS_ACCOUNT = new PublicKey('8QGzzUxJ5X88LwMW6gBd7zc5Re6FbjHhFv52oj5WMfSz');
     
@@ -80,37 +80,56 @@ export async function contractMatch(
     const transaction = new Transaction();
     transaction.feePayer = wallet.publicKey;
     
-    // Fund program authority with a little SOL for operations
+    // Fund program authority with a little SOL for operations (required)
     const fundingIx = SystemProgram.transfer({
       fromPubkey: wallet.publicKey,
       toPubkey: PROGRAM_AUTHORITY,
-      lamports: 3_000_000, // 0.003 SOL
+      lamports: 2_000_000, // 0.002 SOL
     });
     transaction.add(fundingIx);
     
     // Create swap instruction data
     const swapData = createSwapInstructionData(rawAmount);
     
-    // Define the accounts in the EXACT SAME ORDER as the final-attempt.ts
-    // Based on the debug output you provided (including all 17 accounts)
+    // Set wallet address for debugging
+    const walletAddress = wallet.publicKey.toString();
+    console.log(`User wallet address: ${walletAddress}`);
+    
+    // For SOL->YOT, user FROM account is wallet address (SOL source)
+    // For YOT->SOL, user FROM account is YOT token account
+    let userFromAccount;
+    let userToAccount;
+    
+    if (isSOLToYOT) {
+      // SOL->YOT: Use wallet itself as SOL source
+      userFromAccount = wallet.publicKey;
+      userToAccount = USER_YOT_ACCOUNT;
+    } else {
+      // YOT->SOL: Use YOT token account as source, wallet as destination
+      userFromAccount = USER_YOT_ACCOUNT;
+      userToAccount = wallet.publicKey;
+    }
+    
+    console.log(`User FROM account: ${userFromAccount.toString()}`);
+    console.log(`User TO account: ${userToAccount.toString()}`);
+    
+    // Define minimal account structure following super-simple-swap.ts
     const accounts = [
       { pubkey: wallet.publicKey, isSigner: true, isWritable: true },       // [0] Wallet (signer)
-      { pubkey: PROGRAM_STATE, isSigner: false, isWritable: true },         // [1] 2sR6kFJfCa7oG9hrMWxeTK6ESir7PNZe4vky2JDiNrKC
-      { pubkey: PROGRAM_AUTHORITY, isSigner: false, isWritable: true },     // [2] Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ
-      { pubkey: POOL_AUTHORITY, isSigner: false, isWritable: true },        // [3] 7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // [4] 11111111111111111111111111111111
-      { pubkey: USER_YOT_ACCOUNT, isSigner: false, isWritable: true },      // [5] 8ufUyc9yA5j2uJqHRwxi7XZZR8gKg8dwKBg2J168yvk4
-      { pubkey: USER_YOS_ACCOUNT, isSigner: false, isWritable: true },      // [6] 8QGzzUxJ5X88LwMW6gBd7zc5Re6FbjHhFv52oj5WMfSz
-      { pubkey: POOL_SOL_ACCOUNT, isSigner: false, isWritable: true },      // [7] 7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS
-      { pubkey: PROGRAM_YOT_ACCOUNT, isSigner: false, isWritable: true },   // [8] BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE
-      { pubkey: PROGRAM_YOS_ACCOUNT, isSigner: false, isWritable: true },   // [9] 5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz
-      { pubkey: SOL_MINT, isSigner: false, isWritable: false },             // [10] So11111111111111111111111111111111111111112
-      { pubkey: YOT_MINT, isSigner: false, isWritable: false },             // [11] 2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF
-      { pubkey: YOS_MINT, isSigner: false, isWritable: false },             // [12] GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n
-      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },     // [13] TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // [14] 11111111111111111111111111111111
-      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },   // [15] SysvarRent111111111111111111111111111111111
-      { pubkey: FEE_ACCOUNT, isSigner: false, isWritable: false },          // [16] Eh8fHudZ4Rkb1MrzXSHRWP8SoubpBM4BhEHBmoJg17F8
+      { pubkey: PROGRAM_STATE, isSigner: false, isWritable: true },         // [1] Program state
+      { pubkey: PROGRAM_AUTHORITY, isSigner: false, isWritable: true },     // [2] Program authority
+      { pubkey: POOL_AUTHORITY, isSigner: false, isWritable: true },        // [3] Pool authority
+      { pubkey: userFromAccount, isSigner: isSOLToYOT, isWritable: true },  // [4] User FROM token account
+      { pubkey: userToAccount, isSigner: false, isWritable: true },         // [5] User TO token account
+      { pubkey: USER_YOS_ACCOUNT, isSigner: false, isWritable: true },      // [6] User YOS account for cashback
+      { pubkey: POOL_SOL_ACCOUNT, isSigner: false, isWritable: true },      // [7] Pool SOL account
+      { pubkey: PROGRAM_YOT_ACCOUNT, isSigner: false, isWritable: true },   // [8] Program YOT account
+      { pubkey: PROGRAM_YOS_ACCOUNT, isSigner: false, isWritable: true },   // [9] Program YOS account
+      { pubkey: SOL_MINT, isSigner: false, isWritable: false },             // [10] SOL mint
+      { pubkey: YOT_MINT, isSigner: false, isWritable: false },             // [11] YOT mint
+      { pubkey: YOS_MINT, isSigner: false, isWritable: false },             // [12] YOS mint
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },     // [13] Token Program ID
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // [14] System Program
     ];
     
     // Log all accounts for verification
