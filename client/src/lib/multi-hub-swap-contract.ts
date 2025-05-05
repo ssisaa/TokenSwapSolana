@@ -150,16 +150,29 @@ export async function buyAndDistribute(
     const rawAmount = Math.floor(amountIn * Math.pow(10, 9)); // Assuming 9 decimals for YOT/YOS
 
     // 1-byte discriminator + 8-byte amount
-    const instructionData = Buffer.from([4]);
-    const amountBuf = Buffer.alloc(8);
-    amountBuf.writeBigUInt64LE(BigInt(rawAmount), 0);
-    const data = Buffer.concat([instructionData, amountBuf]);
+    // IMPORTANT: Program expects BUY_AND_DISTRIBUTE_IX (4) as the first byte
+    // followed by the amount as an 8-byte little-endian u64 value
+    
+    console.log("BUY_AND_DISTRIBUTE instruction preparation:");
+    console.log("- Expected discriminator from program: BUY_AND_DISTRIBUTE_IX = 4");
+    console.log("- Raw amount (u64):", rawAmount);
+    
+    // Create a 9-byte buffer: 1 byte for discriminator + 8 bytes for u64 amount
+    const data = Buffer.alloc(9);
+    
+    // Write discriminator as first byte - must be 4 for BUY_AND_DISTRIBUTE_IX
+    data.writeUInt8(4, 0);
+    
+    // Write amount as 8-byte little-endian u64 starting at position 1
+    data.writeBigUInt64LE(BigInt(rawAmount), 1);
     
     console.log("Instruction data (hex):", data.toString("hex"));
-    console.log("Instruction details:", {
-      discriminator: data[0], 
+    console.log("Data buffer:", {
+      length: data.length,
+      firstByte: data[0],
+      discriminator: data.slice(0, 1).toString("hex"),
       rawAmount,
-      amountBytes: Array.from(amountBuf),
+      amountBytes: Array.from(data.slice(1, 9)),
       fullData: Array.from(data)
     });
 
