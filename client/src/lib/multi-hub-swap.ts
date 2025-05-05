@@ -20,8 +20,8 @@ export enum SwapProvider {
 // Swap estimation interface
 export interface SwapEstimate {
   provider: SwapProvider;
-  inAmount: number;
-  outAmount: number;
+  inAmount: number | bigint;
+  outAmount: number | bigint;
   rate: number;
   impact: number;
   fee: number;

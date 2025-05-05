@@ -219,22 +219,27 @@ export async function performMultiHubSwap(
   wallet: any,
   tokenFrom: TokenInfo,
   tokenTo: TokenInfo,
-  amount: number,
+  amount: number | bigint,
   swapEstimate: SwapEstimate,
   provider: SwapProvider = SwapProvider.Contract
 ): Promise<string> {
   console.log(`Performing ${provider} swap: ${amount} ${tokenFrom.symbol} -> ${tokenTo.symbol}`);
   
   try {
+    // Convert BigInt to number if needed
+    const amountToUse = typeof amount === 'bigint' 
+      ? Number(amount) 
+      : amount;
+    
     // Determine swap direction - this would likely match real program logic
     if (tokenTo.symbol === 'YOT') {
-      return swapTokenToYOT(wallet, tokenFrom.address, amount, tokenFrom.decimals);
+      return swapTokenToYOT(wallet, tokenFrom.address, amountToUse, tokenFrom.decimals);
     } else if (tokenFrom.symbol === 'YOT') {
-      return swapYOTToToken(wallet, tokenTo.address, amount, tokenFrom.decimals);
+      return swapYOTToToken(wallet, tokenTo.address, amountToUse, tokenFrom.decimals);
     } else {
       // For any other token pair, go through YOT first (matches real project behavior)
       console.log("Non-YOT pair, performing two-step swap through YOT");
-      return swapTokenToYOT(wallet, tokenFrom.address, amount, tokenFrom.decimals);
+      return swapTokenToYOT(wallet, tokenFrom.address, amountToUse, tokenFrom.decimals);
     }
   } catch (error) {
     console.error("Error in performMultiHubSwap:", error);
