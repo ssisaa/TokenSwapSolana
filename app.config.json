@@ -16,28 +16,28 @@
         "symbol": "SOL"
       },
       "yot": {
-        "address": "2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF", 
+        "address": "9KxQHJcBxp29AjGTAqF3LCFzodSpkuv986wsSEwQi6Cw", 
         "decimals": 9,
         "name": "YOT Token",
         "symbol": "YOT",
-        "account": "BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE"
+        "account": "EieVwYpDMdKr94iQygkyCeEBMhRWA4XsXyGumXztza74"
       },
       "yos": {
-        "address": "GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n",
+        "address": "2SWCnck3vLAVKaLkAjVtNnsVJVGYmGzyNVnte48SQRop",
         "decimals": 9,
         "name": "YOS Staking Token",
         "symbol": "YOS",
-        "account": "BLz2mfhb9qoPAtKuFNVfrj9uTEyChHKKbZsniS1eRaUB",
+        "account": "7GnphdpgcV5Z8swNAFB8QkMdo43TPHa4SmdtUw1ApMxz",
         "programAccount": "5eQTdriuNrWaVdbLiyKDPwakYjM9na6ctYbxauPxaqWz",
         "displayAdjustment": 9260
       }
     },
     "pool": {
-      "authority": "7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK",
-      "solAccount": "7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS",
+      "authority": "CeuRAzZ58St8B29XKWo647CGtY7FL5qpwv8WGZUHAuA9",
+      "solAccount": "Bf78XttEfzR4iM3JCWfwgSCpd5MHePTMD2UKBEZU6coH",
       "fallbackBalances": {
-        "sol": 39.727196998,
-        "yot": 625039217.75,
+        "sol": 40.027196998,
+        "yot": 620333392.92,
         "yos": 0
       }
     },

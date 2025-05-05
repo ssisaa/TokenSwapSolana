@@ -155,7 +155,7 @@ export default function AuthorizeTokens() {
             <p className="text-sm text-muted-foreground">
               The program must be authorized as the mint authority for the YOS token to enable rewards.
               This PDA account (<code>Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ</code>) is derived using
-              the seed "authority" and must be set as the mint authority for YOS (<code>GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n</code>).
+              the seed "authority" and must be set as the mint authority for YOS (<code>2SWCnck3vLAVKaLkAjVtNnsVJVGYmGzyNVnte48SQRop</code>).
             </p>
           </div>
         </div>
