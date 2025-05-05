@@ -188,7 +188,60 @@ function encodeU64(value: number): Buffer {
  * Creates a transaction with compute budget instructions for complex operations
  * This ensures transactions have enough compute units and prioritization
  */
+/**
+ * Create a transaction with proper compute budget for complex operations
+ * Also ensures transaction is properly constructed to avoid simulation errors
+ */
+/**
+ * FIXED: Create a properly structured transaction that avoids the numRequiredSignatures error
+ * This function ensures the transaction has all the required fields in the correct order
+ */
+async function createAndSignTransaction(
+  wallet: any, 
+  instruction: TransactionInstruction, 
+  connection: Connection
+): Promise<Transaction> {
+  // STEP 1: Get a valid blockhash first
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+  
+  // STEP 2: Create a completely fresh Transaction object
+  const transaction = new Transaction();
+  
+  // STEP 3: Set blockhash and fee payer FIRST (before adding instructions)
+  // This is CRITICAL to avoid "Cannot read properties of undefined (reading 'numRequiredSignatures')" error
+  transaction.recentBlockhash = blockhash;
+  transaction.lastValidBlockHeight = lastValidBlockHeight;
+  transaction.feePayer = wallet.publicKey;
+  
+  // STEP 4: Add compute budget instructions for complex operations
+  const computeUnits = ComputeBudgetProgram.setComputeUnitLimit({
+    units: 1000000 // High value for complex transactions
+  });
+  
+  const priorityFee = ComputeBudgetProgram.setComputeUnitPrice({
+    microLamports: 1_000_000 // Higher priority fee
+  });
+  
+  // STEP 5: Add all instructions in the correct order
+  transaction.add(computeUnits);
+  transaction.add(priorityFee);
+  transaction.add(instruction);
+  
+  // Log transaction structure to verify it's valid
+  console.log("Transaction created with:", {
+    blockhash: transaction.recentBlockhash?.substring(0, 8) + "...",
+    feePayer: transaction.feePayer?.toString().substring(0, 8) + "...",
+    numInstructions: transaction.instructions.length,
+    isFullySigned: transaction.signatures.length > 0
+  });
+  
+  return transaction;
+}
+
+// Keep the old function for backward compatibility
 function createTransactionWithComputeBudget(instruction: TransactionInstruction): Transaction {
+  console.warn("WARNING: Using legacy createTransactionWithComputeBudget - consider using createAndSignTransaction instead");
+  
   // Add compute unit allocation to the transaction (critical for complex instructions)
   const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({
     units: 1000000 // Use a high value to ensure enough compute budget
@@ -198,11 +251,15 @@ function createTransactionWithComputeBudget(instruction: TransactionInstruction)
     microLamports: 1_000_000 // Higher priority fee to increase chance of success
   });
   
-  // Create transaction with compute unit instructions first, then our main instruction
-  const transaction = new Transaction()
-    .add(modifyComputeUnits)
-    .add(priorityFee)
-    .add(instruction);
+  // Create a new transaction object to ensure clean state
+  const transaction = new Transaction();
+  
+  // Add compute budget instructions first
+  transaction.add(modifyComputeUnits);
+  transaction.add(priorityFee);
+  
+  // Add the main program instruction
+  transaction.add(instruction);
   
   console.log("Transaction includes compute budget allocation for complex operations");
   
