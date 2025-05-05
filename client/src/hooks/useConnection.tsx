@@ -1,22 +1,34 @@
-import { Connection } from '@solana/web3.js';
-
-// Hardcoded Solana RPC URLs for Devnet that are known to work
-const RELIABLE_RPC_ENDPOINTS = [
-  'https://api.devnet.solana.com',         // Official devnet endpoint
-  'https://rpc-devnet.helius.xyz/?api-key=57335a7c-a2b7-4ee2-a479-4110c9bb3565', // Helius endpoint
-  'https://devnet.genesysgo.net/',         // GenesysGo endpoint
-  'https://devnet.rpcpool.com',            // RPC Pool
-  'https://bold-small-star.solana-devnet.discover.quiknode.pro/dfa93da4a4f44a581f9adb4d5a24ad88806db9fa/', // QuickNode
-  'https://solana-devnet-rpc.publicnode.com', // Public Node
-];
-
-// Create a connection with automatic fallback
-const connection = new Connection(RELIABLE_RPC_ENDPOINTS[0], 'confirmed');
+import { useEffect, useState } from 'react';
+import { Connection, clusterApiUrl } from '@solana/web3.js';
 
 /**
- * Custom hook to get a Solana RPC connection
- * Uses connectionManager under the hood for fallback connections
+ * Custom hook that provides a stable Solana connection
+ * @returns A Solana Connection object connected to devnet
  */
-export function useConnection(): Connection {
-  return connection;
+export default function useConnection(): Connection {
+  // Store the Connection object in state to ensure it's stable
+  const [connection, setConnection] = useState<Connection | null>(null);
+
+  // Initialize the connection on component mount
+  useEffect(() => {
+    // Use devnet for development
+    const endpoint = clusterApiUrl('devnet');
+    
+    // Create a new Connection object with preflight commitment level
+    const conn = new Connection(endpoint, {
+      commitment: 'confirmed',
+      confirmTransactionInitialTimeout: 60000, // 60 seconds
+    });
+    
+    // Store the connection in state
+    setConnection(conn);
+    
+    // Log initialization for debugging
+    console.log('Solana connection initialized to devnet');
+
+    // No cleanup needed - Connection objects don't have disposal methods
+  }, []);
+
+  // Return the Connection object, or a fallback that will be replaced once initialized
+  return connection || new Connection(clusterApiUrl('devnet'), 'confirmed');
 }

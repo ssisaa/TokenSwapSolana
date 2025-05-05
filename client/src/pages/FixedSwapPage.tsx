@@ -9,8 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { useWallet } from "@/hooks/useSolanaWallet";
 import { SOL_SYMBOL, YOT_SYMBOL } from "@/lib/constants";
 import { PublicKey } from "@solana/web3.js";
-import { useConnection } from "@/hooks/useConnection";
-
 // V3 imports
 import MultihubIntegrationV3 from "@/lib/multihub-integration-v3";
 import { TokenInfo, getTokenBySymbol } from "@/lib/token-search-api";
@@ -27,6 +25,8 @@ import { directSwap } from "@/lib/direct-swap";
 import { contractMatch } from "@/lib/contract-match";
 // SIMPLE SWAP - Ultra minimal implementation for SOL-YOT swaps only
 import { simpleSwap } from "@/lib/simple-swap";
+// Custom hook for Solana connection
+import useConnection from "../hooks/useConnection";
 
 // Constants
 const CONTRIBUTION_PERCENT = 20;
