@@ -780,8 +780,8 @@ async function getPoolBalances(): Promise<[number, number, number]> {
       yotBalance = Number(yotAccountInfo.value.uiAmount || 0);
     } catch (e) {
       console.error("Error fetching YOT balance from pool:", e);
-      // Fallback to default values if token account fetch fails
-      yotBalance = 625039217.75; // Use realistic pool balance based on observed Devnet values
+      // Fallback to default values from config if token account fetch fails
+      yotBalance = solanaConfig.pool.fallbackBalances.yot;
     }
     
     try {
@@ -789,18 +789,19 @@ async function getPoolBalances(): Promise<[number, number, number]> {
       yosBalance = Number(yosAccountInfo.value.uiAmount || 0);
     } catch (e) {
       console.error("Error fetching YOS balance from pool:", e);
-      yosBalance = 0; // Default YOS amount in pool
+      yosBalance = solanaConfig.pool.fallbackBalances.yos;
     }
     
     console.log(`Pool balances fetched - SOL: ${solBalanceNormalized}, YOT: ${yotBalance}, YOS: ${yosBalance}`);
     return [solBalanceNormalized, yotBalance, yosBalance];
   } catch (error) {
     console.error("Error fetching pool balances:", error);
-    // Return fallback values if blockchain query fails completely
-    const fallbackSol = 39.727196998;
-    const fallbackYot = 625039217.75;
-    console.log(`Using fallback pool balances - SOL: ${fallbackSol}, YOT: ${fallbackYot}, YOS: 0`);
-    return [fallbackSol, fallbackYot, 0]; // Use realistic fallback values that match observed Devnet state
+    // Return fallback values from config if blockchain query fails completely
+    const fallbackSol = solanaConfig.pool.fallbackBalances.sol;
+    const fallbackYot = solanaConfig.pool.fallbackBalances.yot;
+    const fallbackYos = solanaConfig.pool.fallbackBalances.yos;
+    console.log(`Using fallback pool balances - SOL: ${fallbackSol}, YOT: ${fallbackYot}, YOS: ${fallbackYos}`);
+    return [fallbackSol, fallbackYot, fallbackYos]; // Use values from centralized config
   }
 }
 
@@ -1011,9 +1012,9 @@ export async function getMultiHubSwapStats() {
       admin: admin.toString(),
       yotMint: yotMint.toString(),
       yosMint: yosMint.toString(),
-      totalLiquidityContributed: 25000, // This would normally come from summing all contribution accounts
-      totalContributors: 12,            // This would come from counting all contribution accounts
-      totalYosRewarded: 1250,           // This would come from on-chain data
+      totalLiquidityContributed: solanaConfig.multiHubSwap.stats.totalLiquidityContributed, // From config 
+      totalContributors: solanaConfig.multiHubSwap.stats.totalContributors,            // From config
+      totalYosRewarded: solanaConfig.multiHubSwap.stats.totalYosRewarded,             // From config
       
       // Rates are stored in basis points (1bp = 0.01%)
       // We convert them to percentages for the UI
@@ -1043,27 +1044,27 @@ export async function getMultiHubSwapStats() {
   } catch (error) {
     console.error("Error getting multi-hub swap stats:", error);
     
-    // Fallback to default values if we can't read the program state
+    // Fallback to default values from config if we can't read the program state
     return {
-      totalLiquidityContributed: 25000,
-      totalContributors: 12,
-      totalYosRewarded: 1250,
-      lpContributionRate: 20,
-      adminFeeRate: 0.1,
-      yosCashbackRate: 5,
-      swapFeeRate: 0.3,
-      referralRate: 0.5,
-      weeklyRewardRate: 1.92,
-      yearlyAPR: 100,
+      totalLiquidityContributed: solanaConfig.multiHubSwap.stats.totalLiquidityContributed,
+      totalContributors: solanaConfig.multiHubSwap.stats.totalContributors,
+      totalYosRewarded: solanaConfig.multiHubSwap.stats.totalYosRewarded,
+      lpContributionRate: solanaConfig.multiHubSwap.rates.lpContributionRate / 100,
+      adminFeeRate: solanaConfig.multiHubSwap.rates.adminFeeRate / 100,
+      yosCashbackRate: solanaConfig.multiHubSwap.rates.yosCashbackRate / 100,
+      swapFeeRate: solanaConfig.multiHubSwap.rates.swapFeeRate / 100,
+      referralRate: solanaConfig.multiHubSwap.rates.referralRate / 100,
+      weeklyRewardRate: solanaConfig.multiHubSwap.rates.weeklyRewardRate,
+      yearlyAPR: solanaConfig.multiHubSwap.rates.yearlyAPR,
       buyDistribution: {
-        userPercent: 75,
-        liquidityPercent: 20,
-        cashbackPercent: 5
+        userPercent: DEFAULT_DISTRIBUTION_RATES.userDistribution,
+        liquidityPercent: DEFAULT_DISTRIBUTION_RATES.lpContribution,
+        cashbackPercent: DEFAULT_DISTRIBUTION_RATES.yosCashback
       },
       sellDistribution: {
-        userPercent: 75,
-        liquidityPercent: 20,
-        cashbackPercent: 5
+        userPercent: DEFAULT_DISTRIBUTION_RATES.userDistribution,
+        liquidityPercent: DEFAULT_DISTRIBUTION_RATES.lpContribution,
+        cashbackPercent: DEFAULT_DISTRIBUTION_RATES.yosCashback
       }
     };
   }

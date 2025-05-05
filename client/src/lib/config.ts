@@ -39,6 +39,11 @@ export interface SolanaConfig {
   pool: {
     authority: string;
     solAccount: string;
+    fallbackBalances: {
+      sol: number;
+      yot: number;
+      yos: number;
+    };
   };
   multiHubSwap: {
     programId: string;
@@ -50,6 +55,8 @@ export interface SolanaConfig {
       yosCashbackRate: number;
       swapFeeRate: number;
       referralRate: number;
+      weeklyRewardRate: number;
+      yearlyAPR: number;
     };
     amm: {
       raydium: {
@@ -65,6 +72,11 @@ export interface SolanaConfig {
       weeklyRewardRate: number;
       yearlyAPR: number;
       claimPeriodDays: number;
+    };
+    stats: {
+      totalLiquidityContributed: number;
+      totalContributors: number;
+      totalYosRewarded: number;
     };
   };
 }
