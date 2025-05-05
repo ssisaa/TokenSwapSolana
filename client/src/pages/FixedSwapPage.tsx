@@ -21,6 +21,8 @@ import { trackSwapTransaction } from "@/lib/multihub-recovery";
 
 // FINAL ATTEMPT - Using 100% hardcoded values with no dependencies
 import { finalAttempt } from "@/lib/final-attempt";
+// DIRECT SWAP - Minimal implementation without account duplication
+import { directSwap } from "@/lib/direct-swap";
 
 // Constants
 const CONTRIBUTION_PERCENT = 20;
@@ -333,39 +335,62 @@ export default function FixedSwapPage() {
         try {
           if (fromToken === SOL_SYMBOL && toToken === YOT_SYMBOL) {
             // Swapping SOL to YOT
-            console.log("Executing SOL to YOT swap with FINAL ATTEMPT IMPLEMENTATION");
+            console.log("Executing SOL to YOT swap with DIRECT SWAP IMPLEMENTATION");
             
-            // Using our final attempt implementation with completely hardcoded values
-            signature = await finalAttempt(
+            // Using our direct swap implementation with account deduplication
+            signature = await directSwap(
               connection,
               wallet,
               true, // isSOLToYOT = true
-              rawFromAmount  // Amount in
+              fromAmount  // Amount in UI format
             );
             
-            console.log("SOL to YOT swap completed successfully with FINAL ATTEMPT method:", signature);
+            console.log("SOL to YOT swap completed successfully with DIRECT SWAP method:", signature);
           } else {
             // Swapping YOT to SOL
-            console.log("Executing YOT to SOL swap with FINAL ATTEMPT IMPLEMENTATION");
+            console.log("Executing YOT to SOL swap with DIRECT SWAP IMPLEMENTATION");
             
-            // Using our final attempt implementation with completely hardcoded values
-            signature = await finalAttempt(
+            // Using our direct swap implementation with account deduplication
+            signature = await directSwap(
               connection,
               wallet,
               false, // isSOLToYOT = false
-              rawFromAmount  // Amount in
+              fromAmount  // Amount in UI format
             );
             
-            console.log("YOT to SOL swap completed successfully with FINAL ATTEMPT method:", signature);
+            console.log("YOT to SOL swap completed successfully with DIRECT SWAP method:", signature);
           }
-        } catch (error) {
-          console.error("FINAL ATTEMPT also failed:", error);
+        } catch (directSwapError) {
+          console.error("DIRECT SWAP failed:", directSwapError);
+          console.log("Falling back to FINAL ATTEMPT method...");
           
-          // Show more detailed error information
-          console.error("Detailed error from final attempt:", JSON.stringify(error, null, 2));
-          
-          // Pass the error up for the user to see
-          throw error;
+          // Fall back to the original finalAttempt if directSwap fails
+          try {
+            if (fromToken === SOL_SYMBOL && toToken === YOT_SYMBOL) {
+              signature = await finalAttempt(
+                connection,
+                wallet,
+                true, // isSOLToYOT = true
+                rawFromAmount // Amount in raw format
+              );
+            } else {
+              signature = await finalAttempt(
+                connection,
+                wallet,
+                false, // isSOLToYOT = false
+                rawFromAmount // Amount in raw format
+              );
+            }
+            console.log("Fallback to FINAL ATTEMPT succeeded:", signature);
+          } catch (finalAttemptError) {
+            console.error("FINAL ATTEMPT also failed:", finalAttemptError);
+            
+            // Show more detailed error information
+            console.error("Detailed error from final attempt:", JSON.stringify(finalAttemptError, null, 2));
+            
+            // Pass the error up for the user to see
+            throw finalAttemptError;
+          }
         }
         
         setTransactionSignature(signature);
