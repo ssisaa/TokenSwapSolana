@@ -1,216 +1,199 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
-import { Connection, Cluster } from '@solana/web3.js';
-// Buffer is available in the browser through vite-plugin-node-polyfills
-import { Buffer } from 'buffer';
+/**
+ * Central configuration system for the application
+ * All configuration values are read from app.config.json
+ */
+import appConfig from '../../../app.config.json';
 
-// Admin configuration section (imported in other files)
-export const adminConfig = {
-  isProduction: false,
-  logLevel: 'debug',
-  debugMode: true,
-  adminWallets: [
-    'CeuRAzZ58St8B29XKWo647CGtY7FL5qpwv8WGZUHAuA9', // Current YOS mint authority
-  ],
-};
-
-// Solana configuration section (imported in other files)
-export const solanaConfig = {
-  network: 'devnet' as Cluster,
-  rpcUrl: 'https://api.devnet.solana.com',
-  programId: 'SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE',
+// Type definitions for the config
+export interface SolanaConfig {
+  network: string;
+  rpcUrl: string;
+  programId: string;
+  commitment: string;
+  explorerUrl?: string; // Make optional since it might not be in the config
+  confirmationCount?: number; // Make optional since it might not be in the config
   tokens: {
     sol: {
-      symbol: 'SOL',
-      decimals: 9,
-    },
+      address: string;
+      decimals: number;
+      name: string;
+      symbol: string;
+    };
     yot: {
-      symbol: 'YOT',
-      address: '9KxQHJcBxp29AjGTAqF3LCFzodSpkuv986wsSEwQi6Cw',
-      account: 'EieVwYpDMdKr94iQygkyCeEBMhRWA4XsXyGumXztza74',
-      decimals: 9,
-    },
+      address: string;
+      decimals: number;
+      name: string;
+      symbol: string;
+      account: string;
+    };
     yos: {
-      symbol: 'YOS',
-      address: '2SWCnck3vLAVKaLkAjVtNnsVJVGYmGzyNVnte48SQRop',
-      account: '7GnphdpgcV5Z8swNAFB8QkMdo43TPHa4SmdtUw1ApMxz',
-      decimals: 9,
-    }
-  },
+      address: string;
+      decimals: number;
+      name: string;
+      symbol: string;
+      account: string;
+      programAccount: string;
+      displayAdjustment: number;
+    };
+  };
   pool: {
-    authority: 'CeuRAzZ58St8B29XKWo647CGtY7FL5qpwv8WGZUHAuA9',
-    solAccount: 'Bf78XttEfzR4iM3JCWfwgSCpd5MHePTMD2UKBEZU6coH',
-  },
+    authority: string;
+    solAccount: string;
+    fallbackBalances: {
+      sol: number;
+      yot: number;
+      yos: number;
+    };
+  };
   multiHubSwap: {
-    admin: 'CeuRAzZ58St8B29XKWo647CGtY7FL5qpwv8WGZUHAuA9',
+    programId: string;
+    programState: string;
+    admin: string;
     rates: {
-      adminFeeRate: 0,
-      swapFeeRate: 1,
-      liquidityContributionRate: 20,
-      cashbackRate: 5,
-    }
-  }
-};
+      lpContributionRate: number;
+      adminFeeRate: number;
+      yosCashbackRate: number;
+      swapFeeRate: number;
+      referralRate: number;
+      weeklyRewardRate: number;
+      yearlyAPR: number;
+    };
+    amm: {
+      raydium: {
+        routerAddress: string;
+        usdc: string;
+      };
+      jupiter: {
+        enabled: boolean;
+        priorityFee: number;
+      };
+    };
+    rewards: {
+      weeklyRewardRate: number;
+      yearlyAPR: number;
+      claimPeriodDays: number;
+    };
+    stats: {
+      totalLiquidityContributed: number;
+      totalContributors: number;
+      totalYosRewarded: number;
+    };
+  };
+}
 
-// UI configuration section (imported in other files)
-export const uiConfig = {
-  theme: 'dark',
-  yosDisplayNormalizationFactor: 9260,
-  animations: true,
-  refreshInterval: 60000,
-};
+export interface AdminConfig {
+  defaultUsername: string;
+  maxLiquidityContribution: number;
+  defaultLiquidityFee: number;
+  stakingRatePerSecond: number;
+  harvestThreshold: number;
+  programScalingFactor: number;
+}
 
-// Feature flags (imported in other files)
-export const featureConfig = {
-  enableSwap: true,
-  enableStaking: true,
-  enableLiquidity: true,
-  showDevTools: false,
-};
+export interface UIConfig {
+  theme: string;
+  defaultDecimalPlaces: number;
+  refreshRateMs: number;
+}
 
-// Export token addresses separately for easier access
+export interface FeatureConfig {
+  enableSwap: boolean;
+  enableStaking: boolean;
+  enableLiquidity: boolean;
+  enableAdminPanel: boolean;
+  enableAnalytics: boolean;
+}
+
+// Export config sections with type assertions to match expected interfaces
+export const solanaConfig: SolanaConfig = appConfig.solana as SolanaConfig;
+// Add programScalingFactor with proper type handling
+export const adminConfig: AdminConfig = {
+  ...appConfig.admin,
+  programScalingFactor: (appConfig.admin as any).programScalingFactor || 9260, // Default to 9260 if missing
+};
+export const uiConfig: UIConfig = appConfig.ui;
+export const featureConfig: FeatureConfig = appConfig.features;
+
+// Common token addresses
 export const SOL_TOKEN_ADDRESS = "So11111111111111111111111111111111111111112";
 export const YOT_TOKEN_ADDRESS = solanaConfig.tokens.yot.address;
 export const YOS_TOKEN_ADDRESS = solanaConfig.tokens.yos.address;
+export const USDC_DEVNET_ADDRESS = solanaConfig.multiHubSwap.amm.raydium.usdc;
 
-// Multi-Hub Swap program constants
-export const MULTI_HUB_SWAP_PROGRAM_ID = solanaConfig.programId;
-export const MULTI_HUB_SWAP_STATE = "2sR6kFJfCa7oG9hrMWxeTK6ESir7PNZe4vky2JDiNrKC";
+// Multi-Hub Swap Program IDs and constants
+export const MULTI_HUB_SWAP_PROGRAM_ID = solanaConfig.multiHubSwap.programId;
+export const MULTI_HUB_SWAP_STATE = solanaConfig.multiHubSwap.programState;
 export const MULTI_HUB_SWAP_ADMIN = solanaConfig.multiHubSwap.admin;
+export const ADMIN_WALLET_ADDRESS = solanaConfig.multiHubSwap.admin;
+// Program authority PDA - hardcoded to match the deployed program's expected authority
 export const MULTI_HUB_SWAP_PROGRAM_AUTHORITY = "Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ";
 
-// RPC URL
-export const SOLANA_RPC_URL = solanaConfig.rpcUrl;
+// Pool information
+export const SOL_YOT_POOL_INFO = {
+  poolAuthority: solanaConfig.pool.authority,
+  solAccount: solanaConfig.pool.solAccount,
+};
 
-// Instruction discriminators for multi-hub swap program - as Uint8Array
-export const BUY_AND_DISTRIBUTE_DISCRIMINATOR = new Uint8Array([105, 37, 101, 197, 75, 251, 102, 170]);
-export const CLAIM_REWARD_DISCRIMINATOR = new Uint8Array([52, 93, 120, 41, 170, 136, 40, 241]);
-export const WITHDRAW_CONTRIBUTION_DISCRIMINATOR = new Uint8Array([183, 18, 70, 156, 148, 109, 161, 34]);
-export const UPDATE_PARAMETERS_DISCRIMINATOR = new Uint8Array([223, 55, 84, 227, 175, 86, 250, 152]);
-
-// Default rates and fees
+// Distribution rates (converted from basis points to percentages)
 export const DEFAULT_DISTRIBUTION_RATES = {
-  liquidityContributionRate: solanaConfig.multiHubSwap.rates.liquidityContributionRate / 100,
-  cashbackRate: solanaConfig.multiHubSwap.rates.cashbackRate / 100
+  userDistribution: 100 - (solanaConfig.multiHubSwap.rates.lpContributionRate / 100) - (solanaConfig.multiHubSwap.rates.yosCashbackRate / 100), 
+  lpContribution: solanaConfig.multiHubSwap.rates.lpContributionRate / 100,   
+  yosCashback: solanaConfig.multiHubSwap.rates.yosCashbackRate / 100,       
 };
 
+// Fee rates (converted from basis points to percentages)
 export const DEFAULT_FEE_RATES = {
-  adminFeeRate: solanaConfig.multiHubSwap.rates.adminFeeRate / 100,
-  swapFeeRate: solanaConfig.multiHubSwap.rates.swapFeeRate / 100,
-  referralRate: 0
+  swapFee: solanaConfig.multiHubSwap.rates.swapFeeRate / 100,
+  adminFee: solanaConfig.multiHubSwap.rates.adminFeeRate / 100,
+  referralFee: solanaConfig.multiHubSwap.rates.referralRate / 100,
 };
 
-export const DEFAULT_EXCHANGE_RATES = {
-  solToYot: 0.000007,  // 1 SOL = ~142,857 YOT
-  yotToSol: 142857.0   // 1 YOT = ~0.000007 SOL
-};
+// APR settings
+export const YOS_ANNUAL_APR = solanaConfig.multiHubSwap.rewards.yearlyAPR;
+export const WEEKLY_REWARD_RATE = solanaConfig.multiHubSwap.rewards.weeklyRewardRate;
+export const SECONDS_PER_WEEK = 604800; // 7 days in seconds
+
+// RPC configuration
+export const SOLANA_RPC_URL = solanaConfig.rpcUrl;
 
 // Formatted rates for display
 export const FORMATTED_RATES = {
-  liquidityContribution: `${solanaConfig.multiHubSwap.rates.liquidityContributionRate}%`,
-  cashback: `${solanaConfig.multiHubSwap.rates.cashbackRate}%`,
-  adminFee: `${solanaConfig.multiHubSwap.rates.adminFeeRate}%`,
-  swapFee: `${solanaConfig.multiHubSwap.rates.swapFeeRate}%`,
-  referral: "0%"
+  distributionRates: {
+    userReceives: `${DEFAULT_DISTRIBUTION_RATES.userDistribution}%`,
+    liquidityPool: `${DEFAULT_DISTRIBUTION_RATES.lpContribution}%`,
+    yosCashback: `${DEFAULT_DISTRIBUTION_RATES.yosCashback}%`,
+  },
+  rewards: {
+    annualAPR: `${YOS_ANNUAL_APR}%`,
+    weeklyRate: `${WEEKLY_REWARD_RATE}%`,
+  },
+  fees: {
+    swapFee: `${DEFAULT_FEE_RATES.swapFee}%`,
+    adminFee: `${DEFAULT_FEE_RATES.adminFee}%`,
+    referralFee: `${DEFAULT_FEE_RATES.referralFee}%`,
+  },
 };
 
-// USDC token address on devnet
-export const USDC_DEVNET_ADDRESS = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
-
-// Raydium router configuration
+// AMM Router configurations
 export const RAYDIUM_ROUTER_CONFIG = {
-  programId: "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
-  ammProgram: "5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1",
-  ammAuthority: "5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1",
-  tokenProgramId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+  routerAddress: solanaConfig.multiHubSwap.amm.raydium.routerAddress,
 };
 
-// SOL/YOT pool information
-export const SOL_YOT_POOL_INFO = {
-  authority: solanaConfig.pool.authority,
-  solAccount: solanaConfig.pool.solAccount
+// Enable/disable debug mode
+export const DEBUG_MODE = process.env.NODE_ENV !== 'production';
+
+// Instruction discriminators for the multi-hub swap program
+// These are single-byte discriminators that match the Rust program's instruction enum
+// CRITICAL: These must exactly match the values in the Rust program's multi_hub_swap.rs file!
+export const BUY_AND_DISTRIBUTE_DISCRIMINATOR = Buffer.from([4]); // Match with BUY_AND_DISTRIBUTE_IX = 4 
+export const CLAIM_REWARD_DISCRIMINATOR = Buffer.from([5]);      // Match with CLAIM_WEEKLY_REWARD_IX = 5
+export const WITHDRAW_CONTRIBUTION_DISCRIMINATOR = Buffer.from([6]); // Match with WITHDRAW_CONTRIBUTION_IX = 6
+export const UPDATE_PARAMETERS_DISCRIMINATOR = Buffer.from([3]); // Match with UPDATE_PARAMETERS_IX = 3
+
+// Default exchange rate fallbacks (only used if AMM data unavailable)
+export const DEFAULT_EXCHANGE_RATES = {
+  SOL_YOT: 15650,     // 1 SOL = 15,650 YOT
+  YOT_SOL: 0.000064,  // 1 YOT = 0.000064 SOL
+  USDC_YOT: 105.5,    // 1 USDC = 105.5 YOT
+  YOT_USDC: 0.0095,   // 1 YOT = 0.0095 USDC
 };
-
-// Default configuration
-const defaultConfig = {
-  // RPC endpoint for Solana
-  rpcEndpoint: "https://api.devnet.solana.com",
-  
-  // Program ID for multi-hub swap
-  programId: "SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE",
-  
-  // Token mints
-  yotMint: "9KxQHJcBxp29AjGTAqF3LCFzodSpkuv986wsSEwQi6Cw",
-  yosMint: "2SWCnck3vLAVKaLkAjVtNnsVJVGYmGzyNVnte48SQRop",
-  
-  // Protocol parameters
-  liquidityContributionRate: 0.2, // 20%
-  adminFeeRate: 0,                // 0%
-  cashbackRate: 0.05,             // 5%
-  swapFeeRate: 0.01,              // 1%
-  referralRate: 0,                // 0%
-  
-  // Display settings
-  yosDisplayNormalizationFactor: 9260,
-};
-
-// Keep a local copy of the config that can be modified
-let config = { ...defaultConfig };
-
-// Function to get the current config
-export function getConfig() {
-  return config;
-}
-
-// Function to update the config locally
-export function updateLocalConfig(newConfig: Partial<typeof config>) {
-  config = { ...config, ...newConfig };
-  return config;
-}
-
-// Hook to update the config on the server
-export function useUpdateConfig() {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-  
-  const updateMutation = useMutation({
-    mutationFn: async (newConfig: Partial<typeof config>) => {
-      // Update local config immediately
-      updateLocalConfig(newConfig);
-      
-      // Send the update to the server
-      const response = await fetch('/api/admin/settings', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newConfig),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update settings');
-      }
-      
-      return await response.json();
-    },
-    onSuccess: () => {
-      // Invalidate queries that might use this config
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/settings'] });
-      
-      toast({
-        title: "Settings Updated",
-        description: "Configuration has been updated successfully",
-        variant: "default",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Update Failed",
-        description: error.message || "Failed to update settings",
-        variant: "destructive",
-      });
-    },
-  });
-  
-  return updateMutation.mutate;
-}

@@ -187,59 +187,6 @@ export default function AuthorizeTokens() {
             </AlertDescription>
           </Alert>
         )}
-        
-        <Alert className="mb-4 border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300">
-          <InfoIcon className="h-4 w-4" />
-          <AlertTitle>Important Permission Information</AlertTitle>
-          <AlertDescription className="space-y-2">
-            <p>
-              To set the program as the mint authority, you must connect the wallet with address <code className="font-mono">CeuRAzZ58St8B29XKWo647CGtY7FL5qpwv8WGZUHAuA9</code>.
-            </p>
-            <p>
-              If you don't have access to this wallet, you have two options:
-            </p>
-            <ol className="list-decimal ml-4 space-y-1">
-              <li>Contact the owner of the wallet with the mint authority and ask them to perform this action.</li>
-              <li>Use a specialized command-line script (see below) to perform this action with the mint authority wallet.</li>
-              <li>Create a new YOS token with your own wallet as the mint authority, and update the program configuration to use the new token.</li>
-            </ol>
-            
-            <div className="mt-2 border-t border-blue-100 dark:border-blue-800 pt-2">
-              <p className="text-sm font-medium">Example command-line script for wallet owner:</p>
-              <pre className="bg-gray-800 text-white p-2 rounded text-xs mt-1 overflow-auto">
-                <code>{`
-# Using ts-node and @solana/spl-token
-import { TOKEN_PROGRAM_ID, createSetAuthorityInstruction, AuthorityType } from '@solana/spl-token';
-import { Connection, PublicKey, Keypair, Transaction } from '@solana/web3.js';
-
-// Setup
-const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
-const yosMint = new PublicKey('2SWCnck3vLAVKaLkAjVtNnsVJVGYmGzyNVnte48SQRop');
-const programId = new PublicKey('SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE');
-const [programAuthority] = PublicKey.findProgramAddressSync([Buffer.from("authority")], programId);
-
-// Load mint authority keypair (from a file containing the private key)
-const mintAuthority = Keypair.fromSecretKey(/* private key buffer */);
-
-// Create instruction
-const instruction = createSetAuthorityInstruction(
-  yosMint,
-  mintAuthority.publicKey,
-  AuthorityType.MintTokens,
-  programAuthority,
-  [],
-  TOKEN_PROGRAM_ID
-);
-
-// Send and confirm transaction
-const transaction = new Transaction().add(instruction);
-const signature = await connection.sendTransaction(transaction, [mintAuthority]);
-console.log('Transaction signature:', signature);
-`}</code>
-              </pre>
-            </div>
-          </AlertDescription>
-        </Alert>
 
         <div className="space-y-4">
           <div className="flex gap-2 items-start">
@@ -265,7 +212,7 @@ console.log('Transaction signature:', signature);
           
           <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded text-xs font-mono space-y-1.5">
             <div>YOS Token Mint: <span className="text-blue-600 dark:text-blue-400">2SWCnck3vLAVKaLkAjVtNnsVJVGYmGzyNVnte48SQRop</span></div>
-            <div>YOS Token Main Account (holds all tokens): <span className="text-blue-600 dark:text-blue-400">7GnphdpgcV5Z8swNAFB8QkMdo43TPHa4SmdtUw1ApMxz</span></div>
+            <div>YOS Token Account: <span className="text-blue-600 dark:text-blue-400">7GnphdpgcV5Z8swNAFB8QkMdo43TPHa4SmdtUw1ApMxz</span></div>
             <div>Program ID: <span className="text-blue-600 dark:text-blue-400">SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE</span></div>
             <div>Program Authority PDA: <span className="text-green-600 dark:text-green-400">Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ</span></div>
             <div className="flex items-center gap-2">
