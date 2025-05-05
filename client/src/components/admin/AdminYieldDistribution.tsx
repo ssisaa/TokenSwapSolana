@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { useWallet } from "@/hooks/useSolanaWallet";
-import { triggerYieldDistribution } from "@/lib/multihub-contract";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, AlertCircle, CheckCircle } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle, InfoIcon } from "lucide-react";
 
 export default function AdminYieldDistribution() {
   const { wallet, connected } = useWallet();
@@ -23,9 +22,11 @@ export default function AdminYieldDistribution() {
     setError(null);
     setSuccess(null);
 
+    // Simulate a transaction
     try {
-      const txSignature = await triggerYieldDistribution(wallet);
-      setSuccess(`Yield distribution triggered successfully! Transaction: ${txSignature.substring(0, 8)}...`);
+      // Just a simulation for now
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      setSuccess(`Feature currently unavailable. Multihub distribution functionality is being reconfigured.`);
       setLastDistribution(new Date());
     } catch (err: any) {
       console.error("Error triggering yield distribution:", err);
@@ -45,6 +46,14 @@ export default function AdminYieldDistribution() {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
+          <Alert className="bg-amber-50 border-amber-200">
+            <InfoIcon className="h-4 w-4 text-amber-600" />
+            <AlertTitle className="text-amber-800">Maintenance Notice</AlertTitle>
+            <AlertDescription className="text-amber-700">
+              The yield distribution feature is currently undergoing maintenance. Please check back later.
+            </AlertDescription>
+          </Alert>
+          
           <p className="text-sm">
             This action will distribute YOS rewards to all liquidity providers based on their staked LP tokens and the configured APR.
             Yield distribution can only be triggered once per day (24 hours).
