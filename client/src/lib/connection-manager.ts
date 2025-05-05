@@ -20,7 +20,7 @@ class ConnectionManager {
   private lastSuccessfulCommitmentIndex = 0;
   
   // Define getTokenBalance method in the class interface
-  getTokenBalance: (tokenAccount: PublicKey) => Promise<bigint>;
+  getTokenBalance!: (tokenAccount: PublicKey) => Promise<bigint>;
 
   constructor() {
     // Initialize connections for all endpoints

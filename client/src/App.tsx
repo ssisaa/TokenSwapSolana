@@ -246,19 +246,28 @@ function Router() {
 }
 
 function AutoConnectWallet() {
-  const { connect, connecting, connected } = useMultiWallet();
+  const { connect, connecting, connected, wallets } = useMultiWallet();
   
   useEffect(() => {
     console.log("Auto-connect effect running");
     
     if (!connected && !connecting) {
-      // Try to auto-connect to the demo wallet for testing
-      console.log("Attempting to auto-connect to Demo Wallet");
-      connect("Demo Wallet").catch((err: Error) => {
-        console.error("Auto-connect error:", err);
-      });
+      // Check for available wallets first
+      const availableWallets = wallets.filter(w => w.installed);
+      
+      if (availableWallets.length > 0) {
+        // Prefer Phantom wallet if installed, otherwise use the first available wallet
+        const preferredWallet = availableWallets.find(w => w.name === "Phantom") || availableWallets[0];
+        console.log(`Attempting to auto-connect to ${preferredWallet.name}`);
+        
+        connect(preferredWallet.name).catch((err: Error) => {
+          console.log(`Auto-connect to ${preferredWallet.name} failed:`, err.message);
+        });
+      } else {
+        console.log("No wallets detected for auto-connect. Please install Phantom or another Solana wallet.");
+      }
     }
-  }, [connect, connecting, connected]);
+  }, [connect, connecting, connected, wallets]);
   
   return null;
 }

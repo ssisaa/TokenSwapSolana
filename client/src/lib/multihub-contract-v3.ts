@@ -32,7 +32,14 @@ import { connectionManager } from './connection-manager';
 import { validateTokenAccount as validateSplTokenAccount } from './validateTokenAccount';
 
 // Program ID for the multihub swap V3/V4 contract from central config
-export const MULTIHUB_SWAP_PROGRAM_ID = config.programs.multiHub.v4;
+// CRITICAL FIX: Make sure the program ID exists and is a valid string
+const DEFAULT_PROGRAM_ID = "SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE"; // fallback if config is not loaded
+export const MULTIHUB_SWAP_PROGRAM_ID = config.programs.multiHub.v4 || DEFAULT_PROGRAM_ID;
+
+// Validate the program ID early to prevent "undefined program id" errors
+if (!MULTIHUB_SWAP_PROGRAM_ID || typeof MULTIHUB_SWAP_PROGRAM_ID !== 'string' || MULTIHUB_SWAP_PROGRAM_ID.length < 32) {
+  console.error("Invalid or missing program ID in configuration! Using fallback.");
+}
 
 // Define essential Solana system addresses (used throughout the module)
 // Use imported constants from @solana/spl-token to ensure consistency
