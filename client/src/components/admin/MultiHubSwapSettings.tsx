@@ -35,10 +35,12 @@ import {
   getMultiHubSwapStats, 
   updateMultiHubSwapParameters,
   initializeMultiHubSwap,
-  MULTI_HUB_SWAP_PROGRAM_ID,
+  MULTI_HUB_SWAP_PROGRAM_ID
+} from "@/lib/multi-hub-swap-contract";
+import {
   YOT_TOKEN_ADDRESS,
   YOS_TOKEN_ADDRESS
-} from "@/lib/multi-hub-swap-contract";
+} from "@/lib/multi-hub-config";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface MultiHubSwapSettingsProps {
@@ -95,8 +97,8 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
       // Call the initialization function with YOT and YOS token addresses
       await initializeMultiHubSwap(
         wallet,
-        new PublicKey("2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF"), // YOT token address
-        new PublicKey("GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n"), // YOS token address
+        new PublicKey(YOT_TOKEN_ADDRESS), // YOT token address
+        new PublicKey(YOS_TOKEN_ADDRESS), // YOS token address
         lpContributionRate,
         adminFeeRate,
         yosCashbackRate,
