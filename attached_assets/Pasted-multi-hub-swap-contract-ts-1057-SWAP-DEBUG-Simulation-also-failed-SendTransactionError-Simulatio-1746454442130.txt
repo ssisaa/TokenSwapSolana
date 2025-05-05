@@ -1,0 +1,38 @@
+multi-hub-swap-contract.ts:1057 [SWAP_DEBUG] Simulation also failed: SendTransactionError: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 2: invalid instruction data. 
+Logs: 
+[
+  "Program ComputeBudget111111111111111111111111111111 success",
+  "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+  "Program ComputeBudget111111111111111111111111111111 success",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE invoke [1]",
+  "Program log: 📥 Received instruction_data: [4, 0, 194, 235, 11, 0, 0, 0, 0]",
+  "Program log: 📌 Discriminator byte received: 4",
+  "Program log: Matched: BUY_AND_DISTRIBUTE_IX ✅",
+  "Program log: Unknown instruction discriminator",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE consumed 5524 of 999700 compute units",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE failed: invalid instruction data"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at async buyAndDistribute (multi-hub-swap-contract.ts:423:23)
+    at async executeSwap (multi-hub-swap-contract.ts:1012:25)
+    at async performSwap (MultiHubSwapCard.tsx:293:22)
+MultiHubSwapCard.tsx:359 Swap error: SendTransactionError: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 2: invalid instruction data. 
+Logs: 
+[
+  "Program ComputeBudget111111111111111111111111111111 success",
+  "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+  "Program ComputeBudget111111111111111111111111111111 success",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE invoke [1]",
+  "Program log: 📥 Received instruction_data: [4, 0, 194, 235, 11, 0, 0, 0, 0]",
+  "Program log: 📌 Discriminator byte received: 4",
+  "Program log: Matched: BUY_AND_DISTRIBUTE_IX ✅",
+  "Program log: Unknown instruction discriminator",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE consumed 5524 of 999700 compute units",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE failed: invalid instruction data"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at async buyAndDistribute (multi-hub-swap-contract.ts:423:23)
+    at async executeSwap (multi-hub-swap-contract.ts:1012:25)
+    at async performSwap (MultiHubSwapCard.tsx:293:22)
