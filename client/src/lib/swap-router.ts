@@ -29,7 +29,7 @@ export async function getExchangeRate(fromToken: string, toToken: string): Promi
 }
 
 /**
- * Calculates the expected output amount based on input and current exchange rate
+ * Calculates the expected output amount based on input and current exchange rate from blockchain
  */
 export async function getExpectedOutput(
   fromTokenAddress: string,
@@ -37,18 +37,52 @@ export async function getExpectedOutput(
   inputAmount: number,
   slippageTolerance: number = 1.0
 ): Promise<{ outputAmount: number, minOutputAmount: number, exchangeRate: number }> {
-  const exchangeRate = await getExchangeRate(fromTokenAddress, toTokenAddress);
-  const outputAmount = inputAmount * exchangeRate;
+  // Import the canonical getExchangeRate from solana.ts
+  const { getExchangeRate: getSolanaExchangeRate } = await import('./solana');
   
-  // Calculate minimum output amount based on slippage tolerance
-  const slippageFactor = (100 - slippageTolerance) / 100;
-  const minOutputAmount = outputAmount * slippageFactor;
-  
-  return {
-    outputAmount,
-    minOutputAmount,
-    exchangeRate
-  };
+  try {
+    // Normalize addresses to ensure case-insensitive comparison
+    const fromTokenLower = fromTokenAddress.toString().toLowerCase();
+    const toTokenLower = toTokenAddress.toString().toLowerCase();
+    const solTokenLower = SOL_TOKEN_ADDRESS.toString().toLowerCase();
+    const yotTokenLower = YOT_TOKEN_ADDRESS.toString().toLowerCase();
+    
+    let exchangeRate: number;
+    
+    // Get blockchain-based exchange rate
+    if (fromTokenLower === solTokenLower && toTokenLower === yotTokenLower) {
+      // SOL to YOT swap
+      const rates = await getSolanaExchangeRate();
+      if (!rates || !rates.solToYot) {
+        throw new Error("Failed to fetch SOL-YOT exchange rate from blockchain");
+      }
+      exchangeRate = rates.solToYot;
+    } else if (fromTokenLower === yotTokenLower && toTokenLower === solTokenLower) {
+      // YOT to SOL swap
+      const rates = await getSolanaExchangeRate();
+      if (!rates || !rates.yotToSol) {
+        throw new Error("Failed to fetch YOT-SOL exchange rate from blockchain");
+      }
+      exchangeRate = rates.yotToSol;
+    } else {
+      throw new Error(`Swap pair not supported: ${fromTokenAddress} to ${toTokenAddress}`);
+    }
+    
+    const outputAmount = inputAmount * exchangeRate;
+    
+    // Calculate minimum output amount based on slippage tolerance
+    const slippageFactor = (100 - slippageTolerance) / 100;
+    const minOutputAmount = outputAmount * slippageFactor;
+    
+    return {
+      outputAmount,
+      minOutputAmount,
+      exchangeRate
+    };
+  } catch (error: any) {
+    console.error("Error calculating expected output:", error);
+    throw new Error(`Failed to calculate expected swap output: ${error.message}`);
+  }
 }
 
 /**

@@ -34,7 +34,6 @@ import {
   SOLANA_RPC_URL,
   DEFAULT_DISTRIBUTION_RATES,
   DEFAULT_FEE_RATES,
-  DEFAULT_EXCHANGE_RATES,
   BUY_AND_DISTRIBUTE_DISCRIMINATOR,
   CLAIM_REWARD_DISCRIMINATOR,
   WITHDRAW_CONTRIBUTION_DISCRIMINATOR,
@@ -1485,7 +1484,14 @@ export async function getExpectedOutput(
  * Gets exchange rates from the actual Solana blockchain pools
  * Uses real AMM rates instead of hardcoded values
  */
-export async function getExchangeRate(fromToken: string, toToken: string): Promise<number> {
+export /**
+ * @deprecated Use the getExchangeRate function from solana.ts instead
+ * This function remains for backward compatibility but will redirect to the central implementation
+ */
+async function getExchangeRate(fromToken: string, toToken: string): Promise<number> {
+  // Import the canonical implementation from solana.ts
+  const { getExchangeRate: getSolanaExchangeRate } = await import('./solana');
+  
   try {
     // Normalize token addresses to lowercase for case-insensitive comparison
     const fromTokenLower = fromToken.toString().toLowerCase();
@@ -1493,51 +1499,24 @@ export async function getExchangeRate(fromToken: string, toToken: string): Promi
     const solTokenLower = SOL_TOKEN_ADDRESS.toString().toLowerCase();
     const yotTokenLower = YOT_TOKEN_ADDRESS.toString().toLowerCase();
     
-    // Fetch the current CoinGecko SOL price (will be used for UI display only)
-    try {
-      const solPriceResponse = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
-      const solPriceData = await solPriceResponse.json();
-      const solPrice = solPriceData.solana?.usd;
-      if (solPrice) {
-        console.log(`Live SOL price from CoinGecko: $${solPrice}`);
-      }
-    } catch (e) {
-      console.error("Error fetching SOL price:", e);
-    }
-    
     // Case 1: SOL to YOT swap rate
     if (fromTokenLower === solTokenLower && toTokenLower === yotTokenLower) {
-      // Fetch real liquidity pool balances from Solana blockchain
-      const [solBalance, yotBalance, _] = await getPoolBalances();
-      
-      if (solBalance <= 0 || yotBalance <= 0) {
-        console.warn("Liquidity pool empty or not found");
-        throw new Error("Insufficient liquidity in pool");
+      // Get rates from the canonical implementation
+      const rates = await getSolanaExchangeRate();
+      if (!rates || !rates.solToYot) {
+        throw new Error("Failed to fetch SOL-YOT exchange rate from blockchain");
       }
-      
-      // Calculate the real exchange rate from the pool ratios
-      // Applying the constant product formula: x * y = k
-      // When adding dx SOL, we get dy YOT where (x + dx) * (y - dy) = k
-      // For the AMM price, we use the derivative: dy/dx = y/x 
-      const rate = yotBalance / solBalance;
-      console.log(`Real AMM exchange rate from blockchain: 1 SOL = ${rate} YOT (exact from pool balances: ${solBalance} SOL, ${yotBalance} YOT)`);
-      return rate;
+      return rates.solToYot;
     } 
     
     // Case 2: YOT to SOL swap rate
     else if (fromTokenLower === yotTokenLower && toTokenLower === solTokenLower) {
-      // Fetch real liquidity pool balances from Solana blockchain  
-      const [solBalance, yotBalance, _] = await getPoolBalances();
-      
-      if (solBalance <= 0 || yotBalance <= 0) {
-        console.warn("Liquidity pool empty or not found");
-        throw new Error("Insufficient liquidity in pool");
+      // Get rates from the canonical implementation
+      const rates = await getSolanaExchangeRate();
+      if (!rates || !rates.yotToSol) {
+        throw new Error("Failed to fetch YOT-SOL exchange rate from blockchain");
       }
-      
-      // For YOT to SOL, the rate is the inverse of SOL to YOT
-      const rate = solBalance / yotBalance;
-      console.log(`Real AMM exchange rate from blockchain: 1 YOT = ${rate} SOL (exact from pool balances: ${solBalance} SOL, ${yotBalance} YOT)`);
-      return rate;
+      return rates.yotToSol;
     }
     
     // For other pairs, we would integrate with other AMMs like Jupiter or Raydium
@@ -1547,11 +1526,7 @@ export async function getExchangeRate(fromToken: string, toToken: string): Promi
     console.error("Error fetching AMM rate:", error);
     
     // No fallbacks - propagate the error
-    if (error.message && error.message.includes("Insufficient liquidity")) {
-      throw error; // Re-throw the original error if it's about liquidity
-    } else {
-      throw new Error("Failed to retrieve exchange rate from blockchain");
-    }
+    throw new Error(`Failed to retrieve exchange rate from blockchain: ${error.message}`);
   }
 }
 
