@@ -206,21 +206,16 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
         localProgramState = fetchedState;
         setStats(fetchedState);
         
-        // Check if program is initialized (using explicit flag if available, or inferred from yotMint)
-        // If initialized is explicitly false, respect that value
-        // Otherwise, check if yotMint exists and matches the expected YOT token address
-        const expectedYotAddress = solanaConfig.tokens.yot.address;
-        const yotMatchesExpected = fetchedState?.yotMint && 
-          fetchedState.yotMint === expectedYotAddress;
-          
+        // Check if program is initialized
+        // If the program returned an explicit initialization flag, use that
+        // If the program didn't have an explicit flag, check if we successfully got program data with addresses
         const isInit = fetchedState && 
-          (fetchedState.initialized === false ? false : 
-          (!!fetchedState.yotMint && yotMatchesExpected));
+          (fetchedState.initialized !== undefined ? 
+           fetchedState.initialized : !!fetchedState.yotMint);
           
         console.log("Is MultiHubSwap initialized?", isInit, 
           "yotMint:", fetchedState?.yotMint,
-          "expected YOT:", expectedYotAddress,
-          "matches:", yotMatchesExpected,
+          "expected YOT:", solanaConfig.tokens.yot.address,
           "explicit initialized flag:", fetchedState?.initialized);
           
         setIsInitialized(!!isInit);

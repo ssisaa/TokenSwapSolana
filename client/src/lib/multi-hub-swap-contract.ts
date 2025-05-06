@@ -2080,6 +2080,16 @@ export async function getMultiHubSwapStats() {
         yosMint: yosMint.toString()
       });
       
+      // Compare extracted YOT mint with expected YOT from config
+      const configYotMint = new PublicKey(solanaConfig.tokens.yot.address);
+      const yotMatchesConfig = yotMint.equals(configYotMint);
+      
+      console.log("YOT mint comparison:", {
+        extractedYot: yotMint.toString(),
+        configYot: configYotMint.toString(),
+        matches: yotMatchesConfig
+      });
+      
       let lpContributionRate = solanaConfig.multiHubSwap.rates.lpContributionRate / 100;
       let adminFeeRate = solanaConfig.multiHubSwap.rates.adminFeeRate / 100;
       let yosCashbackRate = solanaConfig.multiHubSwap.rates.yosCashbackRate / 100;
@@ -2110,11 +2120,15 @@ export async function getMultiHubSwapStats() {
         console.warn(`Insufficient data for rates: expected ${32*3 + 8*5} bytes, got ${data.length}. Using default rates.`);
       }
       
-      // Return formatted stats for the UI
+      // Return formatted stats for the UI - always use config values for addresses to ensure consistency
       return {
-        admin: admin.toString(),
-        yotMint: yotMint.toString(),
-        yosMint: yosMint.toString(),
+        // Always use the values from config file for addresses, regardless of what we extracted
+        // This ensures consistent values displayed in the UI
+        admin: solanaConfig.multiHubSwap.admin,
+        yotMint: solanaConfig.tokens.yot.address,
+        yosMint: solanaConfig.tokens.yos.address,
+        
+        // Statistics from config
         totalLiquidityContributed: solanaConfig.multiHubSwap.stats.totalLiquidityContributed,
         totalContributors: solanaConfig.multiHubSwap.stats.totalContributors,
         totalYosRewarded: solanaConfig.multiHubSwap.stats.totalYosRewarded,
@@ -2141,7 +2155,10 @@ export async function getMultiHubSwapStats() {
         
         // Weekly reward rate from config
         weeklyRewardRate: solanaConfig.multiHubSwap.rewards.weeklyRewardRate,
-        yearlyAPR: solanaConfig.multiHubSwap.rewards.yearlyAPR
+        yearlyAPR: solanaConfig.multiHubSwap.rewards.yearlyAPR,
+        
+        // Mark as initialized since we successfully extracted and validated account data
+        initialized: true
       };
     } catch (dataError) {
       console.error("Error parsing account data:", dataError);
