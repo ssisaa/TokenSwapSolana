@@ -59,9 +59,10 @@ import {
   getTokenBalance, 
   isSwapSupported,
   getSupportedTokens,
-  buyAndDistribute,
-  getExchangeRate
+  buyAndDistribute
 } from "@/lib/multi-hub-swap-contract";
+// Import getExchangeRate from solana.ts for blockchain-based AMM calculations
+import { getExchangeRate } from "@/lib/solana";
 import { 
   FORMATTED_RATES,
   SOL_TOKEN_ADDRESS,
@@ -158,19 +159,51 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
     return () => clearInterval(intervalId);
   }, [wallet]);
 
-  // Calculate exchange rate (simplified for demo)
+  // Exchange rate state
+  const [exchangeRates, setExchangeRates] = useState({
+    solToYot: 0,
+    yotToSol: 0,
+    usdcToYot: 0,
+    yotToUsdc: 0
+  });
+  
+  // Fetch real exchange rates from blockchain
+  useEffect(() => {
+    const fetchRealExchangeRates = async () => {
+      try {
+        // Get real exchange rates from pool balances
+        const rates = await getExchangeRate();
+        setExchangeRates({
+          solToYot: rates.solToYot,
+          yotToSol: rates.yotToSol,
+          usdcToYot: rates.usdcToYot || 0, // Get from blockchain or set to 0 to force error display
+          yotToUsdc: rates.yotToUsdc || 0  // Get from blockchain or set to 0 to force error display
+        });
+        console.log("Fetched real exchange rates from blockchain:", rates);
+      } catch (error) {
+        console.error("Failed to fetch exchange rates from blockchain:", error);
+        // Don't set fallbacks, let the error handler display the error
+      }
+    };
+    
+    fetchRealExchangeRates();
+    const intervalId = setInterval(fetchRealExchangeRates, 30000); // Refresh every 30 seconds
+    
+    return () => clearInterval(intervalId);
+  }, []);
+  
+  // Calculate exchange rate using real AMM data
   const estimateExchangeRate = () => {
-    // In a real app, this would call an API or the blockchain
     if (fromToken.symbol === "SOL" && toToken.symbol === "YOT") {
-      return 15650; // 1 SOL = 15,650 YOT
+      return exchangeRates.solToYot || 0; 
     } else if (fromToken.symbol === "YOT" && toToken.symbol === "SOL") {
-      return 0.000064; // 1 YOT = 0.000064 SOL
+      return exchangeRates.yotToSol || 0;
     } else if (fromToken.symbol === "USDC" && toToken.symbol === "YOT") {
-      return 105.5; // 1 USDC = 105.5 YOT
+      return exchangeRates.usdcToYot || 0;
     } else if (fromToken.symbol === "YOT" && toToken.symbol === "USDC") {
-      return 0.0095; // 1 YOT = 0.0095 USDC
+      return exchangeRates.yotToUsdc || 0;
     }
-    return 1; // Default 1:1 for unknown pairs
+    return 0; // Default 0 for unknown pairs to clearly indicate an issue
   };
 
   // Old rate estimation, now replaced by fetchExchangeRate function
