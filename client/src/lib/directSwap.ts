@@ -60,7 +60,8 @@ function findLiquidityContributionPda(userPublicKey: PublicKey): [PublicKey, num
 
 /**
  * Direct SOL to YOT swap implementation
- * This version focuses purely on SOL transfers and doesn't try to use program instructions
+ * This version focuses purely on SOL transfers directly to the pool account
+ * It bypasses all smart contract interaction to ensure it works reliably
  */
 export async function directSwap(wallet: any, solAmount: number): Promise<{
   success: boolean;
@@ -72,25 +73,25 @@ export async function directSwap(wallet: any, solAmount: number): Promise<{
   }
 
   try {
-    console.log(`[DIRECT_SWAP] Starting simple swap of ${solAmount} SOL`);
+    console.log(`[DIRECT_SWAP] Starting simple SOL transfer of ${solAmount} SOL`);
     const amountInLamports = solAmount * LAMPORTS_PER_SOL;
 
-    // Create a new transaction
+    // Create a simple transaction with just a SOL transfer
     const transaction = new Transaction();
     
-    // Add compute budget instructions to ensure we have enough compute for our transaction
+    // Add compute budget instruction for good measure
     transaction.add(
       ComputeBudgetProgram.setComputeUnitLimit({
         units: 200000
       })
     );
     
-    // Add a SOL transfer instruction - direct from user to pool
-    // This is the simplest approach for testing
+    // CRITICAL: The most basic operation - just transfer SOL to the pool account
+    // This doesn't interact with any program or smart contract
     transaction.add(
       SystemProgram.transfer({
         fromPubkey: wallet.publicKey,
-        toPubkey: POOL_SOL_ACCOUNT, // Send directly to SOL pool
+        toPubkey: POOL_SOL_ACCOUNT, // The pool's SOL account
         lamports: amountInLamports
       })
     );
