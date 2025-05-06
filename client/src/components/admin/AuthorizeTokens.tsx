@@ -11,6 +11,13 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+// Import centralized configuration to eliminate hardcoded values
+import { 
+  YOS_TOKEN_ADDRESS,
+  MULTI_HUB_SWAP_PROGRAM_ID,
+  MULTI_HUB_SWAP_PROGRAM_AUTHORITY
+} from '@/lib/config';
+import { YOS_TOKEN_ACCOUNT, POOL_AUTHORITY } from '@/lib/constants';
 
 export default function AuthorizeTokens() {
   const { toast } = useToast();
@@ -194,15 +201,15 @@ export default function AuthorizeTokens() {
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">
                 The program must be authorized as the mint authority for the YOS token to enable rewards.
-                This PDA account (<code>Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ</code>) is derived using
-                the seed "authority" and must be set as the mint authority for YOS (<code>2SWCnck3vLAVKaLkAjVtNnsVJVGYmGzyNVnte48SQRop</code>).
+                This PDA account (<code>{MULTI_HUB_SWAP_PROGRAM_AUTHORITY}</code>) is derived using
+                the seed "authority" and must be set as the mint authority for YOS (<code>{YOS_TOKEN_ADDRESS}</code>).
               </p>
               <Alert className="bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle className="text-xs font-medium">Important Permission Requirement</AlertTitle>
                 <AlertDescription className="text-xs">
                   <strong>You must connect the wallet that currently owns the mint authority 
-                  (<code>CeuRAzZ58St8B29XKWo647CGtY7FL5qpwv8WGZUHAuA9</code>)</strong> to 
+                  (<code>{POOL_AUTHORITY}</code>)</strong> to 
                   change the authority. If you're not using this wallet currently, please 
                   switch to it before proceeding.
                 </AlertDescription>
@@ -211,19 +218,19 @@ export default function AuthorizeTokens() {
           </div>
           
           <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded text-xs font-mono space-y-1.5">
-            <div>YOS Token Mint: <span className="text-blue-600 dark:text-blue-400">2SWCnck3vLAVKaLkAjVtNnsVJVGYmGzyNVnte48SQRop</span></div>
-            <div>YOS Token Account: <span className="text-blue-600 dark:text-blue-400">7GnphdpgcV5Z8swNAFB8QkMdo43TPHa4SmdtUw1ApMxz</span></div>
-            <div>Program ID: <span className="text-blue-600 dark:text-blue-400">SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE</span></div>
-            <div>Program Authority PDA: <span className="text-green-600 dark:text-green-400">Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ</span></div>
+            <div>YOS Token Mint: <span className="text-blue-600 dark:text-blue-400">{YOS_TOKEN_ADDRESS}</span></div>
+            <div>YOS Token Account: <span className="text-blue-600 dark:text-blue-400">{YOS_TOKEN_ACCOUNT}</span></div>
+            <div>Program ID: <span className="text-blue-600 dark:text-blue-400">{MULTI_HUB_SWAP_PROGRAM_ID}</span></div>
+            <div>Program Authority PDA: <span className="text-green-600 dark:text-green-400">{MULTI_HUB_SWAP_PROGRAM_AUTHORITY}</span></div>
             <div className="flex items-center gap-2">
               Current Mint Authority: 
-              <span className="text-yellow-600 dark:text-yellow-400">CeuRAzZ58St8B29XKWo647CGtY7FL5qpwv8WGZUHAuA9</span>
+              <span className="text-yellow-600 dark:text-yellow-400">{POOL_AUTHORITY}</span>
               <Button 
                 variant="ghost" 
                 size="sm" 
                 className="h-6 px-2 font-medium text-xs"
                 onClick={() => {
-                  navigator.clipboard.writeText("CeuRAzZ58St8B29XKWo647CGtY7FL5qpwv8WGZUHAuA9");
+                  navigator.clipboard.writeText(POOL_AUTHORITY);
                   toast({
                     title: "Copied to clipboard",
                     description: "Mint authority address has been copied to clipboard",
@@ -277,7 +284,7 @@ export default function AuthorizeTokens() {
                       variant="outline" 
                       size="sm"
                       className="h-7 text-xs"
-                      onClick={() => setCustomAuthority("CeuRAzZ58St8B29XKWo647CGtY7FL5qpwv8WGZUHAuA9")}
+                      onClick={() => setCustomAuthority(POOL_AUTHORITY)}
                     >
                       Use Solscan value
                     </Button>
