@@ -191,17 +191,15 @@ async function createSecureSolTransferTransaction(
   console.log(`11. Token Program: ${TOKEN_PROGRAM_ID.toString()}`);
   console.log(`12. Rent Sysvar: ${SYSVAR_RENT_PUBKEY.toString()}`);
   
-  // CRITICAL FIX: We've discovered that in app.config.json, the centralLiquidity.wallet field
-  // is incorrectly set to the SOL-YOT liquidity pool account address rather than a true central liquidity wallet.
-  //
-  // The best solution is to use the SOL_POOL_ACCOUNT as both:
-  // 1. The SOL pool account (#4 in account array)
-  // 2. The central liquidity wallet (#7 in account array)
-  //
-  // This matches what's currently in the configuration and should work with the deployed program
-  const centralLiquidityWallet = POOL_SOL_ACCOUNT; // Use the SOL pool account as central liquidity
+  // IMPORTANT: Always use the values from app.config.json consistently
+  // The centralLiquidity.wallet is set in app.config.json, and we must use that value
+  // even though it's the same as the SOL pool account
+  const centralLiquidityWallet = new PublicKey(solanaConfig.multiHubSwap.centralLiquidity.wallet);
   console.log(`[SECURE_SWAP] SOL Pool Account: ${POOL_SOL_ACCOUNT.toString()}`);
-  console.log(`[SECURE_SWAP] Using this same address as the central liquidity wallet for compatibility`);
+  console.log(`[SECURE_SWAP] Central Liquidity Wallet: ${centralLiquidityWallet.toString()}`);
+  
+  // Note: In the current configuration, these are the same address, but we should
+  // keep getting them from their respective config fields for future-proofing
   
   // Required accounts for the SOL to YOT swap instruction
   // Order must match EXACTLY what the Rust program expects
@@ -301,11 +299,11 @@ async function createLiquidityAccountTransaction(
       wallet.publicKey
     );
     
-    // CRITICAL FIX: Use the SOL pool account as the central liquidity wallet
-    // This matches our approach in the main swap function and should work with the deployed program
-    const centralLiquidityWallet = POOL_SOL_ACCOUNT; // Use the SOL pool account for both roles
+    // IMPORTANT: Always use the values from app.config.json consistently
+    // The centralLiquidity.wallet is set in app.config.json, and we must use that value
+    const centralLiquidityWallet = new PublicKey(solanaConfig.multiHubSwap.centralLiquidity.wallet);
     console.log(`[SECURE_SWAP:CREATE] SOL Pool Account: ${POOL_SOL_ACCOUNT.toString()}`);
-    console.log(`[SECURE_SWAP:CREATE] Using as both pool account and central liquidity wallet`);
+    console.log(`[SECURE_SWAP:CREATE] Central Liquidity Wallet: ${centralLiquidityWallet.toString()}`);
     
     // Create instruction data
     const microlAmports = Math.floor(microAmount * LAMPORTS_PER_SOL);
