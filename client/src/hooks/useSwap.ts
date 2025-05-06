@@ -57,17 +57,18 @@ export function useSwap() {
               setExchangeRate(`${yosNeededForOneYot.toFixed(4)} YOS = 1 YOT`);
               console.log(`AMM pool ratio: ${yosNeededForOneYot.toFixed(4)} YOS per YOT (${poolData.yosBalance} YOS / ${poolData.yotBalance} YOT)`);
             } else {
-              // Fallback if pool data seems invalid
-              setExchangeRate(`1 YOS = ${(0.1).toFixed(4)} YOT`);
-              console.log(`Using fallback ratio: 1 YOS = 0.1 YOT (pool data invalid)`);
+              // Don't use fallback - show error when pool data is invalid 
+              setExchangeRate(`Error: Invalid YOS-YOT pool data`);
+              console.error(`Cannot calculate YOS-YOT ratio: Pool data is invalid`);
             }
           } else {
-            // Fallback to a default ratio if we can't get pool data
-            setExchangeRate(`1 YOS = ${(0.1).toFixed(4)} YOT (fallback)`);
+            // Don't use fallback - display error message when pool data is unavailable
+            setExchangeRate(`Error: YOS-YOT pool data unavailable`);
+            console.error(`Cannot retrieve YOS-YOT pool balances`);
           }
         } catch (error) {
           console.error("Error fetching YOS:YOT pool data:", error);
-          setExchangeRate(`1 YOS = ${(0.1).toFixed(4)} YOT (fallback)`);
+          setExchangeRate(`Error: Cannot access YOS-YOT pool`);
         }
         return;
       }
@@ -81,7 +82,7 @@ export function useSwap() {
       }
     } catch (error) {
       console.error("Error updating exchange rate:", error);
-      setExchangeRate("Unable to fetch rate");
+      setExchangeRate("Error: Failed to fetch blockchain exchange rate");
     }
   }, [fromToken, toToken]);
 
