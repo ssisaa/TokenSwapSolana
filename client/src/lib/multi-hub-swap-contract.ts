@@ -1443,10 +1443,10 @@ export async function executeSwap(
       // We need to use the special solToYotSwapV2 function instead which uses our on-chain solution
       console.log("[SWAP_DEBUG] Using solToYotSwapV2 (on-chain solution) instead of buyAndDistribute");
       
-      // Import the manualSolTransfer implementation to bypass the "account already borrowed" error
-      // This implementation uses a direct SOL transfer to the pool, avoiding the program instruction
-      console.log("[SWAP_DEBUG] Using manualSolTransfer with direct SOL transfer approach");
-      const { solToYotSwap } = await import('./manualSolTransfer');
+      // Import the secureSwap implementation - our most secure solution for public use
+      // This uses a two-phase approach with maximum security measures
+      console.log("[SWAP_DEBUG] Using secureSwap with two-phase secure transaction approach");
+      const { solToYotSwap } = await import('./secureSwap');
       
       // Execute the swap with our specialized on-chain implementation
       console.log("[SWAP_DEBUG] Executing on-chain SOL to YOT swap...");
