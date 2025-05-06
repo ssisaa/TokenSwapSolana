@@ -400,13 +400,9 @@ async function executeSwapTransaction(wallet: any, solAmount: number): Promise<{
     // Try to simulate the transaction first
     console.log('[TWO_PHASE_SWAP] Simulating transaction...');
     try {
-      // Use the raw transaction message for simulation instead of the full signed transaction
+      // Just use the default simulateTransaction without extra options
       // This avoids the "Cannot read properties of undefined (reading 'numRequiredSignatures')" error
-      const rawMessage = signedTx.serializeMessage();
-      const simulation = await connection.simulateTransaction(
-        signedTx, 
-        { skipPreflight: false, commitment: 'confirmed' }
-      );
+      const simulation = await connection.simulateTransaction(signedTx);
       
       if (simulation.value.err) {
         console.warn('[TWO_PHASE_SWAP] Simulation warning:', simulation.value.err);

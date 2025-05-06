@@ -1564,13 +1564,18 @@ export async function executeSwap(
       if (typeof result === 'object') {
         console.log("[SWAP_DEBUG] Got structured result from solToYotSwap:", result);
         
-        // If we have an error or need token account, just pass it through
-        if (result.error || result.needsTokenAccount) {
+        // Check if we need a token account (special case for first-time users)
+        if ('needsTokenAccount' in result && result.needsTokenAccount) {
+          return result;
+        }
+        
+        // Check for errors
+        if ('error' in result && result.error) {
           return result;
         }
         
         // If we have a regular success with solSignature
-        if (result.solSignature && result.completed) {
+        if ('solSignature' in result && 'completed' in result && result.completed) {
           console.log("[SWAP_DEBUG] Transaction successful! Signature:", result.solSignature);
           
           // In this case, the contract handles the distribution automatically

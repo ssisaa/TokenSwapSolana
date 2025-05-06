@@ -684,7 +684,12 @@ export async function secureSwap(
  * This function ensures all operations are handled by the Solana program,
  * properly initializing program state before attempting to swap
  */
-export async function solToYotSwap(wallet: any, solAmount: number): Promise<string> {
+export async function solToYotSwap(wallet: any, solAmount: number): Promise<string | { 
+  solSignature: string; 
+  completed: boolean; 
+  error?: boolean;
+  message?: string;
+}> {
   console.log(`[SECURE_SWAP] Starting on-chain swap of ${solAmount} SOL using two-phase approach`);
   
   // Security validation: ensure wallet is connected
@@ -733,19 +738,40 @@ export async function solToYotSwap(wallet: any, solAmount: number): Promise<stri
     console.log(`[SECURE_SWAP] Confirming with lastValidBlockHeight + 150 = ${lastValidBlockHeight + 150}`);
     
     // Wait for confirmation with detailed error handling and extended validity
-    const confirmation = await connection.confirmTransaction({
-      signature,
-      blockhash,
-      lastValidBlockHeight: lastValidBlockHeight + 150 // Add extra blocks for validity
-    }, 'confirmed');
-    
-    if (confirmation.value.err) {
-      console.error(`[SECURE_SWAP] Transaction failed:`, confirmation.value.err);
-      throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+    try {
+      const confirmation = await connection.confirmTransaction({
+        signature,
+        blockhash,
+        lastValidBlockHeight: lastValidBlockHeight + 150 // Add extra blocks for validity
+      }, 'confirmed');
+      
+      if (confirmation.value.err) {
+        console.error(`[SECURE_SWAP] Transaction failed:`, confirmation.value.err);
+        
+        // Return a structured response instead of throwing
+        return {
+          solSignature: signature,
+          completed: false,
+          error: true,
+          message: `Transaction failed: ${JSON.stringify(confirmation.value.err)}`
+        };
+      }
+      
+      console.log(`[SECURE_SWAP] Transaction confirmed successfully!`);
+      return {
+        solSignature: signature,
+        completed: true
+      };
+    } catch (confirmError: any) {
+      console.error(`[SECURE_SWAP] Confirmation error:`, confirmError);
+      // Return structured response instead of throwing
+      return {
+        solSignature: signature,
+        completed: false,
+        error: true,
+        message: `Confirmation error: ${confirmError?.message || "Unknown error"}`
+      };
     }
-    
-    console.log(`[SECURE_SWAP] Transaction confirmed successfully!`);
-    return signature;
   } catch (error: any) {
     console.error("[SECURE_SWAP] Error sending transaction:", error);
     
