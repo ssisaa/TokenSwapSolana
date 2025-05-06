@@ -67,6 +67,8 @@ import {
   FORMATTED_RATES,
   SOL_TOKEN_ADDRESS,
   YOT_TOKEN_ADDRESS,
+  YOS_TOKEN_ADDRESS,
+  USDC_DEVNET_ADDRESS,
   DEFAULT_DISTRIBUTION_RATES 
 } from "@/lib/config";
 
@@ -78,31 +80,32 @@ interface Token {
   address: string;
 }
 
-// Sample tokens - in production these would be fetched from an API
+// Tokens using addresses from centralized configuration in app.config.json
+// This ensures consistency across the application
 const tokens: Token[] = [
   {
     symbol: "SOL",
     name: "Solana",
     logoUrl: "https://cryptologos.cc/logos/solana-sol-logo.png",
-    address: "So11111111111111111111111111111111111111112",
+    address: SOL_TOKEN_ADDRESS, // Using the constant from config.ts
   },
   {
     symbol: "YOT",
     name: "YOT Token",
     logoUrl: "https://place-hold.it/32x32/37c/fff?text=YOT",
-    address: "2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF",
+    address: YOT_TOKEN_ADDRESS, // Using the constant from config.ts
   },
   {
     symbol: "YOS",
     name: "YOS Token",
     logoUrl: "https://place-hold.it/32x32/f77/fff?text=YOS",
-    address: "GcsjAVWYaTce9cpFLm2eGhRjZauvtSP3z3iMrZsrMW8n",
+    address: YOS_TOKEN_ADDRESS, // Using the constant from config.ts
   },
   {
     symbol: "USDC",
     name: "USD Coin",
     logoUrl: "https://cryptologos.cc/logos/usd-coin-usdc-logo.png",
-    address: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    address: USDC_DEVNET_ADDRESS, // Using the constant from config.ts
   },
 ];
 
