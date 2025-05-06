@@ -39,7 +39,7 @@ import {
   WITHDRAW_CONTRIBUTION_DISCRIMINATOR,
   UPDATE_PARAMETERS_DISCRIMINATOR,
   ADD_LIQUIDITY_FROM_CENTRAL_DISCRIMINATOR,
-  CENTRAL_LIQUIDITY_CONFIG
+  COMMON_WALLET_CONFIG
 } from './config';
 
 // Export program IDs for backward compatibility
@@ -1882,8 +1882,8 @@ export async function initializeMultiHubSwap(
   yosCashbackRate: number = solanaConfig.multiHubSwap.rates.yosCashbackRate / 100,
   swapFeeRate: number = solanaConfig.multiHubSwap.rates.swapFeeRate / 100,
   referralRate: number = solanaConfig.multiHubSwap.rates.referralRate / 100,
-  liquidityWallet: PublicKey = new PublicKey(solanaConfig.multiHubSwap.centralLiquidity.wallet),
-  liquidityThreshold: number = solanaConfig.multiHubSwap.centralLiquidity.threshold
+  liquidityWallet: PublicKey = new PublicKey(solanaConfig.multiHubSwap.commonWallet.wallet),
+  liquidityThreshold: number = solanaConfig.multiHubSwap.commonWallet.threshold
 ): Promise<string> {
   if (!wallet || !wallet.publicKey) {
     throw new Error("Wallet not connected");

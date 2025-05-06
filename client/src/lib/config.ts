@@ -46,7 +46,7 @@ export interface SolanaConfig {
     programAuthority?: string;
     admin: string;
     userAdmin: string;
-    centralLiquidity: {
+    commonWallet: {
       wallet: string;
       threshold: number;
       yotAccount: string;
@@ -138,11 +138,11 @@ export const SOL_YOT_POOL_INFO = {
   solAccount: solanaConfig.pool.solAccount,
 };
 
-// Central liquidity configuration - now uses userAdmin wallet
-export const CENTRAL_LIQUIDITY_CONFIG = {
-  wallet: USER_ADMIN_WALLET,
-  yotAccount: solanaConfig.tokens.yot.account, // Use the YOT account from config
-  threshold: 0.1 // Default threshold value
+// Common wallet configuration from app.config.json
+export const COMMON_WALLET_CONFIG = {
+  wallet: solanaConfig.multiHubSwap.commonWallet.wallet,
+  yotAccount: solanaConfig.multiHubSwap.commonWallet.yotAccount,
+  threshold: solanaConfig.multiHubSwap.commonWallet.threshold
 };
 
 // Distribution rates (converted from basis points to percentages)
