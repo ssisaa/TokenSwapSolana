@@ -6,7 +6,7 @@ const { Connection, Keypair, PublicKey, Transaction, SystemProgram, sendAndConfi
 const fs = require('fs');
 
 // Program and token configuration
-const MULTI_HUB_SWAP_PROGRAM_ID = new PublicKey('SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE');
+const MULTI_HUB_SWAP_PROGRAM_ID = new PublicKey('FDKcjgPeqtGn4baGXvXVZLheLCPipTw4SzTgcEdnK91s');
 const POOL_AUTHORITY = new PublicKey('CeuRAzZ58St8B29XKWo647CGtY7FL5qpwv8WGZUHAuA9');
 const SOL_TOKEN_ACCOUNT = new PublicKey('Bf78XttEfzR4iM3JCWfwgSCpd5MHePTMD2UKBEZU6coH');
 const YOT_TOKEN = new PublicKey('9KxQHJcBxp29AjGTAqF3LCFzodSpkuv986wsSEwQi6Cw');
@@ -107,6 +107,16 @@ async function testRepairProgramState() {
   // Choose central liquidity wallet (can be any wallet you control)
   const centralLiquidityWallet = wallet.publicKey;
   
+  console.log('Preparing to repair program state...');
+  console.log('Using parameters:');
+  console.log('- LP contribution rate: 20%');
+  console.log('- YOS cashback rate: 5%');
+  console.log('- Admin fee rate: 0%');
+  console.log('- Swap fee rate: 1%');
+  console.log('- Referral rate: 0%');
+  console.log('- Liquidity wallet:', centralLiquidityWallet.toBase58());
+  console.log('- Liquidity threshold: 0.1 SOL (100,000,000 lamports)');
+
   // Create the repair instruction
   const repairIx = createRepairProgramStateInstruction(
     wallet.publicKey,
