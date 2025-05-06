@@ -34,8 +34,8 @@ function loadWalletFromFile() {
   }
 }
 
-// Create a specific admin wallet to use for the program
-const ADMIN_WALLET = new PublicKey('AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ');
+// User's wallet to set as the admin
+const USER_ADMIN_WALLET = new PublicKey('AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ');
 
 // Find program state address (PDA)
 function findProgramStateAddress() {
@@ -56,7 +56,7 @@ function encodePublicKeys(keys) {
 
 // Create the initialization instruction
 function createInitializeInstruction(
-  admin,
+  signer,  // The wallet that signs the transaction
   programState,
   liquidityWallet,
   yotMint,
@@ -70,7 +70,7 @@ function createInitializeInstruction(
   
   return {
     keys: [
-      { pubkey: admin, isSigner: true, isWritable: true },
+      { pubkey: signer, isSigner: true, isWritable: true },
       { pubkey: programState, isSigner: false, isWritable: true },
       { pubkey: liquidityWallet, isSigner: false, isWritable: false },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
@@ -85,24 +85,36 @@ async function initializeProgram() {
   const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
   const wallet = loadWalletFromFile();
   
-  console.log('Admin Wallet:', wallet.publicKey.toBase58());
+  console.log('Signer Wallet:', wallet.publicKey.toBase58());
+  console.log('Admin Wallet to be set:', USER_ADMIN_WALLET.toBase58());
   
   // Get program state PDA
   const [programStatePDA, bump] = findProgramStateAddress();
   console.log('Program State PDA:', programStatePDA.toBase58(), 'with bump:', bump);
   
-  // Use admin wallet as the liquidity wallet for this example
-  const liquidityWallet = wallet.publicKey;
+  // Use the defined admin wallet as the liquidity wallet
+  const liquidityWallet = USER_ADMIN_WALLET;
   console.log('Liquidity Wallet:', liquidityWallet.toBase58());
   
-  // Create the initialization instruction
+  // Create the initialization instruction with the wallet as signer but setting your wallet as admin
+  // The signer has to match the one that will sign the transaction
   const initIx = createInitializeInstruction(
-    wallet.publicKey,
+    wallet.publicKey, // The signer
     programStatePDA,
     liquidityWallet,
     YOT_TOKEN,
     YOS_TOKEN
   );
+  
+  // Modify the instruction data to include your admin wallet
+  // This is a special case where we're initializing but want to set a different admin
+  const adminBytes = ADMIN_WALLET.toBuffer();
+  // Replace the first 32 bytes of the deserialized program state with your admin wallet
+  initIx.data = Buffer.concat([
+    Buffer.from([0]), // Instruction 0 = Initialize
+    adminBytes,       // Admin wallet (first 32 bytes of program state)
+    encodePublicKeys([YOT_TOKEN, YOS_TOKEN])
+  ]);
   
   // Create and sign transaction
   const transaction = new Transaction().add(initIx);
