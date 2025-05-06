@@ -1,0 +1,146 @@
+SECURE_SWAP] Error during swap: SendTransactionError: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 2: insufficient account keys for instruction. 
+Logs: 
+[
+  "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+  "Program ComputeBudget111111111111111111111111111111 success",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE invoke [1]",
+  "Program log: SOL to YOT Swap Instruction (One Step)",
+  "Program log: SOL amount in: 200000000, Min YOT out: 0",
+  "Program log: Processing SOL to YOT swap (immediate version)",
+  "Program log: Amount in: 200000000 lamports",
+  "Program log: Minimum amount out: 0 YOT",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE consumed 4705 of 399700 compute units",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE failed: insufficient account keys for instruction"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at Connection.sendEncodedTransaction (chunk-5JHCWNWN.js?v=6c373433:11073:13)
+    at async Connection.sendRawTransaction (chunk-5JHCWNWN.js?v=6c373433:11040:20)
+    at async secureSwap (secureSwap.ts:553:23)
+    at async solToYotSwap (secureSwap.ts:616:18)
+    at async executeSwap (multi-hub-swap-contract.ts:1548:22)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+secureSwap @ secureSwap.ts:591
+await in secureSwap
+solToYotSwap @ secureSwap.ts:616
+executeSwap @ multi-hub-swap-contract.ts:1548
+await in executeSwap
+performSwap @ MultiHubSwapCard.tsx:403
+await in performSwap
+onClick @ MultiHubSwapCard.tsx:1009
+callCallback2 @ chunk-276SZO74.js?v=6c373433:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=6c373433:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=6c373433:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=6c373433:3736
+executeDispatch @ chunk-276SZO74.js?v=6c373433:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=6c373433:7034
+processDispatchQueue @ chunk-276SZO74.js?v=6c373433:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=6c373433:7051
+(anonymous) @ chunk-276SZO74.js?v=6c373433:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=6c373433:18913
+batchedUpdates @ chunk-276SZO74.js?v=6c373433:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=6c373433:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=6c373433:5478
+dispatchEvent @ chunk-276SZO74.js?v=6c373433:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=6c373433:5449Understand this error
+multi-hub-swap-contract.ts:1618 [SWAP_DEBUG] Critical transaction failure: Error: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 2: insufficient account keys for instruction. 
+Logs: 
+[
+  "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+  "Program ComputeBudget111111111111111111111111111111 success",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE invoke [1]",
+  "Program log: SOL to YOT Swap Instruction (One Step)",
+  "Program log: SOL amount in: 200000000, Min YOT out: 0",
+  "Program log: Processing SOL to YOT swap (immediate version)",
+  "Program log: Amount in: 200000000 lamports",
+  "Program log: Minimum amount out: 0 YOT",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE consumed 4705 of 399700 compute units",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE failed: insufficient account keys for instruction"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at solToYotSwap (secureSwap.ts:621:11)
+    at async executeSwap (multi-hub-swap-contract.ts:1548:22)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+executeSwap @ multi-hub-swap-contract.ts:1618
+await in executeSwap
+performSwap @ MultiHubSwapCard.tsx:403
+await in performSwap
+onClick @ MultiHubSwapCard.tsx:1009
+callCallback2 @ chunk-276SZO74.js?v=6c373433:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=6c373433:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=6c373433:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=6c373433:3736
+executeDispatch @ chunk-276SZO74.js?v=6c373433:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=6c373433:7034
+processDispatchQueue @ chunk-276SZO74.js?v=6c373433:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=6c373433:7051
+(anonymous) @ chunk-276SZO74.js?v=6c373433:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=6c373433:18913
+batchedUpdates @ chunk-276SZO74.js?v=6c373433:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=6c373433:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=6c373433:5478
+dispatchEvent @ chunk-276SZO74.js?v=6c373433:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=6c373433:5449Understand this error
+multi-hub-swap-contract.ts:1621 [SWAP_DEBUG] Error type: object
+multi-hub-swap-contract.ts:1622 [SWAP_DEBUG] Error name: Error
+multi-hub-swap-contract.ts:1623 [SWAP_DEBUG] Full error object: {}
+multi-hub-swap-contract.ts:1631 [SWAP_DEBUG] Will attempt transaction simulation for more details...
+multi-hub-swap-contract.ts:1635 [SWAP_DEBUG] Simulation also failed: Error: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 2: insufficient account keys for instruction. 
+Logs: 
+[
+  "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+  "Program ComputeBudget111111111111111111111111111111 success",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE invoke [1]",
+  "Program log: SOL to YOT Swap Instruction (One Step)",
+  "Program log: SOL amount in: 200000000, Min YOT out: 0",
+  "Program log: Processing SOL to YOT swap (immediate version)",
+  "Program log: Amount in: 200000000 lamports",
+  "Program log: Minimum amount out: 0 YOT",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE consumed 4705 of 399700 compute units",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE failed: insufficient account keys for instruction"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at solToYotSwap (secureSwap.ts:621:11)
+    at async executeSwap (multi-hub-swap-contract.ts:1548:22)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+executeSwap @ multi-hub-swap-contract.ts:1635
+await in executeSwap
+performSwap @ MultiHubSwapCard.tsx:403
+await in performSwap
+onClick @ MultiHubSwapCard.tsx:1009
+callCallback2 @ chunk-276SZO74.js?v=6c373433:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=6c373433:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=6c373433:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=6c373433:3736
+executeDispatch @ chunk-276SZO74.js?v=6c373433:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=6c373433:7034
+processDispatchQueue @ chunk-276SZO74.js?v=6c373433:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=6c373433:7051
+(anonymous) @ chunk-276SZO74.js?v=6c373433:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=6c373433:18913
+batchedUpdates @ chunk-276SZO74.js?v=6c373433:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=6c373433:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=6c373433:5478
+dispatchEvent @ chunk-276SZO74.js?v=6c373433:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=6c373433:5449Understand this error
+MultiHubSwapCard.tsx:566 Swap error: Error: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 2: insufficient account keys for instruction. 
+Logs: 
+[
+  "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+  "Program ComputeBudget111111111111111111111111111111 success",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE invoke [1]",
+  "Program log: SOL to YOT Swap Instruction (One Step)",
+  "Program log: SOL amount in: 200000000, Min YOT out: 0",
+  "Program log: Processing SOL to YOT swap (immediate version)",
+  "Program log: Amount in: 200000000 lamports",
+  "Program log: Minimum amount out: 0 YOT",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE consumed 4705 of 399700 compute units",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE failed: insufficient account keys for instruction"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at solToYotSwap (secureSwap.ts:621:11)
+    at async executeSwap (multi-hub-swap-contract.ts:1548:22)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)

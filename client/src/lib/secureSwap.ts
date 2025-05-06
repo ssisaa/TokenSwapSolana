@@ -191,6 +191,10 @@ async function createSecureSolTransferTransaction(
   console.log(`11. Token Program: ${TOKEN_PROGRAM_ID.toString()}`);
   console.log(`12. Rent Sysvar: ${SYSVAR_RENT_PUBKEY.toString()}`);
   
+  // Get the central liquidity wallet address from app config
+  const centralLiquidityWallet = new PublicKey(solanaConfig.multiHubSwap.centralLiquidityWallet);
+  console.log(`[SECURE_SWAP] Central Liquidity Wallet: ${centralLiquidityWallet.toString()}`);
+  
   // Required accounts for the SOL to YOT swap instruction
   // Order must match EXACTLY what the Rust program expects
   const accountMetas = [
@@ -200,12 +204,13 @@ async function createSecureSolTransferTransaction(
     { pubkey: POOL_SOL_ACCOUNT, isSigner: false, isWritable: true },        // 4. sol_pool_account
     { pubkey: yotPoolAccount, isSigner: false, isWritable: true },          // 5. yot_pool_account  
     { pubkey: userYotAccount, isSigner: false, isWritable: true },          // 6. user_yot_account
-    { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true }, // 7. liquidity_contribution
-    { pubkey: yosMint, isSigner: false, isWritable: true },                // 8. yos_mint
-    { pubkey: userYosAccount, isSigner: false, isWritable: true },         // 9. user_yos_account
-    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },// 10. system_program
-    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },      // 11. token_program
-    { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },    // 12. rent_sysvar
+    { pubkey: centralLiquidityWallet, isSigner: false, isWritable: true },  // 7. central_liquidity_wallet
+    { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true }, // 8. liquidity_contribution
+    { pubkey: yosMint, isSigner: false, isWritable: true },                // 9. yos_mint
+    { pubkey: userYosAccount, isSigner: false, isWritable: true },         // 10. user_yos_account
+    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },// 11. system_program
+    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },      // 12. token_program
+    { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },    // 13. rent_sysvar
   ];
   
   // Create the instruction to call the program
