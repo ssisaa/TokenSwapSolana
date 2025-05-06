@@ -110,8 +110,8 @@ export const adminConfig: AdminConfig = {
 export const uiConfig: UIConfig = appConfig.ui;
 export const featureConfig: FeatureConfig = appConfig.features;
 
-// Common token addresses
-export const SOL_TOKEN_ADDRESS = "So11111111111111111111111111111111111111112";
+// Common token addresses - all sourced from app.config.json
+export const SOL_TOKEN_ADDRESS = solanaConfig.tokens.sol.address;
 export const YOT_TOKEN_ADDRESS = solanaConfig.tokens.yot.address;
 export const YOS_TOKEN_ADDRESS = solanaConfig.tokens.yos.address;
 export const USDC_DEVNET_ADDRESS = solanaConfig.multiHubSwap.amm.raydium.usdc;
