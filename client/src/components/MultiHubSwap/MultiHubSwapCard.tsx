@@ -196,12 +196,8 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
         
         console.log(`Real AMM exchange rate from blockchain: 1 ${fromToken.symbol} = ${rate} ${toToken.symbol}`);
         
-        // Update display text for the rate
-        let rateDisplay = `1 ${fromToken.symbol} ≈ ${Math.floor(rate).toLocaleString()} ${toToken.symbol}`;
-        if (fromToken.symbol === 'YOT' && toToken.symbol === 'SOL') {
-          // For YOT to SOL, use more decimals since the rate is very small
-          rateDisplay = `1 ${fromToken.symbol} ≈ ${rate.toFixed(8)} ${toToken.symbol}`;
-        }
+        // Update display text for the rate - use the exact AMM rate from blockchain, no rounding
+        let rateDisplay = `1 ${fromToken.symbol} = ${rate} ${toToken.symbol} (AMM)`;
         setExchangeRateDisplay(rateDisplay);
         
         // Update the to amount based on real exchange rate

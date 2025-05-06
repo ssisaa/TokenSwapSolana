@@ -1461,12 +1461,18 @@ export async function getExpectedOutput(
   inputAmount: number,
   slippageTolerance: number = 1.0
 ): Promise<{ outputAmount: number, minOutputAmount: number, exchangeRate: number }> {
+  // Get the exact AMM exchange rate from blockchain
   const exchangeRate = await getExchangeRate(fromTokenAddress, toTokenAddress);
+  
+  // Calculate output amount using raw exchange rate (no rounding)
   const outputAmount = inputAmount * exchangeRate;
   
   // Calculate minimum output amount based on slippage tolerance
   const slippageFactor = (100 - slippageTolerance) / 100;
   const minOutputAmount = outputAmount * slippageFactor;
+  
+  console.log(`Exact AMM calculation: ${inputAmount} ${fromTokenAddress} * ${exchangeRate} = ${outputAmount} ${toTokenAddress}`);
+  console.log(`With slippage (${slippageTolerance}%): min output = ${minOutputAmount} ${toTokenAddress}`);
   
   return {
     outputAmount,
