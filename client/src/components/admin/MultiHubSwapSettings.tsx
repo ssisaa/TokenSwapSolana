@@ -161,16 +161,16 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
       console.log(`- Referral Rate: ${refRate * 100}%`);
       console.log("==================================================");
       
-      // Get the central liquidity wallet address from config
-      const liquidityWallet = new PublicKey(solanaConfig.multiHubSwap.centralLiquidity.wallet);
-      const liquidityThreshold = solanaConfig.multiHubSwap.centralLiquidity.threshold;
+      // Get the common wallet address from config
+      const commonWalletAddress = new PublicKey(solanaConfig.multiHubSwap.commonWallet.wallet);
+      const liquidityThreshold = solanaConfig.multiHubSwap.commonWallet.threshold;
       
-      console.log(`- Central Liquidity Wallet: ${liquidityWallet.toString()}`);
+      console.log(`- Common Wallet Address: ${commonWalletAddress.toString()}`);
       console.log(`- Liquidity Threshold: ${liquidityThreshold} SOL`);
       console.log("==================================================");
       
       // Call the initialization function with all required parameters
-      // This includes the liquidity wallet and threshold which are required by the Rust program
+      // This includes the common wallet address and threshold which are required by the Rust program
       await initializeMultiHubSwap(
         wallet,
         yotMint,
@@ -180,7 +180,7 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
         cashbackRate,
         swapRate,
         refRate,
-        liquidityWallet,
+        commonWalletAddress,
         liquidityThreshold
       );
 

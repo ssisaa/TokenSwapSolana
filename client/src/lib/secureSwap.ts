@@ -299,10 +299,10 @@ async function createLiquidityAccountTransaction(
     );
     
     // IMPORTANT: Always use the values from app.config.json consistently
-    // The centralLiquidity.wallet is set in app.config.json, and we must use that value
-    const centralLiquidityWallet = new PublicKey(solanaConfig.multiHubSwap.centralLiquidity.wallet);
+    // The commonWallet.wallet is set in app.config.json, and we must use that value
+    const commonWalletAddress = new PublicKey(solanaConfig.multiHubSwap.commonWallet.wallet);
     console.log(`[SECURE_SWAP:CREATE] SOL Pool Account: ${POOL_SOL_ACCOUNT.toString()}`);
-    console.log(`[SECURE_SWAP:CREATE] Central Liquidity Wallet: ${centralLiquidityWallet.toString()}`);
+    console.log(`[SECURE_SWAP:CREATE] Common Wallet Address: ${commonWalletAddress.toString()}`);
     
     // Create instruction data
     const microlAmports = Math.floor(microAmount * LAMPORTS_PER_SOL);
@@ -319,7 +319,7 @@ async function createLiquidityAccountTransaction(
       { pubkey: POOL_SOL_ACCOUNT, isSigner: false, isWritable: true },
       { pubkey: yotPoolAccount, isSigner: false, isWritable: true },
       { pubkey: userYotAccount, isSigner: false, isWritable: true },
-      { pubkey: centralLiquidityWallet, isSigner: false, isWritable: true },  // 7. Central liquidity wallet - Using SOL pool account
+      { pubkey: commonWalletAddress, isSigner: false, isWritable: true },  // 7. Common wallet - Using address from config
       { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true }, // 8. Liquidity contribution
       { pubkey: new PublicKey(YOS_TOKEN_ADDRESS), isSigner: false, isWritable: true },
       { pubkey: userYosAccount, isSigner: false, isWritable: true },

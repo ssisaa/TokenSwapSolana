@@ -1225,9 +1225,9 @@ export async function addLiquidityFromCentralWallet(wallet: any): Promise<string
   // Get the YOT mint address
   const yotMintAddress = new PublicKey(YOT_TOKEN_ADDRESS);
   
-  // Get the central liquidity wallet and YOT account
-  const centralLiquidityWallet = new PublicKey(CENTRAL_LIQUIDITY_CONFIG.wallet);
-  const centralLiquidityYotAccount = new PublicKey(CENTRAL_LIQUIDITY_CONFIG.yotAccount);
+  // Get the common wallet and YOT account
+  const commonWalletAddress = new PublicKey(solanaConfig.multiHubSwap.commonWallet.wallet);
+  const commonWalletYotAccount = new PublicKey(solanaConfig.multiHubSwap.commonWallet.yotAccount);
   
   // Get the program authority (PDA)
   const programAuthority = new PublicKey("Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ");
