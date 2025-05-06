@@ -65,19 +65,22 @@ function encodePublicKeys(keys) {
 
 // Create the initialization instruction
 function createInitializeInstruction(
-  admin,
+  signer, // The wallet that will sign the transaction
+  adminWallet, // The wallet to set as admin in the program state
   programState,
   systemProgram
 ) {
-  // Prepare the data buffer with instruction ID and public keys
+  // Create a custom data buffer that includes the admin wallet at the beginning
+  // This is a special case where we set a different wallet as admin than the signer
   const data = Buffer.concat([
     Buffer.from([0]), // Instruction 0 = Initialize
+    adminWallet.toBuffer(), // Manually inject admin wallet into data
     encodePublicKeys([YOT_TOKEN, YOS_TOKEN])
   ]);
   
   return {
     keys: [
-      { pubkey: admin, isSigner: true, isWritable: true },
+      { pubkey: signer, isSigner: true, isWritable: true }, // The signer
       { pubkey: programState, isSigner: false, isWritable: true },
       { pubkey: systemProgram, isSigner: false, isWritable: false },
     ],
@@ -131,7 +134,8 @@ async function initializeProgram() {
   
   // Create the initialization instruction
   const initIx = createInitializeInstruction(
-    USER_ADMIN_WALLET, // Use your wallet as admin directly
+    wallet.publicKey, // The signer wallet
+    USER_ADMIN_WALLET, // Set your wallet as admin
     programStatePDA,
     SystemProgram.programId
   );
