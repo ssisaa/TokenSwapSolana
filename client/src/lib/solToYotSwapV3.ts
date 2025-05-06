@@ -12,12 +12,13 @@ import {
   TransactionInstruction,
   SystemProgram,
   LAMPORTS_PER_SOL,
-  ComputeBudgetProgram
+  ComputeBudgetProgram,
+  SYSVAR_RENT_PUBKEY
 } from '@solana/web3.js';
-import { SYSVAR_RENT_PUBKEY } from '@solana/web3.js/src/sysvar';
 import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { solanaConfig } from './config';
 import { connection, calculateSolToYot } from './solana';
+import { ensureLiquidityContributionAccount } from './createLiquidityContribution';
 
 // Extract necessary constants from solanaConfig
 const POOL_SOL_ACCOUNT = solanaConfig.pool.solAccount;
@@ -112,85 +113,22 @@ export async function checkLiquidityContributionAccount(
   exists: boolean;
   transaction?: Transaction;
   liquidityContributionAccount: PublicKey;
+  signature?: string;
 }> {
   try {
-    const programId = new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID);
-    const [liquidityContributionAccount] = findLiquidityContributionAddress(
-      wallet.publicKey,
-      programId
-    );
+    console.log('[SOL-YOT SWAP V3] Checking/creating liquidity contribution account using dedicated module');
     
-    // Check if account exists
-    const accountInfo = await connection.getAccountInfo(liquidityContributionAccount);
+    // Use our dedicated function to handle all aspects of liquidity contribution account
+    const result = await ensureLiquidityContributionAccount(wallet, connection);
     
-    if (accountInfo) {
-      console.log('Liquidity contribution account exists:', liquidityContributionAccount.toString());
-      return {
-        exists: true,
-        liquidityContributionAccount
-      };
-    }
-    
-    console.log('Creating liquidity contribution account transaction...');
-    
-    // Size of the liquidity contribution account data structure (match the Rust program)
-    const LIQUIDITY_CONTRIBUTION_SIZE = 128;
-    
-    // Calculate rent exemption
-    const rentExemption = await connection.getMinimumBalanceForRentExemption(
-      LIQUIDITY_CONTRIBUTION_SIZE
-    );
-
-    // Create a separate transaction for creating the liquidity contribution account
-    const transaction = new Transaction();
-    
-    // Add compute budget instructions for complex operations
-    const computeUnits = ComputeBudgetProgram.setComputeUnitLimit({
-      units: 400000
-    });
-    
-    transaction.add(computeUnits);
-    
-    // Create initialization instruction for the liquidity contribution account
-    // This is instruction #7 (SOL to YOT Swap) but with a flag to only create the account
-    // We use instruction data format [7, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    // where the first byte (7) is the instruction index and the second byte (1) is a flag
-    // indicating this is just for account creation
-    // Use instruction #6 (CREATE_LIQUIDITY_ACCOUNT_ONLY)
-    // This is an instruction that only creates the account without attempting a swap
-    const data = Buffer.alloc(1);
-    data.writeUint8(6, 0); // Use instruction #6 - it should be for account creation only
-    
-    // Get necessary PDAs
-    const [programStateAddress] = findProgramStateAddress(programId);
-    const [programAuthority] = findProgramAuthority(programId);
-    
-    // Create a simplified instruction with only the accounts needed for account creation
-    const instruction = new TransactionInstruction({
-      programId,
-      keys: [
-        { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // Payer for account creation
-        { pubkey: liquidityContributionAccount, isSigner: false, isWritable: true }, // The account to be created
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // For create account instruction
-        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, // For rent-exempt calculation
-      ],
-      data
-    });
-    
-    transaction.add(instruction);
-    
-    // Set transaction properties
-    transaction.feePayer = wallet.publicKey;
-    const { blockhash } = await connection.getLatestBlockhash();
-    transaction.recentBlockhash = blockhash;
-    
+    // Return the information in a format compatible with our existing code
     return {
-      exists: false,
-      transaction,
-      liquidityContributionAccount
+      exists: result.exists,
+      liquidityContributionAccount: result.accountAddress,
+      signature: result.signature
     };
   } catch (error) {
-    console.error('Error checking liquidity contribution account:', error);
+    console.error('[SOL-YOT SWAP V3] Error checking liquidity contribution account:', error);
     throw error;
   }
 }
@@ -316,21 +254,15 @@ export async function solToYotSwapV3(
     const liquidityResult = await checkLiquidityContributionAccount(wallet, connection);
     const liquidityContributionAccount = liquidityResult.liquidityContributionAccount;
     
-    if (!liquidityResult.exists && liquidityResult.transaction) {
-      console.log('[SOL-YOT SWAP V3] Creating liquidity contribution account...');
-      const signedTxn = await wallet.signTransaction(liquidityResult.transaction);
-      accountCreationSignature = await connection.sendRawTransaction(signedTxn.serialize());
-      
-      console.log('[SOL-YOT SWAP V3] Liquidity contribution account creation sent:', accountCreationSignature);
-      
-      // Wait for confirmation
-      await connection.confirmTransaction(accountCreationSignature);
+    // If account was just created by our external function, get the signature and flag it
+    if (!liquidityResult.exists && liquidityResult.signature) {
+      accountCreationSignature = liquidityResult.signature;
       accountCreated = true;
+      console.log('[SOL-YOT SWAP V3] Liquidity contribution account created with signature:', accountCreationSignature);
       
-      console.log('[SOL-YOT SWAP V3] Liquidity contribution account created successfully!');
-      
-      // Optional: Sleep briefly to ensure account propagation
+      // Sleep briefly to ensure account propagation
       await new Promise(resolve => setTimeout(resolve, 2000));
+    }
     }
     
     // STEP 3: Perform the actual swap now that all accounts exist
