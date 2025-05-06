@@ -33,13 +33,50 @@ impl ProgramState {
     // Updated LEN to account for the additional Pubkey and u64
     pub const LEN: usize = 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8 + 32 + 8; // 4 pubkeys + 6 u64s
     
-    // Manual deserialization
+    // Manual deserialization with backward compatibility handling
     pub fn unpack(data: &[u8]) -> Result<Self, ProgramError> {
-        if data.len() < ProgramState::LEN {
-            msg!("Program state data too short");
-            return Err(ProgramError::InvalidAccountData);
+        if data.len() < Self::LEN {
+            // Handle older program state format (backward compatibility)
+            msg!("Program state data too short (old format detected)");
+            
+            // Check if it's a valid older format (without liquidity_wallet and liquidity_threshold)
+            let old_len = 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8; // 3 pubkeys + 5 u64s
+            
+            if data.len() < old_len {
+                msg!("ERROR: Data too short even for old format: {} bytes", data.len());
+                return Err(ProgramError::InvalidAccountData);
+            }
+            
+            let data_old = array_ref![data, 0, old_len];
+            let (
+                admin, 
+                yot_mint, 
+                yos_mint,
+                lp_contribution_rate,
+                admin_fee_rate,
+                yos_cashback_rate,
+                swap_fee_rate,
+                referral_rate
+            ) = array_refs![data_old, 32, 32, 32, 8, 8, 8, 8, 8];
+            
+            // Return a default program state with old data + default values for new fields
+            msg!("Using old format data + default values for new fields");
+            return Ok(Self {
+                admin: Pubkey::new_from_array(*admin),
+                yot_mint: Pubkey::new_from_array(*yot_mint),
+                yos_mint: Pubkey::new_from_array(*yos_mint),
+                lp_contribution_rate: u64::from_le_bytes(*lp_contribution_rate),
+                admin_fee_rate: u64::from_le_bytes(*admin_fee_rate),
+                yos_cashback_rate: u64::from_le_bytes(*yos_cashback_rate),
+                swap_fee_rate: u64::from_le_bytes(*swap_fee_rate),
+                referral_rate: u64::from_le_bytes(*referral_rate),
+                // Default values for new fields
+                liquidity_wallet: Pubkey::default(), // Will be updated in process_repair_program_state
+                liquidity_threshold: 100000000,      // Default 0.1 SOL
+            });
         }
 
+        // Normal unpacking for current version
         let data_array = array_ref![data, 0, ProgramState::LEN];
         let (
             admin,
@@ -219,6 +256,30 @@ pub fn process_instruction(
             
             process_update_parameters(
                 program_id, accounts, lp_rate, cashback_rate, admin_fee, swap_fee, referral_rate
+            )
+        },
+        6 => {
+            msg!("Repair Program State Instruction");
+            if instruction_data.len() < 41 { // 1 + 5 * 8 = 41
+                return Err(ProgramError::InvalidInstructionData);
+            }
+            
+            // Extract parameters for repairing the program state
+            let lp_rate = u64::from_le_bytes(instruction_data[1..9].try_into().unwrap());
+            let cashback_rate = u64::from_le_bytes(instruction_data[9..17].try_into().unwrap());
+            let admin_fee = u64::from_le_bytes(instruction_data[17..25].try_into().unwrap());
+            let swap_fee = u64::from_le_bytes(instruction_data[25..33].try_into().unwrap());
+            let yos_display = u64::from_le_bytes(instruction_data[33..41].try_into().unwrap());
+            
+            // If there are additional 8 bytes, extract liquidity threshold
+            let threshold = if instruction_data.len() >= 49 {
+                u64::from_le_bytes(instruction_data[41..49].try_into().unwrap())
+            } else {
+                100000000 // Default 0.1 SOL if not provided
+            };
+            
+            process_repair_program_state(
+                program_id, accounts, lp_rate, cashback_rate, admin_fee, swap_fee, yos_display, threshold
             )
         },
         7 => {
@@ -1630,6 +1691,126 @@ pub fn process_yot_to_sol_swap_immediate(
     msg!("User received: {} SOL + {} YOS cashback", user_portion, yos_cashback);
     msg!("Liquidity contribution to central wallet: {} SOL (tracking equivalent: {} YOT)", 
          liquidity_portion, equivalent_yot_contribution / 10);
+    
+    Ok(())
+}
+
+/// Process a repair-program-state instruction
+/// This instruction will update the program state with provided values
+/// and ensure it has the correct format with all required fields
+pub fn process_repair_program_state(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    lp_contribution_rate: u64,
+    yos_cashback_rate: u64,
+    admin_fee_rate: u64,
+    swap_fee_rate: u64,
+    referral_rate: u64,
+    liquidity_threshold: u64,
+) -> ProgramResult {
+    let accounts_iter = &mut accounts.iter();
+    let admin = next_account_info(accounts_iter)?;
+    let program_state_account = next_account_info(accounts_iter)?;
+    let liquidity_wallet = next_account_info(accounts_iter)?;
+    let system_program = next_account_info(accounts_iter)?;
+    
+    // Verify admin is a signer
+    if !admin.is_signer {
+        msg!("Error: Admin signature required");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+    
+    // Verify that the program_state_account is owned by this program
+    if program_state_account.owner != program_id {
+        msg!("Error: Program state not owned by program");
+        return Err(ProgramError::InvalidAccountOwner);
+    }
+    
+    // Check that state PDA is correct
+    let (state_pda, _) = find_program_state_address(program_id);
+    if state_pda != *program_state_account.key {
+        msg!("Error: Invalid program state address");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Get the current data length
+    let current_data_len = program_state_account.data_len();
+    msg!("Current program state data length: {}", current_data_len);
+    
+    // Attempt to deserialize the existing state (which may be in old format)
+    // The backward compatibility is handled in the unpack function
+    let mut program_state = ProgramState::unpack(&program_state_account.data.borrow())?;
+    
+    // Verify admin
+    if program_state.admin != *admin.key {
+        msg!("Error: Only admin can repair program state");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Preserve existing mint addresses
+    let yot_mint = program_state.yot_mint;
+    let yos_mint = program_state.yos_mint;
+    
+    // Update the program state with all values to ensure it's complete
+    program_state = ProgramState {
+        admin: *admin.key,
+        yot_mint,
+        yos_mint,
+        lp_contribution_rate,
+        admin_fee_rate,
+        yos_cashback_rate,
+        swap_fee_rate,
+        referral_rate,
+        liquidity_wallet: *liquidity_wallet.key,
+        liquidity_threshold,
+    };
+    
+    // Check if we need to resize the account
+    if current_data_len < ProgramState::LEN {
+        msg!("Need to resize program state from {} to {} bytes", 
+            current_data_len, ProgramState::LEN);
+            
+        // For PDA accounts, we would need to add rent to cover the larger size
+        let rent = Rent::get()?;
+        let new_minimum_balance = rent.minimum_balance(ProgramState::LEN);
+        let current_balance = program_state_account.lamports();
+        
+        if current_balance < new_minimum_balance {
+            let lamports_diff = new_minimum_balance - current_balance;
+            msg!("Transferring {} lamports to cover rent", lamports_diff);
+            
+            // Transfer additional lamports from admin
+            invoke(
+                &system_instruction::transfer(
+                    admin.key,
+                    program_state_account.key,
+                    lamports_diff,
+                ),
+                &[
+                    admin.clone(),
+                    program_state_account.clone(),
+                    system_program.clone(),
+                ],
+            )?;
+        }
+        
+        // NOTE: In a production environment, resizing PDA accounts requires more complex logic
+        // This may not be sufficient and may require recreating the account,
+        // but we're keeping it simple for this example
+    }
+    
+    // Pack the updated state to the account data
+    program_state.pack(&mut program_state_account.data.borrow_mut()[..])?;
+    
+    msg!("Program state repaired successfully");
+    msg!("Program parameters:");
+    msg!("- LP contribution rate: {}%", lp_contribution_rate);
+    msg!("- YOS cashback rate: {}%", yos_cashback_rate);
+    msg!("- Admin fee rate: {}%", admin_fee_rate);
+    msg!("- Swap fee rate: {}%", swap_fee_rate);
+    msg!("- Referral rate: {}%", referral_rate);
+    msg!("- Liquidity wallet: {}", liquidity_wallet.key);
+    msg!("- Liquidity threshold: {} lamports", liquidity_threshold);
     
     Ok(())
 }
