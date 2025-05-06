@@ -124,8 +124,10 @@ export const USDC_DEVNET_ADDRESS = solanaConfig.multiHubSwap.amm.raydium.usdc;
 // Multi-Hub Swap Program IDs and constants
 export const MULTI_HUB_SWAP_PROGRAM_ID = solanaConfig.multiHubSwap.programId || "FDKcjgPeqtGn4baGXvXVZLheLCPipTw4SzTgcEdnK91s";
 export const MULTI_HUB_SWAP_STATE = solanaConfig.multiHubSwap.programState || "2GJ5eKRMgLhgKSgLyqVCRcAFoMPhVtyaENpfuPvWbDtX";
-export const MULTI_HUB_SWAP_ADMIN = solanaConfig.multiHubSwap.admin || "AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ";
-export const ADMIN_WALLET_ADDRESS = solanaConfig.multiHubSwap.admin || "AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ";
+export const MULTI_HUB_SWAP_ADMIN = solanaConfig.multiHubSwap.admin || "3sx8ajxSwa4CEh7Mu55ArVjxogF4dNQoxWqrDqogBrUd";
+export const USER_ADMIN_WALLET = solanaConfig.multiHubSwap.userAdmin || "AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ";
+export const ADMIN_WALLETS = [MULTI_HUB_SWAP_ADMIN, USER_ADMIN_WALLET];
+export const ADMIN_WALLET_ADDRESS = MULTI_HUB_SWAP_ADMIN;
 // Program authority PDA from central configuration
 export const MULTI_HUB_SWAP_PROGRAM_AUTHORITY = solanaConfig.multiHubSwap.programAuthority || "Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ";
 
