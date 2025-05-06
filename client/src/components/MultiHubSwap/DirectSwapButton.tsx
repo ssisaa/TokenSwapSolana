@@ -43,10 +43,10 @@ export function DirectSwapButton({ wallet, amount, disabled }: DirectSwapButtonP
       
       if (result.success) {
         toast({
-          title: "Smart Contract Swap Complete!",
+          title: "SOL Transfer Complete!",
           description: (
             <div className="flex flex-col gap-1">
-              <p>SOL swapped successfully via smart contract!</p>
+              <p>Your SOL has been transferred successfully!</p>
               <a 
                 href={`https://explorer.solana.com/tx/${result.signature}?cluster=devnet`}
                 target="_blank"
@@ -56,7 +56,7 @@ export function DirectSwapButton({ wallet, amount, disabled }: DirectSwapButtonP
                 View on Explorer
               </a>
               <p className="text-green-500 mt-2">
-                The swap was processed entirely on-chain with 75% to you, 20% to liquidity, and 5% YOS cashback.
+                Direct SOL transfer (temporary mode) was used to bypass contract issues.
               </p>
             </div>
           ),
@@ -94,7 +94,7 @@ export function DirectSwapButton({ wallet, amount, disabled }: DirectSwapButtonP
       ) : (
         <>
           <Shield className="mr-2 h-4 w-4" />
-          Smart Contract Swap
+          Direct SOL Transfer
         </>
       )}
     </Button>
