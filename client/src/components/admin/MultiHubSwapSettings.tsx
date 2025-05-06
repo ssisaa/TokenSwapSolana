@@ -338,210 +338,244 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
                 Configure how tokens are distributed during swaps
               </p>
             </div>
-
-            <Alert variant="default" className="bg-primary/5 border-primary/20">
-              <div className="flex justify-between items-center w-full">
-                <div>
-                  <AlertTitle>Current Distribution</AlertTitle>
-                  <AlertDescription>
-                    User: <strong>{100 - lpContributionRate - yosCashbackRate}%</strong>,
-                    LP: <strong>{lpContributionRate}%</strong>,
-                    YOS Cashback: <strong>{yosCashbackRate}%</strong>
-                  </AlertDescription>
-                </div>
-                <Progress 
-                  value={100} 
-                  className="h-3 w-40" 
-                  style={{
-                    background: `linear-gradient(to right, 
-                      #3b82f6 0%, 
-                      #3b82f6 ${100 - lpContributionRate - yosCashbackRate}%, 
-                      #10b981 ${100 - lpContributionRate - yosCashbackRate}%, 
-                      #10b981 ${100 - yosCashbackRate}%, 
-                      #f97316 ${100 - yosCashbackRate}%, 
-                      #f97316 100%)`
-                  }}
-                />
-              </div>
-            </Alert>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="lpContributionRate">
-                  LP Contribution Rate (%)
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary/10 text-primary text-xs">?</span>
-                      </TooltipTrigger>
-                      <TooltipContent className="w-80">
-                        <p>Percentage of the transaction amount that goes to the liquidity pool. Default: 20%</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </Label>
-                <Input
-                  id="lpContributionRate"
-                  type="number"
-                  min="0"
-                  max="90"
-                  step="0.1"
-                  value={lpContributionRate}
-                  onChange={(e) => setLpContributionRate(parseFloat(e.target.value))}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="yosCashbackRate">
-                  YOS Cashback Rate (%)
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary/10 text-primary text-xs">?</span>
-                      </TooltipTrigger>
-                      <TooltipContent className="w-80">
-                        <p>Percentage of the transaction amount that gets minted as YOS tokens for cashback. Default: 5%</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </Label>
-                <Input
-                  id="yosCashbackRate"
-                  type="number"
-                  min="0"
-                  max="20"
-                  step="0.1"
-                  value={yosCashbackRate}
-                  onChange={(e) => setYosCashbackRate(parseFloat(e.target.value))}
-                />
-              </div>
-            </div>
-
-            <Separator className="my-4" />
-
-            <div className="space-y-1">
-              <h3 className="font-medium text-base">Fee Parameters</h3>
-              <p className="text-sm text-muted-foreground">
-                Configure swap fees and referral rewards
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label htmlFor="swapFeeRate">
-                  Swap Fee Rate (%)
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary/10 text-primary text-xs">?</span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Fee charged on each swap. Default: 0.3%</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </Label>
-                <Input
-                  id="swapFeeRate"
-                  type="number"
-                  min="0"
-                  max="3"
-                  step="0.01"
-                  value={swapFeeRate}
-                  onChange={(e) => setSwapFeeRate(parseFloat(e.target.value))}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="adminFeeRate">
-                  Admin Fee Rate (%)
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary/10 text-primary text-xs">?</span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Fee sent to admin wallet. Default: 0.1%</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </Label>
-                <Input
-                  id="adminFeeRate"
-                  type="number"
-                  min="0"
-                  max="5"
-                  step="0.01"
-                  value={adminFeeRate}
-                  onChange={(e) => setAdminFeeRate(parseFloat(e.target.value))}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="referralRate">
-                  Referral Rate (%)
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary/10 text-primary text-xs">?</span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Percentage paid to referrers. Default: 0.5%</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </Label>
-                <Input
-                  id="referralRate"
-                  type="number"
-                  min="0"
-                  max="5"
-                  step="0.01"
-                  value={referralRate}
-                  onChange={(e) => setReferralRate(parseFloat(e.target.value))}
-                />
-              </div>
-            </div>
-
-            <div className="pt-4">
-              <Alert variant="default" className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-900/30">
-                <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
-                <AlertTitle>Important Note</AlertTitle>
-                <AlertDescription className="text-yellow-800 dark:text-yellow-400">
-                  The sum of LP Contribution Rate and YOS Cashback Rate cannot exceed 95%. 
-                  Users must receive at least 5% of the swap amount.
+            
+            {!isInitialized ? (
+              <Alert className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-900/30">
+                <Upload className="h-4 w-4 text-blue-600 dark:text-blue-500" />
+                <AlertTitle>Contract Initialization Required</AlertTitle>
+                <AlertDescription className="text-blue-800 dark:text-blue-400">
+                  <p className="mb-4">
+                    The Multi-Hub Swap contract needs to be initialized before you can configure parameters. 
+                    Initialization will set up the token addresses and initial parameters.
+                  </p>
+                  <div className="flex justify-end">
+                    <Button 
+                      onClick={initializeContract}
+                      disabled={isInitializing || !wallet?.publicKey}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      {isInitializing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Initializing...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="mr-2 h-4 w-4" />
+                          Initialize Contract
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </AlertDescription>
               </Alert>
-            </div>
+            ) : (
+              <>
+                <Alert variant="default" className="bg-primary/5 border-primary/20">
+                  <div className="flex justify-between items-center w-full">
+                    <div>
+                      <AlertTitle>Current Distribution</AlertTitle>
+                      <AlertDescription>
+                        User: <strong>{100 - lpContributionRate - yosCashbackRate}%</strong>,
+                        LP: <strong>{lpContributionRate}%</strong>,
+                        YOS Cashback: <strong>{yosCashbackRate}%</strong>
+                      </AlertDescription>
+                    </div>
+                    <Progress 
+                      value={100} 
+                      className="h-3 w-40" 
+                      style={{
+                        background: `linear-gradient(to right, 
+                          #3b82f6 0%, 
+                          #3b82f6 ${100 - lpContributionRate - yosCashbackRate}%, 
+                          #10b981 ${100 - lpContributionRate - yosCashbackRate}%, 
+                          #10b981 ${100 - yosCashbackRate}%, 
+                          #f97316 ${100 - yosCashbackRate}%, 
+                          #f97316 100%)`
+                      }}
+                    />
+                  </div>
+                </Alert>
 
-            <div className="pt-4 flex justify-end">
-              <div className="space-x-2">
-                <Button 
-                  variant="outline" 
-                  onClick={fetchContractInfo}
-                  disabled={isSaving}
-                >
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Refresh
-                </Button>
-                <Button
-                  onClick={saveParameters}
-                  disabled={isSaving || !isInitialized || !wallet?.publicKey}
-                >
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="mr-2 h-4 w-4" />
-                      Save Parameters
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="lpContributionRate">
+                      LP Contribution Rate (%)
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary/10 text-primary text-xs">?</span>
+                          </TooltipTrigger>
+                          <TooltipContent className="w-80">
+                            <p>Percentage of the transaction amount that goes to the liquidity pool. Default: 20%</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </Label>
+                    <Input
+                      id="lpContributionRate"
+                      type="number"
+                      min="0"
+                      max="90"
+                      step="0.1"
+                      value={lpContributionRate}
+                      onChange={(e) => setLpContributionRate(parseFloat(e.target.value))}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="yosCashbackRate">
+                      YOS Cashback Rate (%)
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary/10 text-primary text-xs">?</span>
+                          </TooltipTrigger>
+                          <TooltipContent className="w-80">
+                            <p>Percentage of the transaction amount that gets minted as YOS tokens for cashback. Default: 5%</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </Label>
+                    <Input
+                      id="yosCashbackRate"
+                      type="number"
+                      min="0"
+                      max="20"
+                      step="0.1"
+                      value={yosCashbackRate}
+                      onChange={(e) => setYosCashbackRate(parseFloat(e.target.value))}
+                    />
+                  </div>
+                </div>
+
+                <Separator className="my-4" />
+
+                <div className="space-y-1">
+                  <h3 className="font-medium text-base">Fee Parameters</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Configure swap fees and referral rewards
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="swapFeeRate">
+                      Swap Fee Rate (%)
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary/10 text-primary text-xs">?</span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Fee charged on each swap. Default: 0.3%</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </Label>
+                    <Input
+                      id="swapFeeRate"
+                      type="number"
+                      min="0"
+                      max="3"
+                      step="0.01"
+                      value={swapFeeRate}
+                      onChange={(e) => setSwapFeeRate(parseFloat(e.target.value))}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="adminFeeRate">
+                      Admin Fee Rate (%)
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary/10 text-primary text-xs">?</span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Fee sent to admin wallet. Default: 0.1%</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </Label>
+                    <Input
+                      id="adminFeeRate"
+                      type="number"
+                      min="0"
+                      max="5"
+                      step="0.01"
+                      value={adminFeeRate}
+                      onChange={(e) => setAdminFeeRate(parseFloat(e.target.value))}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="referralRate">
+                      Referral Rate (%)
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary/10 text-primary text-xs">?</span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Percentage paid to referrers. Default: 0.5%</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </Label>
+                    <Input
+                      id="referralRate"
+                      type="number"
+                      min="0"
+                      max="5"
+                      step="0.01"
+                      value={referralRate}
+                      onChange={(e) => setReferralRate(parseFloat(e.target.value))}
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4">
+                  <Alert variant="default" className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-900/30">
+                    <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
+                    <AlertTitle>Important Note</AlertTitle>
+                    <AlertDescription className="text-yellow-800 dark:text-yellow-400">
+                      The sum of LP Contribution Rate and YOS Cashback Rate cannot exceed 95%. 
+                      Users must receive at least 5% of the swap amount.
+                    </AlertDescription>
+                  </Alert>
+                </div>
+
+                <div className="pt-4 flex justify-end">
+                  <div className="space-x-2">
+                    <Button 
+                      variant="outline" 
+                      onClick={fetchContractInfo}
+                      disabled={isSaving}
+                    >
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Refresh
+                    </Button>
+                    <Button
+                      onClick={saveParameters}
+                      disabled={isSaving || !isInitialized || !wallet?.publicKey}
+                    >
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="mr-2 h-4 w-4" />
+                          Save Parameters
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
           </TabsContent>
 
           <TabsContent value="liquidity" className="space-y-4">
@@ -552,85 +586,119 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
               </p>
             </div>
 
-            <div className="bg-secondary/30 p-4 rounded-lg space-y-3 mb-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium text-sm">Centralized Liquidity System</h4>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    When users buy YOT, {lpContributionRate}% is sent to the central liquidity wallet.
-                    Once sufficient balance is accumulated, it can be added to the liquidity pool.
+            {!isInitialized ? (
+              <Alert className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-900/30">
+                <Upload className="h-4 w-4 text-blue-600 dark:text-blue-500" />
+                <AlertTitle>Contract Initialization Required</AlertTitle>
+                <AlertDescription className="text-blue-800 dark:text-blue-400">
+                  <p className="mb-4">
+                    The Multi-Hub Swap contract needs to be initialized before you can manage liquidity. 
+                    Initialization will set up the token addresses and initial parameters.
                   </p>
-                </div>
-                <div className="text-right">
-                  <span className="text-sm font-medium">Current Model:</span>
-                  <div className="text-primary font-semibold">Central Liquidity</div>
-                </div>
-              </div>
-            </div>
-
-            <Alert variant="default" className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-900/30">
-              <div className="flex flex-col space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <span className="font-medium">Add Liquidity to Pool</span>
+                  <div className="flex justify-end">
+                    <Button 
+                      onClick={initializeContract}
+                      disabled={isInitializing || !wallet?.publicKey}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      {isInitializing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Initializing...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="mr-2 h-4 w-4" />
+                          Initialize Contract
+                        </>
+                      )}
+                    </Button>
                   </div>
-                  <Button 
-                    size="sm" 
-                    onClick={async () => {
-                      try {
-                        if (!wallet || !wallet.publicKey) {
-                          throw new Error("Wallet not connected");
-                        }
-                        
-                        if (!isAdmin) {
-                          throw new Error("Only admin can add liquidity from central wallet");
-                        }
-                        
-                        toast({
-                          title: "Processing...",
-                          description: "Adding liquidity from central wallet to pool",
-                        });
-                        
-                        const signature = await addLiquidityFromCentralWallet(wallet);
-                        
-                        toast({
-                          title: "Liquidity Added Successfully",
-                          description: `Transaction signature: ${signature.slice(0, 8)}...`,
-                        });
-                        
-                        // Refresh contract info
-                        await fetchContractInfo();
-                      } catch (error: any) {
-                        console.error("Failed to add liquidity:", error);
-                        toast({
-                          title: "Failed to add liquidity",
-                          description: error.message || "An error occurred",
-                          variant: "destructive",
-                        });
-                      }
-                    }}
-                  >
-                    Add Liquidity Now
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  This action transfers 50% SOL and 50% YOT from the central liquidity wallet to the liquidity pool.
-                  This can only be executed when the central wallet balance exceeds the threshold.
-                </p>
-              </div>
-            </Alert>
-
-            <div className="pt-4">
-              <Alert variant="default" className="bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-900/30">
-                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
-                <AlertTitle>Important Information</AlertTitle>
-                <AlertDescription className="text-amber-800 dark:text-amber-400">
-                  The central liquidity system aggregates {lpContributionRate}% of all YOT purchases into a single wallet.
-                  When the wallet balance exceeds the threshold, the admin can add this liquidity to the pool
-                  to improve market depth and trading capabilities.
                 </AlertDescription>
               </Alert>
-            </div>
+            ) : (
+              <>
+                <div className="bg-secondary/30 p-4 rounded-lg space-y-3 mb-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium text-sm">Centralized Liquidity System</h4>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        When users buy YOT, {lpContributionRate}% is sent to the central liquidity wallet.
+                        Once sufficient balance is accumulated, it can be added to the liquidity pool.
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-sm font-medium">Current Model:</span>
+                      <div className="text-primary font-semibold">Central Liquidity</div>
+                    </div>
+                  </div>
+                </div>
+
+                <Alert variant="default" className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-900/30">
+                  <div className="flex flex-col space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <span className="font-medium">Add Liquidity to Pool</span>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        onClick={async () => {
+                          try {
+                            if (!wallet || !wallet.publicKey) {
+                              throw new Error("Wallet not connected");
+                            }
+                            
+                            if (!isAdmin) {
+                              throw new Error("Only admin can add liquidity from central wallet");
+                            }
+                            
+                            toast({
+                              title: "Processing...",
+                              description: "Adding liquidity from central wallet to pool",
+                            });
+                            
+                            const signature = await addLiquidityFromCentralWallet(wallet);
+                            
+                            toast({
+                              title: "Liquidity Added Successfully",
+                              description: `Transaction signature: ${signature.slice(0, 8)}...`,
+                            });
+                            
+                            // Refresh contract info
+                            await fetchContractInfo();
+                          } catch (error: any) {
+                            console.error("Failed to add liquidity:", error);
+                            toast({
+                              title: "Failed to add liquidity",
+                              description: error.message || "An error occurred",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                      >
+                        Add Liquidity Now
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      This action transfers 50% SOL and 50% YOT from the central liquidity wallet to the liquidity pool.
+                      This can only be executed when the central wallet balance exceeds the threshold.
+                    </p>
+                  </div>
+                </Alert>
+
+                <div className="pt-4">
+                  <Alert variant="default" className="bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-900/30">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+                    <AlertTitle>Important Information</AlertTitle>
+                    <AlertDescription className="text-amber-800 dark:text-amber-400">
+                      The central liquidity system aggregates {lpContributionRate}% of all YOT purchases into a single wallet.
+                      When the wallet balance exceeds the threshold, the admin can add this liquidity to the pool
+                      to improve market depth and trading capabilities.
+                    </AlertDescription>
+                  </Alert>
+                </div>
+              </>
+            )}
           </TabsContent>
 
           <TabsContent value="info">
