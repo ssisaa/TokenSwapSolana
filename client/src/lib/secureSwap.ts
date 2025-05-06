@@ -191,12 +191,17 @@ async function createSecureSolTransferTransaction(
   console.log(`11. Token Program: ${TOKEN_PROGRAM_ID.toString()}`);
   console.log(`12. Rent Sysvar: ${SYSVAR_RENT_PUBKEY.toString()}`);
   
-  // CRITICAL FIX: Use the hardcoded address that the program expects
-  // The actual value is determined by what's stored in the program state
-  const expectedCentralLiquidityWallet = new PublicKey("5rQzEXhDTYdyDiaLpZz4GePd2XumXYPHBSj6T");
-  const configuredCentralLiquidityWallet = new PublicKey(solanaConfig.multiHubSwap.centralLiquidity.wallet);
-  console.log(`[SECURE_SWAP] Expected Central Liquidity Wallet: ${expectedCentralLiquidityWallet.toString()}`);
-  console.log(`[SECURE_SWAP] Configured Central Liquidity Wallet: ${configuredCentralLiquidityWallet.toString()}`);
+  // CRITICAL FIX: We've discovered that in app.config.json, the centralLiquidity.wallet field
+  // is incorrectly set to the SOL-YOT liquidity pool account address rather than a true central liquidity wallet.
+  //
+  // The best solution is to use the SOL_POOL_ACCOUNT as both:
+  // 1. The SOL pool account (#4 in account array)
+  // 2. The central liquidity wallet (#7 in account array)
+  //
+  // This matches what's currently in the configuration and should work with the deployed program
+  const centralLiquidityWallet = POOL_SOL_ACCOUNT; // Use the SOL pool account as central liquidity
+  console.log(`[SECURE_SWAP] SOL Pool Account: ${POOL_SOL_ACCOUNT.toString()}`);
+  console.log(`[SECURE_SWAP] Using this same address as the central liquidity wallet for compatibility`);
   
   // Required accounts for the SOL to YOT swap instruction
   // Order must match EXACTLY what the Rust program expects
@@ -204,10 +209,10 @@ async function createSecureSolTransferTransaction(
     { pubkey: wallet.publicKey, isSigner: true, isWritable: true },         // 1. user (signer)
     { pubkey: programStateAddress, isSigner: false, isWritable: true },     // 2. program_state - MUST BE WRITABLE for v8 instruction
     { pubkey: programAuthority, isSigner: false, isWritable: false },       // 3. program_authority
-    { pubkey: POOL_SOL_ACCOUNT, isSigner: false, isWritable: true },        // 4. sol_pool_account
+    { pubkey: POOL_SOL_ACCOUNT, isSigner: false, isWritable: true },        // 4. sol_pool_account - This is the actual SOL pool for liquidity
     { pubkey: yotPoolAccount, isSigner: false, isWritable: true },          // 5. yot_pool_account  
     { pubkey: userYotAccount, isSigner: false, isWritable: true },          // 6. user_yot_account
-    { pubkey: expectedCentralLiquidityWallet, isSigner: false, isWritable: true },  // 7. central_liquidity_wallet - USING EXPECTED ADDRESS
+    { pubkey: centralLiquidityWallet, isSigner: false, isWritable: true },  // 7. central_liquidity_wallet - Using SOL pool account address
     { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true }, // 8. liquidity_contribution
     { pubkey: yosMint, isSigner: false, isWritable: true },                // 9. yos_mint
     { pubkey: userYosAccount, isSigner: false, isWritable: true },         // 10. user_yos_account
