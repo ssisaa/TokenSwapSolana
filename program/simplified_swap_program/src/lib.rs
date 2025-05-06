@@ -12,13 +12,13 @@ use solana_program::{
     program_pack::Pack,
     pubkey::Pubkey,
     system_instruction,
-    sysvar::{rent::Rent, Sysvar, clock::Clock},
+    sysvar::{rent::Rent, Sysvar},
 };
-use spl_token::state::{Account as TokenAccount, Mint};
+use spl_token::state::Account as TokenAccount;
 // Removed Borsh dependency - using manual serialization instead
 
-// Program ID will be replaced during deployment
-solana_program::declare_id!("SimpleSwapPDCsXVzAi7i2UmXt3VY6K79Po4wY3zLGwu");
+// Program ID for the deployed simplified swap program
+solana_program::declare_id!("Js9TqdpLBsF7M64ra2mYNyfbPTWwTvBUNR85wsEoSKP");
 
 // Program entrypoint
 entrypoint!(process_instruction);
@@ -226,16 +226,16 @@ impl ProgramState {
         }
         
         // Parse admin pubkey
-        let admin = Pubkey::new(&input[0..32]);
+        let admin = Pubkey::from(<&[u8; 32]>::try_from(&input[0..32]).unwrap());
         
         // Parse YOT mint pubkey
-        let yot_mint = Pubkey::new(&input[32..64]);
+        let yot_mint = Pubkey::from(<&[u8; 32]>::try_from(&input[32..64]).unwrap());
         
         // Parse YOS mint pubkey
-        let yos_mint = Pubkey::new(&input[64..96]);
+        let yos_mint = Pubkey::from(<&[u8; 32]>::try_from(&input[64..96]).unwrap());
         
         // Parse liquidity wallet pubkey
-        let liquidity_wallet = Pubkey::new(&input[96..128]);
+        let liquidity_wallet = Pubkey::from(<&[u8; 32]>::try_from(&input[96..128]).unwrap());
         
         // SOL distribution ratio
         let sol_distribution_ratio = input[128];
