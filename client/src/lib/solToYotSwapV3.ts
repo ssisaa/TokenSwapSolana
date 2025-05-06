@@ -156,10 +156,10 @@ export async function checkLiquidityContributionAccount(
     // We use instruction data format [7, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     // where the first byte (7) is the instruction index and the second byte (1) is a flag
     // indicating this is just for account creation
-    // Create special dedicated instruction data for ONLY creating the account (instruction #8)
-    // This is a new specialized instruction that ONLY creates the account and does nothing else
+    // Use instruction #6 (CREATE_LIQUIDITY_ACCOUNT_ONLY)
+    // This is an instruction that only creates the account without attempting a swap
     const data = Buffer.alloc(1);
-    data.writeUint8(8, 0); // Instruction #8 - Create Liquidity Account Only
+    data.writeUint8(6, 0); // Use instruction #6 - it should be for account creation only
     
     // Get necessary PDAs
     const [programStateAddress] = findProgramStateAddress(programId);
@@ -210,12 +210,12 @@ export function createSolToYotSwapInstruction(
   yosMint: PublicKey,
   userYosAccount: PublicKey,
 ): TransactionInstruction {
-  // Instruction data: [7 (SOL-YOT Swap), 0 (NO account creation), amountIn (8 bytes), minAmountOut (8 bytes)]
-  const data = Buffer.alloc(18);
+  // Instruction data: [7 (SOL-YOT Swap), amountIn (8 bytes), minAmountOut (8 bytes)]
+  // Use the original format the deployed program expects (no flag)
+  const data = Buffer.alloc(17);
   data.writeUint8(7, 0); // SOL-YOT Swap instruction (index 7)
-  data.writeUint8(0, 1); // Flag 0 = DO NOT create account, just swap (account should already exist)
-  data.writeBigUInt64LE(BigInt(amountInLamports), 2); // Note offset is now 2 because we added flag byte
-  data.writeBigUInt64LE(BigInt(minAmountOutTokens), 10); // Note offset is now 10
+  data.writeBigUInt64LE(BigInt(amountInLamports), 1); // Original offset at position 1
+  data.writeBigUInt64LE(BigInt(minAmountOutTokens), 9); // Original offset at position 9
   
   // Required accounts for the SOL to YOT swap - must exactly match program expectation
   const accounts = [
