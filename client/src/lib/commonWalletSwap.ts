@@ -59,6 +59,29 @@ export async function getCommonWalletBalance(): Promise<number> {
 }
 
 /**
+ * Check if common wallet has reached the threshold for adding liquidity
+ * This is used to show a notification to admins when they should add liquidity
+ * @returns Object with status and balance information
+ */
+export async function checkCommonWalletThreshold(): Promise<{
+  readyToAddLiquidity: boolean,
+  currentBalance: number,
+  threshold: number,
+  percentage: number
+}> {
+  const currentBalance = await getCommonWalletBalance();
+  const threshold = COMMON_WALLET_THRESHOLD_SOL;
+  const percentage = (currentBalance / threshold) * 100;
+  
+  return {
+    readyToAddLiquidity: currentBalance >= threshold,
+    currentBalance,
+    threshold,
+    percentage: Math.min(100, percentage) // Cap at 100%
+  };
+}
+
+/**
  * Execute SOL to YOT swap with common wallet contribution and YOS cashback
  * Handles the swap by sending:
  * - 20% of SOL to the common wallet (program authority PDA)

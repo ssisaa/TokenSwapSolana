@@ -49,7 +49,14 @@ export interface SolanaConfig {
     commonWallet: {
       wallet: string;
       threshold: number;
-      yotAccount: string;
+      yotAccount?: string;
+    };
+    instructionDiscriminators: {
+      buyAndDistribute: number[];
+      claimReward: number[];
+      withdrawContribution: number[];
+      updateParameters: number[];
+      addLiquidityFromCommon: number[];
     };
     rates: {
       lpContributionRate: number;

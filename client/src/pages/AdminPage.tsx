@@ -13,6 +13,7 @@ import AdminTransactions from "@/components/admin/AdminTransactions";
 import FundProgramAccounts from "@/components/admin/FundProgramAccounts";
 import MultiHubSwapSettings from "@/components/admin/MultiHubSwapSettings";
 import AuthorizeTokens from "@/components/admin/AuthorizeTokens";
+import CommonWalletManager from "@/components/admin/CommonWalletManager";
 import { useMultiWallet } from "@/context/MultiWalletContext";
 
 export default function AdminPage() {
