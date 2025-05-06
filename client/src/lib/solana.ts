@@ -132,28 +132,36 @@ export async function getPoolBalances() {
     
     // Get SOL balance of the pool
     const solBalance = await connection.getBalance(poolSolAccount);
+    if (solBalance === 0) {
+      throw new Error('SOL balance in pool is zero - cannot proceed with proper exchange rate calculations');
+    }
     
-    let yotBalance = 0;
-    let yosBalance = 0;
-    
+    // Get YOT balance directly from the token account
+    let yotBalance;
     try {
-      // Try to get YOT balance directly from the token account
       const yotAccountInfo = await getAccount(connection, yotTokenAccount);
       const yotMintInfo = await getMint(connection, yotTokenMint);
       yotBalance = Number(yotAccountInfo.amount) / Math.pow(10, yotMintInfo.decimals);
+      
+      if (yotBalance === 0) {
+        throw new Error('YOT balance in pool is zero - cannot proceed with proper exchange rate calculations');
+      }
     } catch (error) {
       console.error('Error getting YOT token balance:', error);
-      // If there's an error, we use 0 as the balance
+      throw new Error('Failed to retrieve YOT token balance: ' + (error instanceof Error ? error.message : String(error)));
     }
     
+    // Get YOS balance - this can be optional since it's only for display purposes
+    let yosBalance = 0;
     try {
-      // Try to get YOS balance directly from the token account
       const yosAccountInfo = await getAccount(connection, yosTokenAccount);
       const yosMintInfo = await getMint(connection, yosTokenMint);
       yosBalance = Number(yosAccountInfo.amount) / Math.pow(10, yosMintInfo.decimals);
     } catch (error) {
       console.error('Error getting YOS token balance:', error);
-      // If there's an error, we use 0 as the balance
+      // YOS balance is not critical for most operations, so we can continue
+      // but we'll log it clearly
+      console.warn('Using zero for YOS balance due to error fetching it from blockchain');
     }
     
     console.log(`Pool balances fetched - SOL: ${lamportsToSol(solBalance)}, YOT: ${yotBalance}, YOS: ${yosBalance}`);
@@ -165,12 +173,8 @@ export async function getPoolBalances() {
     };
   } catch (error) {
     console.error('Error getting pool balances:', error);
-    // Return zeros to indicate error - no fallbacks or fake data
-    return {
-      solBalance: 0,
-      yotBalance: 0,
-      yosBalance: 0
-    };
+    // Throw an error instead of returning zeros - force the caller to handle this properly
+    throw new Error('Failed to retrieve pool balances from blockchain: ' + (error instanceof Error ? error.message : String(error)));
   }
 }
 
@@ -181,13 +185,7 @@ export async function getExchangeRate() {
     
     // If either balance is zero, we can't calculate the exchange rate
     if (solBalance === 0 || yotBalance === 0) {
-      return {
-        solToYot: 0,
-        yotToSol: 0,
-        yotPerSol: 0,
-        solPerYot: 0,
-        rate: 0
-      };
+      throw new Error('Cannot calculate exchange rate: Liquidity pool balance is zero or not found');
     }
     
     // Convert SOL from lamports for rate calculation
@@ -210,13 +208,8 @@ export async function getExchangeRate() {
     };
   } catch (error) {
     console.error('Error calculating exchange rate:', error);
-    return {
-      solToYot: 0,
-      yotToSol: 0,
-      yotPerSol: 0,
-      solPerYot: 0,
-      rate: 0
-    };
+    // No fallbacks - propagate the error with clear message
+    throw new Error(`Failed to retrieve real exchange rates from blockchain: ${error.message}`);
   }
 }
 
@@ -259,9 +252,8 @@ export async function calculateYosToYot(yosAmount: number) {
     const { yotBalance, yosBalance } = await getPoolBalances();
     
     if (!yotBalance || !yosBalance || yotBalance === 0 || yosBalance === 0) {
-      // Fallback to approximate ratio if pool data is unavailable
-      console.log("Using fallback ratio for YOS to YOT conversion");
-      return yosAmount * 0.1; // Fallback: 1 YOS = 0.1 YOT
+      // No fallback - throw an error if data is missing
+      throw new Error('Cannot calculate YOS to YOT conversion: Insufficient liquidity in pool');
     }
     
     // Calculate the actual ratio from AMM pool balances
@@ -285,8 +277,8 @@ export async function calculateYosToYot(yosAmount: number) {
     return yotAmountAfterFee;
   } catch (error) {
     console.error('Error calculating YOS to YOT conversion:', error);
-    // Fallback to approximate ratio
-    return yosAmount * 0.1; // Fallback: 1 YOS = 0.1 YOT
+    // No fallbacks - propagate the error
+    throw new Error(`Failed to calculate YOS to YOT conversion: ${error.message}`);
   }
 }
 
@@ -297,9 +289,8 @@ export async function calculateYotToYos(yotAmount: number) {
     const { yotBalance, yosBalance } = await getPoolBalances();
     
     if (!yotBalance || !yosBalance || yotBalance === 0 || yosBalance === 0) {
-      // Fallback to approximate ratio if pool data is unavailable
-      console.log("Using fallback ratio for YOT to YOS conversion");
-      return yotAmount * 10; // Fallback: 1 YOT = 10 YOS
+      // No fallback - throw an error if data is missing
+      throw new Error('Cannot calculate YOT to YOS conversion: Insufficient liquidity in pool');
     }
     
     // Calculate the actual ratio from AMM pool balances
@@ -323,8 +314,8 @@ export async function calculateYotToYos(yotAmount: number) {
     return yosAmountAfterFee;
   } catch (error) {
     console.error('Error calculating YOT to YOS conversion:', error);
-    // Fallback to approximate ratio
-    return yotAmount * 10; // Fallback: 1 YOT = 10 YOS
+    // No fallbacks - propagate the error
+    throw new Error(`Failed to calculate YOT to YOS conversion: ${error.message}`);
   }
 }
 
@@ -376,7 +367,7 @@ export async function getYotMarketPrice(): Promise<number> {
     const { solBalance, yotBalance } = await getPoolBalances();
     
     if (!solBalance || !yotBalance || solBalance === 0 || yotBalance === 0) {
-      return 0;
+      throw new Error('Cannot calculate YOT market price: insufficient liquidity data');
     }
     
     // Make sure we convert SOL from lamports to SOL before calculations
@@ -393,7 +384,7 @@ export async function getYotMarketPrice(): Promise<number> {
     return yotPrice;
   } catch (error) {
     console.error('Error calculating YOT market price:', error);
-    return 0;
+    throw new Error(`Failed to calculate YOT market price: ${error.message}`);
   }
 }
 
@@ -412,7 +403,7 @@ export async function getYosMarketPrice(): Promise<number> {
     return yosPrice;
   } catch (error) {
     console.error('Error calculating YOS market price:', error);
-    return 0;
+    throw new Error(`Failed to calculate YOS market price: ${error.message}`);
   }
 }
 
@@ -430,11 +421,7 @@ export async function getAllTokenPrices(): Promise<{ sol: number, yot: number, y
     };
   } catch (error) {
     console.error('Error getting all token prices:', error);
-    return {
-      sol: 0,
-      yot: 0,
-      yos: 0
-    };
+    throw new Error(`Failed to retrieve token prices from blockchain: ${error.message}`);
   }
 }
 
