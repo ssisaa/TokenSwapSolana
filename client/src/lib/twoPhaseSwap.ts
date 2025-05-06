@@ -396,21 +396,26 @@ async function executeSwapTransaction(wallet: any, solAmount: number): Promise<{
       console.log(`[TWO_PHASE_SWAP] Created central YOT account successfully`);
     }
     
-    // Account metas for the swap instruction - IMPORTANT: Use the token account for central liquidity
+    // Log both authority and token account for clarity
+    console.log("[TWO_PHASE_SWAP] Important account details:");
+    console.log(`• Central liquidity wallet authority: ${centralLiquidityWalletAuthority.toString()}`);
+    console.log(`• Central liquidity wallet YOT token account: ${centralLiquidityWalletYotAccount.toString()}`);
+    
+    // Account metas for the swap instruction - IMPORTANT: The order of accounts MUST match what the program expects
     const accountMetas = [
-      { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
-      { pubkey: programStateAddress, isSigner: false, isWritable: true },
-      { pubkey: programAuthority, isSigner: false, isWritable: false },
-      { pubkey: POOL_SOL_ACCOUNT, isSigner: false, isWritable: true },
-      { pubkey: yotPoolAccount, isSigner: false, isWritable: true },
-      { pubkey: userYotAccount, isSigner: false, isWritable: true },
-      { pubkey: centralLiquidityWalletYotAccount, isSigner: false, isWritable: true }, // Use token account!
-      { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true },
-      { pubkey: yosMint, isSigner: false, isWritable: true },
-      { pubkey: userYosAccount, isSigner: false, isWritable: true },
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+      { pubkey: wallet.publicKey, isSigner: true, isWritable: true },          // 1. User (signer) - pays for transaction
+      { pubkey: programStateAddress, isSigner: false, isWritable: true },      // 2. Program state - stores swap parameters
+      { pubkey: programAuthority, isSigner: false, isWritable: true },         // 3. Program authority - must be WRITABLE for SOL transfers
+      { pubkey: POOL_SOL_ACCOUNT, isSigner: false, isWritable: true },         // 4. SOL pool account - receives SOL
+      { pubkey: yotPoolAccount, isSigner: false, isWritable: true },           // 5. YOT pool account - sends YOT to user
+      { pubkey: userYotAccount, isSigner: false, isWritable: true },           // 6. User YOT account - receives YOT
+      { pubkey: centralLiquidityWalletYotAccount, isSigner: false, isWritable: true }, // 7. Central liquidity wallet YOT token account 
+      { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true }, // 8. Liquidity contribution account
+      { pubkey: yosMint, isSigner: false, isWritable: true },                  // 9. YOS mint - for cashback
+      { pubkey: userYosAccount, isSigner: false, isWritable: true },           // 10. User YOS account - receives cashback
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // 11. System program - for SOL transfers
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },        // 12. Token program - for token transfers
+      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },      // 13. Rent sysvar - for account creation
     ];
     
     const instruction = new TransactionInstruction({
