@@ -445,7 +445,9 @@ pub fn process_sol_to_yot_swap(
     let program_state = ProgramState::try_from_slice(&program_state_account.data.borrow())?;
     
     // Verify token accounts
-    if program_state.yot_mint != Mint::unpack(&yot_pool_account.data.borrow())?.mint {
+    // Extract yot_pool_account's owner for verification
+    let yot_pool_token_account = TokenAccount::unpack(&yot_pool_account.data.borrow())?;
+    if program_state.yot_mint != yot_pool_token_account.mint {
         return Err(ProgramError::InvalidAccountData);
     }
     
@@ -639,7 +641,8 @@ pub fn process_yot_to_sol_swap(
     let program_state = ProgramState::try_from_slice(&program_state_account.data.borrow())?;
     
     // Verify token accounts
-    if program_state.yot_mint != Mint::unpack(&yot_pool_account.data.borrow())?.mint {
+    let yot_pool_token_account = TokenAccount::unpack(&yot_pool_account.data.borrow())?;
+    if program_state.yot_mint != yot_pool_token_account.mint {
         return Err(ProgramError::InvalidAccountData);
     }
     
