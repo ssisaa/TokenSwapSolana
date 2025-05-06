@@ -1514,7 +1514,7 @@ export async function getExchangeRate(fromToken: string, toToken: string): Promi
       // When adding dx SOL, we get dy YOT where (x + dx) * (y - dy) = k
       // For the AMM price, we use the derivative: dy/dx = y/x 
       const rate = yotBalance / solBalance;
-      console.log(`Real AMM exchange rate from blockchain: 1 SOL = ${rate.toLocaleString()} YOT (from pool balances: ${solBalance.toFixed(4)} SOL, ${yotBalance.toLocaleString()} YOT)`);
+      console.log(`Real AMM exchange rate from blockchain: 1 SOL = ${rate} YOT (exact from pool balances: ${solBalance} SOL, ${yotBalance} YOT)`);
       return rate;
     } 
     
@@ -1530,7 +1530,7 @@ export async function getExchangeRate(fromToken: string, toToken: string): Promi
       
       // For YOT to SOL, the rate is the inverse of SOL to YOT
       const rate = solBalance / yotBalance;
-      console.log(`Real AMM exchange rate from blockchain: 1 YOT = ${rate.toFixed(8)} SOL (from pool balances: ${solBalance.toFixed(4)} SOL, ${yotBalance.toLocaleString()} YOT)`);
+      console.log(`Real AMM exchange rate from blockchain: 1 YOT = ${rate} SOL (exact from pool balances: ${solBalance} SOL, ${yotBalance} YOT)`);
       return rate;
     }
     
