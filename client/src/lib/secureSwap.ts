@@ -618,16 +618,83 @@ export async function secureSwap(
 }
 
 /**
- * Legacy-compatible wrapper for multi-hub-swap-contract.ts integration
+ * Pure on-chain implementation of SOL to YOT swap
+ * This function ensures all operations are handled by the Solana program,
+ * properly initializing program state before attempting to swap
  */
 export async function solToYotSwap(wallet: any, solAmount: number): Promise<string> {
-  console.log(`[SECURE_SWAP] Starting swap of ${solAmount} SOL via legacy interface`);
+  console.log(`[SECURE_SWAP] Starting on-chain swap of ${solAmount} SOL`);
   
-  const result = await secureSwap(wallet, solAmount);
+  // Security validation: ensure wallet is connected
+  if (!wallet || !wallet.publicKey) {
+    throw new Error("Wallet not connected");
+  }
   
-  if (result.success) {
-    return result.signature || '';
-  } else {
-    throw new Error(result.message || 'Swap failed');
+  // Step 1: Check if program state is already initialized
+  const [programStateAddress] = PublicKey.findProgramAddressSync(
+    [Buffer.from('state')],
+    new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
+  );
+  
+  console.log(`[SECURE_SWAP] Checking program state at: ${programStateAddress.toString()}`);
+  const accountInfo = await connection.getAccountInfo(programStateAddress);
+  
+  // If program state needs initialization, let the user know
+  if (!accountInfo || accountInfo.data.length < 136) {
+    console.log(`[SECURE_SWAP] Program state account not found or has incorrect size (${accountInfo?.data.length || 0} bytes)`);
+    throw new Error("Program state not properly initialized. Please initialize the program first.");
+  }
+  
+  console.log(`[SECURE_SWAP] Program state confirmed, data length: ${accountInfo.data.length} bytes`);
+  
+  // Step 2: Create the main swap transaction
+  const transaction = await createSecureSolTransferTransaction(wallet, solAmount);
+  
+  // Step 3: Sign and send the transaction
+  console.log("[SECURE_SWAP] Sending transaction for wallet signature...");
+  
+  try {
+    // Sign with the wallet
+    const signedTransaction = await wallet.signTransaction(transaction);
+    
+    // Verify signatures for added security
+    if (!signedTransaction.verifySignatures()) {
+      throw new Error("Transaction signature verification failed");
+    }
+    
+    // Send the signed transaction
+    const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
+      skipPreflight: false, // Enable preflight checks
+      preflightCommitment: 'confirmed'
+    });
+    
+    console.log(`[SECURE_SWAP] Transaction sent: ${signature}`);
+    console.log(`[SECURE_SWAP] View on explorer: https://explorer.solana.com/tx/${signature}?cluster=devnet`);
+    
+    // Wait for confirmation with detailed error handling
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+    const confirmation = await connection.confirmTransaction({
+      signature,
+      blockhash,
+      lastValidBlockHeight
+    }, 'confirmed');
+    
+    if (confirmation.value.err) {
+      console.error(`[SECURE_SWAP] Transaction failed:`, confirmation.value.err);
+      throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+    }
+    
+    console.log(`[SECURE_SWAP] Transaction confirmed successfully!`);
+    return signature;
+  } catch (error: any) {
+    console.error("[SECURE_SWAP] Error sending transaction:", error);
+    
+    // Provide a more detailed error message
+    const errorMessage = error.message || "Unknown error";
+    if (errorMessage.includes("Program state data too short")) {
+      throw new Error("Program state data issue: The on-chain program state has missing fields. Please reinitialize the program.");
+    } else {
+      throw error;
+    }
   }
 }

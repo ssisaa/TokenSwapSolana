@@ -1917,8 +1917,9 @@ export async function initializeMultiHubSwap(
   transaction.add(modifyComputeUnitsIx);
   
   // Create the instruction with modified data format to match Rust program
-  // The Rust program expects: instruction_type(1) + admin(32) + yot_mint(32) + yos_mint(32) + 5 rates(8*5)
-  const data = Buffer.alloc(1 + 32*3 + 8*5);
+  // The Rust program expects: 
+  // instruction_type(1) + admin(32) + yot_mint(32) + yos_mint(32) + 5 rates(8*5) + liquidity_wallet(32) + liquidity_threshold(8)
+  const data = Buffer.alloc(1 + 32*4 + 8*6);
   
   // Set instruction type
   data.writeUInt8(MultiHubSwapInstructionType.Initialize, 0);
@@ -1953,6 +1954,16 @@ export async function initializeMultiHubSwap(
   data.writeBigUInt64LE(swapFeeBasisPoints, offset);
   offset += 8;
   data.writeBigUInt64LE(referralBasisPoints, offset);
+  offset += 8;
+  
+  // Add liquidity wallet pubkey
+  liquidityWallet.toBuffer().copy(data, offset);
+  offset += 32;
+  
+  // Add liquidity threshold
+  // Convert SOL to lamports (e.g., 0.1 SOL = 100,000,000 lamports)
+  const liquidityThresholdLamports = BigInt(Math.round(liquidityThreshold * LAMPORTS_PER_SOL));
+  data.writeBigUInt64LE(liquidityThresholdLamports, offset);
   
   console.log("Initialization parameters:");
   console.log(`- LP Contribution: ${lpContributionRate * 100}% (${lpContributionBasisPoints} basis points)`);
