@@ -1481,7 +1481,13 @@ export async function getExpectedOutput(
  */
 export async function getExchangeRate(fromToken: string, toToken: string): Promise<number> {
   try {
-    // Fetch the current CoinGecko SOL price once (will be cached)
+    // Normalize token addresses to lowercase for case-insensitive comparison
+    const fromTokenLower = fromToken.toString().toLowerCase();
+    const toTokenLower = toToken.toString().toLowerCase();
+    const solTokenLower = SOL_TOKEN_ADDRESS.toString().toLowerCase();
+    const yotTokenLower = YOT_TOKEN_ADDRESS.toString().toLowerCase();
+    
+    // Fetch the current CoinGecko SOL price (will be used for UI display only)
     try {
       const solPriceResponse = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
       const solPriceData = await solPriceResponse.json();
@@ -1494,13 +1500,13 @@ export async function getExchangeRate(fromToken: string, toToken: string): Promi
     }
     
     // Case 1: SOL to YOT swap rate
-    if (fromToken === SOL_TOKEN_ADDRESS && toToken === YOT_TOKEN_ADDRESS) {
+    if (fromTokenLower === solTokenLower && toTokenLower === yotTokenLower) {
       // Fetch real liquidity pool balances from Solana blockchain
       const [solBalance, yotBalance, _] = await getPoolBalances();
       
       if (solBalance <= 0 || yotBalance <= 0) {
-        console.warn("Liquidity pool empty or not found, using fallback rate");
-        return DEFAULT_EXCHANGE_RATES.SOL_YOT;
+        console.warn("Liquidity pool empty or not found");
+        throw new Error("Insufficient liquidity in pool");
       }
       
       // Calculate the real exchange rate from the pool ratios
@@ -1508,12 +1514,12 @@ export async function getExchangeRate(fromToken: string, toToken: string): Promi
       // When adding dx SOL, we get dy YOT where (x + dx) * (y - dy) = k
       // For the AMM price, we use the derivative: dy/dx = y/x 
       const rate = yotBalance / solBalance;
-      console.log(`Real AMM rate: 1 SOL = ${rate.toLocaleString()} YOT (from pool balances: ${solBalance.toFixed(4)} SOL, ${yotBalance.toLocaleString()} YOT)`);
+      console.log(`Real AMM exchange rate from blockchain: 1 SOL = ${rate.toLocaleString()} YOT (from pool balances: ${solBalance.toFixed(4)} SOL, ${yotBalance.toLocaleString()} YOT)`);
       return rate;
     } 
     
     // Case 2: YOT to SOL swap rate
-    else if (fromToken === YOT_TOKEN_ADDRESS && toToken === SOL_TOKEN_ADDRESS) {
+    else if (fromTokenLower === yotTokenLower && toTokenLower === solTokenLower) {
       // Fetch real liquidity pool balances from Solana blockchain  
       const [solBalance, yotBalance, _] = await getPoolBalances();
       
@@ -1524,21 +1530,39 @@ export async function getExchangeRate(fromToken: string, toToken: string): Promi
       
       // For YOT to SOL, the rate is the inverse of SOL to YOT
       const rate = solBalance / yotBalance;
-      console.log(`Real AMM rate: 1 YOT = ${rate.toFixed(8)} SOL (from pool balances: ${solBalance.toFixed(4)} SOL, ${yotBalance.toLocaleString()} YOT)`);
+      console.log(`Real AMM exchange rate from blockchain: 1 YOT = ${rate.toFixed(8)} SOL (from pool balances: ${solBalance.toFixed(4)} SOL, ${yotBalance.toLocaleString()} YOT)`);
       return rate;
     }
     
     // For other pairs, we would integrate with other AMMs like Jupiter or Raydium
     console.warn(`No direct pool for ${fromToken} to ${toToken}, using fallback rate`);
+    
+    // Return appropriate fallback based on the token pair
+    if (fromTokenLower === solTokenLower && toTokenLower === yotTokenLower) {
+      return DEFAULT_EXCHANGE_RATES.SOL_YOT;
+    } else if (fromTokenLower === yotTokenLower && toTokenLower === solTokenLower) {
+      return DEFAULT_EXCHANGE_RATES.YOT_SOL;
+    }
+    
+    // Default fallback
     return DEFAULT_EXCHANGE_RATES.SOL_YOT;
   } catch (error: any) {
     console.error("Error fetching AMM rate:", error);
+    
+    // Normalize addresses for fallback comparison
+    const fromTokenLower = fromToken.toString().toLowerCase();
+    const toTokenLower = toToken.toString().toLowerCase();
+    const solTokenLower = SOL_TOKEN_ADDRESS.toString().toLowerCase();
+    const yotTokenLower = YOT_TOKEN_ADDRESS.toString().toLowerCase();
+    
     // Fallback to default rates if blockchain query fails
-    if (fromToken === SOL_TOKEN_ADDRESS && toToken === YOT_TOKEN_ADDRESS) {
+    if (fromTokenLower === solTokenLower && toTokenLower === yotTokenLower) {
       return DEFAULT_EXCHANGE_RATES.SOL_YOT;
-    } else if (fromToken === YOT_TOKEN_ADDRESS && toToken === SOL_TOKEN_ADDRESS) {
+    } else if (fromTokenLower === yotTokenLower && toTokenLower === solTokenLower) {
       return DEFAULT_EXCHANGE_RATES.YOT_SOL;
     }
+    
+    // Ultimate fallback
     return 1;
   }
 }

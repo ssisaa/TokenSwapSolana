@@ -125,8 +125,8 @@ export const MULTI_HUB_SWAP_PROGRAM_ID = solanaConfig.multiHubSwap.programId;
 export const MULTI_HUB_SWAP_STATE = solanaConfig.multiHubSwap.programState;
 export const MULTI_HUB_SWAP_ADMIN = solanaConfig.multiHubSwap.admin;
 export const ADMIN_WALLET_ADDRESS = solanaConfig.multiHubSwap.admin;
-// Program authority PDA - hardcoded to match the deployed program's expected authority
-export const MULTI_HUB_SWAP_PROGRAM_AUTHORITY = "Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ";
+// Program authority PDA from central configuration
+export const MULTI_HUB_SWAP_PROGRAM_AUTHORITY = solanaConfig.multiHubSwap.programAuthority;
 
 // Pool information
 export const SOL_YOT_POOL_INFO = {
