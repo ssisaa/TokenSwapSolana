@@ -192,10 +192,10 @@ async function createSecureSolTransferTransaction(
   console.log(`12. Rent Sysvar: ${SYSVAR_RENT_PUBKEY.toString()}`);
   
   // IMPORTANT: Always use the values from app.config.json consistently
-  // We now use the USER_ADMIN_WALLET from config.ts for the central liquidity wallet
-  const centralLiquidityWallet = new PublicKey(USER_ADMIN_WALLET);
+  // We now use the USER_ADMIN_WALLET from config.ts for the common wallet
+  const commonWallet = new PublicKey(solanaConfig.multiHubSwap.userAdmin);
   console.log(`[SECURE_SWAP] SOL Pool Account: ${POOL_SOL_ACCOUNT.toString()}`);
-  console.log(`[SECURE_SWAP] Central Liquidity Wallet (user admin): ${centralLiquidityWallet.toString()}`);
+  console.log(`[SECURE_SWAP] Common Wallet (user admin): ${commonWallet.toString()}`);
   
   // Note: In the current configuration, these are the same address, but we should
   // keep getting them from their respective config fields for future-proofing
@@ -209,7 +209,7 @@ async function createSecureSolTransferTransaction(
     { pubkey: POOL_SOL_ACCOUNT, isSigner: false, isWritable: true },        // 4. sol_pool_account - This is the actual SOL pool for liquidity
     { pubkey: yotPoolAccount, isSigner: false, isWritable: true },          // 5. yot_pool_account  
     { pubkey: userYotAccount, isSigner: false, isWritable: true },          // 6. user_yot_account
-    { pubkey: centralLiquidityWallet, isSigner: false, isWritable: true },  // 7. central_liquidity_wallet - Using SOL pool account address
+    { pubkey: commonWallet, isSigner: false, isWritable: true },  // 7. common_wallet - Using user admin wallet from config
     { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true }, // 8. liquidity_contribution
     { pubkey: yosMint, isSigner: false, isWritable: true },                // 9. yos_mint
     { pubkey: userYosAccount, isSigner: false, isWritable: true },         // 10. user_yos_account
