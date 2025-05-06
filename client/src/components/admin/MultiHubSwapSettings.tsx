@@ -15,7 +15,9 @@ import {
   Upload,
   Settings,
   Save,
-  ExternalLink
+  ExternalLink,
+  Copy,
+  AlertCircle
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
@@ -31,20 +33,20 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { PublicKey } from '@solana/web3.js';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { PublicKey } from "@solana/web3.js";
 import { 
   getMultiHubSwapStats, 
   updateMultiHubSwapParameters,
-  initializeMultiHubSwap,
-  addLiquidityFromCentralWallet
+  initializeMultiHubSwap
 } from "@/lib/multi-hub-swap-contract";
-import {
+import { 
+  solanaConfig,
   MULTI_HUB_SWAP_PROGRAM_ID,
   YOT_TOKEN_ADDRESS,
   YOS_TOKEN_ADDRESS,
-  solanaConfig
+  MULTI_HUB_SWAP_ADMIN
 } from "@/lib/config";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface MultiHubSwapSettingsProps {
   wallet: any;
@@ -73,20 +75,27 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
   // Liquidity threshold settings
   const [liquidityThreshold, setLiquidityThreshold] = useState<number>(0.1);
   const [isUpdatingThreshold, setIsUpdatingThreshold] = useState<boolean>(false);
-
-  // Fetch contract info and admin settings on component mount
+  
+  // Fetch contract info on component mount and when wallet changes
   useEffect(() => {
-    fetchContractInfo();
-    fetchAdminSettings();
+    if (wallet) {
+      fetchContractInfo();
+    }
   }, [wallet]);
   
-  // Fetch admin settings including liquidity threshold
+  // Fetch admin settings on load
+  useEffect(() => {
+    fetchAdminSettings();
+  }, []);
+  
+  // Fetch admin settings from the server
   const fetchAdminSettings = async () => {
     try {
       const response = await fetch('/api/admin/settings');
       if (response.ok) {
         const settings = await response.json();
-        if (settings && settings.liquidityThreshold) {
+        // Set liquidity threshold from admin settings
+        if (settings.liquidityThreshold) {
           setLiquidityThreshold(settings.liquidityThreshold);
         }
       }
@@ -412,37 +421,57 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
               </p>
             </div>
             
-            {!isInitialized ? (
-              <Alert className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-900/30">
-                <Upload className="h-4 w-4 text-blue-600 dark:text-blue-500" />
-                <AlertTitle>Contract Initialization Required</AlertTitle>
-                <AlertDescription className="text-blue-800 dark:text-blue-400">
-                  <p className="mb-4">
-                    The Multi-Hub Swap contract needs to be initialized before you can configure parameters. 
-                    Initialization will set up the token addresses and initial parameters.
-                  </p>
-                  <div className="flex justify-end">
-                    <Button 
-                      onClick={initializeContract}
-                      disabled={isInitializing || !wallet?.publicKey}
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      {isInitializing ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Initializing...
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="mr-2 h-4 w-4" />
-                          Initialize Contract
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </AlertDescription>
-              </Alert>
-            ) : (
+            <Alert 
+              className={isInitialized 
+                ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-900/30 mb-4" 
+                : "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-900/30 mb-4"}
+            >
+              {isInitialized 
+                ? <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-500" />
+                : <Upload className="h-4 w-4 text-blue-600 dark:text-blue-500" />
+              }
+              <AlertTitle>
+                {isInitialized 
+                  ? "Contract Status: Initialized" 
+                  : "Contract Initialization Required"}
+              </AlertTitle>
+              <AlertDescription className={isInitialized 
+                ? "text-green-800 dark:text-green-400" 
+                : "text-blue-800 dark:text-blue-400"}
+              >
+                <p className="mb-4">
+                  {isInitialized 
+                    ? "The Multi-Hub Swap contract is initialized and ready for use. You can re-initialize the contract if needed, such as when deploying to mainnet."
+                    : "The Multi-Hub Swap contract needs to be initialized before you can configure parameters. Initialization will set up the token addresses and initial parameters."}
+                </p>
+                <div className="flex justify-end">
+                  <Button 
+                    onClick={initializeContract}
+                    disabled={isInitializing || !wallet?.publicKey}
+                    className={isInitialized 
+                      ? "bg-green-600 hover:bg-green-700" 
+                      : "bg-blue-600 hover:bg-blue-700"}
+                  >
+                    {isInitializing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Initializing...
+                      </>
+                    ) : (
+                      <>
+                        {isInitialized 
+                          ? <RefreshCw className="mr-2 h-4 w-4" />
+                          : <Upload className="mr-2 h-4 w-4" />
+                        }
+                        {isInitialized ? "Re-Initialize Contract" : "Initialize Contract"}
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+            
+            {isInitialized && (
               <>
                 <Alert variant="default" className="bg-primary/5 border-primary/20">
                   <div className="flex justify-between items-center w-full">
@@ -651,383 +680,338 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
             )}
           </TabsContent>
 
-          <TabsContent value="liquidity" className="space-y-4">
-            <div className="space-y-1">
-              <h3 className="font-medium text-base">Centralized Liquidity Management</h3>
+          <TabsContent value="info" className="space-y-4">
+            <div className="space-y-1 mb-4">
+              <h3 className="font-medium text-base">Contract Information</h3>
               <p className="text-sm text-muted-foreground">
-                Manage the central liquidity wallet and pool contributions
+                View technical information about the Multi-Hub Swap contract on the blockchain
               </p>
             </div>
-
-            {!isInitialized ? (
-              <Alert className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-900/30">
-                <Upload className="h-4 w-4 text-blue-600 dark:text-blue-500" />
-                <AlertTitle>Contract Initialization Required</AlertTitle>
-                <AlertDescription className="text-blue-800 dark:text-blue-400">
-                  <p className="mb-4">
-                    The Multi-Hub Swap contract needs to be initialized before you can manage liquidity. 
-                    Initialization will set up the token addresses and initial parameters.
-                  </p>
-                  <div className="flex justify-end">
-                    <Button 
-                      onClick={initializeContract}
-                      disabled={isInitializing || !wallet?.publicKey}
-                      className="bg-blue-600 hover:bg-blue-700"
+            
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-3">
+                <div className="flex flex-col space-y-2">
+                  <Label>Program ID:</Label>
+                  <div className="flex items-center">
+                    <Input 
+                      value={solanaConfig.multiHubSwap.programId} 
+                      readOnly 
+                      className="font-mono text-xs"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="ml-2 h-8 w-8"
+                      onClick={() => {
+                        navigator.clipboard.writeText(solanaConfig.multiHubSwap.programId);
+                        toast({
+                          title: "Copied to clipboard",
+                          description: "Program ID copied to clipboard",
+                          duration: 3000,
+                        });
+                      }}
                     >
-                      {isInitializing ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Initializing...
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="mr-2 h-4 w-4" />
-                          Initialize Contract
-                        </>
-                      )}
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="ml-1 h-8 w-8"
+                      onClick={() => {
+                        window.open(
+                          `${solanaConfig.explorerUrl}?cluster=${solanaConfig.network}&address=${solanaConfig.multiHubSwap.programId}`,
+                          "_blank"
+                        );
+                      }}
+                    >
+                      <ExternalLink className="h-4 w-4" />
                     </Button>
                   </div>
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <>
-                <div className="bg-secondary/30 p-4 rounded-lg space-y-3 mb-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-medium text-sm">Centralized Liquidity System</h4>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        When users buy YOT, {lpContributionRate}% is sent to the central liquidity wallet.
-                        Once sufficient balance is accumulated, it is automatically added to the liquidity pool.
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-sm font-medium">Current Model:</span>
-                      <div className="text-primary font-semibold">Central Liquidity</div>
-                    </div>
+                </div>
+                
+                <div className="flex flex-col space-y-2">
+                  <Label>Admin:</Label>
+                  <div className="flex items-center">
+                    <Input
+                      value={stats?.admin || solanaConfig.multiHubSwap.admin}
+                      readOnly
+                      className="font-mono text-xs"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="ml-2 h-8 w-8"
+                      onClick={() => {
+                        navigator.clipboard.writeText(stats?.admin || solanaConfig.multiHubSwap.admin);
+                        toast({
+                          title: "Copied to clipboard",
+                          description: "Admin address copied to clipboard",
+                          duration: 3000,
+                        });
+                      }}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="ml-1 h-8 w-8"
+                      onClick={() => {
+                        window.open(
+                          `${solanaConfig.explorerUrl}?cluster=${solanaConfig.network}&address=${stats?.admin || solanaConfig.multiHubSwap.admin}`,
+                          "_blank"
+                        );
+                      }}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
-
-                <div className="bg-secondary/30 p-4 rounded-lg space-y-3 mb-4">
-                  <h4 className="font-medium text-sm">Liquidity Threshold Setting</h4>
-                  <div className="grid grid-cols-1 gap-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="liquidityThreshold">
-                        Auto-Add Threshold (in SOL)
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary/10 text-primary text-xs">?</span>
-                            </TooltipTrigger>
-                            <TooltipContent className="w-80">
-                              <p>When this amount of SOL worth of YOT is accumulated in the central wallet, the system will automatically add liquidity to the pool.</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </Label>
-                      <div className="flex gap-2">
-                        <Input
-                          id="liquidityThreshold"
-                          type="number"
-                          min="0.01"
-                          step="0.01"
-                          value={liquidityThreshold}
-                          onChange={(e) => setLiquidityThreshold(parseFloat(e.target.value))}
-                          className="flex-grow"
-                        />
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="whitespace-nowrap"
-                          disabled={isUpdatingThreshold || !wallet?.publicKey}
-                          onClick={async () => {
-                            try {
-                              setIsUpdatingThreshold(true);
-                              
-                              if (!wallet || !wallet.publicKey) {
-                                throw new Error("Wallet not connected");
-                              }
-                              
-                              if (!isAdmin) {
-                                throw new Error("Only admin can update liquidity threshold");
-                              }
-                              
-                              // Validate threshold value
-                              if (liquidityThreshold < 0.01) {
-                                throw new Error("Threshold must be at least 0.01 SOL");
-                              }
-                              
-                              if (liquidityThreshold > 10) {
-                                throw new Error("Threshold cannot exceed 10 SOL");
-                              }
-                              
-                              // Call the API to update the threshold in the database
-                              const response = await fetch('/api/admin/settings', {
-                                method: 'PATCH',
-                                headers: {
-                                  'Content-Type': 'application/json',
-                                },
-                                body: JSON.stringify({ 
-                                  liquidityThreshold: liquidityThreshold
-                                }),
-                              });
-                              
-                              if (!response.ok) {
-                                const errorData = await response.json();
-                                throw new Error(errorData.message || 'Failed to update threshold');
-                              }
-                              
-                              toast({
-                                title: "Threshold updated successfully",
-                                description: `The liquidity threshold is now ${liquidityThreshold} SOL`,
-                              });
-                            } catch (error: any) {
-                              console.error("Failed to update threshold:", error);
-                              toast({
-                                title: "Failed to update threshold",
-                                description: error.message || "An error occurred",
-                                variant: "destructive",
-                              });
-                            } finally {
-                              setIsUpdatingThreshold(false);
-                            }
-                          }}
-                        >
-                          {isUpdatingThreshold ? (
-                            <>
-                              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                              Updating...
-                            </>
-                          ) : (
-                            "Update Threshold"
-                          )}
-                        </Button>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Current threshold: {liquidityThreshold} SOL worth of YOT
-                      </p>
-                    </div>
+                
+                <div className="flex flex-col space-y-2">
+                  <Label>YOT Mint:</Label>
+                  <div className="flex items-center">
+                    <Input
+                      value={stats?.yotMint || solanaConfig.tokens.yot.address}
+                      readOnly
+                      className="font-mono text-xs"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="ml-2 h-8 w-8"
+                      onClick={() => {
+                        navigator.clipboard.writeText(stats?.yotMint || solanaConfig.tokens.yot.address);
+                        toast({
+                          title: "Copied to clipboard",
+                          description: "YOT mint address copied to clipboard",
+                          duration: 3000,
+                        });
+                      }}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="ml-1 h-8 w-8"
+                      onClick={() => {
+                        window.open(
+                          `${solanaConfig.explorerUrl}?cluster=${solanaConfig.network}&address=${stats?.yotMint || solanaConfig.tokens.yot.address}`,
+                          "_blank"
+                        );
+                      }}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
-
-                <Alert variant="default" className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-900/30">
-                  <div className="flex flex-col space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <span className="font-medium">Automatic Liquidity Addition</span>
-                      </div>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={fetchContractInfo}
-                      >
-                        <RefreshCw className="mr-2 h-3.5 w-3.5" />
-                        Refresh Status
-                      </Button>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-2 pt-1">
-                      <div>
-                        <div className="text-xs text-muted-foreground mb-1">Current Threshold:</div>
-                        <div className="text-sm font-medium">{liquidityThreshold} SOL worth of YOT</div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-muted-foreground mb-1">Current Balance:</div>
-                        <div className="text-sm font-medium">Fetching...</div>
-                      </div>
-                    </div>
-                    
-                    <p className="text-xs text-muted-foreground mt-2">
-                      When the central wallet balance exceeds the threshold (currently {liquidityThreshold} SOL), 
-                      the system automatically adds liquidity to the pool using 50% SOL and 50% YOT.
-                      This process happens automatically during swap operations.
-                    </p>
+                
+                <div className="flex flex-col space-y-2">
+                  <Label>YOS Mint:</Label>
+                  <div className="flex items-center">
+                    <Input
+                      value={stats?.yosMint || solanaConfig.tokens.yos.address}
+                      readOnly
+                      className="font-mono text-xs"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="ml-2 h-8 w-8"
+                      onClick={() => {
+                        navigator.clipboard.writeText(stats?.yosMint || solanaConfig.tokens.yos.address);
+                        toast({
+                          title: "Copied to clipboard",
+                          description: "YOS mint address copied to clipboard",
+                          duration: 3000,
+                        });
+                      }}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="ml-1 h-8 w-8"
+                      onClick={() => {
+                        window.open(
+                          `${solanaConfig.explorerUrl}?cluster=${solanaConfig.network}&address=${stats?.yosMint || solanaConfig.tokens.yos.address}`,
+                          "_blank"
+                        );
+                      }}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
                   </div>
-                </Alert>
-
-                <div className="pt-4">
-                  <Alert variant="default" className="bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-900/30">
-                    <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
-                    <AlertTitle>Important Information</AlertTitle>
-                    <AlertDescription className="text-amber-800 dark:text-amber-400">
-                      The central liquidity system aggregates {lpContributionRate}% of all YOT purchases into a single wallet.
-                      When the wallet balance exceeds the threshold, the system automatically adds this liquidity to the pool
-                      to improve market depth and trading capabilities.
-                    </AlertDescription>
-                  </Alert>
                 </div>
-              </>
-            )}
-          </TabsContent>
-
-          <TabsContent value="info">
-            <div className="space-y-6">
-              <div>
-                <h3 className="font-medium text-base mb-2">Contract Information</h3>
-                <div className="bg-secondary/30 p-4 rounded-lg space-y-3">
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="text-sm text-muted-foreground">Program ID:</div>
-                    <div className="col-span-2 text-sm font-mono break-all flex items-center gap-1">
-                      {solanaConfig.multiHubSwap.programId}
-                      <a 
-                        href={`https://explorer.solana.com/address/${solanaConfig.multiHubSwap.programId}?cluster=devnet`} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-primary hover:text-primary/80"
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="text-sm text-muted-foreground">Admin:</div>
-                    <div className="col-span-2 text-sm font-mono break-all flex items-center gap-1">
-                      {stats?.admin || solanaConfig.multiHubSwap.admin || "Not initialized"}
-                      {(stats?.admin || solanaConfig.multiHubSwap.admin) && (
-                        <a 
-                          href={`https://explorer.solana.com/address/${stats?.admin || solanaConfig.multiHubSwap.admin}?cluster=devnet`} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-primary hover:text-primary/80"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="text-sm text-muted-foreground">YOT Mint:</div>
-                    <div className="col-span-2 text-sm font-mono break-all flex items-center gap-1">
-                      {stats?.yotMint || solanaConfig.tokens.yot.address || "Not initialized"}
-                      {(stats?.yotMint || solanaConfig.tokens.yot.address) && (
-                        <a 
-                          href={`https://explorer.solana.com/address/${stats?.yotMint || solanaConfig.tokens.yot.address}?cluster=devnet`} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-primary hover:text-primary/80"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="text-sm text-muted-foreground">YOS Mint:</div>
-                    <div className="col-span-2 text-sm font-mono break-all flex items-center gap-1">
-                      {stats?.yosMint || solanaConfig.tokens.yos.address || "Not initialized"}
-                      {(stats?.yosMint || solanaConfig.tokens.yos.address) && (
-                        <a 
-                          href={`https://explorer.solana.com/address/${stats?.yosMint || solanaConfig.tokens.yos.address}?cluster=devnet`} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-primary hover:text-primary/80"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="text-sm text-muted-foreground">Status:</div>
-                    <div className="col-span-2">
-                      {isInitialized ? (
-                        <span className="flex items-center text-green-600">
-                          <CheckCircle2 className="h-4 w-4 mr-1" />
-                          Initialized
-                        </span>
-                      ) : (
-                        <span className="flex items-center text-amber-600">
-                          <AlertTriangle className="h-4 w-4 mr-1" />
-                          Not Initialized
-                        </span>
-                      )}
-                    </div>
+                
+                <div className="flex flex-col space-y-2">
+                  <Label>Status:</Label>
+                  <div className="flex items-center">
+                    {isInitialized ? (
+                      <div className="flex items-center text-green-600 dark:text-green-500">
+                        <CheckCircle2 className="mr-2 h-4 w-4" />
+                        <span>Initialized</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center text-amber-600 dark:text-amber-500">
+                        <AlertCircle className="mr-2 h-4 w-4" />
+                        <span>Not Initialized</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
-
-              {!isInitialized && (
-                <Alert className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-900/30">
-                  <Upload className="h-4 w-4 text-blue-600 dark:text-blue-500" />
-                  <AlertTitle>Contract Initialization Required</AlertTitle>
-                  <AlertDescription className="text-blue-800 dark:text-blue-400">
-                    <p className="mb-4">
-                      The Multi-Hub Swap contract needs to be initialized before it can be used. 
-                      Initialization will set up the token addresses and initial parameters.
-                    </p>
-                    <div className="flex justify-end">
-                      <Button 
-                        onClick={initializeContract}
-                        disabled={isInitializing || !wallet?.publicKey}
-                        className="bg-blue-600 hover:bg-blue-700"
-                      >
-                        {isInitializing ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Initializing...
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="mr-2 h-4 w-4" />
-                            Initialize Contract
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              <div>
-                <h3 className="font-medium text-base mb-2">Current Parameters</h3>
-                <div className="bg-secondary/30 p-4 rounded-lg space-y-3">
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">LP Contribution:</span>
-                      <span className="font-medium">{lpContributionRate}%</span>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">YOS Cashback:</span>
-                      <span className="font-medium">{yosCashbackRate}%</span>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">User Receives:</span>
-                      <span className="font-medium">{100 - lpContributionRate - yosCashbackRate}%</span>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Admin Fee:</span>
-                      <span className="font-medium">{adminFeeRate}%</span>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Swap Fee:</span>
-                      <span className="font-medium">{swapFeeRate}%</span>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Referral Rate:</span>
-                      <span className="font-medium">{referralRate}%</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-4 flex justify-end">
-                <Button
-                  variant="outline"
+              
+              <div className="flex justify-end mt-8">
+                <Button 
+                  variant="outline" 
                   onClick={fetchContractInfo}
+                  disabled={isLoading}
                 >
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Refresh Contract Info
                 </Button>
               </div>
             </div>
+          </TabsContent>
+          
+          <TabsContent value="liquidity" className="space-y-4">
+            <div className="space-y-1">
+              <h3 className="font-medium text-base">Liquidity Management</h3>
+              <p className="text-sm text-muted-foreground">
+                Configure automatic liquidity addition from the central wallet
+              </p>
+            </div>
+            
+            <Alert 
+              className={isInitialized 
+                ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-900/30 mb-4" 
+                : "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-900/30 mb-4"}
+            >
+              {isInitialized 
+                ? <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-500" />
+                : <Upload className="h-4 w-4 text-blue-600 dark:text-blue-500" />
+              }
+              <AlertTitle>
+                {isInitialized 
+                  ? "Contract Status: Initialized" 
+                  : "Contract Initialization Required"}
+              </AlertTitle>
+              <AlertDescription className={isInitialized 
+                ? "text-green-800 dark:text-green-400" 
+                : "text-blue-800 dark:text-blue-400"}
+              >
+                <p className="mb-4">
+                  {isInitialized 
+                    ? "The Multi-Hub Swap contract is initialized and liquidity management is available."
+                    : "The Multi-Hub Swap contract needs to be initialized before you can manage liquidity."}
+                </p>
+                <div className="flex justify-end">
+                  <Button 
+                    onClick={initializeContract}
+                    disabled={isInitializing || !wallet?.publicKey}
+                    className={isInitialized 
+                      ? "bg-green-600 hover:bg-green-700" 
+                      : "bg-blue-600 hover:bg-blue-700"}
+                  >
+                    {isInitializing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Initializing...
+                      </>
+                    ) : (
+                      <>
+                        {isInitialized 
+                          ? <RefreshCw className="mr-2 h-4 w-4" />
+                          : <Upload className="mr-2 h-4 w-4" />
+                        }
+                        {isInitialized ? "Re-Initialize Contract" : "Initialize Contract"}
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+            
+            {isInitialized && (
+              <div className="bg-secondary/30 p-4 rounded-lg space-y-3">
+                <h4 className="font-medium text-sm">Liquidity Threshold Setting</h4>
+                <p className="text-xs text-muted-foreground mt-1">
+                  When this amount of value accumulates in the central wallet, it will 
+                  automatically be added to the liquidity pool (split 50/50 between SOL and YOT).
+                </p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <Label htmlFor="liquidityThreshold" className="text-sm">Threshold (SOL)</Label>
+                    <div className="flex mt-1.5 space-x-2">
+                      <Input 
+                        id="liquidityThreshold"
+                        type="number" 
+                        min="0.01"
+                        step="0.01"
+                        value={liquidityThreshold} 
+                        onChange={(e) => setLiquidityThreshold(parseFloat(e.target.value))}
+                        className="flex-1"
+                      />
+                      <Button 
+                        size="sm"
+                        disabled={!isAdmin}
+                        onClick={async () => {
+                          setIsUpdatingThreshold(true);
+                          try {
+                            if (!isAdmin) {
+                              throw new Error("Only admin can update liquidity threshold");
+                            }
+                            
+                            // Call the API to update the threshold in the database
+                            const response = await fetch('/api/admin/settings', {
+                              method: 'PATCH',
+                              headers: {
+                                'Content-Type': 'application/json',
+                              },
+                              body: JSON.stringify({ 
+                                liquidityThreshold: liquidityThreshold
+                              }),
+                            });
+                            
+                            if (!response.ok) {
+                              const errorData = await response.json();
+                              throw new Error(errorData.message || 'Failed to update threshold');
+                            }
+                            
+                            toast({
+                              title: "Threshold updated successfully",
+                              description: `The liquidity threshold is now ${liquidityThreshold} SOL`,
+                            });
+                          } catch (error: any) {
+                            console.error("Failed to update threshold:", error);
+                            toast({
+                              title: "Failed to update threshold",
+                              description: error.message || "An error occurred",
+                              variant: "destructive",
+                            });
+                          } finally {
+                            setIsUpdatingThreshold(false);
+                          }
+                        }}
+                      >
+                        {isUpdatingThreshold ? (
+                          <>
+                            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                            Updating...
+                          </>
+                        ) : (
+                          "Update Threshold"
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </CardContent>
