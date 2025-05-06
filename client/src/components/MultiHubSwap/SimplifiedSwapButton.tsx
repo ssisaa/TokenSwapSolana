@@ -3,7 +3,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { swapSolToYot } from '@/lib/simplifiedSwap';
-import { ArrowDownUp, CheckCircle2, RefreshCw } from 'lucide-react';
+import { ArrowDownUp, CheckCircle2, RefreshCw, Wallet } from 'lucide-react';
 import { Connection } from '@solana/web3.js';
 import { 
   SOLANA_NETWORK, 
@@ -122,6 +122,41 @@ ${SOL_DISTRIBUTION_RATIO}% of SOL goes to pool, ${YOT_DISTRIBUTION_RATIO}% of YO
   // Determine button state and text
   let buttonText = 'Swap SOL to YOT';
   let buttonIcon = <ArrowDownUp className="w-4 h-4 mr-2" />;
+  
+  // Handle the wallet connection or swap based on the current connection state
+  const handleClick = async () => {
+    if (!connected) {
+      // Use the Solana wallet adapter's select/connect methods
+      try {
+        // Let the wallet adapter handle connection
+        const walletModal = document.querySelector('.wallet-adapter-modal-button-close');
+        if (walletModal) {
+          (walletModal as HTMLElement).click();
+        }
+        
+        // Open wallet selection modal by clicking the hidden wallet button
+        const walletButton = document.querySelector('.wallet-adapter-button');
+        if (walletButton) {
+          (walletButton as HTMLElement).click();
+        } else {
+          toast({
+            title: "Wallet Connection",
+            description: "Please connect your wallet using the wallet button in the navigation bar",
+            variant: "default",
+          });
+        }
+      } catch (error) {
+        console.error("Error connecting wallet:", error);
+        toast({
+          title: "Connection Failed",
+          description: error instanceof Error ? error.message : "Failed to connect wallet",
+          variant: "destructive",
+        });
+      }
+    } else {
+      handleSwap();
+    }
+  };
 
   if (loading) {
     buttonText = 'Processing Swap...';
@@ -131,13 +166,14 @@ ${SOL_DISTRIBUTION_RATIO}% of SOL goes to pool, ${YOT_DISTRIBUTION_RATIO}% of YO
     buttonIcon = <CheckCircle2 className="w-4 h-4 mr-2 text-green-500" />;
   } else if (!connected) {
     buttonText = 'Connect Wallet to Swap';
+    buttonIcon = <Wallet className="w-4 h-4 mr-2" />;
   }
 
   return (
     <Button
       className="w-full bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700"
-      onClick={handleSwap}
-      disabled={disabled || loading || swapComplete || !connected || connecting || solAmount <= 0}
+      onClick={handleClick}
+      disabled={disabled || loading || swapComplete || connecting || (connected && solAmount <= 0)}
     >
       {buttonIcon}
       {buttonText}
