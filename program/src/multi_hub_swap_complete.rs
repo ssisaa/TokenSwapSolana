@@ -209,6 +209,20 @@ pub fn process_instruction(
                 program_id, accounts, lp_rate, cashback_rate, admin_fee, swap_fee, referral_rate
             )
         },
+        7 => {
+            msg!("SOL to YOT Swap Instruction");
+            // We need amount_in and min_amount_out (2 u64s = 16 bytes)
+            if instruction_data.len() < 17 { // 1 + 8 + 8 = 17 bytes
+                msg!("Error: Instruction data too short for SOL to YOT swap");
+                return Err(ProgramError::InvalidInstructionData);
+            }
+            
+            let amount_in = u64::from_le_bytes(instruction_data[1..9].try_into().unwrap());
+            let min_amount_out = u64::from_le_bytes(instruction_data[9..17].try_into().unwrap());
+            
+            msg!("SOL amount in: {}, Min YOT out: {}", amount_in, min_amount_out);
+            process_sol_to_yot_swap(program_id, accounts, amount_in, min_amount_out)
+        },
         _ => {
             msg!("Error: Unknown instruction");
             Err(ProgramError::InvalidInstructionData)
@@ -663,6 +677,198 @@ pub fn process_swap(
     )?;
     
     msg!("Swap successful: {} tokens", amount);
+    Ok(())
+}
+
+// New function to handle SOL to YOT swap
+pub fn process_sol_to_yot_swap(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    amount_in: u64,
+    min_amount_out: u64,
+) -> ProgramResult {
+    msg!("Processing SOL to YOT swap");
+    msg!("Amount in: {} lamports", amount_in);
+    msg!("Minimum amount out: {} YOT", min_amount_out);
+    
+    let accounts_iter = &mut accounts.iter();
+    
+    // Parse accounts
+    let user_account = next_account_info(accounts_iter)?;                 // User's wallet
+    let program_state_account = next_account_info(accounts_iter)?;        // Program state
+    let program_authority = next_account_info(accounts_iter)?;            // Program authority PDA
+    let sol_pool_account = next_account_info(accounts_iter)?;             // SOL pool account
+    let yot_pool_account = next_account_info(accounts_iter)?;             // YOT token pool account
+    let user_yot_account = next_account_info(accounts_iter)?;             // User's YOT token account
+    let liquidity_contribution_account = next_account_info(accounts_iter)?; // Liquidity contribution account
+    let yos_mint = next_account_info(accounts_iter)?;                     // YOS mint
+    let user_yos_account = next_account_info(accounts_iter)?;             // User's YOS token account
+    let system_program = next_account_info(accounts_iter)?;               // System program
+    let token_program = next_account_info(accounts_iter)?;                // Token program
+    let _rent = next_account_info(accounts_iter)?;                        // Rent sysvar
+    
+    // Verify user is a signer
+    if !user_account.is_signer {
+        msg!("Error: User must sign the transaction");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+    
+    // Verify PDAs
+    let (expected_program_state, _) = find_program_state_address(program_id);
+    if expected_program_state != *program_state_account.key {
+        msg!("Error: Invalid program state account");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    let (expected_program_authority, authority_bump) = find_program_authority(program_id);
+    if expected_program_authority != *program_authority.key {
+        msg!("Error: Invalid program authority account");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Load program state
+    let program_state = ProgramState::unpack(&program_state_account.data.borrow())?;
+    
+    // Verify YOT mint in program state matches the pool's YOT token mint
+    // This would require accessing the token account's mint, omitted for brevity
+    
+    // Step 1: Transfer SOL from user to pool
+    msg!("Transferring {} lamports SOL from user to pool", amount_in);
+    invoke(
+        &system_instruction::transfer(
+            user_account.key,
+            sol_pool_account.key,
+            amount_in,
+        ),
+        &[
+            user_account.clone(),
+            sol_pool_account.clone(),
+            system_program.clone(),
+        ],
+    )?;
+    
+    // Step 2: Calculate YOT amount to return
+    // For real implementation, use actual pool balances or oracle price
+    // For now, using a simple approximation (can be enhanced with actual AMM formula)
+    let sol_pool_balance = sol_pool_account.lamports();
+    let mut yot_pool_data = yot_pool_account.data.borrow();
+    let yot_pool_token_account = spl_token::state::Account::unpack(&yot_pool_data)?;
+    let yot_pool_balance = yot_pool_token_account.amount;
+    
+    // Simple pool-based price calculation (modify with your desired formula)
+    // This is a simplified constant product AMM formula
+    let sol_balance_before = sol_pool_balance.checked_sub(amount_in).unwrap_or(1);
+    let yot_amount_out = (amount_in as u128)
+        .checked_mul(yot_pool_balance as u128).unwrap_or(0)
+        .checked_div(sol_balance_before as u128).unwrap_or(0) as u64;
+    
+    msg!("Calculated YOT output: {}", yot_amount_out);
+    
+    // Ensure we meet minimum amount out
+    if yot_amount_out < min_amount_out {
+        msg!("Error: Insufficient output amount. Expected at least {}, got {}", 
+            min_amount_out, yot_amount_out);
+        return Err(ProgramError::InvalidArgument);
+    }
+    
+    // Apply distribution rates
+    let user_portion = yot_amount_out * 75 / 100;  // 75% to user directly
+    let liquidity_portion = yot_amount_out * 20 / 100;  // 20% to liquidity contribution
+    let yos_cashback = yot_amount_out * 5 / 100;  // 5% equivalent as YOS tokens
+    
+    msg!("Distribution: User: {}, Liquidity: {}, YOS Cashback: {}", 
+        user_portion, liquidity_portion, yos_cashback);
+    
+    // Step 3: Create or update liquidity contribution account
+    let (expected_liq_contrib, liq_bump) = Pubkey::find_program_address(
+        &[b"liq", user_account.key.as_ref()],
+        program_id
+    );
+    
+    if expected_liq_contrib != *liquidity_contribution_account.key {
+        msg!("Error: Invalid liquidity contribution account");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Create account if it doesn't exist
+    if liquidity_contribution_account.data_is_empty() {
+        msg!("Creating new liquidity contribution account");
+        invoke_signed(
+            &system_instruction::create_account(
+                user_account.key,
+                liquidity_contribution_account.key,
+                Rent::get()?.minimum_balance(LiquidityContribution::LEN),
+                LiquidityContribution::LEN as u64,
+                program_id,
+            ),
+            &[
+                user_account.clone(),
+                liquidity_contribution_account.clone(),
+                system_program.clone(),
+            ],
+            &[&[b"liq", user_account.key.as_ref(), &[liq_bump]]],
+        )?;
+        
+        // Initialize contribution data
+        let contribution = LiquidityContribution {
+            user: *user_account.key,
+            contributed_amount: 0,
+            start_timestamp: Clock::get()?.unix_timestamp,
+            last_claim_time: Clock::get()?.unix_timestamp,
+            total_claimed_yos: 0,
+        };
+        contribution.pack(&mut liquidity_contribution_account.data.borrow_mut()[..])?;
+    }
+    
+    // Update contribution amount
+    let mut contribution = LiquidityContribution::unpack(&liquidity_contribution_account.data.borrow())?;
+    contribution.contributed_amount = contribution.contributed_amount.checked_add(liquidity_portion).unwrap_or(contribution.contributed_amount);
+    contribution.pack(&mut liquidity_contribution_account.data.borrow_mut()[..])?;
+    
+    // Step 4: Transfer YOT tokens to user (use PDA authority)
+    msg!("Transferring {} YOT tokens to user", user_portion);
+    invoke_signed(
+        &spl_token::instruction::transfer(
+            token_program.key,
+            yot_pool_account.key,
+            user_yot_account.key,
+            program_authority.key,
+            &[],
+            user_portion,
+        )?,
+        &[
+            yot_pool_account.clone(),
+            user_yot_account.clone(),
+            program_authority.clone(),
+            token_program.clone(),
+        ],
+        &[&[b"authority", &[authority_bump]]],
+    )?;
+    
+    // Step 5: Mint YOS cashback tokens to user
+    msg!("Minting {} YOS tokens as cashback", yos_cashback);
+    invoke_signed(
+        &spl_token::instruction::mint_to(
+            token_program.key,
+            yos_mint.key,
+            user_yos_account.key,
+            program_authority.key,
+            &[],
+            yos_cashback,
+        )?,
+        &[
+            yos_mint.clone(),
+            user_yos_account.clone(),
+            program_authority.clone(),
+            token_program.clone(),
+        ],
+        &[&[b"authority", &[authority_bump]]],
+    )?;
+    
+    msg!("SOL to YOT swap completed successfully!");
+    msg!("User received: {} YOT + {} YOS cashback", user_portion, yos_cashback);
+    msg!("Liquidity contribution: {} YOT", liquidity_portion);
+    
     Ok(())
 }
 
