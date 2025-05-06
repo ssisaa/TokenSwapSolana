@@ -120,27 +120,36 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
       // Enhanced logging for debugging
       console.log("================ CONTRACT INITIALIZATION ================");
       console.log("Admin wallet address:", wallet.publicKey.toString());
-      console.log("MULTI_HUB_SWAP_PROGRAM_ID:", MULTI_HUB_SWAP_PROGRAM_ID);
+      console.log("Expected admin address:", solanaConfig.multiHubSwap.admin);
+      console.log("Program ID:", solanaConfig.multiHubSwap.programId);
       
-      const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
-      const yosMint = new PublicKey(YOS_TOKEN_ADDRESS);
+      const yotMint = new PublicKey(solanaConfig.tokens.yot.address);
+      const yosMint = new PublicKey(solanaConfig.tokens.yos.address);
       console.log("YOT mint address:", yotMint.toString());
       console.log("YOS mint address:", yosMint.toString());
       
-      // PDA verification
-      const [programStateAddress, stateBump] = PublicKey.findProgramAddressSync(
+      // PDA verification - use findProgramStateAddress helper function
+      const [programStateAddress] = PublicKey.findProgramAddressSync(
         [Buffer.from("state")],
-        new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
+        new PublicKey(solanaConfig.multiHubSwap.programId)
       );
-      console.log("Program state PDA:", programStateAddress.toString(), "with bump:", stateBump);
+      console.log("Program state PDA:", programStateAddress.toString());
+      console.log("Expected program state from config:", solanaConfig.multiHubSwap.programState);
+      
+      // Use rates directly from config
+      const lpRate = solanaConfig.multiHubSwap.rates.lpContributionRate / 100;
+      const adminRate = solanaConfig.multiHubSwap.rates.adminFeeRate / 100;
+      const cashbackRate = solanaConfig.multiHubSwap.rates.yosCashbackRate / 100;
+      const swapRate = solanaConfig.multiHubSwap.rates.swapFeeRate / 100;
+      const refRate = solanaConfig.multiHubSwap.rates.referralRate / 100;
       
       // Display parameters
       console.log("Initialization parameters:");
-      console.log(`- LP Contribution Rate: ${lpContributionRate}%`);
-      console.log(`- Admin Fee Rate: ${adminFeeRate}%`);
-      console.log(`- YOS Cashback Rate: ${yosCashbackRate}%`);
-      console.log(`- Swap Fee Rate: ${swapFeeRate}%`);
-      console.log(`- Referral Rate: ${referralRate}%`);
+      console.log(`- LP Contribution Rate: ${lpRate * 100}%`);
+      console.log(`- Admin Fee Rate: ${adminRate * 100}%`);
+      console.log(`- YOS Cashback Rate: ${cashbackRate * 100}%`);
+      console.log(`- Swap Fee Rate: ${swapRate * 100}%`);
+      console.log(`- Referral Rate: ${refRate * 100}%`);
       console.log("==================================================");
       
       // Call the initialization function with YOT and YOS token addresses
@@ -148,11 +157,11 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
         wallet,
         yotMint,
         yosMint,
-        lpContributionRate / 100, // Convert from percentage to decimal
-        adminFeeRate / 100,
-        yosCashbackRate / 100,
-        swapFeeRate / 100,
-        referralRate / 100
+        lpRate,
+        adminRate,
+        cashbackRate,
+        swapRate,
+        refRate
       );
 
       toast({
@@ -178,25 +187,59 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
     setIsLoading(true);
     try {
       console.log("Fetching MultiHubSwap contract info...");
-      const programState = await getMultiHubSwapStats();
-      console.log("MultiHubSwap programState received:", programState);
-      setStats(programState);
       
-      // Check if program is initialized (using explicit flag if available, or inferred from yotMint)
-      const isInit = programState && 
-        (programState.initialized === false ? false : !!programState.yotMint);
-      console.log("Is MultiHubSwap initialized?", isInit, 
-        "yotMint:", programState?.yotMint,
-        "explicit initialized flag:", programState?.initialized);
-      setIsInitialized(isInit);
+      let localProgramState: any = null;
+      
+      try {
+        // Try to get actual stats from blockchain
+        const fetchedState = await getMultiHubSwapStats();
+        console.log("MultiHubSwap programState received:", fetchedState);
+        localProgramState = fetchedState;
+        setStats(fetchedState);
+        
+        // Check if program is initialized (using explicit flag if available, or inferred from yotMint)
+        // If initialized is explicitly false, respect that value
+        // Otherwise, check if yotMint exists and matches the expected YOT token address
+        const expectedYotAddress = solanaConfig.tokens.yot.address;
+        const yotMatchesExpected = fetchedState?.yotMint && 
+          fetchedState.yotMint === expectedYotAddress;
+          
+        const isInit = fetchedState && 
+          (fetchedState.initialized === false ? false : 
+          (!!fetchedState.yotMint && yotMatchesExpected));
+          
+        console.log("Is MultiHubSwap initialized?", isInit, 
+          "yotMint:", fetchedState?.yotMint,
+          "expected YOT:", expectedYotAddress,
+          "matches:", yotMatchesExpected,
+          "explicit initialized flag:", fetchedState?.initialized);
+          
+        setIsInitialized(!!isInit);
+      } catch (error) {
+        // If we can't get stats from blockchain, assume not initialized
+        console.error("Error fetching program state, assuming not initialized:", error);
+        const defaultState = {
+          admin: solanaConfig.multiHubSwap.admin,
+          yotMint: null,
+          yosMint: solanaConfig.tokens.yos.address,
+          lpContributionRate: solanaConfig.multiHubSwap.rates.lpContributionRate / 100,
+          adminFeeRate: solanaConfig.multiHubSwap.rates.adminFeeRate / 100,
+          yosCashbackRate: solanaConfig.multiHubSwap.rates.yosCashbackRate / 100,
+          swapFeeRate: solanaConfig.multiHubSwap.rates.swapFeeRate / 100,
+          referralRate: solanaConfig.multiHubSwap.rates.referralRate / 100
+        };
+        setStats(defaultState);
+        localProgramState = defaultState;
+        setIsInitialized(false);
+      }
       
       // Update state with current parameters
-      if (programState) {
-        setLpContributionRate(programState.lpContributionRate);
-        setAdminFeeRate(programState.adminFeeRate);
-        setYosCashbackRate(programState.yosCashbackRate);
-        setSwapFeeRate(programState.swapFeeRate);
-        setReferralRate(programState.referralRate);
+      if (localProgramState) {
+        setLpContributionRate(localProgramState.lpContributionRate);
+        setAdminFeeRate(localProgramState.adminFeeRate);
+        setYosCashbackRate(localProgramState.yosCashbackRate);
+        setSwapFeeRate(localProgramState.swapFeeRate);
+        setReferralRate(localProgramState.referralRate);
       }
     } catch (error) {
       console.error("Error fetching contract info:", error);

@@ -1986,6 +1986,12 @@ export async function getMultiHubSwapStats() {
     // Get program state address - using explicit PDA derivation to ensure we're checking the right address
     const [programStateAddress] = findProgramStateAddress();
     console.log("Checking program state at:", programStateAddress.toString());
+    console.log("Expected program state address from config:", solanaConfig.multiHubSwap.programState);
+    
+    // Verify if address matches the expected address from config
+    const expectedProgramState = new PublicKey(solanaConfig.multiHubSwap.programState);
+    const addressesMatch = programStateAddress.equals(expectedProgramState);
+    console.log("Program state addresses match:", addressesMatch);
     
     // Fetch account data
     const accountInfo = await connection.getAccountInfo(programStateAddress);
@@ -1997,6 +2003,27 @@ export async function getMultiHubSwapStats() {
         dataLength: accountInfo.data.length,
         executable: accountInfo.executable
       });
+      
+      // Verify if owner matches the expected program ID
+      const expectedProgramId = new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID);
+      const ownerMatches = accountInfo.owner.equals(expectedProgramId);
+      console.log("Account owner matches program ID:", ownerMatches);
+      
+      // If owner doesn't match our program, it's not properly initialized
+      if (!ownerMatches) {
+        console.warn("Account found but owner doesn't match our program ID - not initialized");
+        return {
+          admin: solanaConfig.multiHubSwap.admin,
+          yotMint: null,
+          yosMint: solanaConfig.tokens.yos.address,
+          lpContributionRate: solanaConfig.multiHubSwap.rates.lpContributionRate / 100,
+          adminFeeRate: solanaConfig.multiHubSwap.rates.adminFeeRate / 100,
+          yosCashbackRate: solanaConfig.multiHubSwap.rates.yosCashbackRate / 100,
+          swapFeeRate: solanaConfig.multiHubSwap.rates.swapFeeRate / 100, 
+          referralRate: solanaConfig.multiHubSwap.rates.referralRate / 100,
+          initialized: false
+        };
+      }
     }
     
     if (!accountInfo || !accountInfo.data) {
