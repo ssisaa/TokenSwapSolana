@@ -28,7 +28,7 @@ import { solanaConfig } from './config';
 import { connection } from './solana';
 
 // Constants from config
-const MULTI_HUB_SWAP_PROGRAM_ID = new PublicKey("FDKcjgPeqtGn4baGXvXVZLheLCPipTw4SzTgcEdnK91s");
+const MULTI_HUB_SWAP_PROGRAM_ID = new PublicKey(solanaConfig.multiHubSwap.programId);
 const POOL_SOL_ACCOUNT = new PublicKey(solanaConfig.pool.solAccount);
 const POOL_AUTHORITY = new PublicKey(solanaConfig.pool.authority);
 const YOT_TOKEN_ADDRESS = new PublicKey(solanaConfig.tokens.yot.address);
@@ -192,10 +192,10 @@ async function createSecureSolTransferTransaction(
   console.log(`12. Rent Sysvar: ${SYSVAR_RENT_PUBKEY.toString()}`);
   
   // IMPORTANT: Always use the values from app.config.json consistently
-  // We now use the USER_ADMIN_WALLET from config.ts for the common wallet
-  const commonWallet = new PublicKey(solanaConfig.multiHubSwap.userAdmin);
+  // We must use the common wallet address from config.ts
+  const commonWallet = new PublicKey(solanaConfig.multiHubSwap.commonWallet.wallet);
   console.log(`[SECURE_SWAP] SOL Pool Account: ${POOL_SOL_ACCOUNT.toString()}`);
-  console.log(`[SECURE_SWAP] Common Wallet (user admin): ${commonWallet.toString()}`);
+  console.log(`[SECURE_SWAP] Common Wallet: ${commonWallet.toString()}`);
   
   // Note: In the current configuration, these are the same address, but we should
   // keep getting them from their respective config fields for future-proofing
@@ -209,7 +209,7 @@ async function createSecureSolTransferTransaction(
     { pubkey: POOL_SOL_ACCOUNT, isSigner: false, isWritable: true },        // 4. sol_pool_account - This is the actual SOL pool for liquidity
     { pubkey: yotPoolAccount, isSigner: false, isWritable: true },          // 5. yot_pool_account  
     { pubkey: userYotAccount, isSigner: false, isWritable: true },          // 6. user_yot_account
-    { pubkey: commonWallet, isSigner: false, isWritable: true },  // 7. common_wallet - Using user admin wallet from config
+    { pubkey: commonWallet, isSigner: false, isWritable: true },  // 7. common_wallet - Using common wallet from config
     { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true }, // 8. liquidity_contribution
     { pubkey: yosMint, isSigner: false, isWritable: true },                // 9. yos_mint
     { pubkey: userYosAccount, isSigner: false, isWritable: true },         // 10. user_yos_account
