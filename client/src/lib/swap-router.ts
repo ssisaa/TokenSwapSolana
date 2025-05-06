@@ -111,8 +111,12 @@ export async function executeSwap(
 
   // Case 1: SOL to YOT swap (main focus of Multi-Hub implementation)
   if (fromTokenAddress === SOL_TOKEN_ADDRESS && toTokenAddress === YOT_TOKEN_ADDRESS) {
-    // Execute SOL-YOT swap using buyAndDistribute
-    const signature = await buyAndDistribute(wallet, inputAmount);
+    console.log("[SOL-YOT SWAP] Input SOL amount:", inputAmount);
+    console.log("[SOL-YOT SWAP] Expected YOT output amount:", outputAmount);
+    
+    // CRITICAL FIX: We need to pass outputAmount (YOT) to buyAndDistribute
+    // The contract expects the YOT amount, not the SOL amount
+    const signature = await buyAndDistribute(wallet, outputAmount);
     
     // In this case, the contract handles the distribution automatically:
     // - 75% to user

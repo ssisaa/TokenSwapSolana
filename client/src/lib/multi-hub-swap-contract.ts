@@ -511,10 +511,16 @@ async function safelySimulateTransaction(connection: Connection, transaction: Tr
  *    - 75% goes directly to the user
  *    - 20% is added to the liquidity pool (auto-split 50/50 between YOT/SOL)
  *    - 5% is minted as YOS tokens for cashback rewards
+ * 
+ * @param wallet - The user's connected wallet
+ * @param yotAmount - The amount of YOT tokens to buy and distribute
+ * @param buyUserPercent - Percentage that goes to user (default 75%)
+ * @param buyLiquidityPercent - Percentage that goes to liquidity (default 20%)
+ * @param buyCashbackPercent - Percentage that goes to YOS cashback (default 5%)
  */
 export async function buyAndDistribute(
   wallet: any, 
-  amountIn: number,
+  yotAmount: number,
   buyUserPercent: number = 75,
   buyLiquidityPercent: number = 20,
   buyCashbackPercent: number = 5
@@ -524,7 +530,7 @@ export async function buyAndDistribute(
       throw new Error("Wallet not connected");
     }
     
-    console.log(`Initiating buyAndDistribute with amount: ${amountIn}`);
+    console.log(`Initiating buyAndDistribute with YOT amount: ${yotAmount}`);
 
     // Get program and public keys
     const program = new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID);
@@ -532,9 +538,9 @@ export async function buyAndDistribute(
     const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
     const yosMint = new PublicKey(YOS_TOKEN_ADDRESS);
     
-    // Convert amountIn to raw token amount with proper decimals
-    const rawAmount = uiToRawTokenAmount(amountIn, 9);
-    console.log(`Raw token amount: ${rawAmount}`);
+    // Convert YOT amount to raw token amount with proper decimals
+    const rawAmount = uiToRawTokenAmount(yotAmount, 9);
+    console.log(`Raw YOT token amount: ${rawAmount}`);
     
     // Get token accounts
     console.log("Getting associated token accounts...");
@@ -1384,13 +1390,20 @@ export async function executeSwap(
   // Case 1: SOL to YOT swap (main focus of Multi-Hub implementation)
   if (fromTokenAddress === SOL_TOKEN_ADDRESS && toTokenAddress === YOT_TOKEN_ADDRESS) {
     console.log("[SWAP_DEBUG] Starting SOL to YOT swap with buyAndDistribute");
-    console.log("[SWAP_DEBUG] Input amount:", inputAmount);
-    console.log("[SWAP_DEBUG] Expected output:", outputAmount);
+    console.log("[SWAP_DEBUG] Input amount (SOL):", inputAmount);
+    console.log("[SWAP_DEBUG] Expected output (YOT):", outputAmount);
     
     try {
+      // IMPORTANT FIX: We need to convert the SOL amount to YOT before buying
+      // The blockchain contract doesn't buy SOL → YOT directly
+      // Instead, we use the exchange rate to calculate the equivalent YOT 
+      // and the contract handles distributions from there
+      const yotEquivalent = outputAmount;
+      console.log("[SWAP_DEBUG] Calculated YOT equivalent:", yotEquivalent);
+      
       // Execute SOL-YOT swap using buyAndDistribute with additional debugging
       console.log("[SWAP_DEBUG] Attempting buyAndDistribute call...");
-      const signature = await buyAndDistribute(wallet, inputAmount);
+      const signature = await buyAndDistribute(wallet, yotEquivalent);
       console.log("[SWAP_DEBUG] Transaction successful! Signature:", signature);
       
       // In this case, the contract handles the distribution automatically
