@@ -23,6 +23,7 @@ import {
   SOL_POOL_WALLET,
   YOT_POOL_TOKEN_ACCOUNT,
   COMMON_WALLET_ADDRESS,
+  getRpcEndpoint,
 } from './configConstants';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { Buffer } from 'buffer';

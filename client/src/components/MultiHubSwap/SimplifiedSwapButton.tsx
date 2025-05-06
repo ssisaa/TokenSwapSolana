@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { swapSolToYot } from '@/lib/simplifiedSwap';
 import { ArrowDownUp, CheckCircle2, RefreshCw } from 'lucide-react';
-import { Connection, clusterApiUrl } from '@solana/web3.js';
+import { Connection } from '@solana/web3.js';
+import { SOLANA_NETWORK, getRpcEndpoint, DEFAULT_SLIPPAGE_PERCENTAGE } from '@/lib/configConstants';
 
 interface SimplifiedSwapButtonProps {
   solAmount: number;
@@ -17,7 +18,7 @@ interface SimplifiedSwapButtonProps {
 const SimplifiedSwapButton = ({
   solAmount,
   estimatedYotAmount,
-  slippagePercentage = 5,
+  slippagePercentage = DEFAULT_SLIPPAGE_PERCENTAGE,
   onSuccess,
   onError,
 }: SimplifiedSwapButtonProps) => {
@@ -55,8 +56,8 @@ const SimplifiedSwapButton = ({
         description: `Swapping ${solAmount} SOL for at least ${minYotAmount} YOT (${slippagePercentage}% slippage)`,
       });
 
-      // Create connection to Solana devnet
-      const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+      // Create connection to Solana devnet using our configured endpoint
+      const connection = new Connection(getRpcEndpoint(), 'confirmed');
 
       // Execute the swap
       const signature = await swapSolToYot(
@@ -73,7 +74,7 @@ const SimplifiedSwapButton = ({
           <div className="flex flex-col">
             <span>Swapped {solAmount} SOL for YOT with 5% YOS cashback</span>
             <a 
-              href={`https://explorer.solana.com/tx/${signature}?cluster=devnet`} 
+              href={`https://explorer.solana.com/tx/${signature}?cluster=${SOLANA_NETWORK}`} 
               target="_blank" 
               rel="noopener noreferrer"
               className="text-blue-500 underline text-sm mt-1"
