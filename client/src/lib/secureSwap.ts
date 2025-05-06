@@ -25,7 +25,13 @@ import {
 } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress, getAccount } from '@solana/spl-token';
 import { solanaConfig } from './config';
-import { connection, getCentralLiquidityWallet, getProgramAuthorityPda } from './solana';
+import { 
+  connection, 
+  getCentralLiquidityWallet, 
+  getProgramAuthorityPda,
+  getProgramStatePda,
+  getLiquidityContributionPda
+} from './solana';
 
 // Constants from config
 const MULTI_HUB_SWAP_PROGRAM_ID = new PublicKey(solanaConfig.multiHubSwap.programId);
@@ -136,19 +142,11 @@ async function createSecureSolTransferTransaction(
     throw new Error('Amount conversion resulted in unsafe integer');
   }
   
-  // Find program-related PDAs using utility functions
-  const [programStateAddress] = PublicKey.findProgramAddressSync(
-    [Buffer.from('state')],
-    MULTI_HUB_SWAP_PROGRAM_ID
-  );
-  
-  // Use utility function to get programAuthority - this ensures we're consistent across codebase
+  // Use utility functions to find all program-related PDAs
+  // This ensures we're using the same addresses throughout the codebase
+  const programStateAddress = getProgramStatePda();
   const programAuthority = getProgramAuthorityPda();
-  
-  const [liquidityContributionAddress] = PublicKey.findProgramAddressSync(
-    [Buffer.from('liq'), wallet.publicKey.toBuffer()],
-    MULTI_HUB_SWAP_PROGRAM_ID
-  );
+  const liquidityContributionAddress = getLiquidityContributionPda(wallet.publicKey);
   
   // Get token accounts
   const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
@@ -257,11 +255,8 @@ async function createLiquidityAccountTransaction(
   solAmount: number
 ): Promise<Transaction | null> {
   try {
-    // Find liquidity contribution account address
-    const [liquidityContributionAddress] = PublicKey.findProgramAddressSync(
-      [Buffer.from('liq'), wallet.publicKey.toBuffer()],
-      MULTI_HUB_SWAP_PROGRAM_ID
-    );
+    // Find liquidity contribution account address using utility function
+    const liquidityContributionAddress = getLiquidityContributionPda(wallet.publicKey);
     
     // Check if account already exists
     const accountInfo = await connection.getAccountInfo(liquidityContributionAddress);
@@ -275,16 +270,9 @@ async function createLiquidityAccountTransaction(
     // Create a minimal SOL amount transaction to initialize the account
     const microAmount = 0.000001;
     
-    // Get PDAs for the transaction
-    const [programStateAddress] = PublicKey.findProgramAddressSync(
-      [Buffer.from('state')],
-      MULTI_HUB_SWAP_PROGRAM_ID
-    );
-    
-    const [programAuthority] = PublicKey.findProgramAddressSync(
-      [Buffer.from('authority')],
-      MULTI_HUB_SWAP_PROGRAM_ID
-    );
+    // Get PDAs using utility functions - ensures consistent address derivation
+    const programStateAddress = getProgramStatePda();
+    const programAuthority = getProgramAuthorityPda();
     
     // Get YOT pool token account
     const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);

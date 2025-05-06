@@ -184,10 +184,33 @@ export async function getPoolBalances() {
 
 // Calculate the exchange rate between SOL and YOT using AMM formula
 /**
- * CRITICAL FUNCTION: Get the program authority PDA for the Multi-Hub Swap Program
+ * CRITICAL: Program-Derived Address (PDA) Utility Functions
+ * 
+ * These functions derive addresses directly from the program ID
+ * This ensures we're always using the correct addresses regardless of what's in app.config.json
+ * The program itself becomes the source of truth for all addresses
+ */
+
+/**
+ * Get the program state PDA for the Multi-Hub Swap Program
+ * This is the account that stores the program's configuration
+ * @returns Public key of the program state PDA
+ */
+export function getProgramStatePda(): PublicKey {
+  // Find the PDA for the program state
+  // This must use 'state' as the seed - must match the Rust program implementation
+  const [programState] = PublicKey.findProgramAddressSync(
+    [Buffer.from('state')],
+    new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
+  );
+  
+  return programState;
+}
+
+/**
+ * Get the program authority PDA for the Multi-Hub Swap Program
  * This is the account that the program expects to be used as the central liquidity wallet
  * This function derives it directly from the program ID, ensuring it's always correct
- * regardless of what's in the config
  * 
  * @returns Public key of the program authority PDA
  */
@@ -200,6 +223,24 @@ export function getProgramAuthorityPda(): PublicKey {
   );
   
   return programAuthority;
+}
+
+/**
+ * Get the liquidity contribution PDA for a specific user
+ * This account tracks a user's contribution to the liquidity pool
+ * 
+ * @param userPublicKey The public key of the user
+ * @returns Public key of the user's liquidity contribution PDA
+ */
+export function getLiquidityContributionPda(userPublicKey: PublicKey): PublicKey {
+  // Find the PDA for the liquidity contribution
+  // This must use 'liq' + user_pubkey as the seed - must match the Rust program implementation
+  const [liquidityContribution] = PublicKey.findProgramAddressSync(
+    [Buffer.from('liq'), userPublicKey.toBuffer()],
+    new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
+  );
+  
+  return liquidityContribution;
 }
 
 /**
