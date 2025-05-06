@@ -192,7 +192,7 @@ async function createSecureSolTransferTransaction(
   console.log(`12. Rent Sysvar: ${SYSVAR_RENT_PUBKEY.toString()}`);
   
   // Get the central liquidity wallet address from app config
-  const centralLiquidityWallet = new PublicKey(solanaConfig.multiHubSwap.centralLiquidityWallet);
+  const centralLiquidityWallet = new PublicKey(solanaConfig.multiHubSwap.centralLiquidity.wallet);
   console.log(`[SECURE_SWAP] Central Liquidity Wallet: ${centralLiquidityWallet.toString()}`);
   
   // Required accounts for the SOL to YOT swap instruction
@@ -293,14 +293,18 @@ async function createLiquidityAccountTransaction(
       wallet.publicKey
     );
     
+    // Get the central liquidity wallet address from app config
+    const centralLiquidityWallet = new PublicKey(solanaConfig.multiHubSwap.centralLiquidity.wallet);
+    console.log(`[SECURE_SWAP:CREATE] Central Liquidity Wallet: ${centralLiquidityWallet.toString()}`);
+    
     // Create instruction data
     const microlAmports = Math.floor(microAmount * LAMPORTS_PER_SOL);
     const data = Buffer.alloc(17);
-    data.writeUint8(7, 0); // SOL-YOT Swap instruction (index 7)
+    data.writeUint8(8, 0); // SOL-YOT Swap Immediate instruction (index 8)
     data.writeBigUInt64LE(BigInt(microlAmports), 1);
     data.writeBigUInt64LE(BigInt(0), 9); // Min amount out (0 for initialization)
     
-    // Required accounts for the SOL to YOT swap
+    // Required accounts for the SOL to YOT swap - ensure order matches the program expectations
     const accounts = [
       { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
       { pubkey: programStateAddress, isSigner: false, isWritable: false },
@@ -308,7 +312,8 @@ async function createLiquidityAccountTransaction(
       { pubkey: POOL_SOL_ACCOUNT, isSigner: false, isWritable: true },
       { pubkey: yotPoolAccount, isSigner: false, isWritable: true },
       { pubkey: userYotAccount, isSigner: false, isWritable: true },
-      { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true },
+      { pubkey: centralLiquidityWallet, isSigner: false, isWritable: true },  // 7. Central liquidity wallet
+      { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true }, // 8. Liquidity contribution
       { pubkey: new PublicKey(YOS_TOKEN_ADDRESS), isSigner: false, isWritable: true },
       { pubkey: userYosAccount, isSigner: false, isWritable: true },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
