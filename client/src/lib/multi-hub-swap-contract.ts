@@ -21,9 +21,8 @@ import {
 } from '@solana/spl-token';
 import { Buffer } from 'buffer';
 import { uiToRawTokenAmount } from './utils';
-// Import configuration from centralized configuration system
+// Import configuration from centralized configuration system - all from app.config.json
 import {
-  solanaConfig,
   SOL_TOKEN_ADDRESS,
   YOT_TOKEN_ADDRESS,
   YOS_TOKEN_ADDRESS,
@@ -1389,7 +1388,7 @@ export async function updateMultiHubSwapParameters(
         { pubkey: programState, isSigner: false, isWritable: true }
         // Removing program_authority as it's not expected by the Rust program
       ],
-      programId: new PublicKey("FDKcjgPeqtGn4baGXvXVZLheLCPipTw4SzTgcEdnK91s"),
+      programId: new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID),
       data
     });
     
