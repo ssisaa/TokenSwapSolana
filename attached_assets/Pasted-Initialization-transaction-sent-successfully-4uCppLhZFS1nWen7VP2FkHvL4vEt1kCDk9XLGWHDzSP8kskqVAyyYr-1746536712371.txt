@@ -1,0 +1,49 @@
+Initialization transaction sent successfully: 4uCppLhZFS1nWen7VP2FkHvL4vEt1kCDk9XLGWHDzSP8kskqVAyyYr6KrutsKyLjscYtV1zBhGN6jHr7cPSQnqKS
+multi-hub-swap-contract.ts:2024 Waiting for confirmation...
+multi-hub-swap-contract.ts:2036 Error sending transaction: TransactionExpiredBlockheightExceededError: Signature 4uCppLhZFS1nWen7VP2FkHvL4vEt1kCDk9XLGWHDzSP8kskqVAyyYr6KrutsKyLjscYtV1zBhGN6jHr7cPSQnqKS has expired: block height exceeded.
+    at Connection.confirmTransactionUsingBlockHeightExceedanceStrategy (chunk-5JHCWNWN.js?v=6c373433:9663:15)
+    at async Connection.confirmTransaction (chunk-5JHCWNWN.js?v=6c373433:9494:14)
+    at async initializeMultiHubSwap (multi-hub-swap-contract.ts:2027:7)
+    at async initializeContract (MultiHubSwapSettings.tsx:174:7)
+initializeMultiHubSwap @ multi-hub-swap-contract.ts:2036
+await in initializeMultiHubSwap
+initializeContract @ MultiHubSwapSettings.tsx:174
+callCallback2 @ chunk-276SZO74.js?v=6c373433:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=6c373433:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=6c373433:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=6c373433:3736
+executeDispatch @ chunk-276SZO74.js?v=6c373433:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=6c373433:7034
+processDispatchQueue @ chunk-276SZO74.js?v=6c373433:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=6c373433:7051
+(anonymous) @ chunk-276SZO74.js?v=6c373433:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=6c373433:18913
+batchedUpdates @ chunk-276SZO74.js?v=6c373433:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=6c373433:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=6c373433:5478
+dispatchEvent @ chunk-276SZO74.js?v=6c373433:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=6c373433:5449Understand this error
+multi-hub-swap-contract.ts:2040 Failed to initialize Multi-Hub Swap program: Error: Failed to send transaction: Signature 4uCppLhZFS1nWen7VP2FkHvL4vEt1kCDk9XLGWHDzSP8kskqVAyyYr6KrutsKyLjscYtV1zBhGN6jHr7cPSQnqKS has expired: block height exceeded.
+    at initializeMultiHubSwap (multi-hub-swap-contract.ts:2037:13)
+    at async initializeContract (MultiHubSwapSettings.tsx:174:7)
+initializeMultiHubSwap @ multi-hub-swap-contract.ts:2040
+await in initializeMultiHubSwap
+initializeContract @ MultiHubSwapSettings.tsx:174
+callCallback2 @ chunk-276SZO74.js?v=6c373433:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=6c373433:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=6c373433:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=6c373433:3736
+executeDispatch @ chunk-276SZO74.js?v=6c373433:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=6c373433:7034
+processDispatchQueue @ chunk-276SZO74.js?v=6c373433:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=6c373433:7051
+(anonymous) @ chunk-276SZO74.js?v=6c373433:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=6c373433:18913
+batchedUpdates @ chunk-276SZO74.js?v=6c373433:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=6c373433:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=6c373433:5478
+dispatchEvent @ chunk-276SZO74.js?v=6c373433:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=6c373433:5449Understand this error
+MultiHubSwapSettings.tsx:195 Contract initialization failed: Error: Failed to send transaction: Signature 4uCppLhZFS1nWen7VP2FkHvL4vEt1kCDk9XLGWHDzSP8kskqVAyyYr6KrutsKyLjscYtV1zBhGN6jHr7cPSQnqKS has expired: block height exceeded.
+    at initializeMultiHubSwap (multi-hub-swap-contract.ts:2037:13)
+    at async initializeContract (MultiHubSwapSettings.tsx:174:7)

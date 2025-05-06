@@ -2014,21 +2014,44 @@ export async function initializeMultiHubSwap(
       // Sign transaction - this will prompt user's wallet
       const signedTransaction = await wallet.signTransaction(transaction);
       
-      // Send signed transaction
-      const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
-        skipPreflight: true,  // Skip preflight to avoid false error returns
-        preflightCommitment: 'confirmed'
-      });
+      // Send signed transaction with more aggressive skipPreflight 
+      const serializedTx = signedTransaction.serialize();
+      console.log("Transaction serialized successfully, sending to network...");
+      
+      // First try with regular preflight
+      let signature;
+      try {
+        signature = await connection.sendRawTransaction(serializedTx, {
+          skipPreflight: false,
+          preflightCommitment: 'confirmed',
+          maxRetries: 3
+        });
+      } catch (preflightError) {
+        console.warn("Transaction failed preflight checks, trying with skipPreflight=true:", preflightError);
+        
+        // If preflight fails, try again with skipPreflight=true
+        signature = await connection.sendRawTransaction(serializedTx, {
+          skipPreflight: true,  // Skip preflight to avoid false error returns
+          preflightCommitment: 'confirmed',
+          maxRetries: 5
+        });
+      }
       
       console.log("Initialization transaction sent successfully:", signature);
       console.log("Waiting for confirmation...");
       
-      // Wait for confirmation with explicit strategy
-      await connection.confirmTransaction({
+      // Wait for confirmation with explicit strategy and higher timeout
+      // Add more blocks to the lastValidBlockHeight to give more time for confirmation
+      const confirmedSignature = await connection.confirmTransaction({
         signature,
         blockhash,
-        lastValidBlockHeight
+        lastValidBlockHeight: lastValidBlockHeight + 150 // Add extra blocks for validity 
       }, 'confirmed');
+      
+      // Check for errors in confirmation
+      if (confirmedSignature.value.err) {
+        throw new Error(`Transaction confirmed but failed: ${confirmedSignature.value.err}`);
+      }
       
       console.log("Multi-Hub Swap program initialized successfully:", signature);
       return signature;
