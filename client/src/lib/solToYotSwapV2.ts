@@ -108,9 +108,9 @@ export function createSolToYotSwapInstruction(
   yosMint: PublicKey,
   userYosAccount: PublicKey,
 ): TransactionInstruction {
-  // Instruction data: [7, amountIn (8 bytes), minAmountOut (8 bytes)]
+  // Instruction data: [1 (Swap), amountIn (8 bytes), minAmountOut (8 bytes)]
   const data = Buffer.alloc(17);
-  data.writeUint8(7, 0); // SOL to YOT Swap instruction (index 7)
+  data.writeUint8(1, 0); // Swap instruction (index 1)
   data.writeBigUInt64LE(BigInt(amountInLamports), 1);
   data.writeBigUInt64LE(BigInt(minAmountOutTokens), 9);
   
