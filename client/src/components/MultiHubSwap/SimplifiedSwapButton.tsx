@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { swapSolToYot } from '@/lib/simplifiedSwap';
 import { ArrowDownUp, CheckCircle2, RefreshCw, Wallet } from 'lucide-react';
+import { useMultiWallet } from '@/context/MultiWalletContext';
 import { Connection } from '@solana/web3.js';
 import { 
   SOLANA_NETWORK, 
@@ -31,7 +31,7 @@ const SimplifiedSwapButton = ({
   onSuccess,
   onError,
 }: SimplifiedSwapButtonProps) => {
-  const { wallet, publicKey, connected, connecting } = useWallet();
+  const { wallet, publicKey, connected, connecting, setShowWalletSelector } = useMultiWallet();
   const [loading, setLoading] = useState(false);
   const [swapComplete, setSwapComplete] = useState(false);
   const { toast } = useToast();
@@ -126,30 +126,22 @@ ${SOL_DISTRIBUTION_RATIO}% of SOL goes to pool, ${YOT_DISTRIBUTION_RATIO}% of YO
   // Handle the wallet connection or swap based on the current connection state
   const handleClick = async () => {
     if (!connected) {
-      // Use the Solana wallet adapter's select/connect methods
+      // Use MultiWalletContext's method to show the wallet selector modal
       try {
-        // Let the wallet adapter handle connection
-        const walletModal = document.querySelector('.wallet-adapter-modal-button-close');
-        if (walletModal) {
-          (walletModal as HTMLElement).click();
-        }
+        // Show the wallet selector modal
+        setShowWalletSelector(true);
         
-        // Open wallet selection modal by clicking the hidden wallet button
-        const walletButton = document.querySelector('.wallet-adapter-button');
-        if (walletButton) {
-          (walletButton as HTMLElement).click();
-        } else {
-          toast({
-            title: "Wallet Connection",
-            description: "Please connect your wallet using the wallet button in the navigation bar",
-            variant: "default",
-          });
-        }
-      } catch (error) {
-        console.error("Error connecting wallet:", error);
         toast({
-          title: "Connection Failed",
-          description: error instanceof Error ? error.message : "Failed to connect wallet",
+          title: "Select Wallet",
+          description: "Please select and connect a wallet to continue",
+          variant: "default",
+          duration: 3000,
+        });
+      } catch (error) {
+        console.error("Error showing wallet selector:", error);
+        toast({
+          title: "Wallet Connection",
+          description: error instanceof Error ? error.message : "Failed to open wallet selector",
           variant: "destructive",
         });
       }
