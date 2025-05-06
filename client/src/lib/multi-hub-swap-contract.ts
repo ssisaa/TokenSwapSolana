@@ -54,6 +54,7 @@ export enum MultiHubSwapInstructionType {
   ClaimRewards = 3,
   WithdrawLiquidity = 4,
   UpdateParameters = 5,
+  RepairProgramState = 6,  // Add instruction for repairing program state
   CreateLiquidityAccount = 7,
   SolToYotSwapImmediate = 8,
   YotToSolSwapImmediate = 9,
