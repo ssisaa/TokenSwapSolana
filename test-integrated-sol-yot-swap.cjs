@@ -252,6 +252,17 @@ async function solToYotSwap(wallet, solAmount) {
       programId
     );
     
+    // Log PDA addresses
+    console.log('Generated PDAs from seeds:');
+    console.log('Program State Address:', programStateAddress.toString());
+    console.log('Program Authority:', programAuthority.toString());
+    console.log('Liquidity Contribution Account:', liquidityContributionAccount.toString());
+    
+    // Compare with config values
+    console.log('Config Values:');
+    console.log('Config Program State:', config.multiHubSwap.programState);
+    console.log('Config Program Authority:', config.multiHubSwap.programAuthority);
+    
     // Calculate exchange rate for expected output
     const poolYotBalance = await connection.getTokenAccountBalance(yotPoolAccount);
     const poolYotAmount = Number(poolYotBalance.value.uiAmount);
@@ -294,6 +305,12 @@ async function solToYotSwap(wallet, solAmount) {
       { pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), isSigner: false, isWritable: false },
       { pubkey: new PublicKey('SysvarRent111111111111111111111111111111111'), isSigner: false, isWritable: false },
     ];
+    
+    // Log all account public keys for debugging
+    console.log('Transaction accounts:');
+    accounts.forEach((account, index) => {
+      console.log(`Account ${index}: ${account.pubkey.toString()}`);
+    });
     
     const swapInstruction = new (require('@solana/web3.js').TransactionInstruction)({
       programId,
