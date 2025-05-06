@@ -16,11 +16,11 @@
         "symbol": "SOL"
       },
       "yot": {
-        "address": "2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF", 
+        "address": "9KxQHJcBxp29AjGTAqF3LCFzodSpkuv986wsSEwQi6Cw", 
         "decimals": 9,
         "name": "YOT Token",
         "symbol": "YOT",
-        "account": "BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE"
+        "account": "EieVwYpDMdKr94iQygkyCeEBMhRWA4XsXyGumXztza74"
       },
       "yos": {
         "address": "2SWCnck3vLAVKaLkAjVtNnsVJVGYmGzyNVnte48SQRop",
@@ -33,8 +33,8 @@
       }
     },
     "pool": {
-      "authority": "7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK",
-      "solAccount": "7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS",
+      "authority": "CeuRAzZ58St8B29XKWo647CGtY7FL5qpwv8WGZUHAuA9",
+      "solAccount": "Bf78XttEfzR4iM3JCWfwgSCpd5MHePTMD2UKBEZU6coH",
       "fallbackBalances": {
         "sol": 6.5,
         "yot": 1000000000,
