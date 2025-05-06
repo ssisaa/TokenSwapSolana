@@ -1,0 +1,52 @@
+secureSwap.ts:737 [SECURE_SWAP] Transaction failed preflight checks, trying with skipPreflight=true: SendTransactionError: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 2: invalid account data for instruction. 
+Logs: 
+[
+  "Program log: SOL to YOT Swap Instruction (One Step)",
+  "Program log: SOL amount in: 200000000, Min YOT out: 0",
+  "Program log: Processing SOL to YOT swap (immediate version)",
+  "Program log: Amount in: 200000000 lamports",
+  "Program log: Minimum amount out: 0 YOT",
+  "Program log: Error: Invalid central liquidity wallet account",
+  "Program log: Expected: 5rQzEXhDTYdyDftPmu4DiaLpZz4GePd2XumXYPHBSj6T",
+  "Program log: Provided: AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ",
+  "Program FDKcjgPeqtGn4baGXvXVZLheLCPipTw4SzTgcEdnK91s consumed 33921 of 399700 compute units",
+  "Program FDKcjgPeqtGn4baGXvXVZLheLCPipTw4SzTgcEdnK91s failed: invalid account data for instruction"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at async solToYotSwap (secureSwap.ts:731:19)
+    at async executeSwap (multi-hub-swap-contract.ts:1549:22)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+solToYotSwap	@	secureSwap.ts:737
+await in solToYotSwap		
+executeSwap	@	multi-hub-swap-contract.ts:1549
+await in executeSwap		
+performSwap	@	MultiHubSwapCard.tsx:403
+await in performSwap		
+onClick	@	MultiHubSwapCard.tsx:1009
+secureSwap.ts:747 [SECURE_SWAP] Transaction sent: 3jF7pFAjyxQSLkYmaFUoJzo3D2kwUMLumm8aBpzen2VUTH56ZwtYBj536pAjxMvu5Prtj8xaR9sWt6zeJ1FBEAXM
+secureSwap.ts:748 [SECURE_SWAP] View on explorer: https://explorer.solana.com/tx/3jF7pFAjyxQSLkYmaFUoJzo3D2kwUMLumm8aBpzen2VUTH56ZwtYBj536pAjxMvu5Prtj8xaR9sWt6zeJ1FBEAXM?cluster=devnet
+secureSwap.ts:752 [SECURE_SWAP] Confirming with lastValidBlockHeight + 150 = 367058477
+secureSwap.ts:762 [SECURE_SWAP] Transaction failed: 
+{InstructionError: Array(2)}
+secureSwap.ts:769 [SECURE_SWAP] Error sending transaction: Error: Transaction failed: {"InstructionError":[2,"InvalidAccountData"]}
+    at solToYotSwap (secureSwap.ts:763:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1549:22)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+
+multi-hub-swap-contract.ts:1619 [SWAP_DEBUG] Critical transaction failure: Error: Transaction failed: {"InstructionError":[2,"InvalidAccountData"]}
+    at solToYotSwap (secureSwap.ts:763:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1549:22)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+multi-hub-swap-contract.ts:1622 [SWAP_DEBUG] Error type: object
+multi-hub-swap-contract.ts:1623 [SWAP_DEBUG] Error name: Error
+multi-hub-swap-contract.ts:1624 [SWAP_DEBUG] Full error object: {}
+multi-hub-swap-contract.ts:1632 [SWAP_DEBUG] Will attempt transaction simulation for more details...
+multi-hub-swap-contract.ts:1636 [SWAP_DEBUG] Simulation also failed: Error: Transaction failed: {"InstructionError":[2,"InvalidAccountData"]}
+    at solToYotSwap (secureSwap.ts:763:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1549:22)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+MultiHubSwapCard.tsx:566 Swap error: Error: Transaction failed: {"InstructionError":[2,"InvalidAccountData"]}
+    at solToYotSwap (secureSwap.ts:763:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1549:22)
+    at async performSwap (MultiHubSwapCard.tsx:403:

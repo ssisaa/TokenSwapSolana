@@ -200,7 +200,7 @@ export const BUY_AND_DISTRIBUTE_DISCRIMINATOR = Buffer.from([4]); // Match with 
 export const CLAIM_REWARD_DISCRIMINATOR = Buffer.from([5]);      // Match with CLAIM_WEEKLY_REWARD_IX = 5
 export const WITHDRAW_CONTRIBUTION_DISCRIMINATOR = Buffer.from([6]); // Match with WITHDRAW_CONTRIBUTION_IX = 6
 export const UPDATE_PARAMETERS_DISCRIMINATOR = Buffer.from([3]); // Match with UPDATE_PARAMETERS_IX = 3
-export const ADD_LIQUIDITY_FROM_COMMON_DISCRIMINATOR = Buffer.from([11]); // Match with ADD_LIQUIDITY_FROM_CENTRAL_IX = 11
+export const ADD_LIQUIDITY_FROM_COMMON_DISCRIMINATOR = Buffer.from([11]); // Match with ADD_LIQUIDITY_FROM_COMMON_IX = 11
 
 // NO DEFAULT EXCHANGE RATES
 // All exchange rates MUST be fetched from blockchain - no hardcoded values allowed

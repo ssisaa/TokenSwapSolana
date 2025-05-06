@@ -42,7 +42,7 @@
       "admin": "2MaN8ZRdxVCqQ8NWCcPxdqKY6K3BWGZdtBvTEBF7MyZ3",
       "userAdmin": "AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ",
       "commonWallet": {
-        "wallet": "AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ",
+        "wallet": "5rQzEXhDTYdyDftPmu4DiaLpZz4GePd2XumXYPHBSj6T",
         "threshold": 0.1,
         "yotAccount": "EieVwYpDMdKr94iQygkyCeEBMhRWA4XsXyGumXztza74"
       },
@@ -113,7 +113,7 @@
           239,
           67
         ],
-        "addLiquidityFromCentral": [
+        "addLiquidityFromCommon": [
           11
         ]
       },
