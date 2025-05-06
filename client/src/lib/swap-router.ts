@@ -175,12 +175,24 @@ export function isSwapSupported(fromToken: string, toToken: string): boolean {
   const normalizedSOL = SOL_TOKEN_ADDRESS.toString().toLowerCase();
   const normalizedYOT = YOT_TOKEN_ADDRESS.toString().toLowerCase();
   
+  // Debug log to identify comparison issues
+  console.log('Token addresses comparison:', {
+    fromToken: normalizedFromToken, 
+    toToken: normalizedToToken,
+    solAddress: normalizedSOL,
+    yotAddress: normalizedYOT,
+    solToYotMatch: normalizedFromToken === normalizedSOL && normalizedToToken === normalizedYOT,
+    yotToSolMatch: normalizedFromToken === normalizedYOT && normalizedToToken === normalizedSOL
+  });
+  
   // SOL-YOT swaps should be supported in both directions
   if ((normalizedFromToken === normalizedSOL && normalizedToToken === normalizedYOT) ||
       (normalizedFromToken === normalizedYOT && normalizedToToken === normalizedSOL)) {
+    console.log("✅ Swap pair is supported");
     return true;
   }
   
+  console.log("❌ Swap pair is NOT supported");
   return false;
 }
 
