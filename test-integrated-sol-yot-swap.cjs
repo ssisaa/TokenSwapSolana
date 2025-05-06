@@ -176,6 +176,9 @@ async function solToYotSwap(wallet, solAmount) {
     
     // Get program ID and other key accounts
     const programId = new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID);
+    console.log('Using MULTI_HUB_SWAP_PROGRAM_ID:', MULTI_HUB_SWAP_PROGRAM_ID);
+    console.log('Program ID:', programId.toString());
+    
     const solPoolAccount = new PublicKey(POOL_SOL_ACCOUNT);
     const poolAuthority = new PublicKey(POOL_AUTHORITY);
     const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
