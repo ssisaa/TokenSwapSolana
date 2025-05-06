@@ -1,0 +1,67 @@
+TWO_PHASE_SWAP] Simulating transaction...
+twoPhaseSwap.ts:460 [TWO_PHASE_SWAP] Simulation error, continuing anyway: TypeError: Cannot read properties of undefined (reading 'numRequiredSignatures')
+    at _Transaction.populate (chunk-5JHCWNWN.js?v=6c373433:6801:24)
+    at Connection.simulateTransaction (chunk-5JHCWNWN.js?v=6c373433:10912:33)
+    at executeSwapTransaction (twoPhaseSwap.ts:451:43)
+    at async twoPhaseSwap (twoPhaseSwap.ts:556:24)
+    at async solToYotSwap (secureSwap.ts:719:20)
+    at async executeSwap (multi-hub-swap-contract.ts:1561:22)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+executeSwapTransaction @ twoPhaseSwap.ts:460
+await in executeSwapTransaction
+twoPhaseSwap @ twoPhaseSwap.ts:556
+await in twoPhaseSwap
+solToYotSwap @ secureSwap.ts:719
+await in solToYotSwap
+executeSwap @ multi-hub-swap-contract.ts:1561
+await in executeSwap
+performSwap @ MultiHubSwapCard.tsx:403
+await in performSwap
+onClick @ MultiHubSwapCard.tsx:1009
+callCallback2 @ chunk-276SZO74.js?v=6c373433:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=6c373433:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=6c373433:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=6c373433:3736
+executeDispatch @ chunk-276SZO74.js?v=6c373433:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=6c373433:7034
+processDispatchQueue @ chunk-276SZO74.js?v=6c373433:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=6c373433:7051
+(anonymous) @ chunk-276SZO74.js?v=6c373433:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=6c373433:18913
+batchedUpdates @ chunk-276SZO74.js?v=6c373433:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=6c373433:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=6c373433:5478
+dispatchEvent @ chunk-276SZO74.js?v=6c373433:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=6c373433:5449Understand this warning
+twoPhaseSwap.ts:466 [TWO_PHASE_SWAP] Sending swap transaction...
+twoPhaseSwap.ts:471 [TWO_PHASE_SWAP] Swap transaction sent: 5RnWnVY7dLDFcNWPKTuNwfTLmxfDaJWGpzdCzrLfZfx4AiiDNQW9tVtHqr9KYNLNpvTuMrJBwwW5vvdyyGzABfAa
+twoPhaseSwap.ts:472 [TWO_PHASE_SWAP] View on explorer: https://explorer.solana.com/tx/5RnWnVY7dLDFcNWPKTuNwfTLmxfDaJWGpzdCzrLfZfx4AiiDNQW9tVtHqr9KYNLNpvTuMrJBwwW5vvdyyGzABfAa?cluster=devnet
+twoPhaseSwap.ts:477 [TWO_PHASE_SWAP] Swap transaction confirmed!
+twoPhaseSwap.ts:482 [TWO_PHASE_SWAP] Final YOT balance: 0
+secureSwap.ts:733 [SECURE_SWAP] Transaction sent: 5RnWnVY7dLDFcNWPKTuNwfTLmxfDaJWGpzdCzrLfZfx4AiiDNQW9tVtHqr9KYNLNpvTuMrJBwwW5vvdyyGzABfAa
+secureSwap.ts:734 [SECURE_SWAP] View on explorer: https://explorer.solana.com/tx/5RnWnVY7dLDFcNWPKTuNwfTLmxfDaJWGpzdCzrLfZfx4AiiDNQW9tVtHqr9KYNLNpvTuMrJBwwW5vvdyyGzABfAa?cluster=devnet
+secureSwap.ts:738 [SECURE_SWAP] Confirming with lastValidBlockHeight + 150 = 367078468
+secureSwap.ts:766 [SECURE_SWAP] Confirmation error: {InstructionError: Array(2)}
+solToYotSwap @ secureSwap.ts:766
+await in solToYotSwap
+executeSwap @ multi-hub-swap-contract.ts:1561
+await in executeSwap
+performSwap @ MultiHubSwapCard.tsx:403
+await in performSwap
+onClick @ MultiHubSwapCard.tsx:1009
+callCallback2 @ chunk-276SZO74.js?v=6c373433:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=6c373433:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=6c373433:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=6c373433:3736
+executeDispatch @ chunk-276SZO74.js?v=6c373433:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=6c373433:7034
+processDispatchQueue @ chunk-276SZO74.js?v=6c373433:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=6c373433:7051
+(anonymous) @ chunk-276SZO74.js?v=6c373433:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=6c373433:18913
+batchedUpdates @ chunk-276SZO74.js?v=6c373433:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=6c373433:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=6c373433:5478
+dispatchEvent @ chunk-276SZO74.js?v=6c373433:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=6c373433:5449Understand this error
+multi-hub-swap-contract.ts:1565 [SWAP_DEBUG] Got structured result from solToYotSwap: {solSignature: '5RnWnVY7dLDFcNWPKTuNwfTLmxfDaJWGpzdCzrLfZfx4AiiDNQW9tVtHqr9KYNLNpvTuMrJBwwW5vvdyyGzABfAa', completed: false, error: true, message: 'Confirmation error: Unknown error'}completed: falseerror: truemessage: "Confirmation error: Unknown error"solSignature: "5RnWnVY7dLDFcNWPKTuNwfTLmxfDaJWGpzdCzrLfZfx4AiiDNQW9tVtHqr9KYNLNpvTuMrJBwwW5vvdyyGzABfAa"[[Prototype]]: Object
