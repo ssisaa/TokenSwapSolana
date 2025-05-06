@@ -38,7 +38,7 @@ import {
   CLAIM_REWARD_DISCRIMINATOR,
   WITHDRAW_CONTRIBUTION_DISCRIMINATOR,
   UPDATE_PARAMETERS_DISCRIMINATOR,
-  ADD_LIQUIDITY_FROM_CENTRAL_DISCRIMINATOR,
+  ADD_LIQUIDITY_FROM_COMMON_DISCRIMINATOR,
   COMMON_WALLET_CONFIG
 } from './config';
 
@@ -1229,7 +1229,7 @@ export async function addLiquidityFromCommonWallet(wallet: any): Promise<string>
     throw new Error("Only admin wallet can add liquidity from common wallet");
   }
   
-  console.log("Creating add liquidity from central wallet transaction");
+  console.log("Creating add liquidity from common wallet transaction");
   
   // Get the program state account
   const [programStateAccount] = findProgramStateAddress();
@@ -1246,7 +1246,7 @@ export async function addLiquidityFromCommonWallet(wallet: any): Promise<string>
   
   // Create instruction data
   const data = Buffer.concat([
-    ADD_LIQUIDITY_FROM_CENTRAL_DISCRIMINATOR
+    ADD_LIQUIDITY_FROM_COMMON_DISCRIMINATOR
   ]);
   
   // Create the instruction
