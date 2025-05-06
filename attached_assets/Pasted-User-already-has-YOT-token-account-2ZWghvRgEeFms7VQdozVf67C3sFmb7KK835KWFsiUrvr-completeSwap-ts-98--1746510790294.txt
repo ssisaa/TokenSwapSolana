@@ -1,0 +1,75 @@
+User already has YOT token account: 2ZWghvRgEeFms7VQdozVf67C3sFmb7KK835KWFsiUrvr
+completeSwap.ts:98 Critical limitation: Client-side token transfers from pool not possible
+completeSwapWithYotTransfer @ completeSwap.ts:98
+await in completeSwapWithYotTransfer
+solToYotSwap @ solana.ts:787
+await in solToYotSwap
+executeSwap @ multi-hub-swap-contract.ts:1451
+await in executeSwap
+performSwap @ MultiHubSwapCard.tsx:403
+await in performSwap
+onClick @ MultiHubSwapCard.tsx:978
+callCallback2 @ chunk-276SZO74.js?v=6832b56c:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=6832b56c:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=6832b56c:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=6832b56c:3736
+executeDispatch @ chunk-276SZO74.js?v=6832b56c:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=6832b56c:7034
+processDispatchQueue @ chunk-276SZO74.js?v=6832b56c:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=6832b56c:7051
+(anonymous) @ chunk-276SZO74.js?v=6832b56c:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=6832b56c:18913
+batchedUpdates @ chunk-276SZO74.js?v=6832b56c:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=6832b56c:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=6832b56c:5478
+dispatchEvent @ chunk-276SZO74.js?v=6832b56c:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=6832b56c:5449Understand this error
+completeSwap.ts:99 Only the program can transfer tokens from the pool
+completeSwapWithYotTransfer @ completeSwap.ts:99
+await in completeSwapWithYotTransfer
+solToYotSwap @ solana.ts:787
+await in solToYotSwap
+executeSwap @ multi-hub-swap-contract.ts:1451
+await in executeSwap
+performSwap @ MultiHubSwapCard.tsx:403
+await in performSwap
+onClick @ MultiHubSwapCard.tsx:978
+callCallback2 @ chunk-276SZO74.js?v=6832b56c:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=6832b56c:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=6832b56c:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=6832b56c:3736
+executeDispatch @ chunk-276SZO74.js?v=6832b56c:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=6832b56c:7034
+processDispatchQueue @ chunk-276SZO74.js?v=6832b56c:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=6832b56c:7051
+(anonymous) @ chunk-276SZO74.js?v=6832b56c:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=6832b56c:18913
+batchedUpdates @ chunk-276SZO74.js?v=6832b56c:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=6832b56c:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=6832b56c:5478
+dispatchEvent @ chunk-276SZO74.js?v=6832b56c:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=6832b56c:5449Understand this error
+solana.ts:806 [SOL-YOT SWAP] Error from token transfer: SOL was sent to the pool, but YOT tokens cannot be transferred back client-side. Please use the smart contract directly or contact the admin for token distribution.
+solToYotSwap @ solana.ts:806
+await in solToYotSwap
+executeSwap @ multi-hub-swap-contract.ts:1451
+await in executeSwap
+performSwap @ MultiHubSwapCard.tsx:403
+await in performSwap
+onClick @ MultiHubSwapCard.tsx:978
+callCallback2 @ chunk-276SZO74.js?v=6832b56c:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=6832b56c:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=6832b56c:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=6832b56c:3736
+executeDispatch @ chunk-276SZO74.js?v=6832b56c:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=6832b56c:7034
+processDispatchQueue @ chunk-276SZO74.js?v=6832b56c:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=6832b56c:7051
+(anonymous) @ chunk-276SZO74.js?v=6832b56c:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=6832b56c:18913
+batchedUpdates @ chunk-276SZO74.js?v=6832b56c:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=6832b56c:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=6832b56c:5478
+dispatchEvent @ chunk-276SZO74.js?v=6832b56c:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=6832b56c:5449Understand this error
+multi-hub-swap-contract.ts:1455 [SWAP_DEBUG] Got structured result from solToYotSwap: 
