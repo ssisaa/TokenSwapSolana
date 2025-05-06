@@ -289,21 +289,20 @@ async function solToYotSwap(wallet, solAmount) {
     data.writeBigUInt64LE(BigInt(minAmountOut), 9);
     
     // Required accounts for the SOL to YOT swap
-    // This uses the standard Swap instruction accounts (instruction #1)
+    // This uses the SOL-to-YOT swap specific account order from process_sol_to_yot_swap
     const accounts = [
       { pubkey: wallet.publicKey, isSigner: true, isWritable: true },                            // user wallet
       { pubkey: programStateAddress, isSigner: false, isWritable: false },                       // program state
-      { pubkey: new PublicKey(YOT_TOKEN_ADDRESS), isSigner: false, isWritable: false },          // target token mint (YOT)
-      { pubkey: userYotAccount, isSigner: false, isWritable: true },                             // user's YOT token account
+      { pubkey: programAuthority, isSigner: false, isWritable: false },                          // program authority (PDA)
       { pubkey: solPoolAccount, isSigner: false, isWritable: true },                             // SOL pool account
       { pubkey: yotPoolAccount, isSigner: false, isWritable: true },                             // YOT pool account
+      { pubkey: userYotAccount, isSigner: false, isWritable: true },                             // user's YOT token account
       { pubkey: liquidityContributionAccount, isSigner: false, isWritable: true },               // user's liquidity contribution account
       { pubkey: yosMint, isSigner: false, isWritable: true },                                    // YOS mint
       { pubkey: userYosAccount, isSigner: false, isWritable: true },                             // user's YOS token account
-      { pubkey: programAuthority, isSigner: false, isWritable: false },                          // program authority (PDA)
-      { pubkey: require('@solana/web3.js').SystemProgram.programId, isSigner: false, isWritable: false },
-      { pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), isSigner: false, isWritable: false },
-      { pubkey: new PublicKey('SysvarRent111111111111111111111111111111111'), isSigner: false, isWritable: false },
+      { pubkey: require('@solana/web3.js').SystemProgram.programId, isSigner: false, isWritable: false }, // system program
+      { pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), isSigner: false, isWritable: false }, // token program
+      { pubkey: new PublicKey('SysvarRent111111111111111111111111111111111'), isSigner: false, isWritable: false }, // rent sysvar
     ];
     
     // Log all account public keys for debugging
