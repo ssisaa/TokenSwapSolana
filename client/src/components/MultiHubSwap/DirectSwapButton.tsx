@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { twoPhaseSwap } from '@/lib/twoPhaseSwap';
+import { directSolYotSwap } from '@/lib/directSolYotSwap';
 import { Shield, Loader2 } from 'lucide-react';
 
 interface DirectSwapButtonProps {
@@ -37,9 +37,9 @@ export function DirectSwapButton({ wallet, amount, disabled }: DirectSwapButtonP
     setIsSwapping(true);
     
     try {
-      // Use two-phase swap for proper on-chain functionality
-      console.log(`Performing two-phase swap of ${amountNum} SOL...`);
-      const result = await twoPhaseSwap(wallet, amountNum);
+      // Use our simplified direct swap function
+      console.log(`Performing direct swap of ${amountNum} SOL...`);
+      const result = await directSolYotSwap(wallet, amountNum);
       
       if (result.success) {
         toast({
@@ -56,7 +56,7 @@ export function DirectSwapButton({ wallet, amount, disabled }: DirectSwapButtonP
                 View on Explorer
               </a>
               <p className="text-green-500 mt-2">
-                The swap was processed entirely on-chain with 80% to you, 20% to liquidity, and 5% YOS cashback.
+                The swap was processed entirely on-chain with 75% to you, 20% to liquidity, and 5% YOS cashback.
               </p>
             </div>
           ),
