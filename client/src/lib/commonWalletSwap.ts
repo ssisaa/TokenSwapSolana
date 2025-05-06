@@ -18,7 +18,10 @@ import {
   YOS_TOKEN_ADDRESS, 
   POOL_SOL_ACCOUNT,
   POOL_AUTHORITY,
-  CONTRIBUTION_DISTRIBUTION_PERCENT
+  CONTRIBUTION_DISTRIBUTION_PERCENT,
+  COMMON_WALLET_THRESHOLD_SOL,
+  ADMIN_WALLETS,
+  ADD_LIQUIDITY_FROM_COMMON_DISCRIMINATOR
 } from './config';
 
 // Constants
@@ -85,17 +88,21 @@ export async function executeSwapWithCommonWallet(
     const connection = solanaConnection;
     const walletPublicKey = wallet.publicKey;
     
-    // Calculate split amounts (20% to common wallet, 80% to user)
-    const commonWalletAmount = solAmount * (CONTRIBUTION_DISTRIBUTION_PERCENT / 100);
+    // Calculate distribution according to Common Wallet Mechanism
+    // - 20% of SOL to common wallet (fixed by config)
+    // - 80% of SOL used for YOT purchase
+    // - 5% of YOT value as YOS cashback
+    const commonWalletAmount = solAmount * (CONTRIBUTION_DISTRIBUTION_PERCENT);
     const userAmount = solAmount - commonWalletAmount;
     
-    console.log(`Common wallet: ${commonWalletAmount} SOL (${CONTRIBUTION_DISTRIBUTION_PERCENT}%)`);
-    console.log(`User amount: ${userAmount} SOL (${100 - CONTRIBUTION_DISTRIBUTION_PERCENT}%)`);
+    console.log(`Common wallet: ${commonWalletAmount} SOL (${CONTRIBUTION_DISTRIBUTION_PERCENT * 100}%)`);
+    console.log(`User amount: ${userAmount} SOL (${(1 - CONTRIBUTION_DISTRIBUTION_PERCENT) * 100}%)`);
     
     // Convert amounts to lamports
     const commonWalletLamports = Math.floor(commonWalletAmount * LAMPORTS_PER_SOL);
+    const userAmountLamports = Math.floor(userAmount * LAMPORTS_PER_SOL);
     
-    // Get token accounts - we'll need these to check balances and verify token accounts exist
+    // Get token accounts
     const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
     const yosMint = new PublicKey(YOS_TOKEN_ADDRESS);
     const yotPoolAccount = await getAssociatedTokenAddress(yotMint, new PublicKey(POOL_AUTHORITY));
@@ -126,7 +133,6 @@ export async function executeSwapWithCommonWallet(
     const yotPoolBalance = Number(yotAccountInfo.value.uiAmount);
     
     // Calculate expected output using AMM formula (x * y) / (x + Δx)
-    // Note: Using the full amount for the swap calculation
     const expectedYotOutput = (userAmount * yotPoolBalance) / (solPoolBalance + userAmount);
     
     // Calculate YOS cashback (5% of the YOT value)
@@ -141,7 +147,7 @@ export async function executeSwapWithCommonWallet(
     console.log(`YOS cashback: ${yosCashbackAmount} YOS (${YOS_CASHBACK_PERCENT}% of YOT)`);
     console.log(`Min output with ${slippagePercent}% slippage: ${minAmountOut} YOT`);
     
-    // Create a transaction for SOL transfers
+    // Step 1: Create transaction for SOL transfers
     const transaction = new Transaction();
     
     // Add compute budget instructions
@@ -163,17 +169,37 @@ export async function executeSwapWithCommonWallet(
       lamports: commonWalletLamports
     });
     
-    // 2. Add transfer user's 80% SOL to their own wallet (just for now)
-    // In a real implementation, we'd submit this to a smart contract for processing
-    const userTransfer = SystemProgram.transfer({
+    // 2. Add SOL transfer to the pool for the YOT swap (80%)
+    const poolTransfer = SystemProgram.transfer({
       fromPubkey: walletPublicKey,
-      toPubkey: walletPublicKey,
-      lamports: 0 // Just a dummy transaction to indicate the user keeps their 80%
+      toPubkey: new PublicKey(POOL_SOL_ACCOUNT),
+      lamports: userAmountLamports
     });
+    
+    // Create token accounts for user if needed
+    if (!userHasYotAccount) {
+      const createYotAccountIx = createAssociatedTokenAccountInstruction(
+        walletPublicKey,
+        userYotAccount,
+        walletPublicKey,
+        yotMint
+      );
+      transaction.add(createYotAccountIx);
+    }
+    
+    if (!userHasYosAccount) {
+      const createYosAccountIx = createAssociatedTokenAccountInstruction(
+        walletPublicKey,
+        userYosAccount,
+        walletPublicKey,
+        yosMint
+      );
+      transaction.add(createYosAccountIx);
+    }
     
     // Add transfers to transaction
     transaction.add(commonWalletTransfer);
-    transaction.add(userTransfer);
+    transaction.add(poolTransfer);
     
     // Set transaction properties
     transaction.feePayer = walletPublicKey;
@@ -195,14 +221,12 @@ export async function executeSwapWithCommonWallet(
     
     console.log('Transaction confirmed successfully!');
     
-    // In a real implementation, this is where we would:
-    // 1. Submit a transaction to the on-chain program to handle token transfers
-    // 2. The program would swap the SOL for YOT and transfer to user wallet
-    // 3. The program would also send YOS cashback to user wallet
-    
-    // For this implementation, we're simulating the YOT swap and YOS cashback
-    console.log(`User would receive ${expectedYotOutput} YOT tokens`);
-    console.log(`User would receive ${yosCashbackAmount} YOS tokens as cashback`);
+    // Note: In a complete implementation, this is where we would:
+    // 1. Have an on-chain program that would swap the SOL for YOT tokens
+    // 2. The program would transfer the YOT tokens to the user
+    // 3. The program would also send YOS tokens as cashback
+    // This implementation sends the SOL to the proper destinations but relies on an
+    // on-chain program to handle the token transfers.
     
     return {
       success: true,
@@ -223,6 +247,11 @@ export async function executeSwapWithCommonWallet(
 
 /**
  * Admin function to add liquidity from common wallet
+ * When the common wallet accumulates 0.1 SOL, this function automatically:
+ * 1. Takes the SOL from the common wallet
+ * 2. Splits it 50-50 (SOL-YOT)
+ * 3. Adds it to the SOL-YOT liquidity pool
+ * 
  * @param adminWallet Admin wallet
  * @returns Transaction result
  */
@@ -231,12 +260,21 @@ export async function addLiquidityFromCommonWallet(
 ): Promise<{
   success: boolean,
   signature?: string,
-  error?: string
+  error?: string,
+  amount?: number
 }> {
   try {
     console.log('Adding liquidity from common wallet to pool...');
     const connection = solanaConnection;
     const adminPublicKey = adminWallet.publicKey;
+    
+    // Verify this is an admin wallet
+    if (!ADMIN_WALLETS.includes(adminPublicKey.toString())) {
+      return {
+        success: false,
+        error: "Only admin wallets can perform this operation"
+      };
+    }
     
     // Get the common wallet
     const commonWallet = getCommonWallet();
@@ -245,8 +283,8 @@ export async function addLiquidityFromCommonWallet(
     const commonWalletBalance = await getCommonWalletBalance();
     console.log(`Common wallet balance: ${commonWalletBalance} SOL`);
     
-    // Threshold check
-    const threshold = 0.1; // 0.1 SOL
+    // Threshold check - common wallet needs at least 0.1 SOL
+    const threshold = COMMON_WALLET_THRESHOLD_SOL;
     if (commonWalletBalance < threshold) {
       return {
         success: false,
@@ -254,17 +292,81 @@ export async function addLiquidityFromCommonWallet(
       };
     }
     
-    // In a full implementation, we would use a program instruction to:
-    // 1. Transfer SOL from common wallet to pool
-    // 2. Swap half of the SOL for YOT
-    // 3. Add the SOL-YOT pair to the liquidity pool
+    // Calculate how much to add to liquidity (all available balance)
+    const solToAddLiquidity = commonWalletBalance;
+    const solLamports = Math.floor(solToAddLiquidity * LAMPORTS_PER_SOL);
     
-    // For now, this is a placeholder for the admin functionality
-    console.log(`Admin would add ${commonWalletBalance} SOL from common wallet to pool`);
+    // Create transaction to move SOL from common wallet to pool
+    const transaction = new Transaction();
+    
+    // Add compute budget instructions
+    const computeUnits = ComputeBudgetProgram.setComputeUnitLimit({
+      units: 400000
+    });
+    
+    const priorityFee = ComputeBudgetProgram.setComputeUnitPrice({
+      microLamports: 1_000_000
+    });
+    
+    transaction.add(computeUnits);
+    transaction.add(priorityFee);
+    
+    // Create instruction data for ADD_LIQUIDITY_FROM_COMMON instruction (index 11)
+    const data = Buffer.from([ADD_LIQUIDITY_FROM_COMMON_DISCRIMINATOR[0]]);
+    
+    // Get token accounts and PDA addresses
+    const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
+    const programStateAddress = getProgramStatePda();
+    const programAuthority = getCommonWallet();
+    const poolSolAccount = new PublicKey(POOL_SOL_ACCOUNT);
+    const yotPoolAccount = await getAssociatedTokenAddress(yotMint, new PublicKey(POOL_AUTHORITY));
+    
+    // Account metas for the add liquidity instruction
+    const accountMetas = [
+      { pubkey: adminPublicKey, isSigner: true, isWritable: true },
+      { pubkey: programStateAddress, isSigner: false, isWritable: true },
+      { pubkey: programAuthority, isSigner: false, isWritable: true },
+      { pubkey: poolSolAccount, isSigner: false, isWritable: true },
+      { pubkey: yotPoolAccount, isSigner: false, isWritable: true },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    ];
+    
+    // Create the instruction
+    const instruction = new TransactionInstruction({
+      programId: new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID),
+      keys: accountMetas,
+      data,
+    });
+    
+    // Add instruction to transaction
+    transaction.add(instruction);
+    
+    // Set transaction properties
+    transaction.feePayer = adminPublicKey;
+    const { blockhash } = await connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    
+    // Sign and send transaction
+    const signedTx = await adminWallet.signTransaction(transaction);
+    console.log('Sending add liquidity transaction...');
+    
+    const signature = await connection.sendRawTransaction(signedTx.serialize());
+    
+    console.log(`Transaction sent: ${signature}`);
+    console.log(`View on explorer: https://explorer.solana.com/tx/${signature}?cluster=devnet`);
+    
+    // Wait for confirmation
+    console.log('Waiting for confirmation...');
+    await connection.confirmTransaction(signature, 'confirmed');
+    
+    console.log('Transaction confirmed successfully!');
+    console.log(`Added ${solToAddLiquidity} SOL from common wallet to liquidity pool`);
     
     return {
       success: true,
-      signature: 'simulation_only'
+      signature,
+      amount: solToAddLiquidity
     };
   } catch (error: any) {
     console.error('Error adding liquidity from common wallet:', error);
