@@ -12,7 +12,7 @@ import { YOT_MINT, YOS_MINT, COMMON_WALLET_ADDRESS } from "@/lib/configConstants
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
 export default function AdminTools() {
-  const { user, isLoading } = useAdminAuth();
+  const { adminData: user, isLoading } = useAdminAuth();
   const { connection } = useConnection();
   const wallet = useWallet();
   const [isCreatingAccounts, setIsCreatingAccounts] = useState(false);

@@ -42,10 +42,16 @@ import { Buffer } from 'buffer';
  * @returns [pda, bump]
  */
 export function findProgramStatePda(): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync(
-    [Buffer.from('state')],
+  const seed = Buffer.from('state');
+  console.log(`Finding program state PDA with seed: ${seed.toString('utf-8')}`);
+  
+  const [pda, bump] = PublicKey.findProgramAddressSync(
+    [seed],
     new PublicKey(SIMPLIFIED_SWAP_PROGRAM_ID)
   );
+  
+  console.log(`Program state PDA found: ${pda.toBase58()} with bump: ${bump}`);
+  return [pda, bump];
 }
 
 /**
@@ -53,10 +59,16 @@ export function findProgramStatePda(): [PublicKey, number] {
  * @returns [pda, bump]
  */
 export function findProgramAuthorityPda(): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync(
-    [Buffer.from('authority')],
+  const seed = Buffer.from('authority');
+  console.log(`Finding program authority PDA with seed: ${seed.toString('utf-8')}`);
+  
+  const [pda, bump] = PublicKey.findProgramAddressSync(
+    [seed],
     new PublicKey(SIMPLIFIED_SWAP_PROGRAM_ID)
   );
+  
+  console.log(`Program authority PDA found: ${pda.toBase58()} with bump: ${bump}`);
+  return [pda, bump];
 }
 
 /**
@@ -280,19 +292,32 @@ export async function createSwapSolToYotTransaction(
   console.log(`11. Token Program: ${TOKEN_PROGRAM_ID.toBase58()}`);
   console.log(`12. Common Wallet YOT Account: ${commonWalletYotAccount.toBase58()}`);
   
+  // Account metas according to the Rust program's expected order
+  // Make sure this exactly matches what the program expects in the instruction
   const accountMetas = [
-    { pubkey: wallet, isSigner: true, isWritable: true },
-    { pubkey: programStatePda, isSigner: false, isWritable: true }, // Changed to writable
-    { pubkey: programAuthorityPda, isSigner: false, isWritable: true }, // Changed to writable
-    { pubkey: new PublicKey(SOL_POOL_WALLET), isSigner: false, isWritable: true },
-    { pubkey: new PublicKey(YOT_POOL_TOKEN_ACCOUNT), isSigner: false, isWritable: true },
-    { pubkey: userYotAccount, isSigner: false, isWritable: true },
-    { pubkey: new PublicKey(COMMON_WALLET_ADDRESS), isSigner: false, isWritable: true },
-    { pubkey: new PublicKey(YOS_MINT), isSigner: false, isWritable: true },
-    { pubkey: userYosAccount, isSigner: false, isWritable: true },
-    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-    { pubkey: commonWalletYotAccount, isSigner: false, isWritable: true },
+    // Primary accounts
+    { pubkey: wallet, isSigner: true, isWritable: true }, // User who's swapping SOL
+    { pubkey: programStatePda, isSigner: false, isWritable: true }, // Program state account
+    { pubkey: programAuthorityPda, isSigner: false, isWritable: true }, // Program authority (manages token accounts)
+    
+    // SOL accounts
+    { pubkey: new PublicKey(SOL_POOL_WALLET), isSigner: false, isWritable: true }, // Receive SOL in pool
+    
+    // YOT accounts
+    { pubkey: new PublicKey(YOT_POOL_TOKEN_ACCOUNT), isSigner: false, isWritable: true }, // YOT from pool
+    { pubkey: userYotAccount, isSigner: false, isWritable: true }, // User receives YOT
+    { pubkey: commonWalletYotAccount, isSigner: false, isWritable: true }, // Common wallet gets YOT
+    
+    // YOS accounts
+    { pubkey: new PublicKey(YOS_MINT), isSigner: false, isWritable: true }, // YOS mint for cashback
+    { pubkey: userYosAccount, isSigner: false, isWritable: true }, // User gets YOS cashback
+    
+    // Program IDs
+    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // System program for SOL transfer
+    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // Token program for token transfers
+    
+    // Additional required accounts
+    { pubkey: new PublicKey(COMMON_WALLET_ADDRESS), isSigner: false, isWritable: true }, // Common wallet receives SOL
   ];
   
   const swapInstruction = new TransactionInstruction({

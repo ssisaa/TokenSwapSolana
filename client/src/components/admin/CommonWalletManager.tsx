@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Link } from 'wouter';
+import { ExternalLink } from 'lucide-react';
 import { COMMON_WALLET_THRESHOLD_SOL, FORMATTED_RATES } from '@/lib/config';
 import { checkCommonWalletThreshold, addLiquidityFromCommonWallet } from '@/lib/commonWalletSwap';
 import { useMultiWallet } from '@/context/MultiWalletContext';
@@ -128,6 +130,14 @@ export default function CommonWalletManager() {
             <li>Added to liquidity pool to improve swap rates for all users</li>
             <li>Only admin wallets can trigger liquidity addition</li>
           </ul>
+          
+          <div className="mt-4 text-sm">
+            <Button variant="link" asChild className="p-0 h-auto text-primary font-medium flex items-center gap-1">
+              <Link href="/admin/tools">
+                Advanced Token Account Management <ExternalLink className="h-3 w-3" />
+              </Link>
+            </Button>
+          </div>
         </div>
       </CardContent>
       <CardFooter>
