@@ -625,10 +625,11 @@ export async function swapSolToYot(
 /**
  * Special function for SOL to YOT swaps for multi-hub-swap integration
  * This function is specifically designed to work with the multi-hub-swap-contract.ts
+ * Uses the smart contract-based approach for a complete on-chain swap
  * 
  * @param wallet The connected wallet
  * @param solAmount The amount of SOL to swap
- * @returns Transaction signature
+ * @returns Transaction result object
  */
 export async function solToYotSwap(
   wallet: any,
