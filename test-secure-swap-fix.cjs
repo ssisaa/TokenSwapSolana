@@ -148,16 +148,11 @@ async function testSecureSwapFix() {
       console.log("Error checking user YOT account:", error.message);
     }
     
-    // Check the expected central liquidity wallet - this is a hard-coded address from our fix
-    // It doesn't appear to be a valid Solana address, but that's what the on-chain program state expects
-    const expectedCentralLiquidityWalletStr = "5rQzEXhDTYdyDiaLpZz4GePd2XumXYPHBSj6T";
-    // For testing, we'll use the SOL pool account since the expected wallet address may not be valid
-    const expectedCentralLiquidityWallet = POOL_SOL_ACCOUNT;
-    const configuredCentralLiquidityWallet = new PublicKey(solanaConfig.multiHubSwap.centralLiquidity.wallet);
+    // Always use the central liquidity wallet from app.config.json
+    const centralLiquidityWallet = new PublicKey(solanaConfig.multiHubSwap.centralLiquidity.wallet);
     
     console.log("\nWallet addresses comparison:");
-    console.log(`Expected Central Liquidity Wallet: ${expectedCentralLiquidityWallet.toString()}`);
-    console.log(`Configured Central Liquidity Wallet: ${configuredCentralLiquidityWallet.toString()}`);
+    console.log(`Central Liquidity Wallet from config: ${centralLiquidityWallet.toString()}`);
     console.log(`SOL Pool Account: ${POOL_SOL_ACCOUNT.toString()}`);
     
     // Create a mock instruction data with the expected account structure
@@ -177,7 +172,7 @@ async function testSecureSwapFix() {
       { pubkey: POOL_SOL_ACCOUNT, isSigner: false, isWritable: true },
       { pubkey: yotPoolAccount, isSigner: false, isWritable: true },
       { pubkey: userYotAccount, isSigner: false, isWritable: true },
-      { pubkey: expectedCentralLiquidityWallet, isSigner: false, isWritable: true }, // Using expected address
+      { pubkey: centralLiquidityWallet, isSigner: false, isWritable: true }, // Using central liquidity wallet from config
       { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true },
       { pubkey: YOS_TOKEN_ADDRESS, isSigner: false, isWritable: true },
       { pubkey: new PublicKey(SystemProgram.programId), isSigner: false, isWritable: true }, // Mock YOS account for testing
