@@ -28,7 +28,7 @@ import { solanaConfig } from './config';
 import { connection } from './solana';
 
 // Constants from config
-const MULTI_HUB_SWAP_PROGRAM_ID = new PublicKey(solanaConfig.multiHubSwap.programId);
+const MULTI_HUB_SWAP_PROGRAM_ID = new PublicKey("FDKcjgPeqtGn4baGXvXVZLheLCPipTw4SzTgcEdnK91s");
 const POOL_SOL_ACCOUNT = new PublicKey(solanaConfig.pool.solAccount);
 const POOL_AUTHORITY = new PublicKey(solanaConfig.pool.authority);
 const YOT_TOKEN_ADDRESS = new PublicKey(solanaConfig.tokens.yot.address);
