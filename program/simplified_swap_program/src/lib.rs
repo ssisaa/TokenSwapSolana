@@ -15,7 +15,7 @@ use solana_program::{
     sysvar::{rent::Rent, Sysvar, clock::Clock},
 };
 use spl_token::state::{Account as TokenAccount, Mint};
-use borsh::{BorshDeserialize, BorshSerialize};
+// Removed Borsh dependency - using manual serialization instead
 
 // Program ID will be replaced during deployment
 solana_program::declare_id!("SimpleSwapPDCsXVzAi7i2UmXt3VY6K79Po4wY3zLGwu");
@@ -24,7 +24,8 @@ solana_program::declare_id!("SimpleSwapPDCsXVzAi7i2UmXt3VY6K79Po4wY3zLGwu");
 entrypoint!(process_instruction);
 
 /// Program instruction types
-#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq)]
+/// Custom implementation for instruction types without using Borsh
+#[derive(Debug, PartialEq)]
 pub enum SwapInstruction {
     /// Initialize the program state
     /// 0. [signer] Admin account (payer)
@@ -81,8 +82,90 @@ pub enum SwapInstruction {
     },
 }
 
+/// Manual implementation for parsing instructions
+impl SwapInstruction {
+    /// Deserialize instruction data
+    pub fn try_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
+        if input.is_empty() {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        let tag = input[0];
+        match tag {
+            0 => {
+                // Initialize
+                if input.len() < 10 {  // 1 + 1 + 1 + 8 (tag + sol_ratio + yot_ratio + min_sol)
+                    return Err(ProgramError::InvalidInstructionData);
+                }
+                
+                let sol_distribution_ratio = input[1];
+                let yot_distribution_ratio = input[2];
+                
+                // Read u64 min_sol_amount (little-endian)
+                let min_sol_amount = u64::from_le_bytes([
+                    input[3], input[4], input[5], input[6],
+                    input[7], input[8], input[9], input[10],
+                ]);
+                
+                Ok(Self::Initialize {
+                    sol_distribution_ratio,
+                    yot_distribution_ratio,
+                    min_sol_amount,
+                })
+            },
+            1 => {
+                // SwapSolToYot
+                if input.len() < 17 {  // 1 + 8 + 8 (tag + sol_amount + min_yot_amount)
+                    return Err(ProgramError::InvalidInstructionData);
+                }
+                
+                // Read u64 sol_amount (little-endian)
+                let sol_amount = u64::from_le_bytes([
+                    input[1], input[2], input[3], input[4],
+                    input[5], input[6], input[7], input[8],
+                ]);
+                
+                // Read u64 min_yot_amount (little-endian)
+                let min_yot_amount = u64::from_le_bytes([
+                    input[9], input[10], input[11], input[12],
+                    input[13], input[14], input[15], input[16],
+                ]);
+                
+                Ok(Self::SwapSolToYot {
+                    sol_amount,
+                    min_yot_amount,
+                })
+            },
+            2 => {
+                // SwapYotToSol
+                if input.len() < 17 {  // 1 + 8 + 8 (tag + yot_amount + min_sol_amount)
+                    return Err(ProgramError::InvalidInstructionData);
+                }
+                
+                // Read u64 yot_amount (little-endian)
+                let yot_amount = u64::from_le_bytes([
+                    input[1], input[2], input[3], input[4],
+                    input[5], input[6], input[7], input[8],
+                ]);
+                
+                // Read u64 min_sol_amount (little-endian)
+                let min_sol_amount = u64::from_le_bytes([
+                    input[9], input[10], input[11], input[12],
+                    input[13], input[14], input[15], input[16],
+                ]);
+                
+                Ok(Self::SwapYotToSol {
+                    yot_amount,
+                    min_sol_amount,
+                })
+            },
+            _ => Err(ProgramError::InvalidInstructionData),
+        }
+    }
+}
+
 /// Program state
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
+#[derive(Debug)]
 pub struct ProgramState {
     /// Admin account
     pub admin: Pubkey,
@@ -103,6 +186,80 @@ pub struct ProgramState {
 impl ProgramState {
     /// Size of program state account
     pub const SIZE: usize = 32 + 32 + 32 + 32 + 1 + 1 + 8;
+    
+    /// Serialize the program state to bytes
+    pub fn serialize(&self, output: &mut [u8]) -> ProgramResult {
+        if output.len() < Self::SIZE {
+            return Err(ProgramError::AccountDataTooSmall);
+        }
+        
+        // Copy admin pubkey bytes
+        output[0..32].copy_from_slice(self.admin.as_ref());
+        
+        // Copy YOT mint pubkey bytes
+        output[32..64].copy_from_slice(self.yot_mint.as_ref());
+        
+        // Copy YOS mint pubkey bytes
+        output[64..96].copy_from_slice(self.yos_mint.as_ref());
+        
+        // Copy liquidity wallet pubkey bytes
+        output[96..128].copy_from_slice(self.liquidity_wallet.as_ref());
+        
+        // SOL distribution ratio
+        output[128] = self.sol_distribution_ratio;
+        
+        // YOT distribution ratio
+        output[129] = self.yot_distribution_ratio;
+        
+        // Min SOL amount
+        let min_sol_bytes = self.min_sol_amount.to_le_bytes();
+        output[130..138].copy_from_slice(&min_sol_bytes);
+        
+        Ok(())
+    }
+    
+    /// Deserialize from bytes to program state
+    pub fn try_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
+        if input.len() < Self::SIZE {
+            msg!("Program state account too small: {} < {}", input.len(), Self::SIZE);
+            return Err(ProgramError::InvalidAccountData);
+        }
+        
+        // Parse admin pubkey
+        let admin = Pubkey::new(&input[0..32]);
+        
+        // Parse YOT mint pubkey
+        let yot_mint = Pubkey::new(&input[32..64]);
+        
+        // Parse YOS mint pubkey
+        let yos_mint = Pubkey::new(&input[64..96]);
+        
+        // Parse liquidity wallet pubkey
+        let liquidity_wallet = Pubkey::new(&input[96..128]);
+        
+        // SOL distribution ratio
+        let sol_distribution_ratio = input[128];
+        
+        // YOT distribution ratio
+        let yot_distribution_ratio = input[129];
+        
+        // Min SOL amount
+        let min_sol_bytes = &input[130..138];
+        let min_sol_amount = u64::from_le_bytes([
+            min_sol_bytes[0], min_sol_bytes[1], min_sol_bytes[2], min_sol_bytes[3],
+            min_sol_bytes[4], min_sol_bytes[5], min_sol_bytes[6], min_sol_bytes[7],
+        ]);
+        
+        Ok(Self {
+            admin,
+            yot_mint,
+            yos_mint,
+            liquidity_wallet,
+            sol_distribution_ratio,
+            yot_distribution_ratio,
+            min_sol_amount,
+        })
+    }
 }
 
 /// Find program state address
