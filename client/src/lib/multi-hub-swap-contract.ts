@@ -38,6 +38,9 @@ import {
   COMMON_WALLET_CONFIG
 } from './config';
 
+// Import the full config for backward compatibility
+import { solanaConfig } from './config';
+
 // Import PDA utility functions
 import {
   getProgramStatePda,

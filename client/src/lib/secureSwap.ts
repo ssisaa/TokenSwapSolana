@@ -155,6 +155,16 @@ async function createSecureSolTransferTransaction(
   const userYotAccount = await getAssociatedTokenAddress(yotMint, wallet.publicKey);
   const userYosAccount = await getAssociatedTokenAddress(yosMint, wallet.publicKey);
   
+  // Log all key PDAs and accounts for better debugging
+  console.log(`[SECURE_SWAP] Using the following PDAs and accounts:`);
+  console.log(`• Program State: ${programStateAddress.toString()}`);
+  console.log(`• Program Authority: ${programAuthority.toString()}`);
+  console.log(`• Liquidity Contribution: ${liquidityContributionAddress.toString()}`);
+  console.log(`• SOL Pool Account: ${POOL_SOL_ACCOUNT.toString()}`);
+  console.log(`• YOT Pool Account: ${yotPoolAccount.toString()}`);
+  console.log(`• User YOT Account: ${userYotAccount.toString()}`);
+  console.log(`• Central Liquidity Wallet: ${programAuthority.toString()}`); // Using Program Authority as central liquidity
+  
   // Calculate min output amount with 1% slippage if not specified
   const minAmountOut = minOutputAmount > 0 
     ? Math.floor(minOutputAmount * Math.pow(10, 9)) // 9 decimals for YOT
@@ -288,8 +298,11 @@ async function createLiquidityAccountTransaction(
     // IMPORTANT: Program expecting programAuthority as the central liquidity wallet
     // Fix the mismatch between what program expects and what's configured
     const centralLiquidityWallet = programAuthority; // Use the program authority as the central liquidity wallet
+    console.log(`[SECURE_SWAP:CREATE] Program State: ${programStateAddress.toString()}`);
+    console.log(`[SECURE_SWAP:CREATE] Program Authority: ${programAuthority.toString()}`);
+    console.log(`[SECURE_SWAP:CREATE] Liquidity Contribution: ${liquidityContributionAddress.toString()}`);
     console.log(`[SECURE_SWAP:CREATE] SOL Pool Account: ${POOL_SOL_ACCOUNT.toString()}`);
-    console.log(`[SECURE_SWAP:CREATE] Program Authority (Central Liquidity): ${centralLiquidityWallet.toString()}`);
+    console.log(`[SECURE_SWAP:CREATE] Central Liquidity Wallet (Program Authority): ${centralLiquidityWallet.toString()}`);
     
     // Create instruction data
     const microlAmports = Math.floor(microAmount * LAMPORTS_PER_SOL);
