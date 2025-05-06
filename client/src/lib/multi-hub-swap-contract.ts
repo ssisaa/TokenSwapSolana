@@ -2000,8 +2000,22 @@ export async function getMultiHubSwapStats() {
     }
     
     if (!accountInfo || !accountInfo.data) {
-      console.error("Program state account not found or empty");
-      throw new Error("Program state not initialized");
+      console.error("Program state account not found or empty - Using config defaults for UI");
+      
+      // Return object with config defaults but mark as not initialized
+      return {
+        admin: solanaConfig.multiHubSwap.admin,
+        yotMint: null, // Explicitly set to null to indicate not initialized
+        yosMint: solanaConfig.tokens.yos.address,
+        
+        // Rates from config as defaults
+        lpContributionRate: solanaConfig.multiHubSwap.rates.lpContributionRate / 100,
+        adminFeeRate: solanaConfig.multiHubSwap.rates.adminFeeRate / 100,
+        yosCashbackRate: solanaConfig.multiHubSwap.rates.yosCashbackRate / 100,
+        swapFeeRate: solanaConfig.multiHubSwap.rates.swapFeeRate / 100, 
+        referralRate: solanaConfig.multiHubSwap.rates.referralRate / 100,
+        initialized: false
+      };
     }
     
     // The account data layout should match the Rust program's ProgramState struct:

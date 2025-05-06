@@ -41,7 +41,8 @@ import {
 import {
   MULTI_HUB_SWAP_PROGRAM_ID,
   YOT_TOKEN_ADDRESS,
-  YOS_TOKEN_ADDRESS
+  YOS_TOKEN_ADDRESS,
+  solanaConfig
 } from "@/lib/config";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -181,9 +182,12 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
       console.log("MultiHubSwap programState received:", programState);
       setStats(programState);
       
-      // Check if program is initialized
-      const isInit = programState && !!programState.yotMint;
-      console.log("Is MultiHubSwap initialized?", isInit, "yotMint:", programState?.yotMint);
+      // Check if program is initialized (using explicit flag if available, or inferred from yotMint)
+      const isInit = programState && 
+        (programState.initialized === false ? false : !!programState.yotMint);
+      console.log("Is MultiHubSwap initialized?", isInit, 
+        "yotMint:", programState?.yotMint,
+        "explicit initialized flag:", programState?.initialized);
       setIsInitialized(isInit);
       
       // Update state with current parameters
@@ -820,9 +824,9 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
                   <div className="grid grid-cols-3 gap-2">
                     <div className="text-sm text-muted-foreground">Program ID:</div>
                     <div className="col-span-2 text-sm font-mono break-all flex items-center gap-1">
-                      {MULTI_HUB_SWAP_PROGRAM_ID}
+                      {solanaConfig.multiHubSwap.programId}
                       <a 
-                        href={`https://explorer.solana.com/address/${MULTI_HUB_SWAP_PROGRAM_ID}?cluster=devnet`} 
+                        href={`https://explorer.solana.com/address/${solanaConfig.multiHubSwap.programId}?cluster=devnet`} 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="text-primary hover:text-primary/80"
@@ -835,10 +839,10 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
                   <div className="grid grid-cols-3 gap-2">
                     <div className="text-sm text-muted-foreground">Admin:</div>
                     <div className="col-span-2 text-sm font-mono break-all flex items-center gap-1">
-                      {stats?.admin || "Not initialized"}
-                      {stats?.admin && (
+                      {stats?.admin || solanaConfig.multiHubSwap.admin || "Not initialized"}
+                      {(stats?.admin || solanaConfig.multiHubSwap.admin) && (
                         <a 
-                          href={`https://explorer.solana.com/address/${stats.admin}?cluster=devnet`} 
+                          href={`https://explorer.solana.com/address/${stats?.admin || solanaConfig.multiHubSwap.admin}?cluster=devnet`} 
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="text-primary hover:text-primary/80"
@@ -852,10 +856,10 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
                   <div className="grid grid-cols-3 gap-2">
                     <div className="text-sm text-muted-foreground">YOT Mint:</div>
                     <div className="col-span-2 text-sm font-mono break-all flex items-center gap-1">
-                      {stats?.yotMint || "Not initialized"}
-                      {stats?.yotMint && (
+                      {stats?.yotMint || solanaConfig.tokens.yot.address || "Not initialized"}
+                      {(stats?.yotMint || solanaConfig.tokens.yot.address) && (
                         <a 
-                          href={`https://explorer.solana.com/address/${stats.yotMint}?cluster=devnet`} 
+                          href={`https://explorer.solana.com/address/${stats?.yotMint || solanaConfig.tokens.yot.address}?cluster=devnet`} 
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="text-primary hover:text-primary/80"
@@ -869,10 +873,10 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
                   <div className="grid grid-cols-3 gap-2">
                     <div className="text-sm text-muted-foreground">YOS Mint:</div>
                     <div className="col-span-2 text-sm font-mono break-all flex items-center gap-1">
-                      {stats?.yosMint || "Not initialized"}
-                      {stats?.yosMint && (
+                      {stats?.yosMint || solanaConfig.tokens.yos.address || "Not initialized"}
+                      {(stats?.yosMint || solanaConfig.tokens.yos.address) && (
                         <a 
-                          href={`https://explorer.solana.com/address/${stats.yosMint}?cluster=devnet`} 
+                          href={`https://explorer.solana.com/address/${stats?.yosMint || solanaConfig.tokens.yos.address}?cluster=devnet`} 
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="text-primary hover:text-primary/80"
