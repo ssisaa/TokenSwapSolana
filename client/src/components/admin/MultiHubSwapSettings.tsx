@@ -34,7 +34,8 @@ import { PublicKey } from '@solana/web3.js';
 import { 
   getMultiHubSwapStats, 
   updateMultiHubSwapParameters,
-  initializeMultiHubSwap
+  initializeMultiHubSwap,
+  addLiquidityFromCentralWallet
 } from "@/lib/multi-hub-swap-contract";
 import {
   MULTI_HUB_SWAP_PROGRAM_ID,
@@ -315,10 +316,14 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
 
       <CardContent>
         <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-2 mb-4">
+          <TabsList className="grid grid-cols-3 mb-4">
             <TabsTrigger value="parameters">
               <PercentIcon className="mr-2 h-4 w-4" />
               Parameters
+            </TabsTrigger>
+            <TabsTrigger value="liquidity">
+              <Upload className="mr-2 h-4 w-4" />
+              Liquidity
             </TabsTrigger>
             <TabsTrigger value="info">
               <Key className="mr-2 h-4 w-4" />
@@ -536,6 +541,95 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
                   )}
                 </Button>
               </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="liquidity" className="space-y-4">
+            <div className="space-y-1">
+              <h3 className="font-medium text-base">Centralized Liquidity Management</h3>
+              <p className="text-sm text-muted-foreground">
+                Manage the central liquidity wallet and pool contributions
+              </p>
+            </div>
+
+            <div className="bg-secondary/30 p-4 rounded-lg space-y-3 mb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium text-sm">Centralized Liquidity System</h4>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    When users buy YOT, {lpContributionRate}% is sent to the central liquidity wallet.
+                    Once sufficient balance is accumulated, it can be added to the liquidity pool.
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-sm font-medium">Current Model:</span>
+                  <div className="text-primary font-semibold">Central Liquidity</div>
+                </div>
+              </div>
+            </div>
+
+            <Alert variant="default" className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-900/30">
+              <div className="flex flex-col space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <span className="font-medium">Add Liquidity to Pool</span>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    onClick={async () => {
+                      try {
+                        if (!wallet || !wallet.publicKey) {
+                          throw new Error("Wallet not connected");
+                        }
+                        
+                        if (!isAdmin) {
+                          throw new Error("Only admin can add liquidity from central wallet");
+                        }
+                        
+                        toast({
+                          title: "Processing...",
+                          description: "Adding liquidity from central wallet to pool",
+                        });
+                        
+                        const signature = await addLiquidityFromCentralWallet(wallet);
+                        
+                        toast({
+                          title: "Liquidity Added Successfully",
+                          description: `Transaction signature: ${signature.slice(0, 8)}...`,
+                        });
+                        
+                        // Refresh contract info
+                        await fetchContractInfo();
+                      } catch (error: any) {
+                        console.error("Failed to add liquidity:", error);
+                        toast({
+                          title: "Failed to add liquidity",
+                          description: error.message || "An error occurred",
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                  >
+                    Add Liquidity Now
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  This action transfers 50% SOL and 50% YOT from the central liquidity wallet to the liquidity pool.
+                  This can only be executed when the central wallet balance exceeds the threshold.
+                </p>
+              </div>
+            </Alert>
+
+            <div className="pt-4">
+              <Alert variant="default" className="bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-900/30">
+                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+                <AlertTitle>Important Information</AlertTitle>
+                <AlertDescription className="text-amber-800 dark:text-amber-400">
+                  The central liquidity system aggregates {lpContributionRate}% of all YOT purchases into a single wallet.
+                  When the wallet balance exceeds the threshold, the admin can add this liquidity to the pool
+                  to improve market depth and trading capabilities.
+                </AlertDescription>
+              </Alert>
             </div>
           </TabsContent>
 
