@@ -1230,7 +1230,7 @@ export async function addLiquidityFromCentralWallet(wallet: any): Promise<string
   const centralLiquidityYotAccount = new PublicKey(CENTRAL_LIQUIDITY_CONFIG.yotAccount);
   
   // Get the program authority (PDA)
-  const programAuthority = new PublicKey(MULTI_HUB_SWAP_PROGRAM_AUTHORITY);
+  const programAuthority = new PublicKey("Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ");
   
   // Create instruction data
   const data = Buffer.concat([
@@ -1389,7 +1389,7 @@ export async function updateMultiHubSwapParameters(
         { pubkey: programState, isSigner: false, isWritable: true }
         // Removing program_authority as it's not expected by the Rust program
       ],
-      programId: new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID),
+      programId: new PublicKey("FDKcjgPeqtGn4baGXvXVZLheLCPipTw4SzTgcEdnK91s"),
       data
     });
     
