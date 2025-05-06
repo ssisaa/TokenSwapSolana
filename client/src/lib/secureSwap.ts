@@ -199,7 +199,7 @@ async function createSecureSolTransferTransaction(
   // Order must match EXACTLY what the Rust program expects
   const accountMetas = [
     { pubkey: wallet.publicKey, isSigner: true, isWritable: true },         // 1. user (signer)
-    { pubkey: programStateAddress, isSigner: false, isWritable: false },    // 2. program_state
+    { pubkey: programStateAddress, isSigner: false, isWritable: true },     // 2. program_state - MUST BE WRITABLE for v8 instruction
     { pubkey: programAuthority, isSigner: false, isWritable: false },       // 3. program_authority
     { pubkey: POOL_SOL_ACCOUNT, isSigner: false, isWritable: true },        // 4. sol_pool_account
     { pubkey: yotPoolAccount, isSigner: false, isWritable: true },          // 5. yot_pool_account  
@@ -307,7 +307,7 @@ async function createLiquidityAccountTransaction(
     // Required accounts for the SOL to YOT swap - ensure order matches the program expectations
     const accounts = [
       { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
-      { pubkey: programStateAddress, isSigner: false, isWritable: false },
+      { pubkey: programStateAddress, isSigner: false, isWritable: true },    // MUST BE WRITABLE for v8 instruction
       { pubkey: programAuthority, isSigner: false, isWritable: false },
       { pubkey: POOL_SOL_ACCOUNT, isSigner: false, isWritable: true },
       { pubkey: yotPoolAccount, isSigner: false, isWritable: true },
