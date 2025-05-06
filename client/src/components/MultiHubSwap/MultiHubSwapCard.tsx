@@ -383,6 +383,22 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
 
     setSwapLoading(true);
     try {
+      console.log("🔄 Starting swap process...");
+      console.log(`🔍 From: ${parseFloat(fromAmount)} ${fromToken.symbol} (${fromToken.address})`);
+      console.log(`🔍 To: ${toToken.symbol} (${toToken.address})`);
+      console.log(`🔍 Slippage: ${parseFloat(slippage)}%`);
+      
+      // Get expected output (for debug purposes)
+      const { getExpectedOutput } = await import('@/lib/multi-hub-swap-contract');
+      const expectation = await getExpectedOutput(
+        fromToken.address,
+        toToken.address,
+        parseFloat(fromAmount),
+        parseFloat(slippage)
+      );
+      console.log(`📈 Exchange rate: 1 ${fromToken.symbol} = ${expectation.exchangeRate} ${toToken.symbol}`);
+      console.log(`📊 Expected output: ${expectation.outputAmount} ${toToken.symbol}`);
+      
       // Execute the swap using our swap router
       const result = await executeSwap(
         wallet,
