@@ -37,7 +37,7 @@ pub enum SwapInstruction {
     Initialize {
         // The ratio for distributing SOL: 80% to pool, 20% to liquidity wallet
         sol_distribution_ratio: u8,
-        // The ratio for distributing YOT: 95% to user, 5% as YOS cashback
+        // The ratio for distributing YOT: 80% to user, 20% to common wallet
         yot_distribution_ratio: u8,
         // Minimum SOL amount for swap (protect against dust attacks)
         min_sol_amount: u64,
@@ -50,16 +50,34 @@ pub enum SwapInstruction {
     /// 3. [writable] SOL pool account
     /// 4. [writable] YOT pool account
     /// 5. [writable] User YOT account
-    /// 6. [writable] Central liquidity wallet
+    /// 6. [writable] Central liquidity wallet (for SOL)
     /// 7. [writable] YOS mint
     /// 8. [writable] User YOS account
     /// 9. [] System program
     /// 10. [] Token program
-    Swap {
+    /// 11. [writable] Central liquidity wallet YOT account
+    SwapSolToYot {
         // Amount of SOL to swap (in lamports)
         sol_amount: u64,
         // Minimum YOT amount to receive (slippage protection)
         min_yot_amount: u64,
+    },
+    
+    /// Swap YOT for SOL tokens
+    /// 0. [signer] User account
+    /// 1. [writable] Program state account
+    /// 2. [] Program authority
+    /// 3. [writable] SOL pool account
+    /// 4. [writable] YOT pool account
+    /// 5. [writable] User YOT account
+    /// 6. [writable] Central liquidity wallet (for SOL)
+    /// 7. [] Token program
+    /// 8. [] System program
+    SwapYotToSol {
+        // Amount of YOT to swap 
+        yot_amount: u64,
+        // Minimum SOL amount to receive (slippage protection)
+        min_sol_amount: u64,
     },
 }
 
@@ -76,7 +94,7 @@ pub struct ProgramState {
     pub liquidity_wallet: Pubkey,
     /// SOL distribution ratio (80% to pool, 20% to liquidity wallet)
     pub sol_distribution_ratio: u8,
-    /// YOT distribution ratio (95% to user, 5% as YOS cashback)
+    /// YOT distribution ratio (80% to user, 20% to common wallet)
     pub yot_distribution_ratio: u8,
     /// Minimum SOL amount for swap
     pub min_sol_amount: u64,
@@ -123,15 +141,26 @@ pub fn process_instruction(
                 min_sol_amount,
             )
         }
-        SwapInstruction::Swap { 
+        SwapInstruction::SwapSolToYot { 
             sol_amount,
             min_yot_amount,
         } => {
-            process_swap(
+            process_sol_to_yot_swap(
                 program_id,
                 accounts,
                 sol_amount,
                 min_yot_amount,
+            )
+        }
+        SwapInstruction::SwapYotToSol { 
+            yot_amount,
+            min_sol_amount,
+        } => {
+            process_yot_to_sol_swap(
+                program_id,
+                accounts,
+                yot_amount,
+                min_sol_amount,
             )
         }
     }
@@ -217,8 +246,8 @@ pub fn process_initialize(
     Ok(())
 }
 
-/// Swap SOL for YOT tokens
-pub fn process_swap(
+/// Swap SOL for YOT tokens with 5% YOS cashback
+pub fn process_sol_to_yot_swap(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     sol_amount: u64,
@@ -323,20 +352,24 @@ pub fn process_swap(
         .checked_mul(yot_pool_balance as u128).unwrap_or(0)
         .checked_div(sol_balance_before as u128).unwrap_or(0) as u64;
     
-    // Apply distribution - 95% to user as YOT, 5% as YOS cashback
+    // Apply distribution - 80% of YOT goes to user, 20% to common wallet
     let user_yot_amount = yot_amount_raw * program_state.yot_distribution_ratio as u64 / 100;
-    let yos_cashback_amount = yot_amount_raw * (100 - program_state.yot_distribution_ratio) as u64 / 100;
+    let common_wallet_yot_amount = yot_amount_raw - user_yot_amount;
     
-    msg!("Calculated amounts: {} YOT for user ({}%), {} YOS as cashback ({}%)", 
+    // Additionally mint 5% YOS as cashback based on the total YOT amount
+    let yos_cashback_amount = yot_amount_raw * 5 / 100;
+    
+    msg!("Calculated amounts: {} YOT for user ({}%), {} YOT to common wallet ({}%), {} YOS as cashback (5%)", 
         user_yot_amount, program_state.yot_distribution_ratio,
-        yos_cashback_amount, 100 - program_state.yot_distribution_ratio);
+        common_wallet_yot_amount, 100 - program_state.yot_distribution_ratio,
+        yos_cashback_amount);
     
     // Verify minimum YOT amount
     if user_yot_amount < min_yot_amount {
         return Err(ProgramError::InvalidArgument);
     }
     
-    // Transfer YOT tokens to user
+    // Transfer YOT tokens to user (80%)
     invoke_signed(
         &spl_token::instruction::transfer(
             token_program.key,
@@ -355,7 +388,36 @@ pub fn process_swap(
         &[&[b"authority", &[authority_bump]]],
     )?;
     
-    // Mint YOS cashback tokens to user
+    // The common wallet's YOT account needs to be passed in the accounts list
+    let central_yot_account = next_account_info(accounts_iter)?;
+    
+    // Verify the central YOT account belongs to the right mint and owner
+    let central_yot_data = TokenAccount::unpack(&central_yot_account.data.borrow())?;
+    if central_yot_data.mint != program_state.yot_mint || 
+       central_yot_data.owner != *central_liquidity_wallet.key {
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Transfer YOT tokens to common wallet (20%)
+    invoke_signed(
+        &spl_token::instruction::transfer(
+            token_program.key,
+            yot_pool_account.key,
+            central_yot_account.key,
+            program_authority.key,
+            &[],
+            common_wallet_yot_amount,
+        )?,
+        &[
+            yot_pool_account.clone(),
+            central_yot_account.clone(),
+            program_authority.clone(),
+            token_program.clone(),
+        ],
+        &[&[b"authority", &[authority_bump]]],
+    )?;
+    
+    // Mint YOS cashback tokens to user (5%)
     invoke_signed(
         &spl_token::instruction::mint_to(
             token_program.key,

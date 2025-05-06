@@ -26,4 +26,4 @@ export function findProgramAuthorityPda(): string {
 
 // Distribution percentages
 export const SOL_DISTRIBUTION_RATIO = 80; // 80% to pool, 20% to liquidity wallet
-export const YOT_DISTRIBUTION_RATIO = 95; // 95% to user, 5% as YOS cashback
+export const YOT_DISTRIBUTION_RATIO = 80; // 80% to user, 20% to common wallet

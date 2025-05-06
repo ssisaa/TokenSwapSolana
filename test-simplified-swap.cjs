@@ -1,218 +1,102 @@
 /**
- * Test script for the Simplified Swap Program
+ * Test script for the simplified on-chain SOL to YOT swap
+ * This test focuses on verifying the correct distribution of tokens according to the specified ratios:
  * 
- * This is a completely separate Solana program designed for reliability and simplicity.
- * It focuses only on the SOL to YOT swap functionality with proper distribution rules.
- * 
- * Command to run: node test-simplified-swap.cjs
+ * For SOL → YOT swaps:
+ * - SOL Distribution: 80% to pool, 20% to common wallet
+ * - YOT Distribution: 80% to user, 20% to common wallet
+ * - Additionally: 5% YOS as cashback to the user
  */
 
-const { 
-  Connection, 
-  PublicKey, 
-  Keypair, 
-  Transaction, 
-  SystemProgram, 
-  TransactionInstruction,
-  LAMPORTS_PER_SOL,
-  sendAndConfirmTransaction,
-} = require('@solana/web3.js');
-const { 
-  TOKEN_PROGRAM_ID,
-  getAssociatedTokenAddress 
-} = require('@solana/spl-token');
+const { Keypair, Connection, PublicKey, clusterApiUrl, LAMPORTS_PER_SOL } = require('@solana/web3.js');
 const fs = require('fs');
 const path = require('path');
-const BN = require('bn.js');
 
-// Constants - these would normally be imported from config
+// Constants for the test
+const SIMPLIFIED_SWAP_PROGRAM_ID = 'SimpleSwapPDCsXVzAi7i2UmXt3VY6K79Po4wY3zLGwu'; // Will be updated by deploy script
 const YOT_MINT = '9KxQHJcBxp29AjGTAqF3LCFzodSpkuv986wsSEwQi6Cw';
 const YOS_MINT = '2SWCnck3vLAVKaLkAjVtNnsVJVGYmGzyNVnte48SQRop';
 const SOL_POOL_WALLET = 'Bf78XttEfzR4iM3JCWfwgSCpd5MHePTMD2UKBEZU6coH';
 const YOT_POOL_TOKEN_ACCOUNT = 'EieVwYpDMdKr94iQygkyCeEBMhRWA4XsXyGumXztza74';
 const COMMON_WALLET_ADDRESS = 'CeuRAzZ58St8B29XKWo647CGtY7FL5qpwv8WGZUHAuA9';
 
-// The program ID is unique to the deployed simplified swap program
-// This will be replaced after actual deployment
-const SIMPLIFIED_SWAP_PROGRAM_ID = 'SimpleSwapPDCsXVzAi7i2UmXt3VY6K79Po4wY3zLGwu';
+// Distribution percentages
+const SOL_DISTRIBUTION_RATIO = 80; // 80% to pool, 20% to common wallet
+const YOT_DISTRIBUTION_RATIO = 80; // 80% to user, 20% to common wallet
 
-/**
- * Find the program state PDA
- * @param programId The program ID
- * @returns [pda, bump]
- */
-function findProgramStatePda(programId) {
+// Connect to Solana devnet
+const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+
+// Load wallet from the keypair file
+function loadWalletFromFile() {
+  const keypairFile = path.resolve(process.cwd(), '.keypair-test.json');
+  if (!fs.existsSync(keypairFile)) {
+    console.error('Keypair file not found. Please create .keypair-test.json');
+    process.exit(1);
+  }
+  
+  const keypairData = JSON.parse(fs.readFileSync(keypairFile, 'utf-8'));
+  return Keypair.fromSecretKey(new Uint8Array(keypairData));
+}
+
+// Find program state PDA
+function findProgramStateAddress() {
   return PublicKey.findProgramAddressSync(
     [Buffer.from('state')],
-    programId
+    new PublicKey(SIMPLIFIED_SWAP_PROGRAM_ID)
   );
 }
 
-/**
- * Find the program authority PDA
- * @param programId The program ID
- * @returns [pda, bump]
- */
-function findProgramAuthorityPda(programId) {
+// Find program authority PDA
+function findProgramAuthorityAddress() {
   return PublicKey.findProgramAddressSync(
     [Buffer.from('authority')],
-    programId
+    new PublicKey(SIMPLIFIED_SWAP_PROGRAM_ID)
   );
 }
 
-/**
- * Create a buffer with instruction data for initialization
- */
-function createInitializeInstructionData(
-  solDistributionRatio = 80,  // 80% to pool, 20% to liquidity wallet
-  yotDistributionRatio = 95,  // 95% to user, 5% as YOS cashback
-  minSolAmount = 0.001 * LAMPORTS_PER_SOL  // Minimum 0.001 SOL for swap
-) {
-  const instruction = Buffer.alloc(11); // 1 (tag) + 1 + 1 + 8
+// Helper function to check the balance of SOL and tokens
+async function checkBalances(wallet) {
+  const solBalance = await connection.getBalance(wallet.publicKey);
+  console.log(`SOL Balance: ${solBalance / LAMPORTS_PER_SOL} SOL`);
   
-  // Instruction tag (0 = Initialize)
-  instruction.writeUInt8(0, 0);
+  // Check balances of relevant accounts
+  console.log('\nChecking pool and common wallet balances...');
+  const solPoolBalance = await connection.getBalance(new PublicKey(SOL_POOL_WALLET));
+  console.log(`SOL Pool Balance: ${solPoolBalance / LAMPORTS_PER_SOL} SOL`);
   
-  // Distribution ratios
-  instruction.writeUInt8(solDistributionRatio, 1);
-  instruction.writeUInt8(yotDistributionRatio, 2);
-  
-  // Min SOL amount as u64 (little-endian)
-  const minAmount = new BN(minSolAmount);
-  instruction.writeBigUInt64LE(BigInt(minAmount.toString()), 3);
-  
-  return instruction;
+  const commonWalletBalance = await connection.getBalance(new PublicKey(COMMON_WALLET_ADDRESS));
+  console.log(`Common Wallet SOL Balance: ${commonWalletBalance / LAMPORTS_PER_SOL} SOL`);
 }
 
-/**
- * Create a buffer with instruction data for swap
- */
-function createSwapInstructionData(
-  solAmount,  // Amount of SOL to swap (in lamports)
-  minYotAmount  // Minimum YOT amount to receive (in tokens)
-) {
-  const instruction = Buffer.alloc(17); // 1 (tag) + 8 + 8
-  
-  // Instruction tag (1 = Swap)
-  instruction.writeUInt8(1, 0);
-  
-  // SOL amount as u64 (little-endian)
-  instruction.writeBigUInt64LE(BigInt(solAmount), 1);
-  
-  // Min YOT amount as u64 (little-endian)
-  instruction.writeBigUInt64LE(BigInt(minYotAmount), 9);
-  
-  return instruction;
-}
-
-/**
- * Main test function
- */
-async function main() {
+// Main test function
+async function testSimplifiedSwap() {
   try {
-    // Load the keypair from file
-    const keypairBuffer = fs.readFileSync(path.join(__dirname, '.keypair-test.json'), 'utf8');
-    const keypairData = JSON.parse(keypairBuffer);
-    const wallet = Keypair.fromSecretKey(new Uint8Array(keypairData));
+    console.log('Starting simplified swap test...');
     
-    // Create connection
-    const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+    // Load wallet
+    const wallet = loadWalletFromFile();
+    console.log(`Using wallet: ${wallet.publicKey.toString()}`);
     
-    // Check wallet balance
-    const walletBalance = await connection.getBalance(wallet.publicKey);
-    console.log(`Wallet balance: ${walletBalance / LAMPORTS_PER_SOL} SOL`);
+    // Check initial balances
+    console.log('\nInitial balances:');
+    await checkBalances(wallet);
     
-    // Print important addresses
-    console.log('Test addresses:');
-    console.log(`Wallet address: ${wallet.publicKey.toString()}`);
-    console.log(`YOT mint: ${YOT_MINT}`);
-    console.log(`YOS mint: ${YOS_MINT}`);
-    console.log(`SOL pool: ${SOL_POOL_WALLET}`);
-    console.log(`YOT pool: ${YOT_POOL_TOKEN_ACCOUNT}`);
-    console.log(`Common wallet: ${COMMON_WALLET_ADDRESS}`);
+    // Find program PDAs
+    const [programStatePda, programStateBump] = findProgramStateAddress();
+    const [programAuthorityPda, programAuthorityBump] = findProgramAuthorityAddress();
     
-    // Get the program ID (placeholder for now)
-    const programId = new PublicKey(SIMPLIFIED_SWAP_PROGRAM_ID);
+    console.log('\nProgram PDAs:');
+    console.log(`Program State PDA: ${programStatePda.toString()}`);
+    console.log(`Program Authority PDA: ${programAuthorityPda.toString()}`);
     
-    // Find PDAs
-    const [programStatePda, _] = findProgramStatePda(programId);
-    const [programAuthorityPda, __] = findProgramAuthorityPda(programId);
-    console.log(`Program state PDA: ${programStatePda.toString()}`);
-    console.log(`Program authority PDA: ${programAuthorityPda.toString()}`);
-    
-    // Get token accounts
-    const userYotAccount = await getAssociatedTokenAddress(
-      new PublicKey(YOT_MINT),
-      wallet.publicKey
-    );
-    const userYosAccount = await getAssociatedTokenAddress(
-      new PublicKey(YOS_MINT),
-      wallet.publicKey
-    );
-    console.log(`User YOT account: ${userYotAccount.toString()}`);
-    console.log(`User YOS account: ${userYosAccount.toString()}`);
-    
-    // IMPORTANT: This is just a simulation since the program hasn't been deployed yet
-    console.log('\nSimulating program initialization...');
-    console.log('(The actual program needs to be deployed before this can be done for real)');
-    
-    // Prepare initialization parameters
-    const solDistributionRatio = 80;  // 80% to pool, 20% to liquidity wallet
-    const yotDistributionRatio = 95;  // 95% to user, 5% as YOS cashback
-    const minSolAmount = 0.001 * LAMPORTS_PER_SOL;  // Minimum 0.001 SOL for swap
-    
-    // Create initialization instruction
-    const initializeInstruction = new TransactionInstruction({
-      keys: [
-        { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
-        { pubkey: programStatePda, isSigner: false, isWritable: true },
-        { pubkey: programAuthorityPda, isSigner: false, isWritable: false },
-        { pubkey: new PublicKey(YOT_MINT), isSigner: false, isWritable: false },
-        { pubkey: new PublicKey(YOS_MINT), isSigner: false, isWritable: false },
-        { pubkey: new PublicKey(COMMON_WALLET_ADDRESS), isSigner: false, isWritable: false },
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-      ],
-      programId,
-      data: createInitializeInstructionData(solDistributionRatio, yotDistributionRatio, minSolAmount),
-    });
-    
-    console.log('\nSimulating swap operation...');
-    console.log('(The actual program needs to be deployed before this can be done for real)');
-    
-    // Prepare swap parameters
-    const solAmount = 0.1 * LAMPORTS_PER_SOL;  // Swap 0.1 SOL
-    const minYotAmount = 0.095 * solAmount;  // 5% slippage tolerance
-    
-    // Create swap instruction
-    const swapInstruction = new TransactionInstruction({
-      keys: [
-        { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
-        { pubkey: programStatePda, isSigner: false, isWritable: true },
-        { pubkey: programAuthorityPda, isSigner: false, isWritable: false },
-        { pubkey: new PublicKey(SOL_POOL_WALLET), isSigner: false, isWritable: true },
-        { pubkey: new PublicKey(YOT_POOL_TOKEN_ACCOUNT), isSigner: false, isWritable: true },
-        { pubkey: userYotAccount, isSigner: false, isWritable: true },
-        { pubkey: new PublicKey(COMMON_WALLET_ADDRESS), isSigner: false, isWritable: true },
-        { pubkey: new PublicKey(YOS_MINT), isSigner: false, isWritable: true },
-        { pubkey: userYosAccount, isSigner: false, isWritable: true },
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-      ],
-      programId,
-      data: createSwapInstructionData(solAmount, minYotAmount),
-    });
-    
-    console.log('\nInstructions prepared successfully!');
-    console.log('\nTo complete this test:');
-    console.log('1. Deploy the simplified swap program using:');
-    console.log('   ./build-simplified-swap.sh');
-    console.log('   solana program deploy program/simplified_swap_program/target/simplified/deploy/simplified_swap_program.so');
-    console.log('2. Update the SIMPLIFIED_SWAP_PROGRAM_ID constant in this file with the deployed program ID');
-    console.log('3. Rerun this test script');
+    console.log('\nTest initialized. Now deploy the program and update this script with the new Program ID.');
+    console.log('Then run this test to simulate the swap operation.');
     
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error during test:', error);
   }
 }
 
-main();
+// Run the test
+testSimplifiedSwap();

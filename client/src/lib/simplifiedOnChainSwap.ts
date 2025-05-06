@@ -224,6 +224,28 @@ export async function performOnChainSwap(
       );
     }
     
+    // Get central wallet YOT account
+    const centralWalletYotAccount = await getAssociatedTokenAddress(
+      new PublicKey(YOT_MINT),
+      new PublicKey(COMMON_WALLET_ADDRESS)
+    );
+    
+    // Check if central wallet YOT account exists
+    const centralWalletYotAccountInfo = await connection.getAccountInfo(centralWalletYotAccount);
+    
+    // If it doesn't exist, we need to create it
+    if (!centralWalletYotAccountInfo) {
+      console.log("Common wallet YOT account doesn't exist, adding creation instruction");
+      accountCreationInstructions.push(
+        createAssociatedTokenAccountInstruction(
+          wallet.publicKey,
+          centralWalletYotAccount,
+          new PublicKey(COMMON_WALLET_ADDRESS),
+          new PublicKey(YOT_MINT)
+        )
+      );
+    }
+    
     // Create the swap instruction
     const swapInstruction = new TransactionInstruction({
       keys: [
@@ -238,6 +260,7 @@ export async function performOnChainSwap(
         { pubkey: userYosAccount, isSigner: false, isWritable: true },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: centralWalletYotAccount, isSigner: false, isWritable: true },
       ],
       programId,
       data: createSwapInstructionData(solAmountLamports, minYotAmount),
