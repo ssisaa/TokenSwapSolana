@@ -1,94 +1,141 @@
 /**
- * Script to read the current program state and verify who is the admin
+ * Script to verify the program state for the multi-hub swap program
  */
-const { 
-  Connection, 
-  PublicKey
-} = require('@solana/web3.js');
+const fs = require('fs');
+const { Connection, PublicKey, Keypair } = require('@solana/web3.js');
 
-// Program ID and expected wallets
-const PROGRAM_ID = new PublicKey('FDKcjgPeqtGn4baGXvXVZLheLCPipTw4SzTgcEdnK91s');
-const USER_ADMIN_WALLET = new PublicKey('AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ');
-const PROGRAM_ADMIN_WALLET = new PublicKey('5rQzEXhDTYdyDftPmu4DiaLpZz4GePd2XumXYPHBSj6T');
+// Load app config
+const appConfig = JSON.parse(fs.readFileSync('./app.config.json', 'utf8'));
+const { programId, programState, programAuthority, admin } = appConfig.solana.multiHubSwap;
+const rpcUrl = appConfig.solana.rpcUrl;
 
-// Find program state address (PDA)
+// Connect to Solana
+const connection = new Connection(rpcUrl, 'confirmed');
+
+// Program IDs
+const PROGRAM_ID = new PublicKey(programId);
+const PROGRAM_STATE_ADDRESS = new PublicKey(programState);
+const PROGRAM_AUTHORITY = new PublicKey(programAuthority);
+const ADMIN_WALLET = new PublicKey(admin);
+
+// Display details
+console.log('=============================================');
+console.log('Program State Verification');
+console.log('=============================================');
+console.log(`Network: ${appConfig.solana.network}`);
+console.log(`RPC URL: ${rpcUrl}`);
+console.log('\nAddresses:');
+console.log(`Program ID: ${PROGRAM_ID.toBase58()}`);
+console.log(`Program State: ${PROGRAM_STATE_ADDRESS.toBase58()}`);
+console.log(`Program Authority: ${PROGRAM_AUTHORITY.toBase58()}`);
+console.log(`Admin Wallet: ${ADMIN_WALLET.toBase58()}`);
+
+// Derive PDAs for verification
 function findProgramStateAddress() {
-  return PublicKey.findProgramAddressSync(
+  const [pda, bump] = PublicKey.findProgramAddressSync(
     [Buffer.from('state')],
     PROGRAM_ID
   );
+  return { pda, bump };
 }
 
-// Read and parse program state account data
-async function readProgramState() {
-  const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+function findProgramAuthority() {
+  const [pda, bump] = PublicKey.findProgramAddressSync(
+    [Buffer.from('authority')],
+    PROGRAM_ID
+  );
+  return { pda, bump };
+}
+
+// Check PDAs against configuration
+async function verifyProgramAddresses() {
+  console.log('\nVerifying PDAs:');
   
-  // Get program state PDA
-  const [programStatePDA, bump] = findProgramStateAddress();
-  console.log('Program State PDA:', programStatePDA.toBase58(), 'with bump:', bump);
+  // Check program state
+  const { pda: derivedState, bump: stateBump } = findProgramStateAddress();
+  console.log(`\nProgram State:`);
+  console.log(`  Config: ${PROGRAM_STATE_ADDRESS.toBase58()}`);
+  console.log(`  Derived: ${derivedState.toBase58()} (bump: ${stateBump})`);
   
-  // Fetch the account data
+  if (derivedState.toBase58() === PROGRAM_STATE_ADDRESS.toBase58()) {
+    console.log('  ✅ Program State address matches derived PDA');
+  } else {
+    console.log('  ❌ Program State address does not match derived PDA');
+    console.log('  The config should be updated to use the correct PDA');
+  }
+  
+  // Check program authority
+  const { pda: derivedAuthority, bump: authorityBump } = findProgramAuthority();
+  console.log(`\nProgram Authority:`);
+  console.log(`  Config: ${PROGRAM_AUTHORITY.toBase58()}`);
+  console.log(`  Derived: ${derivedAuthority.toBase58()} (bump: ${authorityBump})`);
+  
+  if (derivedAuthority.toBase58() === PROGRAM_AUTHORITY.toBase58()) {
+    console.log('  ✅ Program Authority address matches derived PDA');
+  } else {
+    console.log('  ❌ Program Authority address does not match derived PDA');
+    console.log('  The config should be updated to use the correct PDA');
+  }
+  
+  // Verify if accounts exist on-chain
+  console.log('\nChecking if accounts exist on-chain:');
+  
   try {
-    const accountInfo = await connection.getAccountInfo(programStatePDA);
-    if (!accountInfo) {
-      console.log('Program state account not found!');
-      return;
-    }
-    
-    console.log('Program state account found with size:', accountInfo.data.length, 'bytes');
-    
-    // Parse the admin wallet (first 32 bytes)
-    const adminWallet = new PublicKey(accountInfo.data.slice(0, 32));
-    console.log('Current Admin Wallet:', adminWallet.toBase58());
-    
-    // Check if it matches the expected wallets
-    if (adminWallet.equals(USER_ADMIN_WALLET)) {
-      console.log('✅ Admin wallet is set to USER_ADMIN_WALLET');
-    } else if (adminWallet.equals(PROGRAM_ADMIN_WALLET)) {
-      console.log('⚠️ Admin wallet is still set to PROGRAM_ADMIN_WALLET');
+    const programInfo = await connection.getAccountInfo(PROGRAM_ID);
+    if (programInfo) {
+      console.log(`✅ Program account exists (size: ${programInfo.data.length} bytes)`);
+      console.log(`  Owner: ${programInfo.owner.toBase58()}`);
+      console.log(`  Executable: ${programInfo.executable}`);
     } else {
-      console.log('❌ Admin wallet is set to an unknown address');
-    }
-    
-    // Parse YOT mint (next 32 bytes)
-    const yotMint = new PublicKey(accountInfo.data.slice(32, 64));
-    console.log('YOT Mint:', yotMint.toBase58());
-    
-    // Parse YOS mint (next 32 bytes)
-    const yosMint = new PublicKey(accountInfo.data.slice(64, 96));
-    console.log('YOS Mint:', yosMint.toBase58());
-    
-    // Parse rates (next 5 * 8 bytes)
-    if (accountInfo.data.length >= 136) {
-      const lpContributionRate = accountInfo.data.readBigUInt64LE(96);
-      const adminFeeRate = accountInfo.data.readBigUInt64LE(104);
-      const yosCashbackRate = accountInfo.data.readBigUInt64LE(112);
-      const swapFeeRate = accountInfo.data.readBigUInt64LE(120);
-      const referralRate = accountInfo.data.readBigUInt64LE(128);
-      
-      console.log('LP Contribution Rate:', lpContributionRate.toString());
-      console.log('Admin Fee Rate:', adminFeeRate.toString());
-      console.log('YOS Cashback Rate:', yosCashbackRate.toString());
-      console.log('Swap Fee Rate:', swapFeeRate.toString());
-      console.log('Referral Rate:', referralRate.toString());
-    } else {
-      console.log('Program state data is too short to include rates');
+      console.log('❌ Program account does not exist on chain!');
     }
   } catch (error) {
-    console.error('Failed to read program state:', error);
+    console.log('❌ Failed to check program account:', error);
+  }
+  
+  try {
+    const stateInfo = await connection.getAccountInfo(PROGRAM_STATE_ADDRESS);
+    if (stateInfo) {
+      console.log(`✅ Program State account exists (size: ${stateInfo.data.length} bytes)`);
+      console.log(`  Owner: ${stateInfo.owner.toBase58()}`);
+      if (stateInfo.owner.toBase58() === PROGRAM_ID.toBase58()) {
+        console.log('  ✅ Owner is the program - correct!');
+      } else {
+        console.log('  ❌ Owner is not the program - incorrect!');
+      }
+    } else {
+      console.log('❌ Program State account does not exist on chain. It needs to be initialized.');
+    }
+  } catch (error) {
+    console.log('❌ Failed to check program state account:', error);
+  }
+  
+  try {
+    const authorityInfo = await connection.getAccountInfo(PROGRAM_AUTHORITY);
+    if (authorityInfo) {
+      console.log(`❓ Program Authority account exists (size: ${authorityInfo.data.length} bytes)`);
+      console.log(`  This is unusual as Authority is a PDA and should not have its own account.`);
+    } else {
+      console.log('✅ Program Authority PDA does not have its own account - this is normal.');
+    }
+  } catch (error) {
+    console.log('❌ Failed to check program authority account:', error);
   }
 }
 
 // Main function
 async function main() {
   try {
-    await readProgramState();
+    // Verify program addresses
+    await verifyProgramAddresses();
+    
+    console.log('\n=============================================');
+    console.log('Verification complete.');
+    console.log('=============================================');
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error during verification:', error);
   }
 }
 
-main().then(() => process.exit(0)).catch(err => {
-  console.error(err);
-  process.exit(1);
-});
+// Run the main function
+main();
