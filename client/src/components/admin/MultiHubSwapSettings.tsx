@@ -68,11 +68,31 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
   const [yosCashbackRate, setYosCashbackRate] = useState<number>(5);
   const [swapFeeRate, setSwapFeeRate] = useState<number>(0.3);
   const [referralRate, setReferralRate] = useState<number>(0.5);
+  
+  // Liquidity threshold settings
+  const [liquidityThreshold, setLiquidityThreshold] = useState<number>(0.1);
+  const [isUpdatingThreshold, setIsUpdatingThreshold] = useState<boolean>(false);
 
-  // Fetch contract info on component mount
+  // Fetch contract info and admin settings on component mount
   useEffect(() => {
     fetchContractInfo();
+    fetchAdminSettings();
   }, [wallet]);
+  
+  // Fetch admin settings including liquidity threshold
+  const fetchAdminSettings = async () => {
+    try {
+      const response = await fetch('/api/admin/settings');
+      if (response.ok) {
+        const settings = await response.json();
+        if (settings && settings.liquidityThreshold) {
+          setLiquidityThreshold(settings.liquidityThreshold);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching admin settings:", error);
+    }
+  };
 
   // Initialize the Multi-Hub Swap contract
   const initializeContract = async () => {
@@ -625,7 +645,7 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
                       <h4 className="font-medium text-sm">Centralized Liquidity System</h4>
                       <p className="text-xs text-muted-foreground mt-1">
                         When users buy YOT, {lpContributionRate}% is sent to the central liquidity wallet.
-                        Once sufficient balance is accumulated, it can be added to the liquidity pool.
+                        Once sufficient balance is accumulated, it is automatically added to the liquidity pool.
                       </p>
                     </div>
                     <div className="text-right">
@@ -635,54 +655,139 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
                   </div>
                 </div>
 
+                <div className="bg-secondary/30 p-4 rounded-lg space-y-3 mb-4">
+                  <h4 className="font-medium text-sm">Liquidity Threshold Setting</h4>
+                  <div className="grid grid-cols-1 gap-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="liquidityThreshold">
+                        Auto-Add Threshold (in SOL)
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary/10 text-primary text-xs">?</span>
+                            </TooltipTrigger>
+                            <TooltipContent className="w-80">
+                              <p>When this amount of SOL worth of YOT is accumulated in the central wallet, the system will automatically add liquidity to the pool.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="liquidityThreshold"
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          value={liquidityThreshold}
+                          onChange={(e) => setLiquidityThreshold(parseFloat(e.target.value))}
+                          className="flex-grow"
+                        />
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="whitespace-nowrap"
+                          disabled={isUpdatingThreshold || !wallet?.publicKey}
+                          onClick={async () => {
+                            try {
+                              setIsUpdatingThreshold(true);
+                              
+                              if (!wallet || !wallet.publicKey) {
+                                throw new Error("Wallet not connected");
+                              }
+                              
+                              if (!isAdmin) {
+                                throw new Error("Only admin can update liquidity threshold");
+                              }
+                              
+                              // Validate threshold value
+                              if (liquidityThreshold < 0.01) {
+                                throw new Error("Threshold must be at least 0.01 SOL");
+                              }
+                              
+                              if (liquidityThreshold > 10) {
+                                throw new Error("Threshold cannot exceed 10 SOL");
+                              }
+                              
+                              // Call the API to update the threshold in the database
+                              const response = await fetch('/api/admin/settings', {
+                                method: 'PATCH',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ 
+                                  liquidityThreshold: liquidityThreshold
+                                }),
+                              });
+                              
+                              if (!response.ok) {
+                                const errorData = await response.json();
+                                throw new Error(errorData.message || 'Failed to update threshold');
+                              }
+                              
+                              toast({
+                                title: "Threshold updated successfully",
+                                description: `The liquidity threshold is now ${liquidityThreshold} SOL`,
+                              });
+                            } catch (error: any) {
+                              console.error("Failed to update threshold:", error);
+                              toast({
+                                title: "Failed to update threshold",
+                                description: error.message || "An error occurred",
+                                variant: "destructive",
+                              });
+                            } finally {
+                              setIsUpdatingThreshold(false);
+                            }
+                          }}
+                        >
+                          {isUpdatingThreshold ? (
+                            <>
+                              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                              Updating...
+                            </>
+                          ) : (
+                            "Update Threshold"
+                          )}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Current threshold: {liquidityThreshold} SOL worth of YOT
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 <Alert variant="default" className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-900/30">
                   <div className="flex flex-col space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
-                        <span className="font-medium">Add Liquidity to Pool</span>
+                        <span className="font-medium">Automatic Liquidity Addition</span>
                       </div>
                       <Button 
                         size="sm" 
-                        onClick={async () => {
-                          try {
-                            if (!wallet || !wallet.publicKey) {
-                              throw new Error("Wallet not connected");
-                            }
-                            
-                            if (!isAdmin) {
-                              throw new Error("Only admin can add liquidity from central wallet");
-                            }
-                            
-                            toast({
-                              title: "Processing...",
-                              description: "Adding liquidity from central wallet to pool",
-                            });
-                            
-                            const signature = await addLiquidityFromCentralWallet(wallet);
-                            
-                            toast({
-                              title: "Liquidity Added Successfully",
-                              description: `Transaction signature: ${signature.slice(0, 8)}...`,
-                            });
-                            
-                            // Refresh contract info
-                            await fetchContractInfo();
-                          } catch (error: any) {
-                            console.error("Failed to add liquidity:", error);
-                            toast({
-                              title: "Failed to add liquidity",
-                              description: error.message || "An error occurred",
-                              variant: "destructive",
-                            });
-                          }
-                        }}
+                        variant="outline"
+                        onClick={fetchContractInfo}
                       >
-                        Add Liquidity Now
+                        <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                        Refresh Status
                       </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      This action transfers 50% SOL and 50% YOT from the central liquidity wallet to the liquidity pool.
-                      This can only be executed when the central wallet balance exceeds the threshold.
+                    
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">Current Threshold:</div>
+                        <div className="text-sm font-medium">{liquidityThreshold} SOL worth of YOT</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">Current Balance:</div>
+                        <div className="text-sm font-medium">Fetching...</div>
+                      </div>
+                    </div>
+                    
+                    <p className="text-xs text-muted-foreground mt-2">
+                      When the central wallet balance exceeds the threshold (currently {liquidityThreshold} SOL), 
+                      the system automatically adds liquidity to the pool using 50% SOL and 50% YOT.
+                      This process happens automatically during swap operations.
                     </p>
                   </div>
                 </Alert>
@@ -693,7 +798,7 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
                     <AlertTitle>Important Information</AlertTitle>
                     <AlertDescription className="text-amber-800 dark:text-amber-400">
                       The central liquidity system aggregates {lpContributionRate}% of all YOT purchases into a single wallet.
-                      When the wallet balance exceeds the threshold, the admin can add this liquidity to the pool
+                      When the wallet balance exceeds the threshold, the system automatically adds this liquidity to the pool
                       to improve market depth and trading capabilities.
                     </AlertDescription>
                   </Alert>
