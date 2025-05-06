@@ -138,12 +138,22 @@ export const SOL_YOT_POOL_INFO = {
   solAccount: solanaConfig.pool.solAccount,
 };
 
+// Direct access to pool accounts for the common wallet implementation
+export const POOL_AUTHORITY = solanaConfig.pool.authority;
+export const POOL_SOL_ACCOUNT = solanaConfig.pool.solAccount;
+
 // Common wallet configuration from app.config.json
 export const COMMON_WALLET_CONFIG = {
   wallet: solanaConfig.multiHubSwap.commonWallet.wallet,
   yotAccount: solanaConfig.multiHubSwap.commonWallet.yotAccount,
   threshold: solanaConfig.multiHubSwap.commonWallet.threshold
 };
+
+// Common wallet threshold for adding liquidity (when balance exceeds this amount)
+export const COMMON_WALLET_THRESHOLD_SOL = solanaConfig.multiHubSwap.commonWallet.threshold;
+
+// Contribution distribution percentage (20% to common wallet)
+export const CONTRIBUTION_DISTRIBUTION_PERCENT = solanaConfig.multiHubSwap.rates.lpContributionRate / 100;
 
 // Distribution rates (converted from basis points to percentages)
 export const DEFAULT_DISTRIBUTION_RATES = {
