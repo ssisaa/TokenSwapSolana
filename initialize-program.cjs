@@ -34,6 +34,9 @@ function loadWalletFromFile() {
   }
 }
 
+// Create a specific admin wallet to use for the program
+const ADMIN_WALLET = new PublicKey('AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ');
+
 // Find program state address (PDA)
 function findProgramStateAddress() {
   return PublicKey.findProgramAddressSync(

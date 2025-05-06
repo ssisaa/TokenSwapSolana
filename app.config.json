@@ -37,9 +37,9 @@
       "solAccount": "Bf78XttEfzR4iM3JCWfwgSCpd5MHePTMD2UKBEZU6coH"
     },
     "multiHubSwap": {
-      "programId": "ML3GE9KqDeSGxqjQ6rRRFRJ51LPkYcdApz9GCtMSpWth",
-      "programState": "",
-      "programAuthority": "",
+      "programId": "FDKcjgPeqtGn4baGXvXVZLheLCPipTw4SzTgcEdnK91s",
+      "programState": "2GJ5eKRMgLhgKSgLyqVCRcAFoMPhVtyaENpfuPvWbDtX",
+      "programAuthority": "Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ",
       "admin": "AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ",
       "centralLiquidity": {
         "wallet": "Bf78XttEfzR4iM3JCWfwgSCpd5MHePTMD2UKBEZU6coH", 
