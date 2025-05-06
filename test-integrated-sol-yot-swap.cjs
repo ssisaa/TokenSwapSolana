@@ -407,9 +407,10 @@ async function simplifiedSolToYotSwap(wallet, solAmount) {
     console.log(`Using MULTI_HUB_SWAP_PROGRAM_ID: ${MULTI_HUB_SWAP_PROGRAM_ID}`);
     
     // Get token accounts
+    const tokenProgramId = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
     const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
       wallet.publicKey, 
-      { programId: TOKEN_PROGRAM_ID }
+      { programId: tokenProgramId }
     );
     
     // Find or create YOT token account
@@ -447,12 +448,13 @@ async function simplifiedSolToYotSwap(wallet, solAmount) {
     const yotBalance = parseInt(yotAccountInfo.value.data.parsed.info.tokenAmount.amount);
     
     // Simple calculation: (yotBalance * amountIn) / solBalance
-    const expectedYotOutput = (yotBalance * solAmount) / solBalance;
+    // Make sure to handle numerical precision and scale appropriately
+    const expectedYotOutput = Math.floor((yotBalance * solAmount) / solBalance);
     console.log(`Expected YOT output: ${expectedYotOutput}`);
     
-    // Apply 1% slippage tolerance
-    const minAmountOut = Math.floor(expectedYotOutput * 0.99 * 1e9);
-    console.log(`Min YOT output with slippage: ${minAmountOut / 1e9}`);
+    // Apply 1% slippage tolerance (ensure it fits within 64 bits)
+    const minAmountOut = Math.floor(expectedYotOutput * 0.99);
+    console.log(`Min YOT output with slippage: ${minAmountOut}`);
     
     // Create a simple swap instruction with instruction data
     // [0, amountIn, minAmountOut]
@@ -469,7 +471,7 @@ async function simplifiedSolToYotSwap(wallet, solAmount) {
       { pubkey: userYotAccount, isSigner: false, isWritable: true },        // user's YOT token account
       { pubkey: poolAuthority, isSigner: false, isWritable: false },        // pool authority
       { pubkey: require('@solana/web3.js').SystemProgram.programId, isSigner: false, isWritable: false }, // system program
-      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },     // token program
+      { pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), isSigner: false, isWritable: false } // token program
     ];
     
     // Log all account public keys
@@ -530,24 +532,25 @@ async function main() {
     await checkBalances(wallet);
     await checkPoolBalances();
     
-    // First, try to create the liquidity contribution account if it doesn't exist
-    // This is just a test - in practice this would be handled properly with PDAs
-    try {
-      await createLiquidityContributionAccount(wallet);
-    } catch (error) {
-      console.error('Error pre-creating liquidity account (this is expected):', error.message);
-      console.log('Continuing with the swap...');
-    }
-    
     // Amount of SOL to swap
     const solAmount = 0.03; // Swap 0.03 SOL
     
-    // Perform the swap
+    // Try first with the simplified approach without liquidity contribution
+    console.log('\n=== Trying simplified SOL-to-YOT swap ===');
+    try {
+      const signature = await simplifiedSolToYotSwap(wallet, solAmount);
+      console.log('✅ Simplified swap completed successfully!');
+    } catch (error) {
+      console.error('❌ Simplified swap failed:', error);
+    }
+    
+    // Then try the original approach for complete testing
+    console.log('\n=== Trying full SOL-to-YOT swap with liquidity contribution ===');
     try {
       const signature = await solToYotSwap(wallet, solAmount);
-      console.log('✅ Swap completed successfully!');
+      console.log('✅ Full swap completed successfully!');
     } catch (error) {
-      console.error('❌ Swap failed:', error);
+      console.error('❌ Full swap failed:', error.message);
     }
     
     // Check balances after swap
