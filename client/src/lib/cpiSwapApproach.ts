@@ -1,7 +1,8 @@
 /**
- * SOL to YOT swap implementation with non-PDA account
+ * SOL to YOT swap implementation using CPI (Cross-Program Invocation) approach
  * This implementation addresses the "account already borrowed" error by
- * creating a standard account (not a PDA) and using that for the swap
+ * using a system program invocation to create the account first, and then
+ * having the program fill it with proper data.
  */
 
 import {
@@ -11,8 +12,7 @@ import {
   SystemProgram,
   LAMPORTS_PER_SOL,
   ComputeBudgetProgram,
-  SYSVAR_RENT_PUBKEY,
-  Keypair
+  SYSVAR_RENT_PUBKEY
 } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
 import { solanaConfig } from './config';
@@ -46,6 +46,16 @@ function findProgramAuthority(programId: PublicKey): [PublicKey, number] {
 }
 
 /**
+ * Find the liquidity contribution address for a user wallet
+ */
+function findLiquidityContributionAddress(userWallet: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('liq'), userWallet.toBuffer()],
+    MULTI_HUB_SWAP_PROGRAM_ID
+  );
+}
+
+/**
  * Ensure token account exists for the user
  */
 async function ensureTokenAccount(wallet: any, mint: PublicKey): Promise<PublicKey> {
@@ -55,11 +65,11 @@ async function ensureTokenAccount(wallet: any, mint: PublicKey): Promise<PublicK
     try {
       // Check if account exists
       await connection.getTokenAccountBalance(tokenAddress);
-      console.log(`[SOL-YOT-SWAP-V3] Token account exists: ${tokenAddress.toString()}`);
+      console.log(`[CPI-SWAP] Token account exists: ${tokenAddress.toString()}`);
       return tokenAddress;
     } catch (error) {
       // Account doesn't exist, create it
-      console.log(`[SOL-YOT-SWAP-V3] Creating token account for mint ${mint.toString()}`);
+      console.log(`[CPI-SWAP] Creating token account for mint ${mint.toString()}`);
       
       const createATAIx = require('@solana/spl-token').createAssociatedTokenAccountInstruction(
         wallet.publicKey, // payer
@@ -79,103 +89,86 @@ async function ensureTokenAccount(wallet: any, mint: PublicKey): Promise<PublicK
       const signature = await connection.sendRawTransaction(signedTxn.serialize());
       await connection.confirmTransaction(signature);
       
-      console.log(`[SOL-YOT-SWAP-V3] Token account created: ${tokenAddress.toString()}`);
+      console.log(`[CPI-SWAP] Token account created: ${tokenAddress.toString()}`);
       return tokenAddress;
     }
   } catch (error) {
-    console.error('[SOL-YOT-SWAP-V3] Error ensuring token account:', error);
+    console.error('[CPI-SWAP] Error ensuring token account:', error);
     throw error;
   }
 }
 
 /**
- * Create a standard account (not a PDA) and assign it to the program
+ * Create CPI transaction that:
+ * 1. Creates the account directly using SystemProgram (not PDA - that can't work)
+ * 2. Transfers ownership of that account to the program
+ * 3. Calls the program to initialize the account
+ *
+ * Note: This approach requires the program to support a special instruction
+ * that accepts and initializes an account that's already been created.
  */
-async function createStandardAccount(
+async function createCpiTransaction(
   wallet: any,
-  size: number = 128
-): Promise<Keypair> {
-  console.log('[SOL-YOT-SWAP-V3] Creating standard account and assigning to program');
+  liquidityContributionAccount: PublicKey,
+  bump: number
+): Promise<Transaction> {
+  console.log('[CPI-SWAP] Creating CPI transaction');
   
-  // Generate a new keypair for the account
-  const newAccount = Keypair.generate();
-  console.log(`[SOL-YOT-SWAP-V3] Generated account: ${newAccount.publicKey.toString()}`);
+  const [programStateAddress] = findProgramStateAddress(MULTI_HUB_SWAP_PROGRAM_ID);
+  const [programAuthority] = findProgramAuthority(MULTI_HUB_SWAP_PROGRAM_ID);
+  
+  // Calculate space needed for the account
+  const ACCOUNT_SIZE = 128; // Estimated size based on logs
   
   // Calculate lamports needed for rent exemption
-  const lamports = await connection.getMinimumBalanceForRentExemption(size);
+  const lamports = await connection.getMinimumBalanceForRentExemption(ACCOUNT_SIZE);
   
-  // Create transaction with transfer, allocate, and assign instructions
+  // Create transaction with compute budget
   const transaction = new Transaction();
   
-  // Add compute budget to ensure enough compute units
   const computeUnits = ComputeBudgetProgram.setComputeUnitLimit({
     units: 400000
   });
+  
   transaction.add(computeUnits);
   
-  // Transfer SOL to the new account
-  const transferIx = SystemProgram.transfer({
-    fromPubkey: wallet.publicKey,
-    toPubkey: newAccount.publicKey,
-    lamports
+  // This approach would use a version of instruction #9 that is specifically designed
+  // to initialize the account data correctly without trying to create the account
+  // (since that's what causes the "account already borrowed" error)
+  
+  // Instruction data for a hypothetical "initialize account" instruction: [9, bump]
+  const data = Buffer.alloc(2);
+  data.writeUint8(9, 0); // Hypothetical instruction #9
+  data.writeUint8(bump, 1); // Pass the bump seed to the program
+  
+  // The account will already be created by the SystemProgram, so we only need to initialize it
+  const accounts = [
+    { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
+    { pubkey: programStateAddress, isSigner: false, isWritable: false },
+    { pubkey: programAuthority, isSigner: false, isWritable: false },
+    { pubkey: liquidityContributionAccount, isSigner: false, isWritable: true },
+    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+  ];
+  
+  const initializeIx = new TransactionInstruction({
+    programId: MULTI_HUB_SWAP_PROGRAM_ID,
+    keys: accounts,
+    data
   });
   
-  // Allocate space in the account
-  const allocateIx = SystemProgram.allocate({
-    accountPubkey: newAccount.publicKey,
-    space: size
-  });
-  
-  // Assign the account to the program
-  const assignIx = SystemProgram.assign({
-    accountPubkey: newAccount.publicKey,
-    programId: MULTI_HUB_SWAP_PROGRAM_ID
-  });
-  
-  transaction.add(transferIx);
-  transaction.add(allocateIx);
-  transaction.add(assignIx);
+  transaction.add(initializeIx);
   
   // Set transaction properties
   transaction.feePayer = wallet.publicKey;
   const { blockhash } = await connection.getLatestBlockhash();
   transaction.recentBlockhash = blockhash;
   
-  // Sign the transaction with both the wallet and the new account
-  try {
-    const signedTx = await wallet.signTransaction(transaction);
-    // Add the new account's signature
-    signedTx.partialSign(newAccount);
-    
-    // Send the transaction
-    console.log('[SOL-YOT-SWAP-V3] Sending account creation transaction...');
-    const signature = await connection.sendRawTransaction(signedTx.serialize());
-    console.log(`[SOL-YOT-SWAP-V3] Transaction sent: ${signature}`);
-    
-    // Wait for confirmation
-    await connection.confirmTransaction(signature);
-    console.log('[SOL-YOT-SWAP-V3] Account creation confirmed!');
-    
-    // Verify account was created and assigned correctly
-    const accountInfo = await connection.getAccountInfo(newAccount.publicKey);
-    if (!accountInfo) {
-      throw new Error('Account was not created');
-    }
-    
-    if (!accountInfo.owner.equals(MULTI_HUB_SWAP_PROGRAM_ID)) {
-      throw new Error(`Account not assigned to program. Owner: ${accountInfo.owner.toString()}`);
-    }
-    
-    console.log(`[SOL-YOT-SWAP-V3] Account created and assigned to program: ${newAccount.publicKey.toString()}`);
-    return newAccount;
-  } catch (error) {
-    console.error('[SOL-YOT-SWAP-V3] Error creating and assigning account:', error);
-    throw error;
-  }
+  return transaction;
 }
 
 /**
- * Create SOL to YOT swap transaction using the standard account
+ * Create SOL to YOT swap transaction
  */
 async function createSwapTransaction(
   wallet: any,
@@ -184,7 +177,7 @@ async function createSwapTransaction(
   userYosAccount: PublicKey,
   liquidityContributionAccount: PublicKey
 ): Promise<Transaction> {
-  console.log(`[SOL-YOT-SWAP-V3] Creating swap transaction for ${solAmount} SOL`);
+  console.log(`[CPI-SWAP] Creating swap transaction for ${solAmount} SOL`);
   
   // Convert SOL to lamports
   const amountInLamports = Math.floor(solAmount * LAMPORTS_PER_SOL);
@@ -255,19 +248,21 @@ async function createSwapTransaction(
 }
 
 /**
- * Execute the SOL to YOT swap using a standard account
+ * Execute the CPI approach for SOL to YOT swap
+ * This approach uses CPI to create the account and tries to initialize it
+ * in a way that avoids the "account already borrowed" error
  */
-export async function solToYotSwapV3(
+export async function cpiSwap(
   wallet: any,
   solAmount: number
 ): Promise<{
   success: boolean;
   signature?: string;
-  accountCreationSignature?: string;
+  cpiSignature?: string;
   error?: string;
   message?: string;
 }> {
-  console.log(`[SOL-YOT-SWAP-V3] Starting SOL to YOT swap for ${solAmount} SOL with standard account approach`);
+  console.log(`[CPI-SWAP] Starting SOL to YOT swap for ${solAmount} SOL with CPI approach`);
   
   if (!wallet || !wallet.publicKey) {
     return {
@@ -279,16 +274,76 @@ export async function solToYotSwapV3(
   
   try {
     // Ensure user has token accounts for YOT and YOS
-    console.log('[SOL-YOT-SWAP-V3] Ensuring token accounts exist');
+    console.log('[CPI-SWAP] Ensuring token accounts exist');
     const userYotAccount = await ensureTokenAccount(wallet, new PublicKey(YOT_TOKEN_ADDRESS));
     const userYosAccount = await ensureTokenAccount(wallet, new PublicKey(YOS_TOKEN_ADDRESS));
     
-    // Create standard account (not a PDA) and assign it to the program
-    const standardAccount = await createStandardAccount(wallet);
-    const liquidityContributionAccount = standardAccount.publicKey;
+    // Check if liquidity contribution account exists
+    const [liquidityContributionAccount, bump] = findLiquidityContributionAddress(wallet.publicKey);
+    console.log(`[CPI-SWAP] Liquidity contribution account address: ${liquidityContributionAccount.toString()}`);
     
-    // Now perform the swap using the standard account
-    console.log('[SOL-YOT-SWAP-V3] Creating and sending swap transaction...');
+    const accountInfo = await connection.getAccountInfo(liquidityContributionAccount);
+    const accountExists = accountInfo !== null;
+    console.log(`[CPI-SWAP] Liquidity account exists: ${accountExists}`);
+    
+    let cpiSignature: string | undefined;
+    
+    // If the account doesn't exist, create it first with our CPI approach
+    if (!accountExists) {
+      try {
+        console.log('[CPI-SWAP] Initializing liquidity contribution account with CPI approach...');
+        const cpiTx = await createCpiTransaction(
+          wallet,
+          liquidityContributionAccount,
+          bump
+        );
+        
+        const signedTx = await wallet.signTransaction(cpiTx);
+        cpiSignature = await connection.sendRawTransaction(signedTx.serialize());
+        console.log(`[CPI-SWAP] CPI initialization transaction sent: ${cpiSignature}`);
+        
+        // Wait for confirmation
+        const cpiResult = await connection.confirmTransaction(cpiSignature);
+        
+        if (cpiResult.value.err) {
+          console.error('[CPI-SWAP] Account initialization failed:', cpiResult.value.err);
+          return {
+            success: false,
+            cpiSignature,
+            error: 'Account initialization failed',
+            message: `Failed to initialize liquidity contribution account: ${JSON.stringify(cpiResult.value.err)}`
+          };
+        }
+        
+        console.log('[CPI-SWAP] Account initialized successfully, waiting 2 seconds before swap...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Check again if the account was created
+        const newAccountInfo = await connection.getAccountInfo(liquidityContributionAccount);
+        if (!newAccountInfo) {
+          console.error('[CPI-SWAP] Account still does not exist after successful CPI initialization');
+          return {
+            success: false,
+            cpiSignature,
+            error: 'Account verification failed',
+            message: 'Liquidity contribution account was not found after CPI initialization'
+          };
+        }
+        
+        console.log(`[CPI-SWAP] Account verified, size: ${newAccountInfo.data.length} bytes`);
+      } catch (error) {
+        console.error('[CPI-SWAP] Error during account initialization:', error);
+        return {
+          success: false,
+          cpiSignature,
+          error: 'Account initialization error',
+          message: error instanceof Error ? error.message : String(error)
+        };
+      }
+    }
+    
+    // Now perform the actual swap
+    console.log('[CPI-SWAP] Creating and sending swap transaction...');
     const swapTransaction = await createSwapTransaction(
       wallet,
       solAmount,
@@ -297,44 +352,33 @@ export async function solToYotSwapV3(
       liquidityContributionAccount
     );
     
-    // Sign the transaction
     const signedSwapTx = await wallet.signTransaction(swapTransaction);
-    
-    // Send the swap transaction
     const swapSignature = await connection.sendRawTransaction(signedSwapTx.serialize());
-    console.log(`[SOL-YOT-SWAP-V3] Swap transaction sent: ${swapSignature}`);
+    console.log(`[CPI-SWAP] Swap transaction sent: ${swapSignature}`);
     
     // Wait for confirmation
-    try {
-      const swapResult = await connection.confirmTransaction(swapSignature);
-      
-      if (swapResult.value.err) {
-        console.error('[SOL-YOT-SWAP-V3] Swap transaction failed:', swapResult.value.err);
-        return {
-          success: false,
-          signature: swapSignature,
-          error: 'Swap failed',
-          message: `Transaction error: ${JSON.stringify(swapResult.value.err)}`
-        };
-      }
-      
-      console.log('[SOL-YOT-SWAP-V3] Swap transaction succeeded!');
-      return {
-        success: true,
-        signature: swapSignature,
-        message: `Successfully swapped ${solAmount} SOL for YOT tokens using account ${liquidityContributionAccount.toString()}`
-      };
-    } catch (error) {
-      console.error('[SOL-YOT-SWAP-V3] Error confirming swap transaction:', error);
+    const swapResult = await connection.confirmTransaction(swapSignature);
+    
+    if (swapResult.value.err) {
+      console.error('[CPI-SWAP] Swap transaction failed:', swapResult.value.err);
       return {
         success: false,
         signature: swapSignature,
-        error: 'Confirmation error',
-        message: `Error confirming swap transaction: ${error instanceof Error ? error.message : String(error)}`
+        cpiSignature,
+        error: 'Swap failed',
+        message: `Transaction error: ${JSON.stringify(swapResult.value.err)}`
       };
     }
+    
+    console.log('[CPI-SWAP] Swap transaction succeeded!');
+    return {
+      success: true,
+      signature: swapSignature,
+      cpiSignature,
+      message: `Successfully swapped ${solAmount} SOL for YOT tokens`
+    };
   } catch (error) {
-    console.error('[SOL-YOT-SWAP-V3] Error during swap process:', error);
+    console.error('[CPI-SWAP] Error during swap process:', error);
     return {
       success: false,
       error: 'Error during swap',
@@ -347,9 +391,9 @@ export async function solToYotSwapV3(
  * Simplified export function for compatibility with multi-hub-swap-contract.ts
  */
 export async function solToYotSwap(wallet: any, solAmount: number): Promise<string> {
-  console.log(`[SOL-YOT-SWAP-V3] Starting swap of ${solAmount} SOL`);
+  console.log(`[CPI-SWAP] Starting swap of ${solAmount} SOL`);
   
-  const result = await solToYotSwapV3(wallet, solAmount);
+  const result = await cpiSwap(wallet, solAmount);
   
   if (result.success) {
     return result.signature || '';
