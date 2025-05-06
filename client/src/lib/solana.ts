@@ -698,7 +698,9 @@ export async function solToYotSwap(
     console.log("[SOL-YOT SWAP] Transaction confirmed successfully!");
     
     // Import the function to handle the YOT transfer back to the user
-    const { completeSwapWithYotTransfer } = await import('./completeSwap');
+    // Use dynamic import with type annotation to ensure TypeScript recognizes the function
+    const completeSwapModule = await import('./completeSwap');
+    const completeSwapWithYotTransfer = completeSwapModule.completeSwapWithYotTransfer;
     
     // Step 7: Since the blockchain part is a two-stage process (unlike an AMM), 
     // request the YOT tokens to be sent back from the pool to the user
@@ -726,7 +728,7 @@ export async function solToYotSwap(
         return {
           solSignature: signature,
           needsTokenAccount: true,
-          tokenAccountTransaction: tokenTransferResult.transaction,
+          tokenAccountTransaction: tokenTransferResult.tokenAccountTransaction,
           message: "SOL sent successfully. You need to create a YOT token account to receive tokens."
         };
       }
