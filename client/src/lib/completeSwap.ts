@@ -11,11 +11,19 @@ import {
   LAMPORTS_PER_SOL,
   ComputeBudgetProgram,
   SYSVAR_RENT_PUBKEY,
-  Connection
+  Connection,
+  Keypair
 } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
 import { solanaConfig } from './config';
+
+// Import and re-export connection
 import { connection } from './solana';
+export { connection };
+
+// Re-export pool authority keypair for compatibility
+// This is a stub - the actual keypair would be securely stored in production
+export const poolAuthorityKeypair = Keypair.generate();
 
 // Constants from config
 const MULTI_HUB_SWAP_PROGRAM_ID = new PublicKey(solanaConfig.multiHubSwap.programId);

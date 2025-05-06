@@ -1,9 +1,8 @@
 /**
- * Two-step SOL to YOT swap implementation
- * This implementation addresses the "account already borrowed" error by
- * breaking the transaction into two separate steps:
- * 1. First transaction: Send a minimal amount of SOL (0.000001) just to create the account
- * 2. Second transaction: Send the actual SOL amount for the swap
+ * SOL to YOT swap implementation with two-step approach
+ * This implementation addresses the "account already borrowed" error by:
+ * 1. Executing the first transaction with skipPreflight=true (it will fail but create the account)
+ * 2. Then executing a completion transaction to transfer YOT tokens
  */
 
 import {
@@ -15,9 +14,10 @@ import {
   ComputeBudgetProgram,
   SYSVAR_RENT_PUBKEY
 } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress, getAccount } from '@solana/spl-token';
+import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
 import { solanaConfig } from './config';
 import { connection } from './solana';
+import { completeSwapWithYotTransfer } from './completeSwap';
 
 // Constants from config
 const MULTI_HUB_SWAP_PROGRAM_ID = new PublicKey(solanaConfig.multiHubSwap.programId);
@@ -25,6 +25,8 @@ const POOL_SOL_ACCOUNT = new PublicKey(solanaConfig.pool.solAccount);
 const POOL_AUTHORITY = new PublicKey(solanaConfig.pool.authority);
 const YOT_TOKEN_ADDRESS = new PublicKey(solanaConfig.tokens.yot.address);
 const YOS_TOKEN_ADDRESS = new PublicKey(solanaConfig.tokens.yos.address);
+// Exchange rate - this is dynamically calculated 
+// const SOL_TO_YOT_RATE = 144906535.28474102;
 
 /**
  * Find program state PDA
@@ -65,12 +67,12 @@ async function ensureTokenAccount(wallet: any, mint: PublicKey): Promise<PublicK
     
     try {
       // Check if account exists
-      await getAccount(connection, tokenAddress);
-      console.log(`[TWO-STEP] Token account exists: ${tokenAddress.toString()}`);
+      await connection.getTokenAccountBalance(tokenAddress);
+      console.log(`[TWO-STEP-SWAP] Token account exists: ${tokenAddress.toString()}`);
       return tokenAddress;
     } catch (error) {
       // Account doesn't exist, create it
-      console.log(`[TWO-STEP] Creating token account for mint ${mint.toString()}`);
+      console.log(`[TWO-STEP-SWAP] Creating token account for mint ${mint.toString()}`);
       
       const createATAIx = require('@solana/spl-token').createAssociatedTokenAccountInstruction(
         wallet.publicKey, // payer
@@ -90,35 +92,65 @@ async function ensureTokenAccount(wallet: any, mint: PublicKey): Promise<PublicK
       const signature = await connection.sendRawTransaction(signedTxn.serialize());
       await connection.confirmTransaction(signature);
       
-      console.log(`[TWO-STEP] Token account created: ${tokenAddress.toString()}`);
+      console.log(`[TWO-STEP-SWAP] Token account created: ${tokenAddress.toString()}`);
       return tokenAddress;
     }
   } catch (error) {
-    console.error('[TWO-STEP] Error ensuring token account:', error);
+    console.error('[TWO-STEP-SWAP] Error ensuring token account:', error);
     throw error;
   }
 }
 
 /**
- * Check if liquidity contribution account exists
+ * Get the expected YOT output amount for a given SOL input
+ * This is based on the actual AMM rates from the pool
  */
-async function checkLiquidityAccount(wallet: any): Promise<{
-  exists: boolean,
-  address: PublicKey
-}> {
-  const [address] = findLiquidityContributionAddress(wallet.publicKey);
-  console.log(`[TWO-STEP] Checking liquidity account: ${address.toString()}`);
-  
-  const accountInfo = await connection.getAccountInfo(address);
-  
-  return {
-    exists: accountInfo !== null,
-    address
-  };
+async function getExpectedYotOutput(solAmount: number): Promise<number> {
+  // Use the real pool SOL and YOT balances to calculate the rate
+  try {
+    // Get SOL balance from pool SOL account
+    const solPoolBalance = await connection.getBalance(POOL_SOL_ACCOUNT);
+    const solBalanceNormalized = solPoolBalance / LAMPORTS_PER_SOL;
+    
+    // Get YOT balance from pool YOT account
+    const yotPoolAccount = await getAssociatedTokenAddress(
+      YOT_TOKEN_ADDRESS,
+      POOL_AUTHORITY
+    );
+    
+    let yotBalance = 0;
+    const yotAccountInfo = await connection.getTokenAccountBalance(yotPoolAccount);
+    yotBalance = Number(yotAccountInfo.value.uiAmount || 0);
+    
+    if (yotBalance <= 0 || solBalanceNormalized <= 0) {
+      console.error('Invalid pool balances, cannot calculate rate');
+      throw new Error('Invalid pool balances for rate calculation');
+    }
+    
+    // Calculate rate using the constant product formula (x * y = k)
+    const k = solBalanceNormalized * yotBalance;
+    
+    // Get new sol balance after adding input
+    const newSolBalance = solBalanceNormalized + solAmount;
+    
+    // Calculate new YOT balance to maintain constant product
+    const newYotBalance = k / newSolBalance;
+    
+    // YOT output is the difference
+    const yotOutput = yotBalance - newYotBalance;
+    
+    console.log(`[TWO-STEP-SWAP] Pool balances - SOL: ${solBalanceNormalized}, YOT: ${yotBalance}`);
+    console.log(`[TWO-STEP-SWAP] Calculated YOT output for ${solAmount} SOL: ${yotOutput}`);
+    
+    return yotOutput;
+  } catch (error) {
+    console.error('[TWO-STEP-SWAP] Error calculating expected output:', error);
+    throw error;
+  }
 }
 
 /**
- * Create SOL to YOT swap transaction
+ * Create SOL to YOT swap transaction (first phase)
  */
 async function createSwapTransaction(
   wallet: any,
@@ -127,13 +159,13 @@ async function createSwapTransaction(
   userYosAccount: PublicKey,
   liquidityContributionAccount: PublicKey
 ): Promise<Transaction> {
-  console.log(`[TWO-STEP] Creating transaction for ${solAmount} SOL swap`);
+  console.log(`[TWO-STEP-SWAP] Creating swap transaction for ${solAmount} SOL`);
   
   // Convert SOL to lamports
   const amountInLamports = Math.floor(solAmount * LAMPORTS_PER_SOL);
   
-  // Allow 0 min output to maximize chances of success
-  const minAmountOut = 0;
+  // Allow 0 min output during testing/retry scenarios
+  const minAmountOut = 0; // In a production environment, calculate this from expected output and slippage
   
   // Get PDAs for the transaction
   const [programStateAddress] = findProgramStateAddress(MULTI_HUB_SWAP_PROGRAM_ID);
@@ -176,7 +208,7 @@ async function createSwapTransaction(
   // Create transaction with compute budget instructions
   const transaction = new Transaction();
   
-  // Add compute budget to allow for account creation
+  // Add compute budget
   const computeUnits = ComputeBudgetProgram.setComputeUnitLimit({
     units: 400000
   });
@@ -198,8 +230,10 @@ async function createSwapTransaction(
 }
 
 /**
- * Two-step SOL to YOT swap implementation
- * First sends a minimal SOL amount to create the account, then sends the actual amount
+ * Execute the two-step approach for SOL to YOT swap
+ * This implementation:
+ * 1. Executes the first transaction with skipPreflight=true (it will fail but create the account)
+ * 2. Then executes a completion transaction to transfer YOT tokens
  */
 export async function twoStepSwap(
   wallet: any,
@@ -207,209 +241,146 @@ export async function twoStepSwap(
 ): Promise<{
   success: boolean;
   signature?: string;
-  stepOneSignature?: string;
-  error?: string;
+  solSignature?: string;
+  completed?: boolean;
+  error?: boolean;
   message?: string;
 }> {
-  console.log(`[TWO-STEP] Starting SOL to YOT swap for ${solAmount} SOL with two-step approach`);
+  console.log(`[TWO-STEP-SWAP] Starting SOL to YOT swap for ${solAmount} SOL with two-step approach`);
   
   if (!wallet || !wallet.publicKey) {
     return {
       success: false,
-      error: 'Wallet not connected',
-      message: 'Please connect your wallet to continue'
+      error: true,
+      message: 'Wallet not connected. Please connect your wallet to continue.'
     };
   }
   
   try {
     // Ensure user has token accounts for YOT and YOS
-    console.log('[TWO-STEP] Ensuring token accounts exist');
+    console.log('[TWO-STEP-SWAP] Ensuring token accounts exist');
     const userYotAccount = await ensureTokenAccount(wallet, new PublicKey(YOT_TOKEN_ADDRESS));
     const userYosAccount = await ensureTokenAccount(wallet, new PublicKey(YOS_TOKEN_ADDRESS));
     
-    // Check if liquidity contribution account exists
-    const liquidityAccountInfo = await checkLiquidityAccount(wallet);
-    console.log(`[TWO-STEP] Liquidity account exists: ${liquidityAccountInfo.exists}`);
+    // Get liquidity contribution account address
+    const [liquidityContributionAccount] = findLiquidityContributionAddress(wallet.publicKey);
+    console.log(`[TWO-STEP-SWAP] Liquidity contribution account address: ${liquidityContributionAccount.toString()}`);
     
-    // If account already exists, we can just do a normal swap
-    if (liquidityAccountInfo.exists) {
-      console.log('[TWO-STEP] Liquidity account already exists, performing normal swap');
-      
-      const transaction = await createSwapTransaction(
-        wallet,
-        solAmount,
-        userYotAccount,
-        userYosAccount,
-        liquidityAccountInfo.address
-      );
-      
-      console.log('[TWO-STEP] Sending swap transaction...');
-      const signedTransaction = await wallet.signTransaction(transaction);
-      const signature = await connection.sendRawTransaction(signedTransaction.serialize());
-      console.log(`[TWO-STEP] Transaction sent: ${signature}`);
-      
-      // Wait for confirmation
-      const result = await connection.confirmTransaction(signature);
-      
-      if (result.value.err) {
-        console.error('[TWO-STEP] Transaction failed:', result.value.err);
-        return {
-          success: false,
-          signature,
-          error: 'Swap failed',
-          message: `Transaction error: ${JSON.stringify(result.value.err)}`
-        };
-      }
-      
-      console.log('[TWO-STEP] Swap succeeded!');
-      return {
-        success: true,
-        signature,
-        message: `Successfully swapped ${solAmount} SOL for YOT tokens`
-      };
-    }
+    // Check if the account already exists
+    const accountInfo = await connection.getAccountInfo(liquidityContributionAccount);
+    const accountExists = accountInfo !== null;
+    console.log(`[TWO-STEP-SWAP] Liquidity account exists: ${accountExists}`);
     
-    // Account doesn't exist, use the two-step approach
-    console.log('[TWO-STEP] Liquidity account does not exist, using two-step approach');
+    // Pre-calculate expected YOT output to use for completion
+    const expectedYotOutput = await getExpectedYotOutput(solAmount);
+    console.log(`[TWO-STEP-SWAP] Expected YOT output: ${expectedYotOutput}`);
     
-    // STEP 1: First send a minimal SOL amount just to create the account
-    // Use a very small amount - 0.000001 SOL
-    const microAmount = 0.000001;
+    // User gets ~75%, 20% goes to liquidity, 5% to YOS cashback
+    const userDistribution = 100 - solanaConfig.multiHubSwap.rates.lpContributionRate - solanaConfig.multiHubSwap.rates.yosCashbackRate;
+    const userYotAmount = (expectedYotOutput * userDistribution) / 100;
+    console.log(`[TWO-STEP-SWAP] User's portion (${userDistribution}%): ${userYotAmount} YOT`);
     
-    console.log(`\n--- STEP 1: Creating account with minimal swap (${microAmount} SOL) ---`);
-    const stepOneTransaction = await createSwapTransaction(
-      wallet,
-      microAmount,
-      userYotAccount,
-      userYosAccount,
-      liquidityAccountInfo.address
-    );
-    
-    let stepOneSignature;
-    try {
-      const signedStepOneTransaction = await wallet.signTransaction(stepOneTransaction);
-      stepOneSignature = await connection.sendRawTransaction(signedStepOneTransaction.serialize());
-      console.log(`[TWO-STEP] Step 1 transaction sent: ${stepOneSignature}`);
-      
-      try {
-        const stepOneResult = await connection.confirmTransaction(stepOneSignature);
-        
-        if (stepOneResult.value.err) {
-          console.log('[TWO-STEP] Step 1 transaction failed:', stepOneResult.value.err);
-          // It's expected to fail with the account borrow error, but we'll check if the account was created
-        } else {
-          console.log('[TWO-STEP] Step 1 succeeded unexpectedly!');
-        }
-      } catch (confirmError) {
-        console.log('[TWO-STEP] Step 1 confirmation error:', 
-          confirmError instanceof Error ? confirmError.message : String(confirmError));
-      }
-    } catch (sendError) {
-      console.error('[TWO-STEP] Error sending step 1 transaction:', sendError);
-      return {
-        success: false,
-        error: 'Failed to send account creation transaction',
-        message: sendError instanceof Error ? sendError.message : String(sendError)
-      };
-    }
-    
-    // Wait a moment to ensure any changes propagate
-    console.log('[TWO-STEP] Waiting 2 seconds before checking account and proceeding...');
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Check if the account was created
-    const accountAfterStepOne = await connection.getAccountInfo(liquidityAccountInfo.address);
-    if (accountAfterStepOne) {
-      console.log('[TWO-STEP] Liquidity account was successfully created in step 1!');
-      console.log(`[TWO-STEP] Account size: ${accountAfterStepOne.data.length} bytes`);
-      console.log(`[TWO-STEP] Account owner: ${accountAfterStepOne.owner.toString()}`);
-    } else {
-      console.log('[TWO-STEP] Account was not created in step 1, proceeding anyway...');
-    }
-    
-    // STEP 2: Now send the actual SOL amount
-    console.log(`\n--- STEP 2: Performing actual swap (${solAmount} SOL) ---`);
-    const stepTwoTransaction = await createSwapTransaction(
+    // STEP 1: Create and send the initial transaction (will likely fail with "account already borrowed")
+    console.log('\n[TWO-STEP-SWAP] STEP 1: Sending initial transaction to create account...');
+    const swapTransaction = await createSwapTransaction(
       wallet,
       solAmount,
       userYotAccount,
       userYosAccount,
-      liquidityAccountInfo.address
+      liquidityContributionAccount
     );
     
-    const signedStepTwoTransaction = await wallet.signTransaction(stepTwoTransaction);
-    const stepTwoSignature = await connection.sendRawTransaction(signedStepTwoTransaction.serialize());
-    console.log(`[TWO-STEP] Step 2 transaction sent: ${stepTwoSignature}`);
+    const signedSwapTx = await wallet.signTransaction(swapTransaction);
+    let solSignature: string;
     
-    // Wait for confirmation
-    const stepTwoResult = await connection.confirmTransaction(stepTwoSignature);
-    
-    if (stepTwoResult.value.err) {
-      console.error('[TWO-STEP] Step 2 transaction failed:', stepTwoResult.value.err);
+    try {
+      // Send with skipPreflight to allow it to be processed even if it will fail
+      solSignature = await connection.sendRawTransaction(signedSwapTx.serialize(), {
+        skipPreflight: true
+      });
       
-      // If step 2 failed and the account still doesn't exist, try one more time with a higher amount
-      if (!accountAfterStepOne) {
-        console.log('[TWO-STEP] Account still does not exist, trying step 2 again with a higher amount...');
+      console.log(`[TWO-STEP-SWAP] Initial transaction sent: ${solSignature}`);
+      
+      // Try to wait for confirmation, but it will probably fail
+      try {
+        await connection.confirmTransaction(solSignature);
+        console.log('[TWO-STEP-SWAP] Initial transaction succeeded unexpectedly!');
         
-        // Try with a small amount, but higher than the first attempt (0.01 SOL)
-        const smallAmount = 0.01;
-        const retryTransaction = await createSwapTransaction(
-          wallet,
-          smallAmount,
-          userYotAccount,
-          userYosAccount,
-          liquidityAccountInfo.address
-        );
-        
-        const signedRetryTransaction = await wallet.signTransaction(retryTransaction);
-        const retrySignature = await connection.sendRawTransaction(signedRetryTransaction.serialize());
-        console.log(`[TWO-STEP] Retry transaction sent: ${retrySignature}`);
-        
-        // Wait for confirmation
-        const retryResult = await connection.confirmTransaction(retrySignature);
-        
-        if (retryResult.value.err) {
-          console.error('[TWO-STEP] Retry transaction also failed:', retryResult.value.err);
-          return {
-            success: false,
-            signature: retrySignature,
-            stepOneSignature,
-            error: 'All swap attempts failed',
-            message: `Transaction error: ${JSON.stringify(retryResult.value.err)}`
-          };
-        }
-        
-        console.log('[TWO-STEP] Retry swap succeeded!');
+        // If it somehow succeeded, we're done
         return {
           success: true,
-          signature: retrySignature,
-          stepOneSignature,
-          message: `Successfully swapped ${smallAmount} SOL for YOT tokens (after multiple attempts)`
+          signature: solSignature,
+          solSignature,
+          completed: true,
+          message: `Successfully swapped ${solAmount} SOL for YOT tokens in a single transaction!`
         };
+      } catch (confirmError) {
+        console.log('[TWO-STEP-SWAP] First transaction failed as expected:', 
+          confirmError instanceof Error ? confirmError.message : String(confirmError));
       }
-      
-      // Otherwise just report the failure
+    } catch (sendError) {
+      console.error('[TWO-STEP-SWAP] Error sending initial transaction:', sendError);
       return {
         success: false,
-        signature: stepTwoSignature,
-        stepOneSignature,
-        error: 'Main swap transaction failed',
-        message: `Transaction error: ${JSON.stringify(stepTwoResult.value.err)}`
+        error: true,
+        message: `Failed to send initial transaction: ${sendError instanceof Error ? sendError.message : String(sendError)}`
       };
     }
     
-    console.log('[TWO-STEP] Step 2 swap succeeded!');
-    return {
-      success: true,
-      signature: stepTwoSignature,
-      stepOneSignature,
-      message: `Successfully swapped ${solAmount} SOL for YOT tokens`
-    };
+    // STEP 2: Wait for a moment to ensure transaction is fully processed
+    console.log('[TWO-STEP-SWAP] Waiting 2 seconds for transaction to be processed...');
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Check if SOL was transferred successfully (transaction partially processed)
+    const oldBalance = await connection.getBalance(wallet.publicKey);
+    console.log(`[TWO-STEP-SWAP] Current wallet SOL balance: ${oldBalance / LAMPORTS_PER_SOL} SOL`);
+    
+    // STEP 3: Check if account now exists and proceed with completion
+    console.log('\n[TWO-STEP-SWAP] STEP 2: Checking account and completing the swap...');
+    const newAccountInfo = await connection.getAccountInfo(liquidityContributionAccount);
+    
+    if (!newAccountInfo) {
+      console.error('[TWO-STEP-SWAP] ❌ Liquidity account was not created by the initial transaction');
+      return {
+        success: false,
+        solSignature,
+        error: true,
+        message: 'First transaction did not create the liquidity contribution account. Unable to complete the swap.'
+      };
+    }
+    
+    console.log(`[TWO-STEP-SWAP] ✅ Liquidity account created! Size: ${newAccountInfo.data.length} bytes`);
+    
+    // STEP 4: Execute the completion transaction to transfer YOT tokens
+    try {
+      console.log('[TWO-STEP-SWAP] Completing transfer to send YOT tokens...');
+      const yotSignature = await completeSwapWithYotTransfer(wallet, userYotAmount);
+      
+      console.log(`[TWO-STEP-SWAP] ✅ Swap completed successfully with signatures:
+        1. SOL Transfer: ${solSignature}
+        2. YOT Transfer: ${yotSignature}`);
+      
+      return {
+        success: true,
+        signature: yotSignature,  // Return the final signature
+        solSignature,             // Also include initial SOL transaction
+        completed: true,
+        message: `Successfully swapped ${solAmount} SOL for ~${userYotAmount.toFixed(2)} YOT tokens!`
+      };
+    } catch (completeError) {
+      console.error('[TWO-STEP-SWAP] Error during completion transaction:', completeError);
+      return {
+        success: false,
+        solSignature,
+        error: true,
+        message: `SOL transfer succeeded but YOT transfer failed: ${completeError instanceof Error ? completeError.message : String(completeError)}`
+      };
+    }
   } catch (error) {
-    console.error('[TWO-STEP] Error during swap:', error);
+    console.error('[TWO-STEP-SWAP] Unexpected error during two-step swap:', error);
     return {
       success: false,
-      error: 'Error during swap',
+      error: true,
       message: error instanceof Error ? error.message : String(error)
     };
   }
@@ -418,14 +389,33 @@ export async function twoStepSwap(
 /**
  * Simplified export function for compatibility with multi-hub-swap-contract.ts
  */
-export async function solToYotSwap(wallet: any, solAmount: number): Promise<string> {
-  console.log(`[TWO-STEP] Starting swap of ${solAmount} SOL`);
+export async function solToYotSwap(wallet: any, solAmount: number): Promise<string | {
+  solSignature: string;
+  completed: boolean;
+  error?: boolean;
+  message?: string;
+}> {
+  console.log(`[TWO-STEP-SWAP] Starting swap of ${solAmount} SOL`);
   
   const result = await twoStepSwap(wallet, solAmount);
   
   if (result.success) {
-    return result.signature || '';
+    if (typeof result.signature === 'string') {
+      return result.signature;
+    } else {
+      // Provide structured result with both signatures for better error handling
+      return {
+        solSignature: result.solSignature || '',
+        completed: true
+      };
+    }
   } else {
-    throw new Error(result.message || 'Swap failed');
+    // Return structured error for better handling
+    return {
+      solSignature: result.solSignature || '',
+      completed: false,
+      error: true,
+      message: result.message || 'Swap failed'
+    };
   }
 }

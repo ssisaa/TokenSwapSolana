@@ -30,6 +30,8 @@ import {
 
 // Create a connection to the Solana cluster
 export const connection = new Connection(ENDPOINT, 'confirmed');
+// Export this as solanaConnection as well for modules that import it with that name
+export { connection as solanaConnection };
 
 // Convert lamports to SOL
 export function lamportsToSol(lamports: number): number {
