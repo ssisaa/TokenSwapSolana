@@ -1633,3 +1633,166 @@ pub fn process_yot_to_sol_swap_immediate(
     
     Ok(())
 }
+
+/// Process add-liquidity-from-central-wallet instruction
+/// When the central liquidity wallet has accumulated enough assets (reached threshold),
+/// this instruction will take those assets and add them to the SOL-YOT liquidity pool
+/// with a 50/50 ratio split
+pub fn process_add_liquidity_from_central_wallet(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+) -> ProgramResult {
+    msg!("Processing add-liquidity-from-central-wallet instruction");
+    
+    let accounts_iter = &mut accounts.iter();
+    
+    // Parse accounts
+    let admin_account = next_account_info(accounts_iter)?;             // Admin wallet (must be signer)
+    let program_state_account = next_account_info(accounts_iter)?;     // Program state
+    let program_authority = next_account_info(accounts_iter)?;         // Program authority PDA
+    let sol_pool_account = next_account_info(accounts_iter)?;          // SOL pool account
+    let yot_pool_account = next_account_info(accounts_iter)?;          // YOT token pool account
+    let central_liquidity_wallet = next_account_info(accounts_iter)?;  // Central liquidity wallet (contains accumulated SOL)
+    let central_yot_account = next_account_info(accounts_iter)?;       // Central YOT account (contains accumulated YOT)
+    let lp_mint = next_account_info(accounts_iter)?;                   // LP token mint
+    let lp_token_account = next_account_info(accounts_iter)?;          // Admin's LP token account (to receive LP tokens)
+    let system_program = next_account_info(accounts_iter)?;            // System program
+    let token_program = next_account_info(accounts_iter)?;             // Token program
+    let _rent = next_account_info(accounts_iter)?;                     // Rent sysvar
+    
+    // Verify admin is a signer
+    if !admin_account.is_signer {
+        msg!("Error: Admin must sign the transaction");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+    
+    // Verify PDAs
+    let (expected_program_state, _) = find_program_state_address(program_id);
+    if expected_program_state != *program_state_account.key {
+        msg!("Error: Invalid program state account");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    let (expected_program_authority, authority_bump) = find_program_authority(program_id);
+    if expected_program_authority != *program_authority.key {
+        msg!("Error: Invalid program authority account");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Load program state
+    let program_state = ProgramState::unpack(&program_state_account.data.borrow())?;
+    
+    // Verify admin is authorized
+    if program_state.admin != *admin_account.key {
+        msg!("Error: Only the admin can call this instruction");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Verify central liquidity wallet matches program state
+    if program_state.liquidity_wallet != *central_liquidity_wallet.key {
+        msg!("Error: Invalid central liquidity wallet account");
+        msg!("Expected: {}", program_state.liquidity_wallet);
+        msg!("Provided: {}", central_liquidity_wallet.key);
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Get balances
+    let central_sol_balance = central_liquidity_wallet.lamports();
+    let central_yot_data = central_yot_account.data.borrow();
+    let central_yot_token_account = spl_token::state::Account::unpack(&central_yot_data)?;
+    let central_yot_balance = central_yot_token_account.amount;
+    
+    // Check if threshold is reached
+    if central_sol_balance < program_state.liquidity_threshold {
+        msg!("Error: Liquidity threshold not reached");
+        msg!("Current balance: {}, Threshold: {}", central_sol_balance, program_state.liquidity_threshold);
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Calculate amounts to add to liquidity (50% of available balance)
+    let sol_amount_to_add = central_sol_balance / 2;
+    
+    // Calculate equivalent YOT amount for AMM ratio
+    let sol_pool_balance = sol_pool_account.lamports();
+    let yot_pool_data = yot_pool_account.data.borrow();
+    let yot_pool_token_account = spl_token::state::Account::unpack(&yot_pool_data)?;
+    let yot_pool_balance = yot_pool_token_account.amount;
+    
+    // Calculate YOT amount needed to maintain pool ratio
+    let yot_amount_to_add = (sol_amount_to_add as u128)
+        .checked_mul(yot_pool_balance as u128).unwrap_or(0)
+        .checked_div(sol_pool_balance as u128).unwrap_or(0) as u64;
+    
+    // Verify we have enough YOT in central wallet
+    if central_yot_balance < yot_amount_to_add {
+        msg!("Error: Not enough YOT in central liquidity wallet");
+        msg!("Required: {}, Available: {}", yot_amount_to_add, central_yot_balance);
+        return Err(ProgramError::InsufficientFunds);
+    }
+    
+    msg!("Adding liquidity to SOL-YOT pool:");
+    msg!("SOL amount: {} lamports", sol_amount_to_add);
+    msg!("YOT amount: {} tokens", yot_amount_to_add);
+    
+    // Step 1: Transfer SOL from central wallet to pool
+    invoke_signed(
+        &system_instruction::transfer(
+            central_liquidity_wallet.key,
+            sol_pool_account.key,
+            sol_amount_to_add,
+        ),
+        &[
+            central_liquidity_wallet.clone(),
+            sol_pool_account.clone(),
+            system_program.clone(),
+        ],
+        &[&[b"authority", &[authority_bump]]],
+    )?;
+    
+    // Step 2: Transfer YOT from central wallet to pool
+    invoke_signed(
+        &spl_token::instruction::transfer(
+            token_program.key,
+            central_yot_account.key,
+            yot_pool_account.key,
+            program_authority.key,
+            &[],
+            yot_amount_to_add,
+        )?,
+        &[
+            central_yot_account.clone(),
+            yot_pool_account.clone(),
+            program_authority.clone(),
+            token_program.clone(),
+        ],
+        &[&[b"authority", &[authority_bump]]],
+    )?;
+    
+    // Step 3: Mint LP tokens to admin's LP token account
+    // The amount of LP tokens minted should be proportional to the liquidity added
+    // For simplicity, we'll use the geometric mean of the two amounts
+    let lp_amount = ((sol_amount_to_add as f64) * (yot_amount_to_add as f64)).sqrt() as u64;
+    
+    invoke_signed(
+        &spl_token::instruction::mint_to(
+            token_program.key,
+            lp_mint.key,
+            lp_token_account.key,
+            program_authority.key,
+            &[],
+            lp_amount,
+        )?,
+        &[
+            lp_mint.clone(),
+            lp_token_account.clone(),
+            program_authority.clone(),
+            token_program.clone(),
+        ],
+        &[&[b"authority", &[authority_bump]]],
+    )?;
+    
+    msg!("Liquidity successfully added to SOL-YOT pool!");
+    msg!("LP tokens minted: {}", lp_amount);
+    
+    Ok(())
+}

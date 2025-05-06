@@ -41,6 +41,11 @@
       "programState": "2sR6kFJfCa7oG9hrMWxeTK6ESir7PNZe4vky2JDiNrKC",
       "programAuthority": "Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ",
       "admin": "AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ",
+      "centralLiquidity": {
+        "wallet": "Bf78XttEfzR4iM3JCWfwgSCpd5MHePTMD2UKBEZU6coH", 
+        "threshold": 100000000,
+        "yotAccount": "EieVwYpDMdKr94iQygkyCeEBMhRWA4XsXyGumXztza74"
+      },
       "rates": {
         "lpContributionRate": 2000,
         "adminFeeRate": 10,
@@ -71,7 +76,8 @@
         "buyAndDistribute": [6, 240, 93, 246, 87, 224, 215, 175],
         "claimReward": [146, 113, 97, 51, 55, 103, 32, 159],
         "withdrawContribution": [52, 21, 251, 13, 191, 179, 204, 196],
-        "updateParameters": [98, 103, 208, 178, 254, 106, 239, 67]
+        "updateParameters": [98, 103, 208, 178, 254, 106, 239, 67],
+        "addLiquidityFromCentral": [11]
       },
       "stats": {
         "totalLiquidityContributed": 25000,
