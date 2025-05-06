@@ -34,12 +34,7 @@
     },
     "pool": {
       "authority": "CeuRAzZ58St8B29XKWo647CGtY7FL5qpwv8WGZUHAuA9",
-      "solAccount": "Bf78XttEfzR4iM3JCWfwgSCpd5MHePTMD2UKBEZU6coH",
-      "fallbackBalances": {
-        "sol": 6.5,
-        "yot": 1000000000,
-        "yos": 10000000000
-      }
+      "solAccount": "Bf78XttEfzR4iM3JCWfwgSCpd5MHePTMD2UKBEZU6coH"
     },
     "multiHubSwap": {
       "programId": "SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE",

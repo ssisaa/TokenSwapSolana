@@ -1604,12 +1604,9 @@ async function getPoolBalances(): Promise<[number, number, number]> {
     return [solBalanceNormalized, yotBalance, yosBalance];
   } catch (error: any) {
     console.error("Error fetching pool balances:", error);
-    // Don't use fallbacks - propagate the error
-    if (error.message && error.message.includes("Insufficient")) {
-      throw error; // Re-throw the original error about insufficient liquidity
-    } else {
-      throw new Error("Failed to retrieve pool balances from blockchain");
-    }
+    // In all cases, throw errors and never use fallbacks
+    // This forces the caller to handle the error properly
+    throw new Error("Failed to retrieve real pool balances from blockchain. Error: " + error.message);
   }
 }
 
