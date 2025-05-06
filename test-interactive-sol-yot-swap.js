@@ -1,287 +1,263 @@
-const { Connection, Keypair, PublicKey, LAMPORTS_PER_SOL, Transaction, SystemProgram, sendAndConfirmTransaction } = require('@solana/web3.js');
-const { getOrCreateAssociatedTokenAccount, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getAccount, TokenAccountNotFoundError } = require('@solana/spl-token');
-const fs = require('fs');
-const readline = require('readline');
+/**
+ * Interactive test script for SOL to YOT swap using the web UI
+ * This test demonstrates the user experience of performing a swap through the web interface
+ */
 
-// Load app config
-const appConfig = JSON.parse(fs.readFileSync('./app.config.json', 'utf8'));
-const { solana: solanaConfig } = appConfig;
+import { Connection, PublicKey, Keypair, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { getAssociatedTokenAddress } from '@solana/spl-token';
+import * as readline from 'readline';
+import * as fs from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
-// Constants
-const YOT_TOKEN_ADDRESS = solanaConfig.tokens.yot;
-const ENDPOINT = solanaConfig.endpoints.devnet;
-const POOL_AUTHORITY = solanaConfig.pool.authority;
-const POOL_SOL_ACCOUNT = solanaConfig.pool.solAccount;
-const YOT_TOKEN_ACCOUNT = solanaConfig.pool.yotAccount;
-const PROGRAM_ID = solanaConfig.multiHubSwap.programId;
+// Get current directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-// Create connection to devnet
-const connection = new Connection(ENDPOINT, 'confirmed');
+// Program and Token Constants (Must match what's in on-chain program)
+const MULTI_HUB_SWAP_PROGRAM_ID = 'Js9TqdpLBsF7M64ra2mYNyfbPTWwTvBUNR85wsEoSKP';
+const YOT_TOKEN_ADDRESS = '9KxQHJcBxp29AjGTAqF3LCFzodSpkuv986wsSEwQi6Cw';
+const YOS_TOKEN_ADDRESS = '2SWCnck3vLAVKaLkAjVtNnsVJVGYmGzyNVnte48SQRop';
+const POOL_SOL_ACCOUNT = 'Bf78XttEfzR4iM3JCWfwgSCpd5MHePTMD2UKBEZU6coH';
+const POOL_AUTHORITY = 'CeuRAzZ58St8B29XKWo647CGtY7FL5qpwv8WGZUHAuA9';
+const DEVNET_ENDPOINT = 'https://api.devnet.solana.com';
 
-// Interface for user input
+// Create a readline interface for user interaction
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
 });
 
-// Load wallet from file for testing
+// Helper function to ask questions
+function ask(question) {
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      resolve(answer);
+    });
+  });
+}
+
+// Load wallet from keypair file
 function loadWalletFromFile() {
   try {
-    // Path to your keypair file (this should be a testing wallet with some SOL)
-    const keypairFile = '.keypair-test.json'; // Create this file or replace with your file path
-    
-    if (!fs.existsSync(keypairFile)) {
-      console.log('Keypair file not found. You need to create a test wallet first.');
-      console.log('Run: solana-keygen new --outfile .keypair-test.json');
-      process.exit(1);
-    }
-    
-    const secretKey = new Uint8Array(JSON.parse(fs.readFileSync(keypairFile, 'utf8')));
-    return Keypair.fromSecretKey(secretKey);
+    // Use existing keypair for consistency in testing
+    const keypairData = JSON.parse(fs.readFileSync('./program-keypair.json', 'utf-8'));
+    return Keypair.fromSecretKey(new Uint8Array(keypairData));
   } catch (error) {
     console.error('Error loading wallet:', error);
     process.exit(1);
   }
 }
 
-async function checkBalances(wallet) {
+// Display wallet balance
+async function displayWalletBalance(connection, wallet) {
   try {
-    // Check SOL balance
+    // Get SOL balance
     const solBalance = await connection.getBalance(wallet.publicKey);
     console.log(`SOL Balance: ${solBalance / LAMPORTS_PER_SOL} SOL`);
     
-    // Check YOT balance
+    // Try to get YOT balance if token account exists
     try {
-      const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
-      const tokenAddress = await getAssociatedTokenAddress(yotMint, wallet.publicKey);
-      
-      try {
-        const tokenAccount = await connection.getTokenAccountBalance(tokenAddress);
-        console.log(`YOT Balance: ${tokenAccount.value.uiAmount} YOT`);
-        return { sol: solBalance / LAMPORTS_PER_SOL, yot: tokenAccount.value.uiAmount };
-      } catch (err) {
-        console.log('YOT token account does not exist yet.');
-        return { sol: solBalance / LAMPORTS_PER_SOL, yot: 0 };
-      }
-    } catch (err) {
-      console.error('Error checking YOT balance:', err);
-      return { sol: solBalance / LAMPORTS_PER_SOL, yot: 0 };
-    }
-  } catch (err) {
-    console.error('Error checking balances:', err);
-    return { sol: 0, yot: 0 };
-  }
-}
-
-// Check if the token account exists, if not, create it
-async function createTokenAccountIfNeeded(wallet) {
-  const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
-  const yotTokenAddress = await getAssociatedTokenAddress(yotMint, wallet.publicKey);
-  
-  try {
-    await getAccount(connection, yotTokenAddress);
-    console.log('YOT token account already exists');
-    return yotTokenAddress;
-  } catch (error) {
-    if (error instanceof TokenAccountNotFoundError) {
-      console.log('Creating YOT token account...');
-      const transaction = new Transaction().add(
-        createAssociatedTokenAccountInstruction(
-          wallet.publicKey, // payer
-          yotTokenAddress, // associated token address
-          wallet.publicKey, // owner
-          yotMint // mint
-        )
+      const yotAccount = await getAssociatedTokenAddress(
+        new PublicKey(YOT_TOKEN_ADDRESS),
+        wallet.publicKey
       );
       
-      const signature = await sendAndConfirmTransaction(connection, transaction, [wallet]);
-      console.log('Token account created:', signature);
-      return yotTokenAddress;
-    }
-    throw error;
-  }
-}
-
-// Test pool balances
-async function checkPoolBalances() {
-  try {
-    // Get pool's SOL balance
-    const poolSolAccount = new PublicKey(POOL_SOL_ACCOUNT);
-    const solBalance = await connection.getBalance(poolSolAccount);
-    console.log(`Pool SOL Balance: ${solBalance / LAMPORTS_PER_SOL} SOL`);
-    
-    // Get pool's YOT balance
-    try {
-      const yotPoolAccount = new PublicKey(YOT_TOKEN_ACCOUNT);
-      
-      try {
-        const tokenAccount = await connection.getTokenAccountBalance(yotPoolAccount);
-        console.log(`Pool YOT Balance: ${tokenAccount.value.uiAmount} YOT`);
-        return { sol: solBalance / LAMPORTS_PER_SOL, yot: tokenAccount.value.uiAmount };
-      } catch (err) {
-        console.log('Pool YOT token account not found or empty.');
-        return { sol: solBalance / LAMPORTS_PER_SOL, yot: 0 };
+      const yotAccountInfo = await connection.getAccountInfo(yotAccount);
+      if (yotAccountInfo) {
+        const tokenBalance = await connection.getTokenAccountBalance(yotAccount);
+        console.log(`YOT Balance: ${tokenBalance.value.uiAmount} YOT`);
+      } else {
+        console.log('YOT token account does not exist yet');
       }
-    } catch (err) {
-      console.error('Error checking pool YOT balance:', err);
-      return { sol: solBalance / LAMPORTS_PER_SOL, yot: 0 };
+    } catch (error) {
+      console.log('YOT token account does not exist yet');
     }
-  } catch (err) {
-    console.error('Error checking pool balances:', err);
-    return { sol: 0, yot: 0 };
+    
+    // Try to get YOS balance if token account exists
+    try {
+      const yosAccount = await getAssociatedTokenAddress(
+        new PublicKey(YOS_TOKEN_ADDRESS),
+        wallet.publicKey
+      );
+      
+      const yosAccountInfo = await connection.getAccountInfo(yosAccount);
+      if (yosAccountInfo) {
+        const tokenBalance = await connection.getTokenAccountBalance(yosAccount);
+        console.log(`YOS Balance: ${tokenBalance.value.uiAmount} YOS`);
+      } else {
+        console.log('YOS token account does not exist yet');
+      }
+    } catch (error) {
+      console.log('YOS token account does not exist yet');
+    }
+  } catch (error) {
+    console.error('Error getting balances:', error);
   }
 }
 
-// Calculate SOL to YOT swap rate based on pool balances
-async function calculateSwapRate() {
-  const poolBalances = await checkPoolBalances();
-  if (poolBalances.sol === 0 || poolBalances.yot === 0) {
-    console.error('Cannot calculate swap rate: Pool has zero balance');
-    return 0;
-  }
-  
-  const rate = poolBalances.yot / poolBalances.sol;
-  console.log(`Current exchange rate: 1 SOL = ${rate} YOT`);
-  return rate;
-}
-
-// Execute SOL to YOT swap (Step 1: Send SOL to pool)
-async function solToYotSwap(wallet, solAmount) {
-  console.log(`Swapping ${solAmount} SOL to YOT...`);
+// Calculate expected output based on pool data
+async function calculateExpectedOutput(connection, solAmount) {
   try {
-    // First, create YOT token account if it doesn't exist
-    await createTokenAccountIfNeeded(wallet);
+    // Get SOL pool balance
+    const solPoolBalance = await connection.getBalance(new PublicKey(POOL_SOL_ACCOUNT));
+    const solPoolBalanceNormalized = solPoolBalance / LAMPORTS_PER_SOL;
     
-    // Get pool SOL account
-    const poolSolAccount = new PublicKey(POOL_SOL_ACCOUNT);
-    
-    // Calculate SOL amount in lamports
-    const lamports = solAmount * LAMPORTS_PER_SOL;
-    
-    // Create transaction to send SOL to pool
-    const transaction = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: wallet.publicKey,
-        toPubkey: poolSolAccount,
-        lamports
-      })
+    // Get YOT pool balance
+    const yotPoolAccount = await getAssociatedTokenAddress(
+      new PublicKey(YOT_TOKEN_ADDRESS),
+      new PublicKey(POOL_AUTHORITY)
     );
     
-    // Send and confirm transaction
-    const signature = await sendAndConfirmTransaction(connection, transaction, [wallet]);
-    console.log('SOL sent to pool successfully!');
-    console.log('Transaction signature:', signature);
-    console.log('View on explorer:', `https://explorer.solana.com/tx/${signature}?cluster=devnet`);
+    const yotAccountInfo = await connection.getTokenAccountBalance(yotPoolAccount);
+    const yotPoolBalance = Number(yotAccountInfo.value.uiAmount || 0);
     
-    console.log('\nNOTE: In a real smart contract implementation, the next step would be to send');
-    console.log('YOT tokens back to the user, but that requires program authorization.');
-    console.log('This test only demonstrates the first part of the swap (sending SOL to pool).');
+    console.log(`Pool Balances: SOL=${solPoolBalanceNormalized}, YOT=${yotPoolBalance}`);
     
-    return signature;
+    // Calculate expected output using AMM formula
+    const expectedOutput = (solAmount * yotPoolBalance) / (solPoolBalanceNormalized + solAmount);
+    
+    // Calculate distribution based on configured rates
+    const lpContributionRate = 0.2; // 20%
+    const yosCashbackRate = 0.05;   // 5%
+    const userRate = 1 - lpContributionRate - yosCashbackRate; // 75%
+    
+    const userOutput = expectedOutput * userRate;
+    const liquidityOutput = expectedOutput * lpContributionRate;
+    const yosCashback = expectedOutput * yosCashbackRate;
+    
+    return {
+      totalOutput: expectedOutput,
+      userOutput,
+      liquidityOutput,
+      yosCashback
+    };
   } catch (error) {
-    console.error('Error executing swap:', error);
-    throw error;
+    console.error('Error calculating expected output:', error);
+    return {
+      totalOutput: 0,
+      userOutput: 0,
+      liquidityOutput: 0,
+      yosCashback: 0
+    };
   }
 }
 
-// Prompt user for SOL amount to swap
-function promptForSwap() {
-  rl.question('\nEnter amount of SOL to swap (e.g., 0.1) or type "exit" to quit: ', async (answer) => {
-    if (answer.toLowerCase() === 'exit') {
+// PDA derivation utility functions
+function getProgramStatePda() {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('state')],
+    new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
+  )[0];
+}
+
+function getProgramAuthorityPda() {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('authority')],
+    new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
+  )[0];
+}
+
+function getLiquidityContributionPda(userPublicKey) {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('liq'), userPublicKey.toBuffer()],
+    new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
+  )[0];
+}
+
+// Display PDAs
+function displayPDAs(wallet) {
+  const programState = getProgramStatePda();
+  const programAuthority = getProgramAuthorityPda();
+  const liquidityContribution = getLiquidityContributionPda(wallet.publicKey);
+  
+  console.log(`\nProgram-Derived Addresses (PDAs):`);
+  console.log(`• Program ID: ${MULTI_HUB_SWAP_PROGRAM_ID}`);
+  console.log(`• Program State: ${programState.toString()}`);
+  console.log(`• Program Authority: ${programAuthority.toString()}`);
+  console.log(`• Liquidity Contribution: ${liquidityContribution.toString()}`);
+  console.log(`• SOL Pool Account: ${POOL_SOL_ACCOUNT}`);
+  console.log(`• Pool Authority: ${POOL_AUTHORITY}`);
+  
+  console.log(`\nToken Addresses:`);
+  console.log(`• YOT Token: ${YOT_TOKEN_ADDRESS}`);
+  console.log(`• YOS Token: ${YOS_TOKEN_ADDRESS}`);
+}
+
+// Main function to simulate interactive swap experience
+async function interactiveSwapTest() {
+  try {
+    console.log('='.repeat(80));
+    console.log('INTERACTIVE SOL TO YOT SWAP TEST');
+    console.log('='.repeat(80));
+    
+    // Load wallet and connect to devnet
+    const wallet = loadWalletFromFile();
+    const connection = new Connection(DEVNET_ENDPOINT, 'confirmed');
+    
+    console.log(`\nWallet Public Key: ${wallet.publicKey.toString()}`);
+    
+    // Display PDAs
+    displayPDAs(wallet);
+    
+    // Display initial balances
+    console.log('\nInitial Balances:');
+    await displayWalletBalance(connection, wallet);
+    
+    // Ask for swap amount
+    console.log('\n' + '-'.repeat(80));
+    const solAmount = parseFloat(await ask('Enter SOL amount to swap (e.g., 0.01): '));
+    if (isNaN(solAmount) || solAmount <= 0) {
+      console.log('Invalid amount. Exiting...');
       rl.close();
       return;
     }
     
-    const amount = parseFloat(answer);
-    if (isNaN(amount) || amount <= 0) {
-      console.log('Please enter a valid positive number.');
-      promptForSwap();
+    // Calculate expected output
+    console.log('\nCalculating expected output...');
+    const { totalOutput, userOutput, liquidityOutput, yosCashback } = 
+      await calculateExpectedOutput(connection, solAmount);
+    
+    console.log(`\nExpected Output for ${solAmount} SOL:`);
+    console.log(`• Total YOT: ${totalOutput.toFixed(2)}`);
+    console.log(`• User Receives (75%): ${userOutput.toFixed(2)} YOT`);
+    console.log(`• Liquidity Pool (20%): ${liquidityOutput.toFixed(2)} YOT`);
+    console.log(`• YOS Cashback (5%): ${yosCashback.toFixed(2)} YOS`);
+    
+    // Confirm swap
+    console.log('\n' + '-'.repeat(80));
+    const confirm = await ask('Proceed with swap? (yes/no): ');
+    if (confirm.toLowerCase() !== 'yes') {
+      console.log('Swap cancelled. Exiting...');
+      rl.close();
       return;
     }
     
-    try {
-      // Load test wallet
-      const wallet = loadWalletFromFile();
-      
-      // Check balances before swap
-      console.log('\nBalances before swap:');
-      const balancesBefore = await checkBalances(wallet);
-      
-      // Calculate swap rate
-      const rate = await calculateSwapRate();
-      console.log(`Expected YOT to receive: ~${amount * rate} YOT`);
-      
-      // Confirm swap
-      rl.question(`\nConfirm swap of ${amount} SOL? (yes/no): `, async (confirmation) => {
-        if (confirmation.toLowerCase() === 'yes') {
-          try {
-            // Execute swap
-            await solToYotSwap(wallet, amount);
-            
-            // Check balances after swap
-            console.log('\nBalances after swap:');
-            const balancesAfter = await checkBalances(wallet);
-            
-            // Show difference
-            console.log('\nBalance changes:');
-            console.log(`SOL: ${balancesBefore.sol - balancesAfter.sol} SOL (sent to pool)`);
-            console.log(`YOT: ${balancesAfter.yot - balancesBefore.yot} YOT (should have received from pool)`);
-            
-            // Check pool balances after swap
-            console.log('\nPool balances after swap:');
-            await checkPoolBalances();
-            
-            promptForSwap();
-          } catch (error) {
-            console.error('Swap failed:', error);
-            promptForSwap();
-          }
-        } else {
-          console.log('Swap cancelled.');
-          promptForSwap();
-        }
-      });
-    } catch (error) {
-      console.error('Error:', error);
-      promptForSwap();
-    }
-  });
-}
-
-// Run the main test
-async function main() {
-  console.log('SOL-YOT Swap Interactive Test');
-  console.log('============================');
-  console.log('Pool Authority:', POOL_AUTHORITY);
-  console.log('Pool SOL Account:', POOL_SOL_ACCOUNT);
-  console.log('Pool YOT Account:', YOT_TOKEN_ACCOUNT);
-  console.log('YOT Token Address:', YOT_TOKEN_ADDRESS);
-  console.log('Program ID:', PROGRAM_ID);
-  console.log('============================');
-  
-  try {
-    // Load test wallet
-    const wallet = loadWalletFromFile();
-    console.log('Test Wallet:', wallet.publicKey.toString());
+    // Show instructions for web UI
+    console.log('\n' + '-'.repeat(80));
+    console.log('INSTRUCTIONS FOR WEB UI SWAP:');
+    console.log('-'.repeat(80));
+    console.log('1. Go to the Swap tab in the web UI');
+    console.log('2. Connect your wallet (Phantom or Solflare)');
+    console.log('3. Select SOL as the From token');
+    console.log('4. Select YOT as the To token');
+    console.log(`5. Enter ${solAmount} as the amount to swap`);
+    console.log('6. Click "Swap" and approve the transaction in your wallet');
+    console.log('\nAfter the swap is complete, return here and press Enter to continue...');
     
-    // Check wallet balances
-    console.log('\nWallet Balances:');
-    await checkBalances(wallet);
+    await ask('Press Enter when the swap is complete...');
     
-    // Check pool balances
-    console.log('\nPool Balances:');
-    await checkPoolBalances();
+    // Display final balances
+    console.log('\nFinal Balances:');
+    await displayWalletBalance(connection, wallet);
     
-    // Calculate current exchange rate
-    await calculateSwapRate();
-    
-    // Start interactive prompt
-    promptForSwap();
+    console.log('\nSwap test completed!');
+    rl.close();
   } catch (error) {
-    console.error('Test setup failed:', error);
+    console.error('Error during swap test:', error);
     rl.close();
   }
 }
 
-// Run the test
-main();
+// Run the interactive test
+interactiveSwapTest().catch(console.error);

@@ -1,0 +1,151 @@
+SECURE_SWAP] Transaction failed preflight checks, trying with skipPreflight=true: SendTransactionError: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 2: instruction tries to borrow reference for an account which is already borrowed. 
+Logs: 
+[
+  "Program 11111111111111111111111111111111 invoke [2]",
+  "Program 11111111111111111111111111111111 success",
+  "Program log: Calculated YOT output: 13511687609782461",
+  "Program log: Distribution: User: 10809350087825968, Liquidity: 2702337521956492, YOS Cashback: 675584380489123",
+  "Program log: Creating new liquidity contribution account for tracking",
+  "Program 11111111111111111111111111111111 invoke [2]",
+  "Program 11111111111111111111111111111111 success",
+  "Program log: Transferring 10809350087825968 YOT tokens to user (80%)",
+  "Program Js9TqdpLBsF7M64ra2mYNyfbPTWwTvBUNR85wsEoSKP consumed 23045 of 399700 compute units",
+  "Program Js9TqdpLBsF7M64ra2mYNyfbPTWwTvBUNR85wsEoSKP failed: instruction tries to borrow reference for an account which is already borrowed"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at Connection.sendEncodedTransaction (chunk-5JHCWNWN.js?v=6c373433:11073:13)
+    at async Connection.sendRawTransaction (chunk-5JHCWNWN.js?v=6c373433:11040:20)
+    at async solToYotSwap (secureSwap.ts:731:19)
+    at async executeSwap (multi-hub-swap-contract.ts:1561:22)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+solToYotSwap @ secureSwap.ts:737
+await in solToYotSwap
+executeSwap @ multi-hub-swap-contract.ts:1561
+await in executeSwap
+performSwap @ MultiHubSwapCard.tsx:403
+await in performSwap
+onClick @ MultiHubSwapCard.tsx:1009
+callCallback2 @ chunk-276SZO74.js?v=6c373433:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=6c373433:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=6c373433:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=6c373433:3736
+executeDispatch @ chunk-276SZO74.js?v=6c373433:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=6c373433:7034
+processDispatchQueue @ chunk-276SZO74.js?v=6c373433:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=6c373433:7051
+(anonymous) @ chunk-276SZO74.js?v=6c373433:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=6c373433:18913
+batchedUpdates @ chunk-276SZO74.js?v=6c373433:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=6c373433:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=6c373433:5478
+dispatchEvent @ chunk-276SZO74.js?v=6c373433:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=6c373433:5449Understand this warning
+secureSwap.ts:747 [SECURE_SWAP] Transaction sent: 4FhzxZ5N1RoBW8vNsSJmu6SgFZNmqH7a6Gc6jD89JK8y9fgAxZvrLrnwcfQkEpANnkmaJn76VKrYxBPYdMY31W7V
+secureSwap.ts:748 [SECURE_SWAP] View on explorer: https://explorer.solana.com/tx/4FhzxZ5N1RoBW8vNsSJmu6SgFZNmqH7a6Gc6jD89JK8y9fgAxZvrLrnwcfQkEpANnkmaJn76VKrYxBPYdMY31W7V?cluster=devnet
+secureSwap.ts:752 [SECURE_SWAP] Confirming with lastValidBlockHeight + 150 = 367065604
+secureSwap.ts:762 [SECURE_SWAP] Transaction failed: {InstructionError: Array(2)}
+solToYotSwap @ secureSwap.ts:762
+await in solToYotSwap
+executeSwap @ multi-hub-swap-contract.ts:1561
+await in executeSwap
+performSwap @ MultiHubSwapCard.tsx:403
+await in performSwap
+onClick @ MultiHubSwapCard.tsx:1009
+callCallback2 @ chunk-276SZO74.js?v=6c373433:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=6c373433:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=6c373433:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=6c373433:3736
+executeDispatch @ chunk-276SZO74.js?v=6c373433:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=6c373433:7034
+processDispatchQueue @ chunk-276SZO74.js?v=6c373433:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=6c373433:7051
+(anonymous) @ chunk-276SZO74.js?v=6c373433:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=6c373433:18913
+batchedUpdates @ chunk-276SZO74.js?v=6c373433:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=6c373433:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=6c373433:5478
+dispatchEvent @ chunk-276SZO74.js?v=6c373433:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=6c373433:5449Understand this error
+secureSwap.ts:769 [SECURE_SWAP] Error sending transaction: Error: Transaction failed: {"InstructionError":[2,"AccountBorrowFailed"]}
+    at solToYotSwap (secureSwap.ts:763:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1561:22)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+solToYotSwap @ secureSwap.ts:769
+await in solToYotSwap
+executeSwap @ multi-hub-swap-contract.ts:1561
+await in executeSwap
+performSwap @ MultiHubSwapCard.tsx:403
+await in performSwap
+onClick @ MultiHubSwapCard.tsx:1009
+callCallback2 @ chunk-276SZO74.js?v=6c373433:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=6c373433:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=6c373433:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=6c373433:3736
+executeDispatch @ chunk-276SZO74.js?v=6c373433:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=6c373433:7034
+processDispatchQueue @ chunk-276SZO74.js?v=6c373433:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=6c373433:7051
+(anonymous) @ chunk-276SZO74.js?v=6c373433:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=6c373433:18913
+batchedUpdates @ chunk-276SZO74.js?v=6c373433:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=6c373433:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=6c373433:5478
+dispatchEvent @ chunk-276SZO74.js?v=6c373433:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=6c373433:5449Understand this error
+multi-hub-swap-contract.ts:1631 [SWAP_DEBUG] Critical transaction failure: Error: Transaction failed: {"InstructionError":[2,"AccountBorrowFailed"]}
+    at solToYotSwap (secureSwap.ts:763:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1561:22)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+executeSwap @ multi-hub-swap-contract.ts:1631
+await in executeSwap
+performSwap @ MultiHubSwapCard.tsx:403
+await in performSwap
+onClick @ MultiHubSwapCard.tsx:1009
+callCallback2 @ chunk-276SZO74.js?v=6c373433:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=6c373433:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=6c373433:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=6c373433:3736
+executeDispatch @ chunk-276SZO74.js?v=6c373433:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=6c373433:7034
+processDispatchQueue @ chunk-276SZO74.js?v=6c373433:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=6c373433:7051
+(anonymous) @ chunk-276SZO74.js?v=6c373433:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=6c373433:18913
+batchedUpdates @ chunk-276SZO74.js?v=6c373433:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=6c373433:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=6c373433:5478
+dispatchEvent @ chunk-276SZO74.js?v=6c373433:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=6c373433:5449Understand this error
+multi-hub-swap-contract.ts:1634 [SWAP_DEBUG] Error type: object
+multi-hub-swap-contract.ts:1635 [SWAP_DEBUG] Error name: Error
+multi-hub-swap-contract.ts:1636 [SWAP_DEBUG] Full error object: {}
+multi-hub-swap-contract.ts:1644 [SWAP_DEBUG] Will attempt transaction simulation for more details...
+multi-hub-swap-contract.ts:1648 [SWAP_DEBUG] Simulation also failed: Error: Transaction failed: {"InstructionError":[2,"AccountBorrowFailed"]}
+    at solToYotSwap (secureSwap.ts:763:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1561:22)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+executeSwap @ multi-hub-swap-contract.ts:1648
+await in executeSwap
+performSwap @ MultiHubSwapCard.tsx:403
+await in performSwap
+onClick @ MultiHubSwapCard.tsx:1009
+callCallback2 @ chunk-276SZO74.js?v=6c373433:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=6c373433:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=6c373433:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=6c373433:3736
+executeDispatch @ chunk-276SZO74.js?v=6c373433:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=6c373433:7034
+processDispatchQueue @ chunk-276SZO74.js?v=6c373433:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=6c373433:7051
+(anonymous) @ chunk-276SZO74.js?v=6c373433:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=6c373433:18913
+batchedUpdates @ chunk-276SZO74.js?v=6c373433:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=6c373433:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=6c373433:5478
+dispatchEvent @ chunk-276SZO74.js?v=6c373433:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=6c373433:5449Understand this error
+MultiHubSwapCard.tsx:566 Swap error: Error: Transaction failed: {"InstructionError":[2,"AccountBorrowFailed"]}
+    at solToYotSwap (secureSwap.ts:763:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1561:22)
+    at async performSwap (MultiHubSwapCard.tsx
