@@ -1,6 +1,5 @@
 {
   "environment": "production",
-  
   "solana": {
     "network": "devnet",
     "rpcUrl": "https://api.devnet.solana.com",
@@ -16,7 +15,7 @@
         "symbol": "SOL"
       },
       "yot": {
-        "address": "9KxQHJcBxp29AjGTAqF3LCFzodSpkuv986wsSEwQi6Cw", 
+        "address": "9KxQHJcBxp29AjGTAqF3LCFzodSpkuv986wsSEwQi6Cw",
         "decimals": 9,
         "name": "YOT Token",
         "symbol": "YOT",
@@ -42,7 +41,7 @@
       "programAuthority": "Au1gRnNzhtN7odbtUPRHPF7N4c8siwePW8wLsD1FmqHQ",
       "admin": "AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ",
       "centralLiquidity": {
-        "wallet": "Bf78XttEfzR4iM3JCWfwgSCpd5MHePTMD2UKBEZU6coH", 
+        "wallet": "Bf78XttEfzR4iM3JCWfwgSCpd5MHePTMD2UKBEZU6coH",
         "threshold": 0.1,
         "yotAccount": "EieVwYpDMdKr94iQygkyCeEBMhRWA4XsXyGumXztza74"
       },
@@ -73,11 +72,49 @@
         "comment": "All exchange rates MUST be fetched from blockchain - no hardcoded values"
       },
       "instructionDiscriminators": {
-        "buyAndDistribute": [6, 240, 93, 246, 87, 224, 215, 175],
-        "claimReward": [146, 113, 97, 51, 55, 103, 32, 159],
-        "withdrawContribution": [52, 21, 251, 13, 191, 179, 204, 196],
-        "updateParameters": [98, 103, 208, 178, 254, 106, 239, 67],
-        "addLiquidityFromCentral": [11]
+        "buyAndDistribute": [
+          6,
+          240,
+          93,
+          246,
+          87,
+          224,
+          215,
+          175
+        ],
+        "claimReward": [
+          146,
+          113,
+          97,
+          51,
+          55,
+          103,
+          32,
+          159
+        ],
+        "withdrawContribution": [
+          52,
+          21,
+          251,
+          13,
+          191,
+          179,
+          204,
+          196
+        ],
+        "updateParameters": [
+          98,
+          103,
+          208,
+          178,
+          254,
+          106,
+          239,
+          67
+        ],
+        "addLiquidityFromCentral": [
+          11
+        ]
       },
       "stats": {
         "totalLiquidityContributed": 25000,
@@ -86,16 +123,14 @@
       }
     }
   },
-  
   "admin": {
     "defaultUsername": "admin",
     "maxLiquidityContribution": 10000,
     "defaultLiquidityFee": 0.3,
-    "stakingRatePerSecond": 3, 
+    "stakingRatePerSecond": 3,
     "harvestThreshold": 1000000000,
     "programScalingFactor": 9260
   },
-  
   "security": {
     "sessionSecret": "REPLACE_WITH_SECURE_RANDOM_STRING",
     "sessionTTL": 86400000,
@@ -104,28 +139,27 @@
       "max": 100
     },
     "cors": {
-      "origin": "*", 
-      "methods": ["GET", "POST"]
+      "origin": "*",
+      "methods": [
+        "GET",
+        "POST"
+      ]
     }
   },
-  
   "api": {
     "port": 3000,
     "basePath": "/api"
   },
-  
   "database": {
     "usePostgres": true,
     "migrationStrategy": "auto"
   },
-  
   "ui": {
     "theme": "dark",
     "defaultDecimalPlaces": 4,
     "refreshRateMs": 30000,
     "debugMode": false
   },
-  
   "features": {
     "enableSwap": true,
     "enableStaking": true,
