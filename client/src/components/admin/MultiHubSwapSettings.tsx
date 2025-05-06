@@ -176,11 +176,15 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
   const fetchContractInfo = async () => {
     setIsLoading(true);
     try {
+      console.log("Fetching MultiHubSwap contract info...");
       const programState = await getMultiHubSwapStats();
+      console.log("MultiHubSwap programState received:", programState);
       setStats(programState);
       
       // Check if program is initialized
-      setIsInitialized(programState && !!programState.yotMint);
+      const isInit = programState && !!programState.yotMint;
+      console.log("Is MultiHubSwap initialized?", isInit, "yotMint:", programState?.yotMint);
+      setIsInitialized(isInit);
       
       // Update state with current parameters
       if (programState) {
@@ -192,6 +196,7 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
       }
     } catch (error) {
       console.error("Error fetching contract info:", error);
+      // We need to set isInitialized to false in case of error
       setIsInitialized(false);
     } finally {
       setIsLoading(false);
