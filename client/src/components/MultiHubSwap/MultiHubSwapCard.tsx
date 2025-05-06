@@ -205,16 +205,25 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
   
   // Calculate exchange rate using real AMM data
   const estimateExchangeRate = () => {
+    // Only use real blockchain rates - no fallbacks
     if (fromToken.symbol === "SOL" && toToken.symbol === "YOT") {
-      return exchangeRates.solToYot || 0; 
+      const rate = exchangeRates.solToYot;
+      if (!rate || rate <= 0) throw new Error("Cannot get SOL-YOT exchange rate from blockchain");
+      return rate;
     } else if (fromToken.symbol === "YOT" && toToken.symbol === "SOL") {
-      return exchangeRates.yotToSol || 0;
+      const rate = exchangeRates.yotToSol;
+      if (!rate || rate <= 0) throw new Error("Cannot get YOT-SOL exchange rate from blockchain");
+      return rate;
     } else if (fromToken.symbol === "USDC" && toToken.symbol === "YOT") {
-      return exchangeRates.usdcToYot || 0;
+      const rate = exchangeRates.usdcToYot;
+      if (!rate || rate <= 0) throw new Error("Cannot get USDC-YOT exchange rate from blockchain");
+      return rate;
     } else if (fromToken.symbol === "YOT" && toToken.symbol === "USDC") {
-      return exchangeRates.yotToUsdc || 0;
+      const rate = exchangeRates.yotToUsdc;
+      if (!rate || rate <= 0) throw new Error("Cannot get YOT-USDC exchange rate from blockchain");
+      return rate;
     }
-    return 0; // Default 0 for unknown pairs to clearly indicate an issue
+    throw new Error(`Swap pair not supported: ${fromToken.symbol} to ${toToken.symbol}`);
   };
 
   // Old rate estimation, now replaced by fetchExchangeRate function
@@ -573,12 +582,50 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8"
+                    onClick={() => {
+                      const fetchRates = async () => {
+                        try {
+                          // Fetch fresh rates from blockchain
+                          const rates = await getExchangeRate();
+                          setExchangeRates({
+                            solToYot: rates.solToYot,
+                            yotToSol: rates.yotToSol,
+                            usdcToYot: 0,
+                            yotToUsdc: 0
+                          });
+                          setExchangeRateDisplay(`1 ${fromToken.symbol} = ${
+                            fromToken.symbol === "SOL" && toToken.symbol === "YOT" ? rates.solToYot :
+                            fromToken.symbol === "YOT" && toToken.symbol === "SOL" ? rates.yotToSol : 0
+                          } ${toToken.symbol} (updated)`);
+                          
+                          toast({
+                            title: "Rates Updated",
+                            description: "Exchange rates refreshed from blockchain",
+                          });
+                        } catch (error) {
+                          console.error("Failed to refresh rates:", error);
+                          setExchangeRateDisplay("Error: Failed to update rates from blockchain");
+                          
+                          toast({
+                            title: "Error Refreshing Rates",
+                            description: error instanceof Error ? error.message : "Failed to fetch current exchange rates",
+                            variant: "destructive"
+                          });
+                        }
+                      };
+                      
+                      fetchRates();
+                    }}
+                  >
                     <RefreshCw className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Refresh Exchange Rates</p>
+                  <p>Refresh Exchange Rates from Blockchain</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -774,9 +821,34 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
                 </div>
               </div>
 
-              {/* Exchange rate info */}
+              {/* Exchange rate info with improved error display */}
               <div className="text-sm text-muted-foreground flex justify-between">
-                <span>{exchangeRateDisplay || `1 ${fromToken.symbol} ≈ ${estimateExchangeRate()} ${toToken.symbol}`}</span>
+                {(() => {
+                  // If we have an explicit rate display, use it
+                  if (exchangeRateDisplay) {
+                    return exchangeRateDisplay.includes('Error') ? (
+                      <span className="text-red-500 flex items-center">
+                        <AlertCircle className="h-3.5 w-3.5 mr-1" />
+                        {exchangeRateDisplay}
+                      </span>
+                    ) : (
+                      <span>{exchangeRateDisplay}</span>
+                    );
+                  }
+                  
+                  // Otherwise try to calculate it, but catch errors
+                  try {
+                    const rate = estimateExchangeRate();
+                    return <span>1 {fromToken.symbol} = {rate} {toToken.symbol}</span>;
+                  } catch (error) {
+                    return (
+                      <span className="text-red-500 flex items-center">
+                        <AlertCircle className="h-3.5 w-3.5 mr-1" />
+                        Error: Rate unavailable
+                      </span>
+                    );
+                  }
+                })()}
                 <span>
                   Slippage:{" "}
                   <span className="font-medium text-foreground">{slippage}%</span>
