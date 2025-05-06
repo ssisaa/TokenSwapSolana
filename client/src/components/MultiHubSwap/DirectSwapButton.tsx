@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { directSwap } from '@/lib/directSwap';
+import { twoPhaseSwap } from '@/lib/twoPhaseSwap';
 import { Shield, Loader2 } from 'lucide-react';
 
 interface DirectSwapButtonProps {
@@ -37,16 +37,16 @@ export function DirectSwapButton({ wallet, amount, disabled }: DirectSwapButtonP
     setIsSwapping(true);
     
     try {
-      // Skip the liquidity account creation entirely and just do the direct SOL transfer
-      console.log(`Performing direct SOL transfer of ${amountNum} SOL...`);
-      const result = await directSwap(wallet, amountNum);
+      // Use two-phase swap for proper on-chain functionality
+      console.log(`Performing two-phase swap of ${amountNum} SOL...`);
+      const result = await twoPhaseSwap(wallet, amountNum);
       
       if (result.success) {
         toast({
-          title: "Direct SOL transfer successful!",
+          title: "Smart Contract Swap Complete!",
           description: (
             <div className="flex flex-col gap-1">
-              <p>SOL sent successfully to the pool!</p>
+              <p>SOL swapped successfully via smart contract!</p>
               <a 
                 href={`https://explorer.solana.com/tx/${result.signature}?cluster=devnet`}
                 target="_blank"
@@ -55,9 +55,8 @@ export function DirectSwapButton({ wallet, amount, disabled }: DirectSwapButtonP
               >
                 View on Explorer
               </a>
-              <p className="text-amber-500 mt-2">
-                Note: The admin will manually distribute YOT tokens to your wallet. 
-                This direct transfer method bypasses the on-chain swap to avoid simulation errors.
+              <p className="text-green-500 mt-2">
+                The swap was processed entirely on-chain with 80% to you, 20% to liquidity, and 5% YOS cashback.
               </p>
             </div>
           ),
@@ -95,7 +94,7 @@ export function DirectSwapButton({ wallet, amount, disabled }: DirectSwapButtonP
       ) : (
         <>
           <Shield className="mr-2 h-4 w-4" />
-          Direct SOL Transfer
+          Smart Contract Swap
         </>
       )}
     </Button>
