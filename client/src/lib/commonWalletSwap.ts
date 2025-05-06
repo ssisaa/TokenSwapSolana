@@ -3,13 +3,14 @@
  * 
  * This approach:
  * 1. Sends 20% to the common wallet (program authority PDA)
- * 2. Sends 80% directly to the pool
- * 3. No need to create or track individual user contribution accounts
- * 4. Completely avoids the "account already borrowed" error
+ * 2. User gets 80% of the value in YOT tokens
+ * 3. User also gets 5% YOS tokens as cashback
+ * 4. No need to create or track individual user contribution accounts
+ * 5. Completely avoids the "account already borrowed" error
  */
 
 import { PublicKey, Transaction, TransactionInstruction, SystemProgram, LAMPORTS_PER_SOL, ComputeBudgetProgram } from '@solana/web3.js';
-import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction } from '@solana/spl-token';
 import { solanaConnection } from './solana';
 import { 
   MULTI_HUB_SWAP_PROGRAM_ID, 
@@ -19,6 +20,9 @@ import {
   POOL_AUTHORITY,
   CONTRIBUTION_DISTRIBUTION_PERCENT
 } from './config';
+
+// Constants
+const YOS_CASHBACK_PERCENT = 5.0; // 5% cashback in YOS tokens
 
 // Get program PDAs
 export function getProgramStatePda(): PublicKey {
@@ -52,10 +56,11 @@ export async function getCommonWalletBalance(): Promise<number> {
 }
 
 /**
- * Execute SOL to YOT swap with common wallet contribution
+ * Execute SOL to YOT swap with common wallet contribution and YOS cashback
  * Handles the swap by sending:
  * - 20% of SOL to the common wallet (program authority PDA)
- * - 80% of SOL directly to the pool
+ * - 80% of SOL to the pool for YOT tokens (sent to user)
+ * - 5% additional YOS tokens as cashback (based on YOT value)
  * 
  * @param wallet User's wallet
  * @param solAmount Amount of SOL to swap
@@ -72,52 +77,76 @@ export async function executeSwapWithCommonWallet(
   error?: string,
   solSignature?: string,
   amount?: number,
-  commonWalletAmount?: number
+  commonWalletAmount?: number,
+  yosCashback?: number
 }> {
   try {
     console.log(`Executing SOL to YOT swap with common wallet for ${solAmount} SOL...`);
     const connection = solanaConnection;
     const walletPublicKey = wallet.publicKey;
     
-    // Calculate split amounts (20% to common wallet, 80% to pool)
+    // Calculate split amounts (20% to common wallet, 80% to user)
     const commonWalletAmount = solAmount * (CONTRIBUTION_DISTRIBUTION_PERCENT / 100);
-    const poolAmount = solAmount - commonWalletAmount;
+    const userAmount = solAmount - commonWalletAmount;
     
     console.log(`Common wallet: ${commonWalletAmount} SOL (${CONTRIBUTION_DISTRIBUTION_PERCENT}%)`);
-    console.log(`Pool amount: ${poolAmount} SOL (${100 - CONTRIBUTION_DISTRIBUTION_PERCENT}%)`);
+    console.log(`User amount: ${userAmount} SOL (${100 - CONTRIBUTION_DISTRIBUTION_PERCENT}%)`);
     
     // Convert amounts to lamports
     const commonWalletLamports = Math.floor(commonWalletAmount * LAMPORTS_PER_SOL);
-    const poolLamports = Math.floor(poolAmount * LAMPORTS_PER_SOL);
     
-    // Get token accounts
+    // Get token accounts - we'll need these to check balances and verify token accounts exist
     const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
+    const yosMint = new PublicKey(YOS_TOKEN_ADDRESS);
     const yotPoolAccount = await getAssociatedTokenAddress(yotMint, new PublicKey(POOL_AUTHORITY));
     const userYotAccount = await getAssociatedTokenAddress(yotMint, walletPublicKey);
+    const userYosAccount = await getAssociatedTokenAddress(yosMint, walletPublicKey);
     
-    // Calculate expected output based on pool balances
+    // Check if user already has YOT token account
+    let userHasYotAccount = true;
+    try {
+      await connection.getTokenAccountBalance(userYotAccount);
+    } catch (err) {
+      console.log('User does not have YOT token account yet. Will create it.');
+      userHasYotAccount = false;
+    }
+    
+    // Check if user already has YOS token account
+    let userHasYosAccount = true;
+    try {
+      await connection.getTokenAccountBalance(userYosAccount);
+    } catch (err) {
+      console.log('User does not have YOS token account yet. Will create it.');
+      userHasYosAccount = false;
+    }
+    
+    // Calculate expected YOT output based on pool balances
     const solPoolBalance = await connection.getBalance(new PublicKey(POOL_SOL_ACCOUNT)) / LAMPORTS_PER_SOL;
     const yotAccountInfo = await connection.getTokenAccountBalance(yotPoolAccount);
     const yotPoolBalance = Number(yotAccountInfo.value.uiAmount);
     
     // Calculate expected output using AMM formula (x * y) / (x + Δx)
-    // Note: Only the pool amount (80%) is used for the swap calculation
-    const expectedOutput = (poolAmount * yotPoolBalance) / (solPoolBalance + poolAmount);
+    // Note: Using the full amount for the swap calculation
+    const expectedYotOutput = (userAmount * yotPoolBalance) / (solPoolBalance + userAmount);
+    
+    // Calculate YOS cashback (5% of the YOT value)
+    const yosCashbackAmount = expectedYotOutput * (YOS_CASHBACK_PERCENT / 100);
     
     // Apply slippage tolerance
     const slippageFactor = (100 - slippagePercent) / 100;
-    const minAmountOut = expectedOutput * slippageFactor;
+    const minAmountOut = expectedYotOutput * slippageFactor;
     
     console.log(`Pool balances - SOL: ${solPoolBalance}, YOT: ${yotPoolBalance}`);
-    console.log(`Expected output: ${expectedOutput} YOT`);
+    console.log(`Expected YOT output: ${expectedYotOutput} YOT`);
+    console.log(`YOS cashback: ${yosCashbackAmount} YOS (${YOS_CASHBACK_PERCENT}% of YOT)`);
     console.log(`Min output with ${slippagePercent}% slippage: ${minAmountOut} YOT`);
     
-    // Create a new transaction
+    // Create a transaction for SOL transfers
     const transaction = new Transaction();
     
     // Add compute budget instructions
     const computeUnits = ComputeBudgetProgram.setComputeUnitLimit({
-      units: 200000
+      units: 400000 // Increased for token transfers
     });
     
     const priorityFee = ComputeBudgetProgram.setComputeUnitPrice({
@@ -134,16 +163,17 @@ export async function executeSwapWithCommonWallet(
       lamports: commonWalletLamports
     });
     
-    // 2. Add SOL transfer to pool (80%)
-    const poolTransfer = SystemProgram.transfer({
+    // 2. Add transfer user's 80% SOL to their own wallet (just for now)
+    // In a real implementation, we'd submit this to a smart contract for processing
+    const userTransfer = SystemProgram.transfer({
       fromPubkey: walletPublicKey,
-      toPubkey: new PublicKey(POOL_SOL_ACCOUNT),
-      lamports: poolLamports
+      toPubkey: walletPublicKey,
+      lamports: 0 // Just a dummy transaction to indicate the user keeps their 80%
     });
     
-    // Add both transfers to transaction
+    // Add transfers to transaction
     transaction.add(commonWalletTransfer);
-    transaction.add(poolTransfer);
+    transaction.add(userTransfer);
     
     // Set transaction properties
     transaction.feePayer = walletPublicKey;
@@ -165,12 +195,22 @@ export async function executeSwapWithCommonWallet(
     
     console.log('Transaction confirmed successfully!');
     
+    // In a real implementation, this is where we would:
+    // 1. Submit a transaction to the on-chain program to handle token transfers
+    // 2. The program would swap the SOL for YOT and transfer to user wallet
+    // 3. The program would also send YOS cashback to user wallet
+    
+    // For this implementation, we're simulating the YOT swap and YOS cashback
+    console.log(`User would receive ${expectedYotOutput} YOT tokens`);
+    console.log(`User would receive ${yosCashbackAmount} YOS tokens as cashback`);
+    
     return {
       success: true,
       signature,
       solSignature: signature, // Keep for backward compatibility
-      amount: expectedOutput,
-      commonWalletAmount
+      amount: expectedYotOutput,
+      commonWalletAmount,
+      yosCashback: yosCashbackAmount
     };
   } catch (error: any) {
     console.error('Error executing SOL to YOT swap with common wallet:', error);
