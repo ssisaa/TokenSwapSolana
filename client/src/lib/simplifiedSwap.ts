@@ -265,23 +265,39 @@ export async function createSwapSolToYotTransaction(
   console.log(`Creating swap instruction with ${lamports} lamports and minimum ${minYotAmount} YOT`);
   const instructionData = createSwapSolToYotInstructionData(lamports, minYotAmount);
   
-  // Create the swap instruction
+  // Create the swap instruction with detailed logging
+  console.log('Creating swap instruction with the following accounts:');
+  console.log(`1. Wallet (signer): ${wallet.toBase58()}`);
+  console.log(`2. Program State PDA: ${programStatePda.toBase58()}`);
+  console.log(`3. Program Authority PDA: ${programAuthorityPda.toBase58()}`);
+  console.log(`4. SOL Pool Wallet: ${SOL_POOL_WALLET}`);
+  console.log(`5. YOT Pool Token Account: ${YOT_POOL_TOKEN_ACCOUNT}`);
+  console.log(`6. User YOT Account: ${userYotAccount.toBase58()}`);
+  console.log(`7. Common Wallet: ${COMMON_WALLET_ADDRESS}`);
+  console.log(`8. YOS Mint: ${YOS_MINT}`);
+  console.log(`9. User YOS Account: ${userYosAccount.toBase58()}`);
+  console.log(`10. System Program: ${SystemProgram.programId.toBase58()}`);
+  console.log(`11. Token Program: ${TOKEN_PROGRAM_ID.toBase58()}`);
+  console.log(`12. Common Wallet YOT Account: ${commonWalletYotAccount.toBase58()}`);
+  
+  const accountMetas = [
+    { pubkey: wallet, isSigner: true, isWritable: true },
+    { pubkey: programStatePda, isSigner: false, isWritable: true }, // Changed to writable
+    { pubkey: programAuthorityPda, isSigner: false, isWritable: true }, // Changed to writable
+    { pubkey: new PublicKey(SOL_POOL_WALLET), isSigner: false, isWritable: true },
+    { pubkey: new PublicKey(YOT_POOL_TOKEN_ACCOUNT), isSigner: false, isWritable: true },
+    { pubkey: userYotAccount, isSigner: false, isWritable: true },
+    { pubkey: new PublicKey(COMMON_WALLET_ADDRESS), isSigner: false, isWritable: true },
+    { pubkey: new PublicKey(YOS_MINT), isSigner: false, isWritable: true },
+    { pubkey: userYosAccount, isSigner: false, isWritable: true },
+    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    { pubkey: commonWalletYotAccount, isSigner: false, isWritable: true },
+  ];
+  
   const swapInstruction = new TransactionInstruction({
     programId: new PublicKey(SIMPLIFIED_SWAP_PROGRAM_ID),
-    keys: [
-      { pubkey: wallet, isSigner: true, isWritable: true },
-      { pubkey: programStatePda, isSigner: false, isWritable: false },
-      { pubkey: programAuthorityPda, isSigner: false, isWritable: false },
-      { pubkey: new PublicKey(SOL_POOL_WALLET), isSigner: false, isWritable: true },
-      { pubkey: new PublicKey(YOT_POOL_TOKEN_ACCOUNT), isSigner: false, isWritable: true },
-      { pubkey: userYotAccount, isSigner: false, isWritable: true },
-      { pubkey: new PublicKey(COMMON_WALLET_ADDRESS), isSigner: false, isWritable: true },
-      { pubkey: new PublicKey(YOS_MINT), isSigner: false, isWritable: true },
-      { pubkey: userYosAccount, isSigner: false, isWritable: true },
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-      { pubkey: commonWalletYotAccount, isSigner: false, isWritable: true },
-    ],
+    keys: accountMetas,
     data: instructionData,
   });
   
@@ -320,8 +336,118 @@ export async function swapSolToYot(
     console.log(`Initiating SOL to YOT swap: ${solAmount} SOL with minimum ${minYotAmount} YOT`);
     console.log(`Distribution ratios: ${YOT_DISTRIBUTION_RATIO}% to user, ${100-YOT_DISTRIBUTION_RATIO}% to common wallet, ${YOS_CASHBACK_PERCENTAGE}% YOS cashback`);
     
-    // Create the transaction with all token account creations included
-    console.log("Creating transaction that includes token account creation if needed...");
+    // First, check if all token accounts already exist
+    const yotMintPubkey = new PublicKey(YOT_MINT);
+    const yosMintPubkey = new PublicKey(YOS_MINT);
+    const userYotAccount = await getAssociatedTokenAddress(yotMintPubkey, wallet.publicKey);
+    const userYosAccount = await getAssociatedTokenAddress(yosMintPubkey, wallet.publicKey);
+    const commonWalletPubkey = new PublicKey(COMMON_WALLET_ADDRESS);
+    const commonWalletYotAccount = await getAssociatedTokenAddress(yotMintPubkey, commonWalletPubkey);
+    
+    let userAccountsExist = true;
+    let commonAccountsExist = true;
+    
+    // Check user accounts
+    try {
+      await getAccount(connection, userYotAccount);
+      console.log(`User YOT account ${userYotAccount.toBase58()} exists`);
+    } catch (error) {
+      console.log(`User YOT account ${userYotAccount.toBase58()} does not exist`);
+      userAccountsExist = false;
+    }
+    
+    try {
+      await getAccount(connection, userYosAccount);
+      console.log(`User YOS account ${userYosAccount.toBase58()} exists`);
+    } catch (error) {
+      console.log(`User YOS account ${userYosAccount.toBase58()} does not exist`);
+      userAccountsExist = false;
+    }
+    
+    // Check common wallet account
+    try {
+      await getAccount(connection, commonWalletYotAccount);
+      console.log(`Common wallet YOT account ${commonWalletYotAccount.toBase58()} exists`);
+    } catch (error) {
+      console.log(`Common wallet YOT account ${commonWalletYotAccount.toBase58()} does not exist`);
+      commonAccountsExist = false;
+    }
+    
+    // If any accounts are missing, create them in separate transactions first
+    if (!userAccountsExist || !commonAccountsExist) {
+      console.log("One or more token accounts need to be created...");
+      
+      // Create user accounts if needed
+      if (!userAccountsExist) {
+        console.log("Creating user token accounts...");
+        
+        const userAccountsTx = new Transaction();
+        let instructionCount = 0;
+        
+        try {
+          await getAccount(connection, userYotAccount);
+        } catch (error) {
+          userAccountsTx.add(
+            createAssociatedTokenAccountInstruction(
+              wallet.publicKey,
+              userYotAccount,
+              wallet.publicKey,
+              yotMintPubkey
+            )
+          );
+          instructionCount++;
+        }
+        
+        try {
+          await getAccount(connection, userYosAccount);
+        } catch (error) {
+          userAccountsTx.add(
+            createAssociatedTokenAccountInstruction(
+              wallet.publicKey,
+              userYosAccount,
+              wallet.publicKey,
+              yosMintPubkey
+            )
+          );
+          instructionCount++;
+        }
+        
+        if (instructionCount > 0) {
+          const { blockhash } = await connection.getLatestBlockhash();
+          userAccountsTx.recentBlockhash = blockhash;
+          userAccountsTx.feePayer = wallet.publicKey;
+          
+          console.log(`Sending transaction to create ${instructionCount} user token accounts...`);
+          
+          try {
+            let signature;
+            if (wallet.signTransaction) {
+              const signedTx = await wallet.signTransaction(userAccountsTx);
+              signature = await connection.sendRawTransaction(signedTx.serialize());
+            } else {
+              signature = await wallet.sendTransaction(userAccountsTx, connection);
+            }
+            
+            console.log(`User accounts creation transaction sent: ${signature}`);
+            await connection.confirmTransaction(signature, 'confirmed');
+            console.log("User token accounts created successfully");
+          } catch (error) {
+            console.error("Failed to create user token accounts:", error);
+            throw new Error("Failed to create required user token accounts. Please try again.");
+          }
+        }
+      }
+      
+      // If common wallet account is missing, we need to inform the user
+      if (!commonAccountsExist) {
+        console.warn("Common wallet token account is missing!");
+        console.warn("This account must be created by the admin wallet.");
+        console.warn("Continuing with swap regardless to test if it succeeds...");
+      }
+    }
+    
+    // Now create the actual swap transaction
+    console.log("Creating swap transaction...");
     const transaction = await createSwapSolToYotTransaction(
       wallet.publicKey,
       solAmount,
@@ -333,55 +459,67 @@ export async function swapSolToYot(
     console.log('Sending transaction to wallet for approval...');
     
     try {
-      // Send the transaction with skipPreflight=true to bypass simulation errors
+      // Send with skipPreflight=true to bypass simulation errors
       console.log('Using skipPreflight=true to bypass simulation checks');
       
-      // Some wallets require using this approach instead of sendTransaction
+      let signature;
       if (wallet.signTransaction) {
         console.log('Using sign + send approach for transaction...');
         const signedTransaction = await wallet.signTransaction(transaction);
         
         // Send with skipPreflight=true to bypass simulation errors
-        const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
+        signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
           skipPreflight: true
         });
-        console.log(`Transaction signed and sent manually: ${signature}`);
-        
-        // Wait for confirmation
-        console.log('Waiting for transaction confirmation...');
-        const confirmation = await connection.confirmTransaction(signature, 'confirmed');
-        
-        if (confirmation.value.err) {
-          console.error('Transaction failed during confirmation:', confirmation.value.err);
-          throw new Error(`Transaction confirmed but failed: ${confirmation.value.err}`);
-        }
-        
-        return signature;
       } else {
         // Standard sendTransaction approach
         console.log('Using standard wallet.sendTransaction approach with skipPreflight');
         const options = {
           skipPreflight: true
         };
-        const signature = await wallet.sendTransaction(transaction, connection, options);
-        console.log(`Swap transaction sent: ${signature}`);
-        
-        // Wait for confirmation
-        console.log('Waiting for transaction confirmation...');
-        const confirmation = await connection.confirmTransaction(signature, 'confirmed');
-        
-        if (confirmation.value.err) {
-          console.error('Transaction failed during confirmation:', confirmation.value.err);
-          throw new Error(`Transaction confirmed but failed: ${confirmation.value.err}`);
-        }
-        
-        return signature;
+        signature = await wallet.sendTransaction(transaction, connection, options);
       }
+      
+      console.log(`Swap transaction sent: ${signature}`);
+      
+      // Wait for confirmation
+      console.log('Waiting for transaction confirmation...');
+      const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+      
+      if (confirmation.value.err) {
+        console.error('Transaction failed during confirmation:', confirmation.value.err);
+        throw new Error(`Transaction confirmed but failed: ${confirmation.value.err}`);
+      }
+      
+      console.log('Transaction confirmed successfully!');
+      return signature;
+      
     } catch (txError) {
       console.error('Error in transaction signing/sending:', txError);
       
+      // Log the error details for debugging
+      console.error('Detailed error:', JSON.stringify(txError, null, 2));
+      
+      // InstructionError is a common error that needs special handling
+      if (txError && typeof txError === 'object' && 'InstructionError' in txError) {
+        const instructionIndex = txError.InstructionError[0];
+        const errorDetails = txError.InstructionError[1];
+        
+        console.error(`Instruction Error at index ${instructionIndex}:`, errorDetails);
+        
+        // Provide a more detailed error message
+        if (typeof errorDetails === 'object' && 'Custom' in errorDetails) {
+          const customErrorCode = errorDetails.Custom;
+          throw new Error(`Program custom error: Code ${customErrorCode}. This is likely a constraint in the on-chain program that wasn't met.`);
+        } else if (typeof errorDetails === 'string') {
+          throw new Error(`Transaction failed: ${errorDetails} at instruction ${instructionIndex}. This might be due to the token accounts not being properly set up.`);
+        } else {
+          throw new Error(`Transaction failed at instruction ${instructionIndex}. The program returned an error. This might be due to missing accounts or permissions.`);
+        }
+      }
+      
       // Enhanced error handling with specific user-friendly messages
-      const errorMessage = txError instanceof Error ? txError.message : 'Unknown error';
+      const errorMessage = txError instanceof Error ? txError.message : JSON.stringify(txError);
       
       if (errorMessage.includes('User rejected')) {
         throw new Error('Transaction was rejected by the user in wallet');
@@ -389,11 +527,13 @@ export async function swapSolToYot(
         throw new Error('Insufficient SOL in wallet to complete the transaction');
       } else if (errorMessage.includes('invalid account data')) {
         throw new Error('Transaction failed: One of the required token accounts may be missing or invalid. Please try using the admin wallet to create the required token accounts first.');
+      } else if (errorMessage.includes('reverted during simulation')) {
+        throw new Error('Transaction simulation failed: The transaction would fail on-chain. This might be due to a bug in the program or missing token accounts for the common wallet. Please check with the admin to ensure all required accounts are set up.');
       } else if (errorMessage.includes('exceeded the maximum number of instructions')) {
         throw new Error('Transaction failed: Too many instructions in one transaction. Please try a smaller amount');
       } else {
         // For other errors, provide as much context as possible
-        throw new Error(`Transaction error: ${errorMessage}. Please ensure you have enough SOL for transaction fees.`);
+        throw new Error(`Transaction error: ${errorMessage}. This might be due to an issue with the on-chain program or account setup.`);
       }
     }
     
