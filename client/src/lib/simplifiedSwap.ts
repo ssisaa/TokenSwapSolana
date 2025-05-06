@@ -181,21 +181,56 @@ export async function swapSolToYot(
     
     // Sign and send the transaction
     console.log('Sending transaction to wallet for approval...');
-    const signature = await wallet.sendTransaction(transaction, connection);
     
-    console.log(`Swap transaction sent: ${signature}`);
-    
-    // Wait for confirmation
-    console.log('Waiting for transaction confirmation...');
-    const confirmation = await connection.confirmTransaction(signature, 'confirmed');
-    
-    if (confirmation.value.err) {
-      console.error('Transaction failed during confirmation:', confirmation.value.err);
-      throw new Error(`Transaction confirmed but failed: ${confirmation.value.err}`);
+    try {
+      // Some wallets require using this approach instead of sendTransaction
+      if (wallet.signTransaction) {
+        console.log('Using sign + send approach for transaction...');
+        const signedTransaction = await wallet.signTransaction(transaction);
+        const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+        console.log(`Transaction signed and sent manually: ${signature}`);
+        
+        // Wait for confirmation
+        console.log('Waiting for transaction confirmation...');
+        const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+        
+        if (confirmation.value.err) {
+          console.error('Transaction failed during confirmation:', confirmation.value.err);
+          throw new Error(`Transaction confirmed but failed: ${confirmation.value.err}`);
+        }
+        
+        return signature;
+      } else {
+        // Standard sendTransaction approach
+        const signature = await wallet.sendTransaction(transaction, connection);
+        console.log(`Swap transaction sent: ${signature}`);
+        
+        // Wait for confirmation
+        console.log('Waiting for transaction confirmation...');
+        const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+        
+        if (confirmation.value.err) {
+          console.error('Transaction failed during confirmation:', confirmation.value.err);
+          throw new Error(`Transaction confirmed but failed: ${confirmation.value.err}`);
+        }
+        
+        return signature;
+      }
+    } catch (txError) {
+      console.error('Error in transaction signing/sending:', txError);
+      
+      // Check for common wallet errors and provide better messages
+      const errorMessage = txError instanceof Error ? txError.message : 'Unknown error';
+      if (errorMessage.includes('User rejected')) {
+        throw new Error('Transaction was rejected by the user in wallet');
+      } else if (errorMessage.includes('insufficient funds')) {
+        throw new Error('Insufficient SOL in wallet to complete the transaction');
+      } else {
+        throw txError;
+      }
     }
     
-    console.log('Swap transaction confirmed successfully!');
-    return signature;
+    // Note: the returns are now inside the try/catch blocks above
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error executing SOL to YOT swap:', errorMessage);
