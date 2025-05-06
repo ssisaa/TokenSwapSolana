@@ -140,13 +140,15 @@ export async function getSupportedTokens(): Promise<Array<{ symbol: string, addr
  * Checks if a token pair is supported for swapping
  */
 export function isSwapSupported(fromToken: string, toToken: string): boolean {
-  // Currently only SOL-YOT swaps are fully supported
-  if (fromToken === SOL_TOKEN_ADDRESS && toToken === YOT_TOKEN_ADDRESS) {
-    return true;
-  }
+  // Normalize addresses to ensure case-insensitive comparison
+  const normalizedFromToken = fromToken.toString().toLowerCase();
+  const normalizedToToken = toToken.toString().toLowerCase();
+  const normalizedSOL = SOL_TOKEN_ADDRESS.toString().toLowerCase();
+  const normalizedYOT = YOT_TOKEN_ADDRESS.toString().toLowerCase();
   
-  // YOT-SOL marked as supported but not fully implemented
-  if (fromToken === YOT_TOKEN_ADDRESS && toToken === SOL_TOKEN_ADDRESS) {
+  // SOL-YOT swaps should be supported in both directions
+  if ((normalizedFromToken === normalizedSOL && normalizedToToken === normalizedYOT) ||
+      (normalizedFromToken === normalizedYOT && normalizedToToken === normalizedSOL)) {
     return true;
   }
   
