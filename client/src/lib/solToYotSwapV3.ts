@@ -111,7 +111,6 @@ export async function checkLiquidityContributionAccount(
   connection: Connection
 ): Promise<{
   exists: boolean;
-  transaction?: Transaction;
   liquidityContributionAccount: PublicKey;
   signature?: string;
 }> {
@@ -262,7 +261,6 @@ export async function solToYotSwapV3(
       
       // Sleep briefly to ensure account propagation
       await new Promise(resolve => setTimeout(resolve, 2000));
-    }
     }
     
     // STEP 3: Perform the actual swap now that all accounts exist
