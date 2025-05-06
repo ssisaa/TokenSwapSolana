@@ -1,0 +1,38 @@
+Simulation showed potential errors: Object
+initializeMultiHubSwap @ multi-hub-swap-contract.ts:2006Understand this warning
+multi-hub-swap-contract.ts:2007 Proceeding anyway as some errors are false positives...
+multi-hub-swap-contract.ts:2020 Transaction serialized successfully, sending to network...
+multi-hub-swap-contract.ts:2031 Transaction failed preflight checks, trying with skipPreflight=true: SendTransactionError: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 2: custom program error: 0x0. 
+Logs: 
+[
+  "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+  "Program ComputeBudget111111111111111111111111111111 success",
+  "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+  "Program ComputeBudget111111111111111111111111111111 success",
+  "Program FDKcjgPeqtGn4baGXvXVZLheLCPipTw4SzTgcEdnK91s invoke [1]",
+  "Program 11111111111111111111111111111111 invoke [2]",
+  "Create Account: account Address { address: 2GJ5eKRMgLhgKSgLyqVCRcAFoMPhVtyaENpfuPvWbDtX, base: None } already in use",
+  "Program 11111111111111111111111111111111 failed: custom program error: 0x0",
+  "Program FDKcjgPeqtGn4baGXvXVZLheLCPipTw4SzTgcEdnK91s consumed 6909 of 399700 compute units",
+  "Program FDKcjgPeqtGn4baGXvXVZLheLCPipTw4SzTgcEdnK91s failed: custom program error: 0x0"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at Connection.sendEncodedTransaction (chunk-5JHCWNWN.js?v=6c373433:11073:13)
+    at async Connection.sendRawTransaction (chunk-5JHCWNWN.js?v=6c373433:11040:20)
+    at async initializeMultiHubSwap (multi-hub-swap-contract.ts:2025:21)
+    at async initializeContract (MultiHubSwapSettings.tsx:174:7)
+initializeMultiHubSwap @ multi-hub-swap-contract.ts:2031Understand this warning
+multi-hub-swap-contract.ts:2041 Initialization transaction sent successfully: 4zY89iExhJnjesTBPNAoes6JriHi68hDgdQQ9VK7ZwqLP8mt12dU9E2EUqaf8EJEtquFC8hrkXSRYJGcyBtLJJo4
+multi-hub-swap-contract.ts:2042 Waiting for confirmation...
+multi-hub-swap-contract.ts:2060 Error sending transaction: Error: Transaction confirmed but failed: [object Object]
+    at initializeMultiHubSwap (multi-hub-swap-contract.ts:2054:15)
+    at async initializeContract (MultiHubSwapSettings.tsx:174:7)
+initializeMultiHubSwap @ multi-hub-swap-contract.ts:2060Understand this error
+multi-hub-swap-contract.ts:2064 Failed to initialize Multi-Hub Swap program: Error: Failed to send transaction: Transaction confirmed but failed: [object Object]
+    at initializeMultiHubSwap (multi-hub-swap-contract.ts:2061:13)
+    at async initializeContract (MultiHubSwapSettings.tsx:174:7)
+initializeMultiHubSwap @ multi-hub-swap-contract.ts:2064Understand this error
+MultiHubSwapSettings.tsx:195 Contract initialization failed: Error: Failed to send transaction: Transaction confirmed but failed: [object Object]
+    at initializeMultiHubSwap (multi-hub-swap-contract.ts:2061:13)
+    at async initializeContract (MultiHubSwapSettings.tsx:174:7)
