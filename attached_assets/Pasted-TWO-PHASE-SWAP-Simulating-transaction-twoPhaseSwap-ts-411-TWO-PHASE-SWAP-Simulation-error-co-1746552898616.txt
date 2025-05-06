@@ -1,0 +1,43 @@
+TWO_PHASE_SWAP] Simulating transaction...
+twoPhaseSwap.ts:411 [TWO_PHASE_SWAP] Simulation error, continuing anyway: TypeError: Cannot read properties of undefined (reading 'numRequiredSignatures')
+    at executeSwapTransaction (twoPhaseSwap.ts:403:43)
+    at async twoPhaseSwap (twoPhaseSwap.ts:505:24)
+    at async solToYotSwap (secureSwap.ts:714:20)
+    at async executeSwap (multi-hub-swap-contract.ts:1561:22)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+executeSwapTransaction	@	twoPhaseSwap.ts:411
+await in executeSwapTransaction		
+twoPhaseSwap	@	twoPhaseSwap.ts:505
+await in twoPhaseSwap		
+solToYotSwap	@	secureSwap.ts:714
+await in solToYotSwap		
+executeSwap	@	multi-hub-swap-contract.ts:1561
+await in executeSwap		
+performSwap	@	MultiHubSwapCard.tsx:403
+await in performSwap		
+onClick	@	MultiHubSwapCard.tsx:1009
+
+twoPhaseSwap.ts:415 [TWO_PHASE_SWAP] Sending swap transaction...
+twoPhaseSwap.ts:420 [TWO_PHASE_SWAP] Swap transaction sent: 4Tr73mjBzWRcfiKY5NDzoJqZTRKxxQaqo8M7F5RSEP3KuqXmwZzC6h4trT1tPhxV8QHmofARx4JVCPPMSXBPFFYv
+twoPhaseSwap.ts:421 [TWO_PHASE_SWAP] View on explorer: https://explorer.solana.com/tx/4Tr73mjBzWRcfiKY5NDzoJqZTRKxxQaqo8M7F5RSEP3KuqXmwZzC6h4trT1tPhxV8QHmofARx4JVCPPMSXBPFFYv?cluster=devnet
+twoPhaseSwap.ts:426 [TWO_PHASE_SWAP] Swap transaction confirmed!
+twoPhaseSwap.ts:431 [TWO_PHASE_SWAP] Final YOT balance: 0
+secureSwap.ts:728 [SECURE_SWAP] Transaction sent: 4Tr73mjBzWRcfiKY5NDzoJqZTRKxxQaqo8M7F5RSEP3KuqXmwZzC6h4trT1tPhxV8QHmofARx4JVCPPMSXBPFFYv
+secureSwap.ts:729 [SECURE_SWAP] View on explorer: https://explorer.solana.com/tx/4Tr73mjBzWRcfiKY5NDzoJqZTRKxxQaqo8M7F5RSEP3KuqXmwZzC6h4trT1tPhxV8QHmofARx4JVCPPMSXBPFFYv?cluster=devnet
+secureSwap.ts:733 [SECURE_SWAP] Confirming with lastValidBlockHeight + 150 = 367076060
+secureSwap.ts:750 [SECURE_SWAP] Error sending transaction: 
+{InstructionError: Array(2)}
+solToYotSwap	@	secureSwap.ts:750
+await in solToYotSwap		
+executeSwap	@	multi-hub-swap-contract.ts:1561
+await in executeSwap		
+performSwap	@	MultiHubSwapCard.tsx:403
+await in performSwap		
+onClick	@	MultiHubSwapCard.tsx:1009
+multi-hub-swap-contract.ts:1631 [SWAP_DEBUG] Critical transaction failure: 
+{InstructionError: Array(2)}
+executeSwap	@	multi-hub-swap-contract.ts:1631
+await in executeSwap		
+performSwap	@	MultiHubSwapCard.tsx:403
+await in performSwap		
+onClick	@	MultiHubSwapCard.tsx:1009
