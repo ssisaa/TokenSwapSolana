@@ -69,13 +69,39 @@ ${SOL_DISTRIBUTION_RATIO}% of SOL goes to pool, ${YOT_DISTRIBUTION_RATIO}% of YO
       // Create connection to Solana devnet using our configured endpoint
       const connection = new Connection(getRpcEndpoint(), 'confirmed');
 
-      // Execute the swap
-      const signature = await swapSolToYot(
-        wallet,
-        solAmount,
-        minYotAmount,
-        connection
-      );
+      // Show a warning about missing accounts if the operation fails
+      const warningToastId = 'missing-accounts-warning';
+      
+      let swapSignature = '';
+      try {
+        // Execute the swap
+        swapSignature = await swapSolToYot(
+          wallet,
+          solAmount,
+          minYotAmount,
+          connection
+        );
+        
+        // Continue with success path
+      } catch (error: any) {
+        // Check if this is a token account error
+        if (error.message && (
+          error.message.includes('missing token account') || 
+          error.message.includes('invalid account data') ||
+          error.message.includes('Common wallet') ||
+          error.message.includes('account may be missing'))) {
+          
+          // Show a more specific error message with guidance
+          toast({
+            title: 'Token Account Missing',
+            description: "This transaction requires token accounts that need to be created by the admin. Please use the Admin Tools to create all required token accounts before trying again.",
+            variant: 'destructive',
+            duration: 10000 // Show for longer
+          });
+          throw error;
+        }
+        throw error;
+      }
 
       // Show success message
       toast({
@@ -86,7 +112,7 @@ ${SOL_DISTRIBUTION_RATIO}% of SOL goes to pool, ${YOT_DISTRIBUTION_RATIO}% of YO
             <span className="text-sm text-muted-foreground">{YOT_DISTRIBUTION_RATIO}% of YOT to you, {100-YOT_DISTRIBUTION_RATIO}% to common wallet</span>
             <span className="text-sm text-green-600">+{YOS_CASHBACK_PERCENTAGE}% YOS cashback reward</span>
             <a 
-              href={`https://explorer.solana.com/tx/${signature}?cluster=${SOLANA_NETWORK}`} 
+              href={`https://explorer.solana.com/tx/${swapSignature}?cluster=${SOLANA_NETWORK}`} 
               target="_blank" 
               rel="noopener noreferrer"
               className="text-blue-500 underline text-sm mt-1"
@@ -99,7 +125,7 @@ ${SOL_DISTRIBUTION_RATIO}% of SOL goes to pool, ${YOT_DISTRIBUTION_RATIO}% of YO
       });
 
       setSwapComplete(true);
-      if (onSuccess) onSuccess(signature);
+      if (onSuccess) onSuccess(swapSignature);
 
       // Reset the button after 3 seconds
       setTimeout(() => {
