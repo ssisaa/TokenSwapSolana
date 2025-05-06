@@ -17,13 +17,18 @@ const {
   TOKEN_PROGRAM_ID
 } = require('@solana/spl-token');
 
-// Direct constants - no config file dependency
-const CONNECTION_URL = 'https://api.devnet.solana.com';
-const MULTI_HUB_SWAP_PROGRAM_ID = new PublicKey('Js9TqdpLBsF7M64ra2mYNyfbPTWwTvBUNR85wsEoSKP');
-const POOL_AUTHORITY = new PublicKey('CeuRAzZ58St8B29XKWo647CGtY7FL5qpwv8WGZUHAuA9');
-const POOL_SOL_ACCOUNT = new PublicKey('Bf78XttEfzR4iM3JCWfwgSCpd5MHePTMD2UKBEZU6coH'); 
-const YOT_TOKEN_ADDRESS = new PublicKey('9KxQHJcBxp29AjGTAqF3LCFzodSpkuv986wsSEwQi6Cw');
-const YOS_TOKEN_ADDRESS = new PublicKey('2SWCnck3vLAVKaLkAjVtNnsVJVGYmGzyNVnte48SQRop');
+// Load configuration from app.config.json
+const configPath = path.join(__dirname, 'app.config.json');
+const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+const solanaConfig = config.solana;
+
+// Get values from config
+const CONNECTION_URL = solanaConfig.rpcUrl || 'https://api.devnet.solana.com';
+const MULTI_HUB_SWAP_PROGRAM_ID = new PublicKey(solanaConfig.multiHubSwap.programId);
+const POOL_AUTHORITY = new PublicKey(solanaConfig.pool.authority);
+const POOL_SOL_ACCOUNT = new PublicKey(solanaConfig.pool.solAccount);
+const YOT_TOKEN_ADDRESS = new PublicKey(solanaConfig.tokens.yot.address);
+const YOS_TOKEN_ADDRESS = new PublicKey(solanaConfig.tokens.yos.address);
 
 // Create connection
 const connection = new Connection(CONNECTION_URL, 'confirmed');
@@ -32,7 +37,27 @@ const connection = new Connection(CONNECTION_URL, 'confirmed');
 function loadWalletFromFile() {
   try {
     // Use the test keypair for testing
-    const keyfileContent = fs.readFileSync('test-keypair.json', 'utf8');
+    const files = [
+      '.keypair-test.json',      // Try the repo root directory
+      '../.keypair-test.json',   // Try one level up
+      './test-keypair.json'      // Try the original path
+    ];
+    
+    let keyfileContent = null;
+    for (const file of files) {
+      try {
+        keyfileContent = fs.readFileSync(file, 'utf8');
+        console.log(`Using existing test keypair from ${file}`);
+        break;
+      } catch (e) {
+        // Continue to next file
+      }
+    }
+    
+    if (!keyfileContent) {
+      throw new Error('Could not find a valid keypair file');
+    }
+    
     const secretKey = Uint8Array.from(JSON.parse(keyfileContent));
     return Keypair.fromSecretKey(secretKey);
   } catch (error) {
