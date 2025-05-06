@@ -685,7 +685,7 @@ export async function secureSwap(
  * properly initializing program state before attempting to swap
  */
 export async function solToYotSwap(wallet: any, solAmount: number): Promise<string> {
-  console.log(`[SECURE_SWAP] Starting on-chain swap of ${solAmount} SOL`);
+  console.log(`[SECURE_SWAP] Starting on-chain swap of ${solAmount} SOL using two-phase approach`);
   
   // Security validation: ensure wallet is connected
   if (!wallet || !wallet.publicKey) {
@@ -693,10 +693,7 @@ export async function solToYotSwap(wallet: any, solAmount: number): Promise<stri
   }
   
   // Step 1: Check if program state is already initialized
-  const [programStateAddress] = PublicKey.findProgramAddressSync(
-    [Buffer.from('state')],
-    new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
-  );
+  const programStateAddress = getProgramStatePda();
   
   console.log(`[SECURE_SWAP] Checking program state at: ${programStateAddress.toString()}`);
   const accountInfo = await connection.getAccountInfo(programStateAddress);
@@ -709,39 +706,23 @@ export async function solToYotSwap(wallet: any, solAmount: number): Promise<stri
   
   console.log(`[SECURE_SWAP] Program state confirmed, data length: ${accountInfo.data.length} bytes`);
   
-  // Step 2: Create the main swap transaction
-  const transaction = await createSecureSolTransferTransaction(wallet, solAmount);
-  
-  // Step 3: Sign and send the transaction
-  console.log("[SECURE_SWAP] Sending transaction for wallet signature...");
+  // Use two-phase swap approach to avoid "account already borrowed" error
+  const { twoPhaseSwap } = await import('./twoPhaseSwap');
   
   try {
-    // Sign with the wallet
-    const signedTransaction = await wallet.signTransaction(transaction);
+    console.log("[SECURE_SWAP] Starting two-phase swap to avoid account borrowing errors");
+    const result = await twoPhaseSwap(wallet, solAmount);
     
-    // Verify signatures for added security
-    if (!signedTransaction.verifySignatures()) {
-      throw new Error("Transaction signature verification failed");
+    if (!result.success) {
+      console.error(`[SECURE_SWAP] Two-phase swap failed: ${result.error}`);
+      throw new Error(result.error || 'Swap failed');
     }
     
-    // Send the signed transaction with retry mechanism
-    let signature;
-    try {
-      // Try with preflight checks first
-      signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
-        skipPreflight: false,
-        preflightCommitment: 'confirmed',
-        maxRetries: 3
-      });
-    } catch (preflightError) {
-      console.warn("[SECURE_SWAP] Transaction failed preflight checks, trying with skipPreflight=true:", preflightError);
-      
-      // If preflight fails, try again with skipPreflight
-      signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
-        skipPreflight: true,
-        preflightCommitment: 'confirmed',
-        maxRetries: 5
-      });
+    // Use the swap signature as our result
+    const signature = result.signatures?.swap;
+    
+    if (!signature) {
+      throw new Error("No swap signature returned");
     }
     
     console.log(`[SECURE_SWAP] Transaction sent: ${signature}`);

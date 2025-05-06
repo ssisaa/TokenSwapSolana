@@ -25,10 +25,8 @@ import {
 import { solanaConfig } from './config';
 
 // Connection with reasonable timeout and commitment level
-const connection = new Connection(
-  solanaConfig.endpoint,
-  { commitment: 'confirmed', confirmTransactionInitialTimeout: 60000 }
-);
+// Import the connection from solana.ts to ensure consistency
+import { connection } from './solana';
 
 // Program and token addresses
 const MULTI_HUB_SWAP_PROGRAM_ID = new PublicKey(solanaConfig.multiHubSwap.programId);
