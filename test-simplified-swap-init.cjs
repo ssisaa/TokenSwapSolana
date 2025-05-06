@@ -1,78 +1,144 @@
 /**
- * Test script to deploy and initialize the simplified swap program
- * This is separate from the main multi-hub swap program
- * Command to run: node test-simplified-swap-init.cjs
+ * Initialize the simplified swap program
+ * 
+ * This script sets up the program state for the simplified SOL to YOT swap.
+ * It must be run by the admin after the program is deployed.
  */
 
 const { 
+  Keypair, 
   Connection, 
   PublicKey, 
-  Keypair, 
+  clusterApiUrl, 
   Transaction, 
-  SystemProgram, 
-  TransactionInstruction,
-  LAMPORTS_PER_SOL,
-  sendAndConfirmTransaction,
-  BpfLoader,
-  BPF_LOADER_PROGRAM_ID,
+  TransactionInstruction, 
+  sendAndConfirmTransaction 
 } = require('@solana/web3.js');
-const { 
-  getAssociatedTokenAddress, 
-  TOKEN_PROGRAM_ID, 
-  createAssociatedTokenAccountInstruction 
-} = require('@solana/spl-token');
 const fs = require('fs');
 const path = require('path');
 
-// Constants
+// Constants for initialization
+const SIMPLIFIED_SWAP_PROGRAM_ID = 'SimpleSwapPDCsXVzAi7i2UmXt3VY6K79Po4wY3zLGwu'; // Will be updated by deploy script
 const YOT_MINT = '9KxQHJcBxp29AjGTAqF3LCFzodSpkuv986wsSEwQi6Cw';
 const YOS_MINT = '2SWCnck3vLAVKaLkAjVtNnsVJVGYmGzyNVnte48SQRop';
+const SOL_POOL_WALLET = 'Bf78XttEfzR4iM3JCWfwgSCpd5MHePTMD2UKBEZU6coH';
+const YOT_POOL_TOKEN_ACCOUNT = 'EieVwYpDMdKr94iQygkyCeEBMhRWA4XsXyGumXztza74';
 const COMMON_WALLET_ADDRESS = 'CeuRAzZ58St8B29XKWo647CGtY7FL5qpwv8WGZUHAuA9';
 
-async function main() {
+// Distribution ratios
+const SOL_DISTRIBUTION_RATIO = 80; // 80% to pool, 20% to common wallet
+const YOT_DISTRIBUTION_RATIO = 80; // 80% to user, 20% to common wallet
+const MIN_SOL_AMOUNT = 100000; // 0.0001 SOL in lamports
+
+// Connect to Solana devnet
+const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+
+// Load wallet from the keypair file
+function loadWalletFromFile() {
+  const keypairFile = path.resolve(process.cwd(), '.keypair-test.json');
+  if (!fs.existsSync(keypairFile)) {
+    console.error('Keypair file not found. Please create .keypair-test.json');
+    process.exit(1);
+  }
+  
+  const keypairData = JSON.parse(fs.readFileSync(keypairFile, 'utf-8'));
+  return Keypair.fromSecretKey(new Uint8Array(keypairData));
+}
+
+// Find program state PDA
+function findProgramStateAddress() {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('state')],
+    new PublicKey(SIMPLIFIED_SWAP_PROGRAM_ID)
+  );
+}
+
+// Find program authority PDA
+function findProgramAuthorityAddress() {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('authority')],
+    new PublicKey(SIMPLIFIED_SWAP_PROGRAM_ID)
+  );
+}
+
+// Create instruction data for Initialize
+function createInitializeInstructionData() {
+  const buffer = Buffer.alloc(1 + 1 + 1 + 8); // 1 + 1 + 1 + 8 bytes
+  
+  // Instruction index (0 for Initialize)
+  buffer.writeUInt8(0, 0);
+  
+  // SOL distribution ratio (80%)
+  buffer.writeUInt8(SOL_DISTRIBUTION_RATIO, 1);
+  
+  // YOT distribution ratio (80%)
+  buffer.writeUInt8(YOT_DISTRIBUTION_RATIO, 2);
+  
+  // Minimum SOL amount (0.0001 SOL)
+  buffer.writeBigUInt64LE(BigInt(MIN_SOL_AMOUNT), 3);
+  
+  return buffer;
+}
+
+// Initialize the program
+async function initializeProgram() {
   try {
-    // Load the test keypair
-    const keypairBuffer = fs.readFileSync(path.join(__dirname, '.keypair-test.json'), 'utf-8');
-    const keypairData = JSON.parse(keypairBuffer);
-    const keypair = Keypair.fromSecretKey(new Uint8Array(keypairData));
+    console.log('Initializing simplified swap program...');
     
-    // Create a connection to the Solana cluster
-    const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
+    // Load wallet
+    const wallet = loadWalletFromFile();
+    console.log(`Using admin wallet: ${wallet.publicKey.toString()}`);
     
-    // Check the wallet balance
-    const balance = await connection.getBalance(keypair.publicKey);
-    console.log(`Wallet balance: ${balance/LAMPORTS_PER_SOL} SOL`);
+    // Get program PDAs
+    const [programStatePda, _] = findProgramStateAddress();
+    const [programAuthorityPda, __] = findProgramAuthorityAddress();
     
-    // Log key information
-    console.log(`Using wallet: ${keypair.publicKey.toString()}`);
-    console.log(`YOT mint: ${YOT_MINT}`);
-    console.log(`YOS mint: ${YOS_MINT}`);
-    console.log(`Common wallet: ${COMMON_WALLET_ADDRESS}`);
+    console.log('Program PDAs:');
+    console.log(`Program State PDA: ${programStatePda.toString()}`);
+    console.log(`Program Authority PDA: ${programAuthorityPda.toString()}`);
     
-    // Load the compiled program
-    // This assumes your program has been compiled into a .so file
-    // You would need to build the program separately with cargo build-bpf
+    // Create the initialization instruction
+    const instructionData = createInitializeInstructionData();
     
-    // IMPORTANT: This part of the test script is a placeholder
-    // In a production environment, you would deploy the program using solana program deploy
-    // and store the program ID for future use
+    const initializeInstruction = new TransactionInstruction({
+      programId: new PublicKey(SIMPLIFIED_SWAP_PROGRAM_ID),
+      keys: [
+        { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
+        { pubkey: programStatePda, isSigner: false, isWritable: true },
+        { pubkey: programAuthorityPda, isSigner: false, isWritable: false },
+        { pubkey: new PublicKey(YOT_MINT), isSigner: false, isWritable: false },
+        { pubkey: new PublicKey(YOS_MINT), isSigner: false, isWritable: false },
+        { pubkey: new PublicKey(COMMON_WALLET_ADDRESS), isSigner: false, isWritable: false },
+        { pubkey: PublicKey.default, isSigner: false, isWritable: false }, // System program
+      ],
+      data: instructionData,
+    });
     
-    console.log("To deploy the simplified swap program, compile it with:");
-    console.log("cd program/simplified_swap_program && cargo build-bpf");
-    console.log("Then deploy with:");
-    console.log("solana program deploy target/deploy/simplified_swap_program.so");
+    // Create transaction
+    const transaction = new Transaction().add(initializeInstruction);
+    transaction.feePayer = wallet.publicKey;
     
-    console.log("Once deployed, update the SIMPLIFIED_SWAP_PROGRAM_ID in the client code");
-    console.log("Then run the initialization transaction using the SimplifiedSwapButton component");
+    // Send and confirm transaction
+    const signature = await sendAndConfirmTransaction(
+      connection,
+      transaction,
+      [wallet],
+      { commitment: 'confirmed' }
+    );
     
-    // For testing purpose, you can add some mock initialization code here
-    // that would be similar to what the actual initialization function does
+    console.log('Initialization transaction sent successfully!');
+    console.log(`Transaction signature: ${signature}`);
+    console.log(`View on Solana Explorer: https://explorer.solana.com/tx/${signature}?cluster=devnet`);
     
-    console.log("Simplified swap program test completed");
+    console.log('\nProgram initialized with the following parameters:');
+    console.log(`SOL distribution ratio: ${SOL_DISTRIBUTION_RATIO}%`);
+    console.log(`YOT distribution ratio: ${YOT_DISTRIBUTION_RATIO}%`);
+    console.log(`Minimum SOL amount: ${MIN_SOL_AMOUNT} lamports`);
     
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error initializing program:', error);
   }
 }
 
-main();
+// Run the initialization
+initializeProgram();

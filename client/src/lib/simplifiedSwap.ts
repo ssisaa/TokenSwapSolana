@@ -1,6 +1,11 @@
 /**
- * Simplified SOL to YOT swap implementation
- * This version focuses on core functionality with minimal complexity
+ * Client interface for the simplified SOL to YOT swap program
+ * 
+ * This module provides functions to interact with the on-chain swap program
+ * that handles direct SOL to YOT swaps with distribution based on ratios:
+ * - SOL: 80% to pool, 20% to common wallet
+ * - YOT: 80% to user, 20% to common wallet
+ * - Additionally: 5% YOS as cashback to the user
  */
 
 import {
@@ -9,151 +14,158 @@ import {
   Transaction,
   SystemProgram,
   LAMPORTS_PER_SOL,
-  TransactionInstruction
+  TransactionInstruction,
 } from '@solana/web3.js';
 import {
-  TOKEN_PROGRAM_ID,
-  getAssociatedTokenAddress,
-  createAssociatedTokenAccountInstruction
-} from '@solana/spl-token';
-import { solanaConfig } from './config';
-import { connection } from './solana';
-
-// Configuration
-const MULTI_HUB_SWAP_PROGRAM_ID = new PublicKey(solanaConfig.multiHubSwap.programId);
-const YOT_TOKEN_ADDRESS = solanaConfig.tokens.yot.address;
-const YOS_TOKEN_ADDRESS = solanaConfig.tokens.yos.address;
-const POOL_SOL_ACCOUNT = new PublicKey(solanaConfig.pool.solAccount);
-const POOL_AUTHORITY = new PublicKey(solanaConfig.pool.authority);
+  SIMPLIFIED_SWAP_PROGRAM_ID,
+  YOT_MINT,
+  YOS_MINT,
+  SOL_POOL_WALLET,
+  YOT_POOL_TOKEN_ACCOUNT,
+  COMMON_WALLET_ADDRESS,
+} from './configConstants';
+import { getAssociatedTokenAddress } from '@solana/spl-token';
+import { Buffer } from 'buffer';
 
 /**
- * Find program state PDA
+ * Find program state PDA for the simplified swap program
+ * @returns [pda, bump]
  */
-function findProgramStatePda(): [PublicKey, number] {
+export function findProgramStatePda(): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
     [Buffer.from('state')],
-    MULTI_HUB_SWAP_PROGRAM_ID
+    new PublicKey(SIMPLIFIED_SWAP_PROGRAM_ID)
   );
 }
 
 /**
- * Find program authority PDA
+ * Find program authority PDA for the simplified swap program
+ * @returns [pda, bump]
  */
-function findProgramAuthorityPda(): [PublicKey, number] {
+export function findProgramAuthorityPda(): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
     [Buffer.from('authority')],
-    MULTI_HUB_SWAP_PROGRAM_ID
+    new PublicKey(SIMPLIFIED_SWAP_PROGRAM_ID)
   );
 }
 
 /**
- * Simple SOL to YOT swap 
- * This implementation focuses on just sending SOL to get YOT in return
+ * Create instruction data for the SOL to YOT swap
  */
-export async function simpleSwap(wallet: any, solAmount: number): Promise<{
-  success: boolean;
-  signature?: string;
-  error?: string;
-}> {
-  if (!wallet || !wallet.publicKey) {
-    return { success: false, error: 'Wallet not connected' };
-  }
+export function createSwapSolToYotInstructionData(
+  solAmount: number,
+  minYotAmount: number
+): Buffer {
+  const buffer = Buffer.alloc(9); // 1 + 8 bytes
+  
+  // Instruction discriminator: 0 for Initialize, 1 for SwapSolToYot
+  buffer.writeUInt8(1, 0);
+  
+  // SOL amount in lamports
+  buffer.writeBigUInt64LE(BigInt(solAmount), 1);
+  
+  // Min YOT amount (slippage protection)
+  const minYotBuffer = Buffer.alloc(8);
+  minYotBuffer.writeBigUInt64LE(BigInt(minYotAmount), 0);
+  
+  // Extend buffer to include minYotAmount
+  return Buffer.concat([buffer, minYotBuffer]);
+}
 
+/**
+ * Create a transaction for SOL to YOT swap
+ */
+export async function createSwapSolToYotTransaction(
+  wallet: PublicKey,
+  solAmount: number,
+  minYotAmount: number,
+  connection: Connection
+): Promise<Transaction> {
+  // Convert SOL to lamports
+  const lamports = solAmount * LAMPORTS_PER_SOL;
+  
+  // Get required PDAs
+  const [programStatePda] = findProgramStatePda();
+  const [programAuthorityPda] = findProgramAuthorityPda();
+  
+  // Get token accounts for the user
+  const userYotAccount = await getAssociatedTokenAddress(
+    new PublicKey(YOT_MINT),
+    wallet
+  );
+  
+  const userYosAccount = await getAssociatedTokenAddress(
+    new PublicKey(YOS_MINT),
+    wallet
+  );
+  
+  // Get the common wallet's YOT token account
+  const commonWalletYotAccount = await getAssociatedTokenAddress(
+    new PublicKey(YOT_MINT),
+    new PublicKey(COMMON_WALLET_ADDRESS)
+  );
+  
+  // Create the swap instruction
+  const instructionData = createSwapSolToYotInstructionData(lamports, minYotAmount);
+  
+  const swapInstruction = new TransactionInstruction({
+    programId: new PublicKey(SIMPLIFIED_SWAP_PROGRAM_ID),
+    keys: [
+      { pubkey: wallet, isSigner: true, isWritable: true },
+      { pubkey: programStatePda, isSigner: false, isWritable: false },
+      { pubkey: programAuthorityPda, isSigner: false, isWritable: false },
+      { pubkey: new PublicKey(SOL_POOL_WALLET), isSigner: false, isWritable: true },
+      { pubkey: new PublicKey(YOT_POOL_TOKEN_ACCOUNT), isSigner: false, isWritable: true },
+      { pubkey: userYotAccount, isSigner: false, isWritable: true },
+      { pubkey: new PublicKey(COMMON_WALLET_ADDRESS), isSigner: false, isWritable: true },
+      { pubkey: new PublicKey(YOS_MINT), isSigner: false, isWritable: true },
+      { pubkey: userYosAccount, isSigner: false, isWritable: true },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      { pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), isSigner: false, isWritable: false },
+      { pubkey: commonWalletYotAccount, isSigner: false, isWritable: true },
+    ],
+    data: instructionData,
+  });
+  
+  // Create and return the transaction
+  const transaction = new Transaction();
+  transaction.add(swapInstruction);
+  
+  // Get recent blockhash for transaction
+  const { blockhash } = await connection.getLatestBlockhash();
+  transaction.recentBlockhash = blockhash;
+  transaction.feePayer = wallet;
+  
+  return transaction;
+}
+
+/**
+ * Execute a SOL to YOT swap
+ */
+export async function swapSolToYot(
+  wallet: any,
+  solAmount: number,
+  minYotAmount: number,
+  connection: Connection
+): Promise<string> {
   try {
-    console.log(`[SIMPLE_SWAP] Starting swap of ${solAmount} SOL for YOT`);
-    const amountInLamports = solAmount * LAMPORTS_PER_SOL;
-
-    // Get all the necessary token addresses and PDAs
-    const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
-    const yosMint = new PublicKey(YOS_TOKEN_ADDRESS);
-    const [programStateAddress] = findProgramStatePda();
-    const [programAuthority] = findProgramAuthorityPda();
-
-    // Get token accounts
-    const yotPoolAccount = await getAssociatedTokenAddress(yotMint, POOL_AUTHORITY);
-    const userYotAccount = await getAssociatedTokenAddress(yotMint, wallet.publicKey);
-    const userYosAccount = await getAssociatedTokenAddress(yosMint, wallet.publicKey);
-
-    // Check if user YOT account exists
-    let userYotAccountExists = false;
-    try {
-      const accountInfo = await connection.getAccountInfo(userYotAccount);
-      userYotAccountExists = accountInfo !== null;
-    } catch (error) {
-      console.error('[SIMPLE_SWAP] Error checking user YOT account:', error);
-    }
-
-    // Create a transaction to create user YOT account if needed
-    const transaction = new Transaction();
-    if (!userYotAccountExists) {
-      console.log('[SIMPLE_SWAP] Creating user YOT account...');
-      const createYotAccountIx = createAssociatedTokenAccountInstruction(
-        wallet.publicKey,
-        userYotAccount,
-        wallet.publicKey,
-        yotMint
-      );
-      transaction.add(createYotAccountIx);
-    }
-
-    // Check if user YOS account exists
-    let userYosAccountExists = false;
-    try {
-      const accountInfo = await connection.getAccountInfo(userYosAccount);
-      userYosAccountExists = accountInfo !== null;
-    } catch (error) {
-      console.error('[SIMPLE_SWAP] Error checking user YOS account:', error);
-    }
-
-    // Create user YOS account if needed
-    if (!userYosAccountExists) {
-      console.log('[SIMPLE_SWAP] Creating user YOS account...');
-      const createYosAccountIx = createAssociatedTokenAccountInstruction(
-        wallet.publicKey,
-        userYosAccount,
-        wallet.publicKey,
-        yosMint
-      );
-      transaction.add(createYosAccountIx);
-    }
-
-    // Add SOL transfer to system instruction
-    // This simply transfers SOL to the SOL pool account
-    const transferInstruction = SystemProgram.transfer({
-      fromPubkey: wallet.publicKey,
-      toPubkey: POOL_SOL_ACCOUNT,
-      lamports: amountInLamports
-    });
-    transaction.add(transferInstruction);
-
-    // Set transaction properties
-    transaction.feePayer = wallet.publicKey;
-    const { blockhash } = await connection.getLatestBlockhash();
-    transaction.recentBlockhash = blockhash;
-
-    // Sign transaction
-    const signedTx = await wallet.signTransaction(transaction);
-
-    // Send transaction
-    console.log('[SIMPLE_SWAP] Sending transaction...');
-    const signature = await connection.sendRawTransaction(signedTx.serialize());
+    console.log(`Initiating SOL to YOT swap: ${solAmount} SOL`);
     
-    console.log(`[SIMPLE_SWAP] Transaction sent: ${signature}`);
-    console.log(`[SIMPLE_SWAP] View on explorer: https://explorer.solana.com/tx/${signature}?cluster=devnet`);
-
-    // Wait for confirmation
-    await connection.confirmTransaction(signature, 'confirmed');
-    console.log('[SIMPLE_SWAP] Transaction confirmed!');
-
-    return {
-      success: true,
-      signature
-    };
-  } catch (error: any) {
-    console.error('[SIMPLE_SWAP] Error during swap:', error);
-    return { 
-      success: false, 
-      error: error.message 
-    };
+    // Create the swap transaction
+    const transaction = await createSwapSolToYotTransaction(
+      wallet.publicKey,
+      solAmount,
+      minYotAmount,
+      connection
+    );
+    
+    // Sign and send the transaction
+    const signature = await wallet.sendTransaction(transaction, connection);
+    
+    console.log(`Swap transaction sent: ${signature}`);
+    return signature;
+  } catch (error) {
+    console.error('Error executing SOL to YOT swap:', error);
+    throw error;
   }
 }

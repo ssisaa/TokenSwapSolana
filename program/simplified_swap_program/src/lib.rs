@@ -441,3 +441,135 @@ pub fn process_sol_to_yot_swap(
     
     Ok(())
 }
+
+/// Swap YOT for SOL tokens
+pub fn process_yot_to_sol_swap(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    yot_amount: u64,
+    min_sol_amount: u64,
+) -> ProgramResult {
+    let accounts_iter = &mut accounts.iter();
+    
+    // Extract accounts
+    let user_account = next_account_info(accounts_iter)?;
+    let program_state_account = next_account_info(accounts_iter)?;
+    let program_authority = next_account_info(accounts_iter)?;
+    let sol_pool_account = next_account_info(accounts_iter)?;
+    let yot_pool_account = next_account_info(accounts_iter)?;
+    let user_yot_account = next_account_info(accounts_iter)?;
+    let central_liquidity_wallet = next_account_info(accounts_iter)?;
+    let token_program = next_account_info(accounts_iter)?;
+    let system_program = next_account_info(accounts_iter)?;
+    
+    // Validate accounts
+    if !user_account.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+    
+    // Verify PDAs
+    let (expected_program_state, _) = find_program_state_address(program_id);
+    if expected_program_state != *program_state_account.key {
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    let (expected_program_authority, authority_bump) = find_program_authority(program_id);
+    if expected_program_authority != *program_authority.key {
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Deserialize the program state
+    let program_state = ProgramState::try_from_slice(&program_state_account.data.borrow())?;
+    
+    // Verify token accounts
+    if program_state.yot_mint != Mint::unpack(&yot_pool_account.data.borrow())?.mint {
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    if program_state.liquidity_wallet != *central_liquidity_wallet.key {
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Verify the user's YOT account
+    let user_yot_data = TokenAccount::unpack(&user_yot_account.data.borrow())?;
+    if user_yot_data.mint != program_state.yot_mint || 
+       user_yot_data.owner != *user_account.key {
+        return Err(ProgramError::InvalidAccountData);
+    }
+    
+    // Transfer YOT tokens from user to pool
+    invoke(
+        &spl_token::instruction::transfer(
+            token_program.key,
+            user_yot_account.key,
+            yot_pool_account.key,
+            user_account.key,
+            &[],
+            yot_amount,
+        )?,
+        &[
+            user_yot_account.clone(),
+            yot_pool_account.clone(),
+            user_account.clone(),
+            token_program.clone(),
+        ],
+    )?;
+    
+    // Calculate SOL amount to send to user using constant product formula
+    let sol_pool_balance = sol_pool_account.lamports();
+    let yot_pool_data = TokenAccount::unpack(&yot_pool_account.data.borrow())?;
+    let yot_pool_balance = yot_pool_data.amount.checked_sub(yot_amount).unwrap_or(1); // Balance after transfer
+    
+    // Simple constant-product AMM formula: (x * y) / (y + dy) - x
+    let sol_amount_raw = (yot_amount as u128)
+        .checked_mul(sol_pool_balance as u128).unwrap_or(0)
+        .checked_div(yot_pool_balance as u128).unwrap_or(0) as u64;
+    
+    // Apply distribution - 80% of SOL goes to user, 20% to common wallet
+    let user_sol_amount = sol_amount_raw * program_state.yot_distribution_ratio as u64 / 100;
+    let common_wallet_sol_amount = sol_amount_raw - user_sol_amount;
+    
+    msg!("Calculated amounts: {} SOL for user ({}%), {} SOL to common wallet ({}%)", 
+        user_sol_amount, program_state.yot_distribution_ratio,
+        common_wallet_sol_amount, 100 - program_state.yot_distribution_ratio);
+    
+    // Verify minimum SOL amount
+    if user_sol_amount < min_sol_amount {
+        return Err(ProgramError::InvalidArgument);
+    }
+    
+    // Transfer SOL to user (80%)
+    invoke_signed(
+        &system_instruction::transfer(
+            sol_pool_account.key,
+            user_account.key,
+            user_sol_amount,
+        ),
+        &[
+            sol_pool_account.clone(),
+            user_account.clone(),
+            system_program.clone(),
+        ],
+        &[&[b"authority", &[authority_bump]]],
+    )?;
+    
+    // Transfer SOL to common wallet (20%)
+    invoke_signed(
+        &system_instruction::transfer(
+            sol_pool_account.key,
+            central_liquidity_wallet.key,
+            common_wallet_sol_amount,
+        ),
+        &[
+            sol_pool_account.clone(),
+            central_liquidity_wallet.clone(),
+            system_program.clone(),
+        ],
+        &[&[b"authority", &[authority_bump]]],
+    )?;
+    
+    msg!("Swap completed successfully");
+    msg!("User received: {} SOL", user_sol_amount);
+    
+    Ok(())
+}
