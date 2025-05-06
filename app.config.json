@@ -16,11 +16,11 @@
         "symbol": "SOL"
       },
       "yot": {
-        "address": "9KxQHJcBxp29AjGTAqF3LCFzodSpkuv986wsSEwQi6Cw", 
+        "address": "2EmUMo6kgmospSja3FUpYT3Yrps2YjHJtU9oZohr5GPF", 
         "decimals": 9,
         "name": "YOT Token",
         "symbol": "YOT",
-        "account": "EieVwYpDMdKr94iQygkyCeEBMhRWA4XsXyGumXztza74"
+        "account": "BtHDQ6QwAffeeGftkNQK8X22n7HfnX4dud5vVsPZdqzE"
       },
       "yos": {
         "address": "2SWCnck3vLAVKaLkAjVtNnsVJVGYmGzyNVnte48SQRop",
@@ -33,12 +33,12 @@
       }
     },
     "pool": {
-      "authority": "CeuRAzZ58St8B29XKWo647CGtY7FL5qpwv8WGZUHAuA9",
-      "solAccount": "Bf78XttEfzR4iM3JCWfwgSCpd5MHePTMD2UKBEZU6coH",
+      "authority": "7m7RAFhzGXr4eYUWUdQ8U6ZAuZx6qRG8ZCSvr6cHKpfK",
+      "solAccount": "7xXdF9GUs3T8kCsfLkaQ72fJtu137vwzQAyRd9zE7dHS",
       "fallbackBalances": {
-        "sol": 40.027196998,
-        "yot": 620333392.92,
-        "yos": 0
+        "sol": 6.5,
+        "yot": 1000000000,
+        "yos": 10000000000
       }
     },
     "multiHubSwap": {
@@ -70,10 +70,10 @@
         "secondsPerWeek": 604800
       },
       "defaultExchangeRates": {
-        "solYot": 15650,
-        "yotSol": 0.000064,
-        "usdcYot": 105.5,
-        "yotUsdc": 0.0095
+        "solYot": 153846, 
+        "yotSol": 0.0000065,
+        "usdcYot": 1038.05,
+        "yotUsdc": 0.00096335
       },
       "instructionDiscriminators": {
         "buyAndDistribute": [6, 240, 93, 246, 87, 224, 215, 175],
