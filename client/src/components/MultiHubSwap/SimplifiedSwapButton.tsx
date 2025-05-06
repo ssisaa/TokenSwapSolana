@@ -5,7 +5,14 @@ import { useToast } from '@/hooks/use-toast';
 import { swapSolToYot } from '@/lib/simplifiedSwap';
 import { ArrowDownUp, CheckCircle2, RefreshCw } from 'lucide-react';
 import { Connection } from '@solana/web3.js';
-import { SOLANA_NETWORK, getRpcEndpoint, DEFAULT_SLIPPAGE_PERCENTAGE } from '@/lib/configConstants';
+import { 
+  SOLANA_NETWORK, 
+  getRpcEndpoint, 
+  DEFAULT_SLIPPAGE_PERCENTAGE,
+  YOT_DISTRIBUTION_RATIO,
+  YOS_CASHBACK_PERCENTAGE,
+  SOL_DISTRIBUTION_RATIO
+} from '@/lib/configConstants';
 
 interface SimplifiedSwapButtonProps {
   solAmount: number;
@@ -55,7 +62,8 @@ const SimplifiedSwapButton = ({
       setLoading(true);
       toast({
         title: 'Processing swap',
-        description: `Swapping ${solAmount} SOL for at least ${minYotAmount} YOT (${slippagePercentage}% slippage)`,
+        description: `Swapping ${solAmount} SOL for at least ${minYotAmount} YOT (${slippagePercentage}% slippage).
+${SOL_DISTRIBUTION_RATIO}% of SOL goes to pool, ${YOT_DISTRIBUTION_RATIO}% of YOT goes to you, with ${YOS_CASHBACK_PERCENTAGE}% YOS cashback.`,
       });
 
       // Create connection to Solana devnet using our configured endpoint
@@ -73,8 +81,10 @@ const SimplifiedSwapButton = ({
       toast({
         title: 'Swap successful!',
         description: (
-          <div className="flex flex-col">
-            <span>Swapped {solAmount} SOL for YOT with 5% YOS cashback</span>
+          <div className="flex flex-col space-y-1">
+            <span>Swapped {solAmount} SOL for YOT</span>
+            <span className="text-sm text-muted-foreground">{YOT_DISTRIBUTION_RATIO}% of YOT to you, {100-YOT_DISTRIBUTION_RATIO}% to common wallet</span>
+            <span className="text-sm text-green-600">+{YOS_CASHBACK_PERCENTAGE}% YOS cashback reward</span>
             <a 
               href={`https://explorer.solana.com/tx/${signature}?cluster=${SOLANA_NETWORK}`} 
               target="_blank" 

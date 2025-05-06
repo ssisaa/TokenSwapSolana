@@ -57,7 +57,7 @@ import {
   getLiquidityContributionInfo,
   withdrawLiquidityContribution,
   executeSwap, 
-  getExpectedOutput, 
+  getExpectedOutput,
   getTokenBalance, 
   isSwapSupported,
   getSupportedTokens,
@@ -68,9 +68,9 @@ import { getExchangeRate } from "@/lib/solana";
 import {
   YOT_MINT, 
   YOS_MINT,
-  SOLANA_NETWORK,
   DEFAULT_SLIPPAGE_PERCENTAGE,
-  MIN_SOL_AMOUNT
+  MIN_SOL_AMOUNT,
+  SOLANA_NETWORK,
 } from "@/lib/configConstants";
 
 // Legacy imports - will be migrated to configConstants.ts eventually
