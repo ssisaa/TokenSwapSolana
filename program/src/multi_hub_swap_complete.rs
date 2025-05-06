@@ -5,6 +5,7 @@ use solana_program::{
     msg,
     program::{invoke, invoke_signed},
     program_error::ProgramError,
+    program_pack::Pack, // Added Pack trait
     pubkey::Pubkey,
     system_instruction,
     sysvar::{rent::Rent, Sysvar, clock::Clock},
