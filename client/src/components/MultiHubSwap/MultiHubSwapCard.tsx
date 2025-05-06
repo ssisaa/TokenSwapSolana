@@ -65,6 +65,15 @@ import {
 } from "@/lib/multi-hub-swap-contract";
 // Import getExchangeRate from solana.ts for blockchain-based AMM calculations
 import { getExchangeRate } from "@/lib/solana";
+import {
+  YOT_MINT, 
+  YOS_MINT,
+  SOLANA_NETWORK,
+  DEFAULT_SLIPPAGE_PERCENTAGE,
+  MIN_SOL_AMOUNT
+} from "@/lib/configConstants";
+
+// Legacy imports - will be migrated to configConstants.ts eventually
 import { 
   FORMATTED_RATES,
   SOL_TOKEN_ADDRESS,
@@ -125,7 +134,7 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
   const [swapLoading, setSwapLoading] = useState(false);
   const [claimLoading, setClaimLoading] = useState(false);
   const [withdrawLoading, setWithdrawLoading] = useState(false);
-  const [slippage, setSlippage] = useState("1.0");
+  const [slippage, setSlippage] = useState(DEFAULT_SLIPPAGE_PERCENTAGE.toString());
   const [exchangeRateDisplay, setExchangeRateDisplay] = useState("");
   const [refreshTrigger, setRefreshTrigger] = useState(false);
 
@@ -1028,6 +1037,55 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
                 {/* Direct SOL transfer button - only show for SOL to YOT swaps */}
                 {fromToken?.symbol === "SOL" && toToken?.symbol === "YOT" && (
                   <>
+                    {/* Simplified Swap Button - Primary on-chain SOL to YOT swap */}
+                    <div className="flex flex-col gap-2 mb-4">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center">
+                          <Shield className="w-4 h-4 mr-1 text-blue-500" />
+                          <span className="text-sm font-medium">Simplified On-Chain Swap</span>
+                        </div>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Info className="w-4 h-4 text-muted-foreground" />
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-[300px]">
+                              <p>This swap occurs entirely on-chain with the following distribution:</p>
+                              <ul className="text-xs mt-1 pl-4 list-disc space-y-1">
+                                <li>80% of SOL goes to the pool, 20% to common wallet</li>
+                                <li>80% of YOT goes to you, 20% to common wallet</li>
+                                <li>5% YOS cashback reward</li>
+                              </ul>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      
+                      <SimplifiedSwapButton 
+                        solAmount={parseFloat(fromAmount) || 0}
+                        estimatedYotAmount={parseFloat(toAmount) || 0}
+                        slippagePercentage={parseFloat(slippage)}
+                        disabled={!fromAmount || parseFloat(fromAmount) < MIN_SOL_AMOUNT || !wallet?.publicKey}
+                        onSuccess={() => {
+                          // Refresh balances after successful swap
+                          setTimeout(refreshBalances, 2000);
+                          toast({
+                            title: "Swap Successful",
+                            description: `Successfully swapped ${parseFloat(fromAmount).toFixed(4)} SOL to YOT with cashback`,
+                            variant: "default",
+                          });
+                        }}
+                        onError={(error) => {
+                          console.error("Simplified swap error:", error);
+                          toast({
+                            title: "Swap Failed",
+                            description: error instanceof Error ? error.message : "An unknown error occurred",
+                            variant: "destructive",
+                          });
+                        }}
+                      />
+                    </div>
+                    
                     <div className="relative py-2">
                       <div className="absolute inset-0 flex items-center">
                         <span className="w-full border-t" />
