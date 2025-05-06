@@ -20,15 +20,18 @@ pub struct ProgramState {
     pub admin: Pubkey,
     pub yot_mint: Pubkey,
     pub yos_mint: Pubkey,
-    pub lp_contribution_rate: u64,
-    pub admin_fee_rate: u64,
-    pub yos_cashback_rate: u64,
-    pub swap_fee_rate: u64,
-    pub referral_rate: u64,
+    pub lp_contribution_rate: u64,     // Rate for liquidity contribution (20%)
+    pub admin_fee_rate: u64,           // Admin fee rate (0%)
+    pub yos_cashback_rate: u64,        // YOS cashback rate (5%)
+    pub swap_fee_rate: u64,            // Swap fee rate (1%)
+    pub referral_rate: u64,            // Referral rate (0%)
+    pub liquidity_wallet: Pubkey,      // Central liquidity wallet
+    pub liquidity_threshold: u64,      // Threshold for auto LP addition (in lamports, e.g., 0.1 SOL = 100,000,000 lamports)
 }
 
 impl ProgramState {
-    pub const LEN: usize = 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8; // 3 pubkeys + 5 u64s
+    // Updated LEN to account for the additional Pubkey and u64
+    pub const LEN: usize = 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8 + 32 + 8; // 4 pubkeys + 6 u64s
     
     // Manual deserialization
     pub fn unpack(data: &[u8]) -> Result<Self, ProgramError> {
@@ -47,7 +50,9 @@ impl ProgramState {
             yos_cashback_rate,
             swap_fee_rate,
             referral_rate,
-        ) = array_refs![data_array, 32, 32, 32, 8, 8, 8, 8, 8];
+            liquidity_wallet,
+            liquidity_threshold,
+        ) = array_refs![data_array, 32, 32, 32, 8, 8, 8, 8, 8, 32, 8];
 
         Ok(Self {
             admin: Pubkey::new_from_array(*admin),
@@ -58,6 +63,8 @@ impl ProgramState {
             yos_cashback_rate: u64::from_le_bytes(*yos_cashback_rate),
             swap_fee_rate: u64::from_le_bytes(*swap_fee_rate),
             referral_rate: u64::from_le_bytes(*referral_rate),
+            liquidity_wallet: Pubkey::new_from_array(*liquidity_wallet),
+            liquidity_threshold: u64::from_le_bytes(*liquidity_threshold),
         })
     }
 
@@ -78,7 +85,9 @@ impl ProgramState {
             yos_cashback_rate_dst,
             swap_fee_rate_dst,
             referral_rate_dst,
-        ) = mut_array_refs![dst_array, 32, 32, 32, 8, 8, 8, 8, 8];
+            liquidity_wallet_dst,
+            liquidity_threshold_dst,
+        ) = mut_array_refs![dst_array, 32, 32, 32, 8, 8, 8, 8, 8, 32, 8];
 
         admin_dst.copy_from_slice(self.admin.as_ref());
         yot_mint_dst.copy_from_slice(self.yot_mint.as_ref());
@@ -88,6 +97,8 @@ impl ProgramState {
         *yos_cashback_rate_dst = self.yos_cashback_rate.to_le_bytes();
         *swap_fee_rate_dst = self.swap_fee_rate.to_le_bytes();
         *referral_rate_dst = self.referral_rate.to_le_bytes();
+        liquidity_wallet_dst.copy_from_slice(self.liquidity_wallet.as_ref());
+        *liquidity_threshold_dst = self.liquidity_threshold.to_le_bytes();
 
         Ok(())
     }
@@ -280,6 +291,7 @@ pub fn process_initialize(
     let accounts_iter = &mut accounts.iter();
     let admin = next_account_info(accounts_iter)?;
     let program_state_account = next_account_info(accounts_iter)?;
+    let liquidity_wallet = next_account_info(accounts_iter)?;  // New: central liquidity wallet
     let system_program = next_account_info(accounts_iter)?;
     
     // Verify admin is a signer
@@ -306,8 +318,8 @@ pub fn process_initialize(
         &system_instruction::create_account(
             admin.key,
             program_state_account.key,
-            Rent::get()?.minimum_balance(std::mem::size_of::<ProgramState>()),
-            std::mem::size_of::<ProgramState>() as u64,
+            Rent::get()?.minimum_balance(ProgramState::LEN), // Use the updated LEN
+            ProgramState::LEN as u64,
             program_id,
         ),
         &[
@@ -323,16 +335,20 @@ pub fn process_initialize(
         admin: *admin.key,
         yot_mint,
         yos_mint,
-        lp_contribution_rate: 20, // 20%
-        admin_fee_rate: 0,        // 0%
-        yos_cashback_rate: 5,     // 5%
-        swap_fee_rate: 1,         // 1%
-        referral_rate: 0,         // 0%
+        lp_contribution_rate: 20,        // 20%
+        admin_fee_rate: 0,               // 0%
+        yos_cashback_rate: 5,            // 5%
+        swap_fee_rate: 1,                // 1%
+        referral_rate: 0,                // 0%
+        liquidity_wallet: *liquidity_wallet.key, // Use provided liquidity wallet
+        liquidity_threshold: 100_000_000, // Default: 0.1 SOL (100,000,000 lamports)
     };
     
     program_state.pack(&mut program_state_account.data.borrow_mut()[..])?;
     
     msg!("MultiHubSwap program initialized successfully!");
+    msg!("Central liquidity wallet: {}", liquidity_wallet.key);
+    msg!("Liquidity threshold: {} lamports", program_state.liquidity_threshold);
     Ok(())
 }
 
