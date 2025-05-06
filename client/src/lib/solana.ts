@@ -622,6 +622,184 @@ export async function swapSolToYot(
   }
 }
 
+/**
+ * Special function for SOL to YOT swaps for multi-hub-swap integration
+ * This function is specifically designed to work with the multi-hub-swap-contract.ts
+ * 
+ * @param wallet The connected wallet
+ * @param solAmount The amount of SOL to swap
+ * @returns Transaction signature
+ */
+export async function solToYotSwap(
+  wallet: any,
+  solAmount: number
+): Promise<string> {
+  console.log(`[SOL-YOT SWAP] Initiating with SOL amount: ${solAmount}`);
+  
+  try {
+    if (!wallet || !wallet.publicKey) {
+      throw new Error("Wallet not connected");
+    }
+
+    // Calculate the expected YOT output
+    const expectedYotAmount = await calculateSolToYot(solAmount);
+    console.log(`[SOL-YOT SWAP] Expected YOT output: ${expectedYotAmount}`);
+    
+    // Step 1: Set up accounts and blockchain addresses
+    const yotTokenMint = new PublicKey(YOT_TOKEN_ADDRESS);
+    const poolSolAccount = new PublicKey(POOL_SOL_ACCOUNT);
+    const poolAuthority = new PublicKey(POOL_AUTHORITY);
+    const userPublicKey = wallet.publicKey;
+
+    // Step 2: Check if user has enough SOL
+    const userSolBalance = await connection.getBalance(userPublicKey);
+    const solAmountInLamports = solToLamports(solAmount);
+    
+    // Leave some SOL for transaction fees (~0.000005 SOL)
+    const reserveForFees = BigInt(5000);
+    
+    if (userSolBalance < Number(solAmountInLamports) + Number(reserveForFees)) {
+      throw new Error(`Insufficient SOL balance. You have ${lamportsToSol(userSolBalance)} SOL, but need at least ${solAmount + 0.000005} SOL (including fees).`);
+    }
+    
+    // Step 3: Get or create the user's YOT token account
+    const userYotAccount = await getAssociatedTokenAddress(
+      yotTokenMint, 
+      userPublicKey
+    );
+    
+    // Check if the user's YOT token account exists and create it if needed
+    let setupTransaction = new Transaction();
+    let needsSetup = false;
+    
+    try {
+      await getAccount(connection, userYotAccount);
+      console.log("[SOL-YOT SWAP] User's YOT token account exists");
+    } catch (error) {
+      if (error instanceof TokenAccountNotFoundError) {
+        console.log("[SOL-YOT SWAP] User's YOT token account does not exist, will create it");
+        setupTransaction.add(
+          createAssociatedTokenAccountInstruction(
+            userPublicKey,  // payer
+            userYotAccount, // ata
+            userPublicKey,  // owner
+            yotTokenMint    // mint
+          )
+        );
+        needsSetup = true;
+      } else {
+        throw error;
+      }
+    }
+    
+    // If we need to create the token account, do it first in a separate transaction
+    if (needsSetup) {
+      try {
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+        setupTransaction.recentBlockhash = blockhash;
+        setupTransaction.feePayer = userPublicKey;
+        
+        const signedSetupTx = await wallet.signTransaction(setupTransaction);
+        const setupSig = await connection.sendRawTransaction(signedSetupTx.serialize());
+        
+        console.log("[SOL-YOT SWAP] Created YOT token account, signature:", setupSig);
+        
+        // Wait for confirmation
+        await connection.confirmTransaction({
+          signature: setupSig,
+          blockhash,
+          lastValidBlockHeight
+        }, 'confirmed');
+      } catch (error) {
+        console.error("[SOL-YOT SWAP] Error creating YOT token account:", error);
+        throw new Error("Failed to create YOT token account. Please try again.");
+      }
+    }
+    
+    // Step 4: Create the main swap transaction - send SOL to the pool
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+    
+    const transaction = new Transaction();
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = userPublicKey;
+    
+    // Add compute budget instructions to ensure we have enough compute units
+    transaction.add(
+      ComputeBudgetProgram.setComputeUnitLimit({
+        units: 1000000 // High value for complex operations
+      })
+    );
+    
+    transaction.add(
+      ComputeBudgetProgram.setComputeUnitPrice({
+        microLamports: 1_000_000 // Higher priority fee
+      })
+    );
+    
+    // Add the SOL transfer instruction
+    transaction.add(
+      SystemProgram.transfer({
+        fromPubkey: userPublicKey,
+        toPubkey: poolSolAccount,
+        lamports: solAmountInLamports
+      })
+    );
+    
+    // Step 5: Sign and send the transaction
+    console.log("[SOL-YOT SWAP] Requesting wallet signature...");
+    const signedTransaction = await wallet.signTransaction(transaction);
+    
+    console.log("[SOL-YOT SWAP] Sending transaction...");
+    const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
+      skipPreflight: false,
+      preflightCommitment: 'confirmed'
+    });
+    
+    console.log(`[SOL-YOT SWAP] Transaction sent with signature: ${signature}`);
+    
+    // Step 6: Wait for confirmation
+    console.log("[SOL-YOT SWAP] Waiting for confirmation...");
+    await connection.confirmTransaction({
+      signature,
+      blockhash,
+      lastValidBlockHeight
+    }, 'confirmed');
+    
+    console.log("[SOL-YOT SWAP] Transaction confirmed successfully!");
+    
+    // Import the function to handle the YOT transfer back to the user
+    const { completeSwapWithYotTransfer } = await import('./completeSwap');
+    
+    // Step 7: Since the blockchain part is a two-stage process (unlike an AMM), 
+    // request the YOT tokens to be sent back from the pool to the user
+    try {
+      // Calculate the distribution amounts based on the protocol rules
+      // 75% to user wallet directly
+      // 20% to liquidity
+      // 5% as YOS cashback
+      const userYotAmount = expectedYotAmount * 0.75;
+      
+      // Execute the second part of the swap - transferring YOT tokens from pool to user
+      console.log(`[SOL-YOT SWAP] Now sending ${userYotAmount} YOT tokens (75%) to ${userPublicKey.toString()}`);
+      
+      const tokenTransferResult = await completeSwapWithYotTransfer(
+        userPublicKey,  // User's public key to receive tokens
+        userYotAmount   // Amount of YOT tokens to send (75% of total)
+      );
+      
+      console.log(`[SOL-YOT SWAP] YOT tokens sent successfully! Signature: ${tokenTransferResult.signature}`);
+    } catch (error) {
+      console.error("[SOL-YOT SWAP] Error sending YOT tokens from pool:", error);
+      throw new Error(`SOL sent to pool successfully (sig: ${signature}), but there was an error sending YOT tokens back: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    
+    return signature;
+  } catch (error) {
+    console.error("[SOL-YOT SWAP] Error:", error);
+    throw error;
+  }
+}
+
 // Create token account for a user
 export async function createTokenAccount(
   tokenMintAddress: string,
