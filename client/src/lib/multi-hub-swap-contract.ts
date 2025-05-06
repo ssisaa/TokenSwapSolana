@@ -2117,9 +2117,11 @@ export async function getMultiHubSwapStats() {
     //   pub yos_cashback_rate: u64,    // 8 bytes
     //   pub swap_fee_rate: u64,        // 8 bytes
     //   pub referral_rate: u64,        // 8 bytes
+    //   pub liquidity_wallet: Pubkey,  // 32 bytes
+    //   pub liquidity_threshold: u64,  // 8 bytes
     // }
     // ```
-    // Total expected size: 32*3 + 8*5 = 96 + 40 = 136 bytes
+    // Total expected size: 32*4 + 8*6 = 128 + 48 = 176 bytes
     
     const data = accountInfo.data;
     console.log("Account data buffer length:", data.length);
@@ -2185,6 +2187,25 @@ export async function getMultiHubSwapStats() {
             swapFeeRate,
             referralRate
           });
+          
+          // Try to read liquidity wallet and threshold if they exist
+          if (data.length >= 32*4 + 8*6) {
+            try {
+              // Offset for liquidity wallet: 32*3 + 8*5 = 136
+              const liquidityWallet = new PublicKey(data.slice(136, 168));
+              // Offset for liquidity threshold: 32*4 + 8*5 = 168
+              const liquidityThreshold = Number(data.readBigUInt64LE(168)) / LAMPORTS_PER_SOL;
+              
+              console.log("Additional program state fields:", {
+                liquidityWallet: liquidityWallet.toString(),
+                liquidityThreshold: liquidityThreshold
+              });
+            } catch (additionalFieldsError) {
+              console.warn("Error reading additional fields from account data:", additionalFieldsError);
+            }
+          } else {
+            console.warn(`Program state doesn't include liquidity wallet and threshold: expected ${32*4 + 8*6} bytes, got ${data.length}`);
+          }
         } catch (rateError) {
           console.warn("Error reading rates from account data, using defaults:", rateError);
         }

@@ -43,7 +43,7 @@
       "admin": "AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ",
       "centralLiquidity": {
         "wallet": "Bf78XttEfzR4iM3JCWfwgSCpd5MHePTMD2UKBEZU6coH", 
-        "threshold": 100000000,
+        "threshold": 0.1,
         "yotAccount": "EieVwYpDMdKr94iQygkyCeEBMhRWA4XsXyGumXztza74"
       },
       "rates": {
