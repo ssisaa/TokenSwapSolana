@@ -1524,8 +1524,8 @@ export async function getExchangeRate(fromToken: string, toToken: string): Promi
       const [solBalance, yotBalance, _] = await getPoolBalances();
       
       if (solBalance <= 0 || yotBalance <= 0) {
-        console.warn("Liquidity pool empty or not found, using fallback rate");
-        return DEFAULT_EXCHANGE_RATES.YOT_SOL;
+        console.warn("Liquidity pool empty or not found");
+        throw new Error("Insufficient liquidity in pool");
       }
       
       // For YOT to SOL, the rate is the inverse of SOL to YOT
@@ -1535,35 +1535,17 @@ export async function getExchangeRate(fromToken: string, toToken: string): Promi
     }
     
     // For other pairs, we would integrate with other AMMs like Jupiter or Raydium
-    console.warn(`No direct pool for ${fromToken} to ${toToken}, using fallback rate`);
-    
-    // Return appropriate fallback based on the token pair
-    if (fromTokenLower === solTokenLower && toTokenLower === yotTokenLower) {
-      return DEFAULT_EXCHANGE_RATES.SOL_YOT;
-    } else if (fromTokenLower === yotTokenLower && toTokenLower === solTokenLower) {
-      return DEFAULT_EXCHANGE_RATES.YOT_SOL;
-    }
-    
-    // Default fallback
-    return DEFAULT_EXCHANGE_RATES.SOL_YOT;
+    console.warn(`No direct pool for ${fromToken} to ${toToken}`);
+    throw new Error(`Swap pair not supported: ${fromToken} to ${toToken}`)
   } catch (error: any) {
     console.error("Error fetching AMM rate:", error);
     
-    // Normalize addresses for fallback comparison
-    const fromTokenLower = fromToken.toString().toLowerCase();
-    const toTokenLower = toToken.toString().toLowerCase();
-    const solTokenLower = SOL_TOKEN_ADDRESS.toString().toLowerCase();
-    const yotTokenLower = YOT_TOKEN_ADDRESS.toString().toLowerCase();
-    
-    // Fallback to default rates if blockchain query fails
-    if (fromTokenLower === solTokenLower && toTokenLower === yotTokenLower) {
-      return DEFAULT_EXCHANGE_RATES.SOL_YOT;
-    } else if (fromTokenLower === yotTokenLower && toTokenLower === solTokenLower) {
-      return DEFAULT_EXCHANGE_RATES.YOT_SOL;
+    // No fallbacks - propagate the error
+    if (error.message && error.message.includes("Insufficient liquidity")) {
+      throw error; // Re-throw the original error if it's about liquidity
+    } else {
+      throw new Error("Failed to retrieve exchange rate from blockchain");
     }
-    
-    // Ultimate fallback
-    return 1;
   }
 }
 
@@ -1593,30 +1575,35 @@ async function getPoolBalances(): Promise<[number, number, number]> {
     try {
       const yotAccountInfo = await connection.getTokenAccountBalance(yotPoolAccount);
       yotBalance = Number(yotAccountInfo.value.uiAmount || 0);
+      if (yotBalance <= 0) {
+        console.warn("YOT pool balance is zero or not available");
+        throw new Error("Insufficient YOT liquidity in pool");
+      }
     } catch (e) {
       console.error("Error fetching YOT balance from pool:", e);
-      // Fallback to default values from config if token account fetch fails
-      yotBalance = solanaConfig.pool.fallbackBalances.yot;
+      throw new Error("Failed to retrieve YOT balance from pool");
     }
     
     try {
       const yosAccountInfo = await connection.getTokenAccountBalance(yosPoolAccount);
       yosBalance = Number(yosAccountInfo.value.uiAmount || 0);
+      // YOS balance can be zero, as it's only used for display purposes
     } catch (e) {
       console.error("Error fetching YOS balance from pool:", e);
-      yosBalance = solanaConfig.pool.fallbackBalances.yos;
+      // YOS balance can be zero as it's only for display
+      yosBalance = 0;
     }
     
     console.log(`Pool balances fetched - SOL: ${solBalanceNormalized}, YOT: ${yotBalance}, YOS: ${yosBalance}`);
     return [solBalanceNormalized, yotBalance, yosBalance];
   } catch (error: any) {
     console.error("Error fetching pool balances:", error);
-    // Return fallback values from config if blockchain query fails completely
-    const fallbackSol = solanaConfig.pool.fallbackBalances.sol;
-    const fallbackYot = solanaConfig.pool.fallbackBalances.yot;
-    const fallbackYos = solanaConfig.pool.fallbackBalances.yos;
-    console.log(`Using fallback pool balances - SOL: ${fallbackSol}, YOT: ${fallbackYot}, YOS: ${fallbackYos}`);
-    return [fallbackSol, fallbackYot, fallbackYos]; // Use values from centralized config
+    // Don't use fallbacks - propagate the error
+    if (error.message && error.message.includes("Insufficient")) {
+      throw error; // Re-throw the original error about insufficient liquidity
+    } else {
+      throw new Error("Failed to retrieve pool balances from blockchain");
+    }
   }
 }
 
@@ -1659,15 +1646,22 @@ export async function getTokenBalance(wallet: any, tokenAddress: string): Promis
 
 /**
  * Checks if a token pair is supported for swapping
+ * Uses case-insensitive comparison for token addresses
  */
 export function isSwapSupported(fromToken: string, toToken: string): boolean {
-  // Currently only SOL-YOT swaps are fully supported
-  if (fromToken === SOL_TOKEN_ADDRESS && toToken === YOT_TOKEN_ADDRESS) {
+  // Normalize token addresses to lowercase for case-insensitive comparison
+  const fromTokenLower = fromToken.toString().toLowerCase();
+  const toTokenLower = toToken.toString().toLowerCase();
+  const solTokenLower = SOL_TOKEN_ADDRESS.toString().toLowerCase();
+  const yotTokenLower = YOT_TOKEN_ADDRESS.toString().toLowerCase();
+  
+  // Check for SOL-YOT swap (fully supported)
+  if (fromTokenLower === solTokenLower && toTokenLower === yotTokenLower) {
     return true;
   }
   
-  // YOT-SOL marked as supported but not fully implemented
-  if (fromToken === YOT_TOKEN_ADDRESS && toToken === SOL_TOKEN_ADDRESS) {
+  // Check for YOT-SOL swap (supported)
+  if (fromTokenLower === yotTokenLower && toTokenLower === solTokenLower) {
     return true;
   }
   
