@@ -1,216 +1,118 @@
 /**
- * Improved script to initialize the multi-hub swap program
+ * Simple program state initialization script
+ * For Multi-Hub Swap Program ID: Js9TqdpLBsF7M64ra2mYNyfbPTWwTvBUNR85wsEoSKP
  */
-const fs = require('fs');
-const {
-  Connection,
+const { 
+  Connection, 
   PublicKey,
+  Keypair,
   Transaction,
   SystemProgram,
   TransactionInstruction,
-  Keypair,
-  sendAndConfirmTransaction,
+  sendAndConfirmTransaction 
 } = require('@solana/web3.js');
+const fs = require('fs');
 
-// Load app config
-const appConfig = JSON.parse(fs.readFileSync('./app.config.json', 'utf8'));
-const { programId: programIdStr, admin: adminStr } = appConfig.solana.multiHubSwap;
-const { yot: yotToken, yos: yosToken } = appConfig.solana.tokens;
-const rpcUrl = appConfig.solana.rpcUrl;
+// Set up connection to Solana
+const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
 
-// Constants
-const PROGRAM_ID = new PublicKey(programIdStr);
-const ADMIN_WALLET = new PublicKey(adminStr);
-const YOT_MINT = new PublicKey(yotToken.address);
-const YOS_MINT = new PublicKey(yosToken.address);
+// Program ID
+const PROGRAM_ID = new PublicKey('Js9TqdpLBsF7M64ra2mYNyfbPTWwTvBUNR85wsEoSKP');
+// Admin wallet
+const ADMIN_WALLET = new PublicKey('AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ');
+// Token mints
+const YOT_MINT = new PublicKey('9KxQHJcBxp29AjGTAqF3LCFzodSpkuv986wsSEwQi6Cw');
+const YOS_MINT = new PublicKey('2SWCnck3vLAVKaLkAjVtNnsVJVGYmGzyNVnte48SQRop');
 
-// Connect to Solana
-const connection = new Connection(rpcUrl, 'confirmed');
+// Find PDAs
+const [PROGRAM_STATE, STATE_BUMP] = PublicKey.findProgramAddressSync(
+  [Buffer.from('state')],
+  PROGRAM_ID
+);
 
-// Derive PDAs
-function findProgramStateAddress() {
-  const [pda, bump] = PublicKey.findProgramAddressSync(
-    [Buffer.from('state')],
-    PROGRAM_ID
-  );
-  return { pda, bump };
-}
+const [PROGRAM_AUTHORITY, AUTHORITY_BUMP] = PublicKey.findProgramAddressSync(
+  [Buffer.from('authority')],
+  PROGRAM_ID
+);
 
-function findProgramAuthority() {
-  const [pda, bump] = PublicKey.findProgramAddressSync(
-    [Buffer.from('authority')],
-    PROGRAM_ID
-  );
-  return { pda, bump };
-}
+console.log('===== INITIALIZATION =====');
+console.log('Program ID:', PROGRAM_ID.toBase58());
+console.log('Admin Wallet:', ADMIN_WALLET.toBase58());
+console.log('Program State:', PROGRAM_STATE.toBase58(), 'Bump:', STATE_BUMP);
+console.log('Program Authority:', PROGRAM_AUTHORITY.toBase58(), 'Bump:', AUTHORITY_BUMP);
+console.log('YOT Mint:', YOT_MINT.toBase58());
+console.log('YOS Mint:', YOS_MINT.toBase58());
 
-// Load program keypair (required for initialization)
-function loadProgramKeypair() {
+// Create a keypair for the transaction
+const keypair = Keypair.generate();
+
+async function initialize() {
   try {
-    const secretKeyString = fs.readFileSync('./program-keypair.json', 'utf8');
-    const secretKey = Uint8Array.from(JSON.parse(secretKeyString));
-    const keypair = Keypair.fromSecretKey(secretKey);
+    // Airdrop some SOL to the keypair
+    console.log('Requesting airdrop...');
+    const airdropSignature = await connection.requestAirdrop(
+      keypair.publicKey,
+      1000000000 // 1 SOL
+    );
     
-    return keypair;
-  } catch (error) {
-    console.error('Error loading program keypair:', error);
-    throw new Error('Failed to load program keypair');
-  }
-}
-
-// Build the instruction data for initialization
-function encodeInitializeInstruction() {
-  // Instruction type for Initialize = 0
-  const instructionTypeBuffer = Buffer.alloc(8);
-  instructionTypeBuffer.writeUInt8(0, 0);
-  
-  return instructionTypeBuffer;
-}
-
-// Initialize the program with proper parameters
-async function initializeProgram() {
-  try {
-    // Load program keypair for signing
-    const programKeypair = loadProgramKeypair();
-    console.log(`Program Keypair Public Key: ${programKeypair.publicKey.toBase58()}`);
+    // Wait for confirmation
+    await connection.confirmTransaction(airdropSignature);
+    console.log('Airdrop confirmed:', airdropSignature);
     
-    // Get PDAs
-    const { pda: programState, bump: stateBump } = findProgramStateAddress();
-    const { pda: programAuthority, bump: authorityBump } = findProgramAuthority();
+    // Check keypair balance
+    const balance = await connection.getBalance(keypair.publicKey);
+    console.log('Keypair balance:', balance / 1000000000, 'SOL');
     
-    console.log(`Program ID: ${PROGRAM_ID.toBase58()}`);
-    console.log(`Program State: ${programState.toBase58()} (bump: ${stateBump})`);
-    console.log(`Program Authority: ${programAuthority.toBase58()} (bump: ${authorityBump})`);
-    console.log(`Admin Wallet: ${ADMIN_WALLET.toBase58()}`);
-    console.log(`YOT Mint: ${YOT_MINT.toBase58()}`);
-    console.log(`YOS Mint: ${YOS_MINT.toBase58()}`);
-    
-    // Check if program state already exists
-    const stateInfo = await connection.getAccountInfo(programState);
-    if (stateInfo) {
-      console.log(`Program state already exists (size: ${stateInfo.data.length} bytes). No initialization needed.`);
-      return { success: true, message: 'Program already initialized' };
-    }
-    
-    // Create the instruction data
-    const instructionData = encodeInitializeInstruction();
-    
-    // Create the instruction to initialize the program
-    const instruction = new TransactionInstruction({
+    // Create initialize instruction with the anchor discriminator format
+    // Each instruction has a unique 8-byte discriminator
+    // For initialize, we'll use [0,0,0,0,0,0,0,0] as a simple discriminator
+    const initializeIx = new TransactionInstruction({
       keys: [
-        { pubkey: programKeypair.publicKey, isSigner: true, isWritable: false },
-        { pubkey: programState, isSigner: false, isWritable: true },
-        { pubkey: programAuthority, isSigner: false, isWritable: false },
+        { pubkey: keypair.publicKey, isSigner: true, isWritable: false },
+        { pubkey: PROGRAM_STATE, isSigner: false, isWritable: true },
+        { pubkey: PROGRAM_AUTHORITY, isSigner: false, isWritable: false },
         { pubkey: ADMIN_WALLET, isSigner: false, isWritable: false },
         { pubkey: YOT_MINT, isSigner: false, isWritable: false },
         { pubkey: YOS_MINT, isSigner: false, isWritable: false },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
       ],
       programId: PROGRAM_ID,
-      data: instructionData,
+      data: Buffer.from([0,0,0,0,0,0,0,0]), // Initialize discriminator
     });
     
-    // Create and send transaction
-    const transaction = new Transaction().add(instruction);
+    // Create transaction
+    const transaction = new Transaction().add(initializeIx);
     
-    console.log('Sending initialization transaction...');
+    // Set recent blockhash and fee payer
+    transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+    transaction.feePayer = keypair.publicKey;
     
-    // Add program keypair as signer
-    const signers = [programKeypair];
+    console.log('Sending transaction...');
     
-    // Create a retry function for transaction sending
-    const sendWithRetry = async (tx, signers, retries = 3) => {
-      for (let i = 0; i < retries; i++) {
-        try {
-          // Add a recent blockhash
-          tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-          tx.feePayer = programKeypair.publicKey;
-          
-          // Send and confirm the transaction
-          const signature = await sendAndConfirmTransaction(connection, tx, signers, {
-            skipPreflight: true,
-            commitment: 'confirmed',
-            preflightCommitment: 'confirmed',
-          });
-          
-          console.log(`Transaction successful! Signature: ${signature}`);
-          return { success: true, signature };
-        } catch (error) {
-          console.error(`Attempt ${i + 1} failed:`, error);
-          
-          if (i === retries - 1) {
-            throw error;
-          }
-          
-          // Wait before retrying
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        }
+    // Sign and send
+    const txSignature = await sendAndConfirmTransaction(
+      connection,
+      transaction,
+      [keypair],
+      { 
+        skipPreflight: true,
+        commitment: 'confirmed'
       }
-    };
+    );
     
-    // Send with retry
-    return await sendWithRetry(transaction, signers);
-  } catch (error) {
-    console.error('Error initializing program:', error);
-    return { success: false, error: error.toString() };
-  }
-}
-
-// Verify configuration
-function verifyConfig() {
-  // Check if the program ID in config matches the program keypair
-  const programKeypair = loadProgramKeypair();
-  const programIdFromConfig = PROGRAM_ID.toBase58();
-  const programIdFromKeypair = programKeypair.publicKey.toBase58();
-  
-  console.log(`Program ID from config: ${programIdFromConfig}`);
-  console.log(`Program ID from keypair: ${programIdFromKeypair}`);
-  
-  if (programIdFromConfig !== programIdFromKeypair) {
-    console.error('ERROR: Program ID in config does not match keypair!');
-    console.error('Please update the config to match the keypair, or use the correct keypair file.');
-    throw new Error('Program ID mismatch');
-  }
-  
-  console.log('✅ Program ID verification passed');
-}
-
-// Main function
-async function main() {
-  console.log('============================================');
-  console.log('Multi-Hub Swap Program Initialization');
-  console.log('============================================');
-  
-  try {
-    // Verify config matches keypair
-    verifyConfig();
+    console.log('Transaction confirmed!');
+    console.log('Signature:', txSignature);
     
-    // Initialize the program
-    console.log('\nInitializing program...');
-    const result = await initializeProgram();
-    
-    if (result.success) {
-      console.log('\n✅ Program initialization successful!');
-      
-      // Verify program state exists
-      const { pda: programState } = findProgramStateAddress();
-      const stateInfo = await connection.getAccountInfo(programState);
-      
-      if (stateInfo) {
-        console.log(`✅ Program state account created (size: ${stateInfo.data.length} bytes)`);
-        console.log(`  Owner: ${stateInfo.owner.toBase58()}`);
-      } else {
-        console.log('❌ Program state account still does not exist');
-      }
+    // Verify it worked by checking if the state account exists
+    const stateAccount = await connection.getAccountInfo(PROGRAM_STATE);
+    if (stateAccount) {
+      console.log('Success! Program state exists with size:', stateAccount.data.length, 'bytes');
     } else {
-      console.error('\n❌ Program initialization failed');
+      console.log('Error: Program state still does not exist!');
     }
-    
-    console.log('\n============================================');
   } catch (error) {
-    console.error('Error in main function:', error);
+    console.error('Error:', error);
   }
 }
 
-// Run the main function
-main();
+initialize();
