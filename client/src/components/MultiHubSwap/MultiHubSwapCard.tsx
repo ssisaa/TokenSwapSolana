@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { DirectSwapButton } from "./DirectSwapButton";
 import {
   Tabs,
   TabsContent,
@@ -1000,7 +1001,7 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
                 </div>
               )}
 
-              <div className="pt-2">
+              <div className="pt-2 space-y-2">
                 <Button
                   className="w-full"
                   disabled={!fromAmount || parseFloat(fromAmount) <= 0 || swapLoading || !wallet?.publicKey}
@@ -1022,6 +1023,28 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
                     "Swap"
                   )}
                 </Button>
+                
+                {/* Direct SOL transfer button - only show for SOL to YOT swaps */}
+                {fromToken?.symbol === "SOL" && toToken?.symbol === "YOT" && (
+                  <>
+                    <div className="relative py-2">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t" />
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-background px-2 text-muted-foreground">
+                          or try alternative method
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <DirectSwapButton 
+                      wallet={wallet}
+                      amount={fromAmount}
+                      disabled={!fromAmount || parseFloat(fromAmount) <= 0 || swapLoading || !wallet?.publicKey}
+                    />
+                  </>
+                )}
               </div>
             </div>
           </CardContent>

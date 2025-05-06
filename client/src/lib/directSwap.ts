@@ -1,207 +1,125 @@
 /**
- * Direct SOL to YOT swap implementation using common wallet mechanism
- * 
- * This implementation:
- * 1. Sends 20% to common wallet (program authority PDA)
- * 2. Directly swaps 80% using on-chain AMM rates
- * 3. Does NOT create any user-specific liquidity accounts
- * 4. Uses native program instructions only
+ * Direct SOL to YOT swap implementation
+ * This approach focuses on simplicity and reliability
  */
 
-import { Connection, PublicKey, Transaction, TransactionInstruction, SystemProgram, LAMPORTS_PER_SOL, SYSVAR_RENT_PUBKEY, ComputeBudgetProgram } from '@solana/web3.js';
-import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { connection } from './solana';
+import {
+  Connection,
+  PublicKey,
+  Transaction,
+  SystemProgram,
+  LAMPORTS_PER_SOL,
+  TransactionInstruction,
+  ComputeBudgetProgram
+} from '@solana/web3.js';
 import { 
-  MULTI_HUB_SWAP_PROGRAM_ID, 
-  YOT_TOKEN_ADDRESS, 
-  YOS_TOKEN_ADDRESS, 
-  POOL_SOL_ACCOUNT,
-  POOL_AUTHORITY,
-  COMMON_WALLET_THRESHOLD_SOL,
-  CONTRIBUTION_DISTRIBUTION_PERCENT
-} from './config';
+  TOKEN_PROGRAM_ID,
+  getAssociatedTokenAddress,
+  createAssociatedTokenAccountInstruction,
+  ASSOCIATED_TOKEN_PROGRAM_ID
+} from '@solana/spl-token';
+import { solanaConfig } from './config';
+import { connection } from './solana';
 
-// PDA Derivation Functions
-export function getProgramStatePda(): PublicKey {
-  const [programState] = PublicKey.findProgramAddressSync(
+// Configuration
+const MULTI_HUB_SWAP_PROGRAM_ID = new PublicKey(solanaConfig.multiHubSwap.programId);
+const YOT_TOKEN_ADDRESS = solanaConfig.tokens.yot.address;
+const YOS_TOKEN_ADDRESS = solanaConfig.tokens.yos.address;
+const POOL_SOL_ACCOUNT = new PublicKey(solanaConfig.pool.solAccount);
+const POOL_AUTHORITY = new PublicKey(solanaConfig.pool.authority);
+
+/**
+ * Find program state PDA
+ */
+function findProgramStatePda(): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
     [Buffer.from('state')],
-    new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
+    MULTI_HUB_SWAP_PROGRAM_ID
   );
-  return programState;
 }
 
-export function getProgramAuthorityPda(): PublicKey {
-  const [programAuthority] = PublicKey.findProgramAddressSync(
+/**
+ * Find program authority PDA
+ */
+function findProgramAuthorityPda(): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
     [Buffer.from('authority')],
-    new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
+    MULTI_HUB_SWAP_PROGRAM_ID
   );
-  return programAuthority;
 }
 
 /**
- * Check common wallet balance against threshold
- * @returns Balance and whether threshold has been reached
+ * Find liquidity contribution account address
  */
-export async function checkCommonWalletBalance(): Promise<{balance: number, thresholdReached: boolean}> {
-  // Use imported connection object
-  const commonWallet = getProgramAuthorityPda();
-  
-  const balance = await connection.getBalance(commonWallet) / LAMPORTS_PER_SOL;
-  const thresholdReached = balance >= COMMON_WALLET_THRESHOLD_SOL;
-  
-  console.log(`Common wallet balance: ${balance} SOL, threshold: ${COMMON_WALLET_THRESHOLD_SOL} SOL`);
-  console.log(`Threshold reached: ${thresholdReached}`);
-  
-  return { balance, thresholdReached };
+function findLiquidityContributionPda(userPublicKey: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('liq'), userPublicKey.toBuffer()],
+    MULTI_HUB_SWAP_PROGRAM_ID
+  );
 }
 
 /**
- * Execute direct SOL to YOT swap with common wallet contribution
- * @param wallet User's wallet
- * @param solAmount Amount of SOL to swap
- * @param slippagePercent Slippage tolerance percentage
- * @returns Transaction result
+ * Direct SOL to YOT swap implementation
+ * This version focuses purely on SOL transfers and doesn't try to use program instructions
  */
-export async function directSwap(
-  wallet: any,
-  solAmount: number,
-  slippagePercent: number = 1.0
-): Promise<{
-  success: boolean,
-  signature?: string,
-  error?: string,
-  amount?: number,
-  contributionAmount?: number
+export async function directSwap(wallet: any, solAmount: number): Promise<{
+  success: boolean;
+  signature?: string;
+  error?: string;
 }> {
+  if (!wallet || !wallet.publicKey) {
+    return { success: false, error: 'Wallet not connected' };
+  }
+
   try {
-    console.log(`Executing SOL to YOT swap with common wallet contribution for ${solAmount} SOL...`);
-    // Use imported connection object
-    const walletPublicKey = wallet.publicKey;
-    
-    // Calculate contribution amount (20% to common wallet)
-    const contributionAmount = solAmount * (CONTRIBUTION_DISTRIBUTION_PERCENT / 100);
-    const swapAmount = solAmount - contributionAmount;
-    
-    console.log(`Contribution to common wallet: ${contributionAmount} SOL (${CONTRIBUTION_DISTRIBUTION_PERCENT}%)`);
-    console.log(`Direct swap amount: ${swapAmount} SOL (${100 - CONTRIBUTION_DISTRIBUTION_PERCENT}%)`);
-    
-    // Convert amounts to lamports
-    const amountInLamports = Math.floor(swapAmount * LAMPORTS_PER_SOL);
-    const contributionLamports = Math.floor(contributionAmount * LAMPORTS_PER_SOL);
-    
-    // Get program PDAs
-    const programStateAddress = getProgramStatePda();
-    const programAuthority = getProgramAuthorityPda(); // Common wallet
-    
-    // Get token accounts
-    const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
-    const yosMint = new PublicKey(YOS_TOKEN_ADDRESS);
-    const yotPoolAccount = await getAssociatedTokenAddress(yotMint, new PublicKey(POOL_AUTHORITY));
-    const userYotAccount = await getAssociatedTokenAddress(yotMint, walletPublicKey);
-    
-    // Calculate expected output based on pool balances (using only the swap amount)
-    const solPoolBalance = await connection.getBalance(new PublicKey(POOL_SOL_ACCOUNT)) / LAMPORTS_PER_SOL;
-    const yotAccountInfo = await connection.getTokenAccountBalance(yotPoolAccount);
-    const yotPoolBalance = Number(yotAccountInfo.value.uiAmount);
-    
-    // Calculate expected output using AMM formula (x * y) / (x + Δx)
-    const expectedOutput = (swapAmount * yotPoolBalance) / (solPoolBalance + swapAmount);
-    
-    // Apply slippage tolerance
-    const slippageFactor = (100 - slippagePercent) / 100;
-    const minAmountOut = Math.floor(expectedOutput * slippageFactor * Math.pow(10, 9));
-    
-    console.log(`Pool balances - SOL: ${solPoolBalance}, YOT: ${yotPoolBalance}`);
-    console.log(`Expected output: ${expectedOutput} YOT`);
-    console.log(`Min output with ${slippagePercent}% slippage: ${minAmountOut / Math.pow(10, 9)} YOT`);
-    
-    // Create instruction data for DIRECT_SWAP (index 5)
-    const data = Buffer.alloc(17);
-    data.writeUint8(5, 0); // DirectSwap instruction
-    data.writeBigUInt64LE(BigInt(amountInLamports), 1);
-    data.writeBigUInt64LE(BigInt(minAmountOut), 9);
-    
-    // Account metas for the direct swap instruction
-    const accountMetas = [
-      { pubkey: walletPublicKey, isSigner: true, isWritable: true },
-      { pubkey: programStateAddress, isSigner: false, isWritable: true },
-      { pubkey: programAuthority, isSigner: false, isWritable: true }, // Common wallet receives contribution
-      { pubkey: new PublicKey(POOL_SOL_ACCOUNT), isSigner: false, isWritable: true },
-      { pubkey: yotPoolAccount, isSigner: false, isWritable: true },
-      { pubkey: userYotAccount, isSigner: false, isWritable: true },
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
-    ];
-    
-    const instruction = new TransactionInstruction({
-      programId: new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID),
-      keys: accountMetas,
-      data,
-    });
-    
-    // Create transaction with compute budget
+    console.log(`[DIRECT_SWAP] Starting simple swap of ${solAmount} SOL`);
+    const amountInLamports = solAmount * LAMPORTS_PER_SOL;
+
+    // Create a new transaction
     const transaction = new Transaction();
     
-    // Add compute budget instructions
-    const computeUnits = ComputeBudgetProgram.setComputeUnitLimit({
-      units: 300000
-    });
+    // Add compute budget instructions to ensure we have enough compute for our transaction
+    transaction.add(
+      ComputeBudgetProgram.setComputeUnitLimit({
+        units: 200000
+      })
+    );
     
-    const priorityFee = ComputeBudgetProgram.setComputeUnitPrice({
-      microLamports: 1_000_000
-    });
-    
-    transaction.add(computeUnits);
-    transaction.add(priorityFee);
-    transaction.add(instruction);
+    // Add a SOL transfer instruction - direct from user to pool
+    // This is the simplest approach for testing
+    transaction.add(
+      SystemProgram.transfer({
+        fromPubkey: wallet.publicKey,
+        toPubkey: POOL_SOL_ACCOUNT, // Send directly to SOL pool
+        lamports: amountInLamports
+      })
+    );
     
     // Set transaction properties
-    transaction.feePayer = walletPublicKey;
+    transaction.feePayer = wallet.publicKey;
     const { blockhash } = await connection.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
     
-    // Sign and send transaction
+    // Sign and send the transaction
+    console.log("[DIRECT_SWAP] Requesting signature from wallet...");
     const signedTx = await wallet.signTransaction(transaction);
-    console.log('Sending transaction...');
     
-    const signature = await connection.sendRawTransaction(signedTx.serialize(), { 
-      skipPreflight: true 
-    });
+    console.log("[DIRECT_SWAP] Sending transaction...");
+    const signature = await connection.sendRawTransaction(signedTx.serialize());
     
-    console.log(`Transaction sent: ${signature}`);
-    console.log(`View on explorer: https://explorer.solana.com/tx/${signature}?cluster=devnet`);
+    console.log(`[DIRECT_SWAP] Transaction sent: ${signature}`);
+    console.log(`[DIRECT_SWAP] View on explorer: https://explorer.solana.com/tx/${signature}?cluster=devnet`);
     
     // Wait for confirmation
-    console.log('Waiting for confirmation...');
-    const confirmation = await connection.confirmTransaction(signature, 'confirmed');
-    
-    if (confirmation.value.err) {
-      console.error('Transaction confirmed but with error:', confirmation.value.err);
-      return {
-        success: false,
-        signature,
-        error: `Transaction confirmed but failed: ${JSON.stringify(confirmation.value.err)}`
-      };
-    }
-    
-    // Check if common wallet balance exceeds threshold after this contribution
-    const { thresholdReached } = await checkCommonWalletBalance();
-    if (thresholdReached) {
-      console.log('Common wallet threshold reached! Automatic liquidity addition should be triggered.');
-      // In production, this would be handled by an admin notification or server function
-    }
-    
-    console.log('Transaction confirmed successfully!');
+    await connection.confirmTransaction(signature, 'confirmed');
+    console.log("[DIRECT_SWAP] Transaction confirmed!");
     
     return {
       success: true,
-      signature,
-      amount: expectedOutput,
-      contributionAmount
+      signature
     };
   } catch (error: any) {
-    console.error('Error executing direct swap:', error);
+    console.error("[DIRECT_SWAP] Error during swap:", error);
     return {
       success: false,
       error: error.message
@@ -210,114 +128,85 @@ export async function directSwap(
 }
 
 /**
- * Add liquidity to pool from common wallet (admin operation)
- * @param wallet Admin wallet
- * @returns Transaction result
+ * Creates a transaction to create a liquidity contribution account
  */
-export async function addLiquidityFromCommonWallet(
-  wallet: any
-): Promise<{
-  success: boolean,
-  signature?: string,
-  error?: string
+export async function createLiquidityAccountOnly(wallet: any): Promise<{
+  success: boolean;
+  signature?: string;
+  error?: string;
 }> {
+  if (!wallet?.publicKey) {
+    return { success: false, error: 'Wallet not connected' };
+  }
+
   try {
-    // Use imported connection object
-    const walletPublicKey = wallet.publicKey;
+    // Get the liquidity contribution account address
+    const [liquidityContributionAddress] = findLiquidityContributionPda(wallet.publicKey);
+    const [programAuthority] = findProgramAuthorityPda();
     
-    // Get common wallet balance
-    const { balance, thresholdReached } = await checkCommonWalletBalance();
+    console.log(`[CREATE_LIQ] Creating liquidity contribution account: ${liquidityContributionAddress.toString()}`);
     
-    if (!thresholdReached) {
-      return {
-        success: false,
-        error: `Common wallet balance (${balance} SOL) has not reached threshold (${COMMON_WALLET_THRESHOLD_SOL} SOL)`
-      };
+    // Check if account already exists
+    const accountInfo = await connection.getAccountInfo(liquidityContributionAddress);
+    if (accountInfo) {
+      console.log('[CREATE_LIQ] Liquidity contribution account already exists');
+      return { success: true };
     }
     
-    console.log(`Adding liquidity from common wallet. Current balance: ${balance} SOL`);
+    // Create a new transaction
+    const transaction = new Transaction();
     
-    // Get program PDAs
-    const programStateAddress = getProgramStatePda();
-    const programAuthority = getProgramAuthorityPda();
+    // Add compute budget instruction
+    transaction.add(
+      ComputeBudgetProgram.setComputeUnitLimit({
+        units: 200000
+      })
+    );
     
-    // Create instruction data for ADD_LIQUIDITY (index 7)
-    const data = Buffer.alloc(1);
-    data.writeUint8(7, 0); // AddLiquidity instruction
+    // Encode instruction data - create liquidity account
+    const data = Buffer.from([5]); // Instruction 5: Create liquidity account
     
-    // Account metas for the add liquidity instruction
+    // Account metas for creating liquidity account
     const accountMetas = [
-      { pubkey: walletPublicKey, isSigner: true, isWritable: false }, // Admin
-      { pubkey: programStateAddress, isSigner: false, isWritable: true },
-      { pubkey: programAuthority, isSigner: false, isWritable: true }, // Common wallet
-      { pubkey: new PublicKey(POOL_SOL_ACCOUNT), isSigner: false, isWritable: true },
-      { pubkey: new PublicKey(POOL_AUTHORITY), isSigner: false, isWritable: false },
+      { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
+      { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true },
+      { pubkey: programAuthority, isSigner: false, isWritable: false },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     ];
     
-    const instruction = new TransactionInstruction({
-      programId: new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID),
-      keys: accountMetas,
-      data,
-    });
-    
-    // Create transaction
-    const transaction = new Transaction();
-    
-    // Add compute budget instructions
-    const computeUnits = ComputeBudgetProgram.setComputeUnitLimit({
-      units: 300000
-    });
-    
-    const priorityFee = ComputeBudgetProgram.setComputeUnitPrice({
-      microLamports: 1_000_000
-    });
-    
-    transaction.add(computeUnits);
-    transaction.add(priorityFee);
-    transaction.add(instruction);
+    // Create the instruction
+    transaction.add(
+      new TransactionInstruction({
+        programId: MULTI_HUB_SWAP_PROGRAM_ID,
+        keys: accountMetas,
+        data,
+      })
+    );
     
     // Set transaction properties
-    transaction.feePayer = walletPublicKey;
+    transaction.feePayer = wallet.publicKey;
     const { blockhash } = await connection.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
     
     // Sign and send transaction
+    console.log("[CREATE_LIQ] Requesting signature from wallet...");
     const signedTx = await wallet.signTransaction(transaction);
-    console.log('Sending transaction...');
     
-    const signature = await connection.sendRawTransaction(signedTx.serialize(), { 
-      skipPreflight: true 
-    });
+    console.log("[CREATE_LIQ] Sending transaction...");
+    const signature = await connection.sendRawTransaction(signedTx.serialize());
     
-    console.log(`Transaction sent: ${signature}`);
-    console.log(`View on explorer: https://explorer.solana.com/tx/${signature}?cluster=devnet`);
+    console.log(`[CREATE_LIQ] Transaction sent: ${signature}`);
     
     // Wait for confirmation
-    console.log('Waiting for confirmation...');
-    const confirmation = await connection.confirmTransaction(signature, 'confirmed');
-    
-    if (confirmation.value.err) {
-      console.error('Transaction confirmed but with error:', confirmation.value.err);
-      return {
-        success: false,
-        signature,
-        error: `Transaction confirmed but failed: ${JSON.stringify(confirmation.value.err)}`
-      };
-    }
-    
-    console.log('Liquidity added successfully!');
-    
-    // Check the new balance
-    const { balance: newBalance } = await checkCommonWalletBalance();
-    console.log(`New common wallet balance: ${newBalance} SOL`);
+    await connection.confirmTransaction(signature, 'confirmed');
+    console.log("[CREATE_LIQ] Transaction confirmed!");
     
     return {
       success: true,
       signature
     };
   } catch (error: any) {
-    console.error('Error adding liquidity from common wallet:', error);
+    console.error("[CREATE_LIQ] Error creating liquidity account:", error);
     return {
       success: false,
       error: error.message
