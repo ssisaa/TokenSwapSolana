@@ -14,7 +14,8 @@ import {
   CheckCircle2,
   Upload,
   Settings,
-  Save
+  Save,
+  ExternalLink
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
@@ -708,29 +709,67 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
                 <div className="bg-secondary/30 p-4 rounded-lg space-y-3">
                   <div className="grid grid-cols-3 gap-2">
                     <div className="text-sm text-muted-foreground">Program ID:</div>
-                    <div className="col-span-2 text-sm font-mono break-all">
+                    <div className="col-span-2 text-sm font-mono break-all flex items-center gap-1">
                       {MULTI_HUB_SWAP_PROGRAM_ID}
+                      <a 
+                        href={`https://explorer.solana.com/address/${MULTI_HUB_SWAP_PROGRAM_ID}?cluster=devnet`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary hover:text-primary/80"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
                     </div>
                   </div>
                   
                   <div className="grid grid-cols-3 gap-2">
                     <div className="text-sm text-muted-foreground">Admin:</div>
-                    <div className="col-span-2 text-sm font-mono break-all">
+                    <div className="col-span-2 text-sm font-mono break-all flex items-center gap-1">
                       {stats?.admin || "Not initialized"}
+                      {stats?.admin && (
+                        <a 
+                          href={`https://explorer.solana.com/address/${stats.admin}?cluster=devnet`} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-primary hover:text-primary/80"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
                     </div>
                   </div>
                   
                   <div className="grid grid-cols-3 gap-2">
                     <div className="text-sm text-muted-foreground">YOT Mint:</div>
-                    <div className="col-span-2 text-sm font-mono break-all">
+                    <div className="col-span-2 text-sm font-mono break-all flex items-center gap-1">
                       {stats?.yotMint || "Not initialized"}
+                      {stats?.yotMint && (
+                        <a 
+                          href={`https://explorer.solana.com/address/${stats.yotMint}?cluster=devnet`} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-primary hover:text-primary/80"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
                     </div>
                   </div>
                   
                   <div className="grid grid-cols-3 gap-2">
                     <div className="text-sm text-muted-foreground">YOS Mint:</div>
-                    <div className="col-span-2 text-sm font-mono break-all">
+                    <div className="col-span-2 text-sm font-mono break-all flex items-center gap-1">
                       {stats?.yosMint || "Not initialized"}
+                      {stats?.yosMint && (
+                        <a 
+                          href={`https://explorer.solana.com/address/${stats.yosMint}?cluster=devnet`} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-primary hover:text-primary/80"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
                     </div>
                   </div>
                   
