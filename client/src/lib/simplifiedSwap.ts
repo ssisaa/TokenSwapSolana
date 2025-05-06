@@ -545,7 +545,29 @@ export async function swapSolToYot(
       
       if (confirmation.value.err) {
         console.error('Transaction failed during confirmation:', confirmation.value.err);
-        throw new Error(`Transaction confirmed but failed: ${confirmation.value.err}`);
+        
+        // Improved error handling for InstructionError
+        if (confirmation.value.err && typeof confirmation.value.err === 'object') {
+          const errorObj = confirmation.value.err;
+          console.log('Detailed confirmation error:', JSON.stringify(errorObj, null, 2));
+          
+          // Check if it's an InstructionError
+          if ('InstructionError' in errorObj && Array.isArray(errorObj.InstructionError)) {
+            const [instructionIndex, errorDetail] = errorObj.InstructionError;
+            
+            console.log(`Instruction error at index ${instructionIndex}:`, errorDetail);
+            
+            // Common error cases
+            if (errorDetail === 'InvalidAccountData' || 
+                (typeof errorDetail === 'object' && 'Custom' in errorDetail)) {
+              const customCode = typeof errorDetail === 'object' ? errorDetail.Custom : null;
+              
+              throw new Error(`Transaction failed due to invalid account data or custom program error (Code: ${customCode}). This is likely because one or more token accounts required by the program don't exist. Please use the Admin Tools to create all required token accounts before trying again.`);
+            }
+          }
+        }
+        
+        throw new Error(`Transaction confirmed but failed: ${JSON.stringify(confirmation.value.err)}`);
       }
       
       console.log('Transaction confirmed successfully!');
