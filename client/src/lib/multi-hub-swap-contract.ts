@@ -1388,7 +1388,7 @@ export async function updateMultiHubSwapParameters(
         { pubkey: programState, isSigner: false, isWritable: true }
         // Removing program_authority as it's not expected by the Rust program
       ],
-      programId: new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID),
+      programId: new PublicKey(solanaConfig.multiHubSwap.programId),
       data
     });
     
