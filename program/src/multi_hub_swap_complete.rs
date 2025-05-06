@@ -40,14 +40,14 @@ impl ProgramState {
             msg!("Program state data too short (old format detected)");
             
             // Check if it's a valid older format (without liquidity_wallet and liquidity_threshold)
-            let old_len = 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8; // 3 pubkeys + 5 u64s
+            const OLD_LEN: usize = 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8; // 3 pubkeys + 5 u64s
             
-            if data.len() < old_len {
+            if data.len() < OLD_LEN {
                 msg!("ERROR: Data too short even for old format: {} bytes", data.len());
                 return Err(ProgramError::InvalidAccountData);
             }
             
-            let data_old = array_ref![data, 0, old_len];
+            let data_old = array_ref![data, 0, OLD_LEN];
             let (
                 admin, 
                 yot_mint, 
@@ -245,42 +245,32 @@ pub fn process_instruction(
         },
         5 => process_withdraw_liquidity(program_id, accounts),
         6 => {
+            msg!("Update Parameters / Repair Program State Instruction");
             if instruction_data.len() < 41 { // 1 + 5 * 8 = 41
                 return Err(ProgramError::InvalidInstructionData);
             }
+            
+            // Extract common parameters
             let lp_rate = u64::from_le_bytes(instruction_data[1..9].try_into().unwrap());
             let cashback_rate = u64::from_le_bytes(instruction_data[9..17].try_into().unwrap());
             let admin_fee = u64::from_le_bytes(instruction_data[17..25].try_into().unwrap());
             let swap_fee = u64::from_le_bytes(instruction_data[25..33].try_into().unwrap());
             let referral_rate = u64::from_le_bytes(instruction_data[33..41].try_into().unwrap());
             
-            process_update_parameters(
-                program_id, accounts, lp_rate, cashback_rate, admin_fee, swap_fee, referral_rate
-            )
-        },
-        6 => {
-            msg!("Repair Program State Instruction");
-            if instruction_data.len() < 41 { // 1 + 5 * 8 = 41
-                return Err(ProgramError::InvalidInstructionData);
-            }
-            
-            // Extract parameters for repairing the program state
-            let lp_rate = u64::from_le_bytes(instruction_data[1..9].try_into().unwrap());
-            let cashback_rate = u64::from_le_bytes(instruction_data[9..17].try_into().unwrap());
-            let admin_fee = u64::from_le_bytes(instruction_data[17..25].try_into().unwrap());
-            let swap_fee = u64::from_le_bytes(instruction_data[25..33].try_into().unwrap());
-            let yos_display = u64::from_le_bytes(instruction_data[33..41].try_into().unwrap());
-            
-            // If there are additional 8 bytes, extract liquidity threshold
-            let threshold = if instruction_data.len() >= 49 {
-                u64::from_le_bytes(instruction_data[41..49].try_into().unwrap())
+            // If there are more parameters, this is a repair instruction
+            if instruction_data.len() >= 49 {
+                msg!("Running program state repair");
+                let threshold = u64::from_le_bytes(instruction_data[41..49].try_into().unwrap());
+                process_repair_program_state(
+                    program_id, accounts, lp_rate, cashback_rate, admin_fee, swap_fee, referral_rate, threshold
+                )
             } else {
-                100000000 // Default 0.1 SOL if not provided
-            };
-            
-            process_repair_program_state(
-                program_id, accounts, lp_rate, cashback_rate, admin_fee, swap_fee, yos_display, threshold
-            )
+                // Otherwise, just update parameters
+                msg!("Running parameter update only");
+                process_update_parameters(
+                    program_id, accounts, lp_rate, cashback_rate, admin_fee, swap_fee, referral_rate
+                )
+            }
         },
         7 => {
             msg!("Create Liquidity Account Instruction");
@@ -1723,7 +1713,7 @@ pub fn process_repair_program_state(
     // Verify that the program_state_account is owned by this program
     if program_state_account.owner != program_id {
         msg!("Error: Program state not owned by program");
-        return Err(ProgramError::InvalidAccountOwner);
+        return Err(ProgramError::InvalidAccountData);
     }
     
     // Check that state PDA is correct

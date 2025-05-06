@@ -17,13 +17,15 @@ const YOS_TOKEN_ACCOUNT = new PublicKey('7GnphdpgcV5Z8swNAFZ8QkMdo43TPHa4SmdtUw1
 // Load wallet from keypair file
 function loadWalletFromFile() {
   try {
-    // Uncomment to load from a specific keypair file
-    // const secretKeyString = fs.readFileSync('admin-keypair.json', 'utf8');
-    // const secretKey = Uint8Array.from(JSON.parse(secretKeyString));
-    // return Keypair.fromSecretKey(secretKey);
-    
-    // For testing, generate a new keypair
-    return Keypair.generate();
+    // Try to load the program keypair for admin access
+    try {
+      const secretKeyString = fs.readFileSync('program-keypair.json', 'utf8');
+      const secretKey = Uint8Array.from(JSON.parse(secretKeyString));
+      return Keypair.fromSecretKey(secretKey);
+    } catch (err) {
+      console.log('Could not load program keypair, generating new keypair for testing only');
+      return Keypair.generate();
+    }
   } catch (error) {
     console.error('Error loading wallet:', error);
     throw error;
