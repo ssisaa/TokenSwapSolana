@@ -10,7 +10,7 @@
 
 import { Connection, PublicKey, Transaction, TransactionInstruction, SystemProgram, LAMPORTS_PER_SOL, SYSVAR_RENT_PUBKEY, ComputeBudgetProgram } from '@solana/web3.js';
 import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { getSolanaConnection } from './solana';
+import { connection } from './solana';
 import { 
   MULTI_HUB_SWAP_PROGRAM_ID, 
   YOT_TOKEN_ADDRESS, 
@@ -43,7 +43,7 @@ export function getProgramAuthorityPda(): PublicKey {
  * @returns Balance and whether threshold has been reached
  */
 export async function checkCommonWalletBalance(): Promise<{balance: number, thresholdReached: boolean}> {
-  const connection = getSolanaConnection();
+  // Use imported connection object
   const commonWallet = getProgramAuthorityPda();
   
   const balance = await connection.getBalance(commonWallet) / LAMPORTS_PER_SOL;
@@ -75,7 +75,7 @@ export async function directSwap(
 }> {
   try {
     console.log(`Executing SOL to YOT swap with common wallet contribution for ${solAmount} SOL...`);
-    const connection = getSolanaConnection();
+    // Use imported connection object
     const walletPublicKey = wallet.publicKey;
     
     // Calculate contribution amount (20% to common wallet)
@@ -222,7 +222,7 @@ export async function addLiquidityFromCommonWallet(
   error?: string
 }> {
   try {
-    const connection = getSolanaConnection();
+    // Use imported connection object
     const walletPublicKey = wallet.publicKey;
     
     // Get common wallet balance

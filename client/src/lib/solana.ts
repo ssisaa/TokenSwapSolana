@@ -34,6 +34,11 @@ export const connection = new Connection(ENDPOINT, 'confirmed');
 // Export this as solanaConnection as well for modules that import it with that name
 export { connection as solanaConnection };
 
+// Function to get the Solana connection (for backward compatibility)
+export function getSolanaConnection(): Connection {
+  return connection;
+}
+
 // Convert lamports to SOL
 export function lamportsToSol(lamports: number): number {
   return lamports / LAMPORTS_PER_SOL;

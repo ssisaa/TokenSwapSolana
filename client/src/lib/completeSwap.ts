@@ -9,7 +9,7 @@
 
 import { Connection, PublicKey, Transaction, TransactionInstruction, SystemProgram, Keypair, LAMPORTS_PER_SOL, SYSVAR_RENT_PUBKEY, ComputeBudgetProgram, sendAndConfirmTransaction } from '@solana/web3.js';
 import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { getSolanaConnection } from './solana';
+import { connection } from './solana';
 import { 
   MULTI_HUB_SWAP_PROGRAM_ID, 
   YOT_TOKEN_ADDRESS, 
