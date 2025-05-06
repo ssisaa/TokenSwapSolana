@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { DirectSwapButton } from "./DirectSwapButton";
+import { SimplifiedSwapButton } from "./SimplifiedSwapButton";
 import {
   Tabs,
   TabsContent,
