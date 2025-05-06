@@ -41,7 +41,7 @@ function Router() {
         <Route path="/home" component={Home} />
         <Route path="/integration" component={Integration} />
         
-        <Route component={NotFound} />
+        <Route path="/:rest*" component={NotFound} />
       </Switch>
     </div>
   );
