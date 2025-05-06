@@ -489,15 +489,25 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
           description: (
             <div className="flex flex-col gap-1">
               <p>Transaction ID: {result.signature ? `${result.signature.slice(0, 8)}...${result.signature.slice(-8)}` : 'Unknown'}</p>
+              <p className="font-medium text-green-500 mt-1">Success! Using secure two-phase swap:</p>
               <p>
-                Received: {result.distributionDetails.userReceived.toFixed(2)} {toToken.symbol} ({DEFAULT_DISTRIBUTION_RATES.userDistribution}%)
+                Phase 1: Created liquidity account (hidden system operation)
               </p>
               <p>
-                LP Contribution: {result.distributionDetails.liquidityContribution.toFixed(2)} {toToken.symbol} ({DEFAULT_DISTRIBUTION_RATES.lpContribution}%)
+                Phase 2: Sent {parseFloat(fromAmount).toFixed(4)} SOL to pool
               </p>
-              <p>
-                YOS Cashback: {result.distributionDetails.yosCashback.toFixed(2)} YOS ({DEFAULT_DISTRIBUTION_RATES.yosCashback}%)
-              </p>
+              <div className="p-2 mt-1 border border-dashed border-yellow-300 rounded">
+                <p className="text-sm font-medium mb-1">Expected distribution (client-side calculation):</p>
+                <p className="text-xs">
+                  Received: {result.distributionDetails.userReceived.toFixed(2)} {toToken.symbol} ({DEFAULT_DISTRIBUTION_RATES.userDistribution}%)
+                </p>
+                <p className="text-xs">
+                  LP Contribution: {result.distributionDetails.liquidityContribution.toFixed(2)} {toToken.symbol} ({DEFAULT_DISTRIBUTION_RATES.lpContribution}%)
+                </p>
+                <p className="text-xs">
+                  YOS Cashback: {result.distributionDetails.yosCashback.toFixed(2)} YOS ({DEFAULT_DISTRIBUTION_RATES.yosCashback}%)
+                </p>
+              </div>
               <a 
                 href={`https://explorer.solana.com/tx/${result.signature}?cluster=devnet`}
                 target="_blank"
@@ -964,6 +974,27 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
                     <div className="flex flex-col items-center p-2 bg-white/5 rounded-md">
                       <span className="text-xs text-muted-foreground">YOS Cashback</span>
                       <span className="font-medium text-green-500">5%</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Security Info Box */}
+              {fromToken.symbol === "SOL" && toToken.symbol === "YOT" && (
+                <div className="p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg mt-2">
+                  <div className="flex items-start">
+                    <Shield className="h-5 w-5 text-green-600 mt-0.5 mr-2 flex-shrink-0" />
+                    <div>
+                      <h4 className="text-sm font-medium text-green-800 dark:text-green-400">Enhanced Security Swap</h4>
+                      <p className="text-xs text-green-700 dark:text-green-500 mt-1">
+                        Using a secure two-phase transaction approach:
+                      </p>
+                      <ul className="text-xs text-green-700 dark:text-green-500 mt-1 ml-4 list-disc">
+                        <li>Phase 1: Create account (background operation)</li>
+                        <li>Phase 2: Transfer SOL to pool</li>
+                        <li>All transactions signed by your wallet only</li>
+                        <li>Uses real-time blockchain rates</li>
+                      </ul>
                     </div>
                   </div>
                 </div>
