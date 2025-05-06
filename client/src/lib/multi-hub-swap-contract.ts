@@ -1880,7 +1880,9 @@ export async function initializeMultiHubSwap(
   adminFeeRate: number = solanaConfig.multiHubSwap.rates.adminFeeRate / 100,
   yosCashbackRate: number = solanaConfig.multiHubSwap.rates.yosCashbackRate / 100,
   swapFeeRate: number = solanaConfig.multiHubSwap.rates.swapFeeRate / 100,
-  referralRate: number = solanaConfig.multiHubSwap.rates.referralRate / 100
+  referralRate: number = solanaConfig.multiHubSwap.rates.referralRate / 100,
+  liquidityWallet: PublicKey = new PublicKey(solanaConfig.multiHubSwap.centralLiquidity.wallet),
+  liquidityThreshold: number = solanaConfig.multiHubSwap.centralLiquidity.threshold
 ): Promise<string> {
   if (!wallet || !wallet.publicKey) {
     throw new Error("Wallet not connected");
