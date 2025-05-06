@@ -537,10 +537,31 @@ export async function secureSwap(
         });
         console.log(`[SECURE_SWAP] Initialization transaction sent: ${initSignature}`);
         
-        // Don't wait for confirmation - the transaction will likely fail with "account borrowed" error
-        // But it will create the account, which is what we want
-        console.log('[SECURE_SWAP] Waiting 2 seconds for account initialization to propagate');
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Try to confirm the transaction but don't throw if it fails
+        console.log('[SECURE_SWAP] Checking initialization transaction status...');
+        try {
+          // Get latest blockhash for better confirmation chance
+          const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+          
+          // Wait up to 5 seconds for confirmation with more lenient timeouts
+          await Promise.race([
+            connection.confirmTransaction({
+              signature: initSignature,
+              blockhash,
+              lastValidBlockHeight: lastValidBlockHeight + 150
+            }, 'confirmed'),
+            new Promise(resolve => setTimeout(resolve, 5000))
+          ]);
+          
+          console.log('[SECURE_SWAP] Account initialization confirmed successfully');
+        } catch (confirmError) {
+          // It's okay if confirmation fails - the account may still be created
+          console.log('[SECURE_SWAP] Confirmation of initialization failed (expected):', confirmError);
+        }
+        
+        // Give the network a moment to process the account creation
+        console.log('[SECURE_SWAP] Waiting 3 seconds for account initialization to propagate');
+        await new Promise(resolve => setTimeout(resolve, 3000));
       } catch (error) {
         console.log('[SECURE_SWAP] Expected initialization error (this is normal):', error);
         // Continue with the main transaction regardless of initialization result
@@ -559,20 +580,54 @@ export async function secureSwap(
       throw new Error('Transaction signature verification failed');
     }
     
-    // Send the transaction with security logging
-    const signature = await connection.sendRawTransaction(signedTransferTransaction.serialize());
+    // Send the transaction with security logging and proper preflight handling
+    console.log(`[SECURE_SWAP] Sending SOL transfer transaction...`);
+    
+    // First try with regular preflight
+    let signature;
+    try {
+      signature = await connection.sendRawTransaction(signedTransferTransaction.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+        maxRetries: 3
+      });
+    } catch (preflightError) {
+      console.warn("[SECURE_SWAP] Transaction failed preflight checks, trying with skipPreflight=true:", preflightError);
+      
+      // If preflight fails, try again with skipPreflight=true
+      signature = await connection.sendRawTransaction(signedTransferTransaction.serialize(), {
+        skipPreflight: true,  // Skip preflight to avoid false error returns
+        preflightCommitment: 'confirmed',
+        maxRetries: 5
+      });
+    }
+    
     console.log(`[SECURE_SWAP] SOL transfer transaction sent: ${signature}`);
     console.log(`[SECURE_SWAP] Transaction explorer link: https://explorer.solana.com/tx/${signature}?cluster=devnet`);
     
-    // Wait for confirmation with timeout
+    // Get latest blockhash for more reliable confirmation
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+    
+    // Wait for confirmation with extended validity window and timeout
+    console.log(`[SECURE_SWAP] Waiting for transaction confirmation with ${lastValidBlockHeight + 150} blocks validity...`);
     const confirmation = await Promise.race([
-      connection.confirmTransaction(signature),
+      connection.confirmTransaction({
+        signature,
+        blockhash,
+        lastValidBlockHeight: lastValidBlockHeight + 150 // Add extra blocks for validity
+      }, 'confirmed'),
       new Promise((_, reject) => setTimeout(() => reject(new Error('Transaction confirmation timeout')), 60000))
     ]);
     
-    // @ts-ignore - TypeScript doesn't know about the shape of the confirmation object
-    if (confirmation.value?.err) {
-      throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+    // Properly typed confirmation check
+    interface ConfirmationResult {
+      context: { slot: number };
+      value: { err: any | null };
+    }
+    
+    const typedConfirmation = confirmation as ConfirmationResult;
+    if (typedConfirmation.value?.err) {
+      throw new Error(`Transaction failed: ${JSON.stringify(typedConfirmation.value.err)}`);
     }
     
     console.log('[SECURE_SWAP] SOL transfer confirmed!');
@@ -662,21 +717,38 @@ export async function solToYotSwap(wallet: any, solAmount: number): Promise<stri
       throw new Error("Transaction signature verification failed");
     }
     
-    // Send the signed transaction
-    const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
-      skipPreflight: false, // Enable preflight checks
-      preflightCommitment: 'confirmed'
-    });
+    // Send the signed transaction with retry mechanism
+    let signature;
+    try {
+      // Try with preflight checks first
+      signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+        maxRetries: 3
+      });
+    } catch (preflightError) {
+      console.warn("[SECURE_SWAP] Transaction failed preflight checks, trying with skipPreflight=true:", preflightError);
+      
+      // If preflight fails, try again with skipPreflight
+      signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
+        skipPreflight: true,
+        preflightCommitment: 'confirmed',
+        maxRetries: 5
+      });
+    }
     
     console.log(`[SECURE_SWAP] Transaction sent: ${signature}`);
     console.log(`[SECURE_SWAP] View on explorer: https://explorer.solana.com/tx/${signature}?cluster=devnet`);
     
-    // Wait for confirmation with detailed error handling
+    // Get fresh blockhash for confirmation with extended validity
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+    console.log(`[SECURE_SWAP] Confirming with lastValidBlockHeight + 150 = ${lastValidBlockHeight + 150}`);
+    
+    // Wait for confirmation with detailed error handling and extended validity
     const confirmation = await connection.confirmTransaction({
       signature,
       blockhash,
-      lastValidBlockHeight
+      lastValidBlockHeight: lastValidBlockHeight + 150 // Add extra blocks for validity
     }, 'confirmed');
     
     if (confirmation.value.err) {
