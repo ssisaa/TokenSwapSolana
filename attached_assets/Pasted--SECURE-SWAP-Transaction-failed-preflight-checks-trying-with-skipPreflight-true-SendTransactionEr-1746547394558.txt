@@ -1,0 +1,174 @@
+[SECURE_SWAP] Transaction failed preflight checks, trying with skipPreflight=true: SendTransactionError: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 2: invalid account data for instruction. 
+Logs: 
+[
+  "Program log: SOL to YOT Swap Instruction (One Step)",
+  "Program log: SOL amount in: 10000000, Min YOT out: 0",
+  "Program log: Processing SOL to YOT swap (immediate version)",
+  "Program log: Amount in: 10000000 lamports",
+  "Program log: Minimum amount out: 0 YOT",
+  "Program log: Error: Invalid central liquidity wallet account",
+  "Program log: Expected: 56N7ArB1mZCYXihVrcGGLDtNBPzVnqyx3xECEvCkPnB",
+  "Program log: Provided: 5rQzEXhDTYdyDftPmu4DiaLpZz4GePd2XumXYPHBSj6T",
+  "Program Js9TqdpLBsF7M64ra2mYNyfbPTWwTvBUNR85wsEoSKP consumed 31943 of 399700 compute units",
+  "Program Js9TqdpLBsF7M64ra2mYNyfbPTWwTvBUNR85wsEoSKP failed: invalid account data for instruction"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at Connection.sendEncodedTransaction (chunk-5JHCWNWN.js?v=6c373433:11073:13)
+    at async Connection.sendRawTransaction (chunk-5JHCWNWN.js?v=6c373433:11040:20)
+    at async solToYotSwap (secureSwap.ts:731:19)
+    at async executeSwap (multi-hub-swap-contract.ts:1548:22)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+solToYotSwap @ secureSwap.ts:737
+await in solToYotSwap
+executeSwap @ multi-hub-swap-contract.ts:1548
+await in executeSwap
+performSwap @ MultiHubSwapCard.tsx:403
+await in performSwap
+onClick @ MultiHubSwapCard.tsx:1009
+callCallback2 @ chunk-276SZO74.js?v=6c373433:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=6c373433:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=6c373433:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=6c373433:3736
+executeDispatch @ chunk-276SZO74.js?v=6c373433:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=6c373433:7034
+processDispatchQueue @ chunk-276SZO74.js?v=6c373433:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=6c373433:7051
+(anonymous) @ chunk-276SZO74.js?v=6c373433:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=6c373433:18913
+batchedUpdates @ chunk-276SZO74.js?v=6c373433:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=6c373433:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=6c373433:5478
+dispatchEvent @ chunk-276SZO74.js?v=6c373433:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=6c373433:5449Understand this warning
+MultiHubSwapCard.tsx:1355 Balance for SOL: 3.582934813
+secureSwap.ts:747 [SECURE_SWAP] Transaction sent: 5p2PXjCb1RP23NsdffSJCwxvHDXmLbrK9CKMXuG17Cf5ENozSs61VUZ4vLqfNbq3BVthQ1CXtjibYxUBUQXbpYvm
+secureSwap.ts:748 [SECURE_SWAP] View on explorer: https://explorer.solana.com/tx/5p2PXjCb1RP23NsdffSJCwxvHDXmLbrK9CKMXuG17Cf5ENozSs61VUZ4vLqfNbq3BVthQ1CXtjibYxUBUQXbpYvm?cluster=devnet
+secureSwap.ts:752 [SECURE_SWAP] Confirming with lastValidBlockHeight + 150 = 367062177
+solana.ts:170 Pool balances fetched - SOL: 7.401, YOT: 1000000000, YOS: 10000000000
+MultiHubSwapCard.tsx:190 Fetched real exchange rates from blockchain: 1 SOL = 135116876.09782463 YOT, 1 YOT = 7.4009999999999996e-9 SOL
+secureSwap.ts:762 [SECURE_SWAP] Transaction failed: {InstructionError: Array(2)}
+solToYotSwap @ secureSwap.ts:762
+await in solToYotSwap
+executeSwap @ multi-hub-swap-contract.ts:1548
+await in executeSwap
+performSwap @ MultiHubSwapCard.tsx:403
+await in performSwap
+onClick @ MultiHubSwapCard.tsx:1009
+callCallback2 @ chunk-276SZO74.js?v=6c373433:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=6c373433:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=6c373433:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=6c373433:3736
+executeDispatch @ chunk-276SZO74.js?v=6c373433:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=6c373433:7034
+processDispatchQueue @ chunk-276SZO74.js?v=6c373433:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=6c373433:7051
+(anonymous) @ chunk-276SZO74.js?v=6c373433:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=6c373433:18913
+batchedUpdates @ chunk-276SZO74.js?v=6c373433:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=6c373433:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=6c373433:5478
+dispatchEvent @ chunk-276SZO74.js?v=6c373433:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=6c373433:5449Understand this error
+secureSwap.ts:769 [SECURE_SWAP] Error sending transaction: Error: Transaction failed: {"InstructionError":[2,"InvalidAccountData"]}
+    at solToYotSwap (secureSwap.ts:763:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1548:22)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+solToYotSwap @ secureSwap.ts:769
+await in solToYotSwap
+executeSwap @ multi-hub-swap-contract.ts:1548
+await in executeSwap
+performSwap @ MultiHubSwapCard.tsx:403
+await in performSwap
+onClick @ MultiHubSwapCard.tsx:1009
+callCallback2 @ chunk-276SZO74.js?v=6c373433:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=6c373433:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=6c373433:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=6c373433:3736
+executeDispatch @ chunk-276SZO74.js?v=6c373433:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=6c373433:7034
+processDispatchQueue @ chunk-276SZO74.js?v=6c373433:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=6c373433:7051
+(anonymous) @ chunk-276SZO74.js?v=6c373433:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=6c373433:18913
+batchedUpdates @ chunk-276SZO74.js?v=6c373433:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=6c373433:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=6c373433:5478
+dispatchEvent @ chunk-276SZO74.js?v=6c373433:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=6c373433:5449Understand this error
+multi-hub-swap-contract.ts:1618 [SWAP_DEBUG] Critical transaction failure: Error: Transaction failed: {"InstructionError":[2,"InvalidAccountData"]}
+    at solToYotSwap (secureSwap.ts:763:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1548:22)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+executeSwap @ multi-hub-swap-contract.ts:1618
+await in executeSwap
+performSwap @ MultiHubSwapCard.tsx:403
+await in performSwap
+onClick @ MultiHubSwapCard.tsx:1009
+callCallback2 @ chunk-276SZO74.js?v=6c373433:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=6c373433:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=6c373433:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=6c373433:3736
+executeDispatch @ chunk-276SZO74.js?v=6c373433:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=6c373433:7034
+processDispatchQueue @ chunk-276SZO74.js?v=6c373433:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=6c373433:7051
+(anonymous) @ chunk-276SZO74.js?v=6c373433:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=6c373433:18913
+batchedUpdates @ chunk-276SZO74.js?v=6c373433:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=6c373433:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=6c373433:5478
+dispatchEvent @ chunk-276SZO74.js?v=6c373433:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=6c373433:5449Understand this error
+multi-hub-swap-contract.ts:1621 [SWAP_DEBUG] Error type: object
+multi-hub-swap-contract.ts:1622 [SWAP_DEBUG] Error name: Error
+multi-hub-swap-contract.ts:1623 [SWAP_DEBUG] Full error object: {}
+multi-hub-swap-contract.ts:1631 [SWAP_DEBUG] Will attempt transaction simulation for more details...
+multi-hub-swap-contract.ts:1635 [SWAP_DEBUG] Simulation also failed: Error: Transaction failed: {"InstructionError":[2,"InvalidAccountData"]}
+    at solToYotSwap (secureSwap.ts:763:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1548:22)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+executeSwap @ multi-hub-swap-contract.ts:1635
+await in executeSwap
+performSwap @ MultiHubSwapCard.tsx:403
+await in performSwap
+onClick @ MultiHubSwapCard.tsx:1009
+callCallback2 @ chunk-276SZO74.js?v=6c373433:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=6c373433:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=6c373433:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=6c373433:3736
+executeDispatch @ chunk-276SZO74.js?v=6c373433:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=6c373433:7034
+processDispatchQueue @ chunk-276SZO74.js?v=6c373433:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=6c373433:7051
+(anonymous) @ chunk-276SZO74.js?v=6c373433:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=6c373433:18913
+batchedUpdates @ chunk-276SZO74.js?v=6c373433:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=6c373433:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=6c373433:5478
+dispatchEvent @ chunk-276SZO74.js?v=6c373433:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=6c373433:5449Understand this error
+MultiHubSwapCard.tsx:566 Swap error: Error: Transaction failed: {"InstructionError":[2,"InvalidAccountData"]}
+    at solToYotSwap (secureSwap.ts:763:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1548:22)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+performSwap @ MultiHubSwapCard.tsx:566
+await in performSwap
+onClick @ MultiHubSwapCard.tsx:1009
+callCallback2 @ chunk-276SZO74.js?v=6c373433:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=6c373433:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=6c373433:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=6c373433:3736
+executeDispatch @ chunk-276SZO74.js?v=6c373433:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=6c373433:7034
+processDispatchQueue @ chunk-276SZO74.js?v=6c373433:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=6c373433:7051
+(anonymous) @ chunk-276SZO74.js?v=6c373433:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=6c373433:18913
+batchedUpdates @ chunk-276SZO74.js?v=6c373433:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=6c373433:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=6c373433:5478
+dispatchEvent @ chunk-276SZO74.js?v=6c373433:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=6c373433:5449Understand this error
+MultiHubSwapCard.tsx:1353 Fetching balance for SOL (So11...1112)
+solana.ts:68 Fetching YOT balance for wallet: 
