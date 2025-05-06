@@ -225,7 +225,7 @@ export async function createSwapSolToYotTransaction(
   solAmount: number,
   minYotAmount: number,
   connection: Connection
-): Promise<Transaction> {
+): Promise<{ transaction: Transaction; missingAccounts: string[] }> {
   console.log(`Creating SOL to YOT swap transaction for ${solAmount} SOL (${wallet.toBase58()})`);
   
   // Convert SOL to lamports
@@ -242,6 +242,9 @@ export async function createSwapSolToYotTransaction(
   // Create transaction
   const transaction = new Transaction();
   
+  // Track missing accounts that might need admin creation
+  const missingAccounts: string[] = [];
+  
   // Create token accounts if needed
   console.log('Checking user YOT token account...');
   const { tokenAccount: userYotAccount, createInstruction: createYotInstruction } = 
@@ -254,10 +257,30 @@ export async function createSwapSolToYotTransaction(
   // Get the common wallet token account
   console.log('Checking common wallet YOT token account...');
   const commonWalletPubkey = new PublicKey(COMMON_WALLET_ADDRESS);
-  const { tokenAccount: commonWalletYotAccount, createInstruction: createCommonWalletYotInstruction } = 
-    await getOrCreateTokenAccount(connection, yotMintPubkey, commonWalletPubkey, wallet, true);
   
-  // Add create instructions if needed
+  // First check if the common wallet token account exists without trying to create it
+  let commonWalletYotAccount: PublicKey;
+  let createCommonWalletYotInstruction: TransactionInstruction | null = null;
+  
+  try {
+    commonWalletYotAccount = await getAssociatedTokenAddress(yotMintPubkey, commonWalletPubkey);
+    
+    try {
+      // Check if the account exists
+      await getAccount(connection, commonWalletYotAccount);
+      console.log(`Common wallet YOT account ${commonWalletYotAccount.toBase58()} exists`);
+    } catch (error) {
+      console.log(`Common wallet YOT account ${commonWalletYotAccount.toBase58()} doesn't exist`);
+      // Record that this account is missing but DO NOT try to create it in this transaction
+      // as only the admin should create this
+      missingAccounts.push(`Common wallet YOT account (${commonWalletYotAccount.toBase58()})`);
+    }
+  } catch (error) {
+    console.error('Error getting common wallet token account:', error);
+    throw new Error('Failed to determine the common wallet token account address');
+  }
+  
+  // Add create instructions if needed for user accounts
   if (createYotInstruction) {
     console.log('Adding instruction to create YOT token account');
     transaction.add(createYotInstruction);
@@ -266,11 +289,6 @@ export async function createSwapSolToYotTransaction(
   if (createYosInstruction) {
     console.log('Adding instruction to create YOS token account');
     transaction.add(createYosInstruction);
-  }
-  
-  if (createCommonWalletYotInstruction) {
-    console.log('Adding instruction to create common wallet YOT token account');
-    transaction.add(createCommonWalletYotInstruction);
   }
   
   // Create the swap instruction data
@@ -285,12 +303,12 @@ export async function createSwapSolToYotTransaction(
   console.log(`4. SOL Pool Wallet: ${SOL_POOL_WALLET}`);
   console.log(`5. YOT Pool Token Account: ${YOT_POOL_TOKEN_ACCOUNT}`);
   console.log(`6. User YOT Account: ${userYotAccount.toBase58()}`);
-  console.log(`7. Common Wallet: ${COMMON_WALLET_ADDRESS}`);
+  console.log(`7. Common Wallet YOT Account: ${commonWalletYotAccount.toBase58()}`);
   console.log(`8. YOS Mint: ${YOS_MINT}`);
   console.log(`9. User YOS Account: ${userYosAccount.toBase58()}`);
   console.log(`10. System Program: ${SystemProgram.programId.toBase58()}`);
   console.log(`11. Token Program: ${TOKEN_PROGRAM_ID.toBase58()}`);
-  console.log(`12. Common Wallet YOT Account: ${commonWalletYotAccount.toBase58()}`);
+  console.log(`12. Common Wallet SOL Address: ${COMMON_WALLET_ADDRESS}`);
   
   // Account metas according to the Rust program's expected order
   // Make sure this exactly matches what the program expects in the instruction
@@ -339,7 +357,10 @@ export async function createSwapSolToYotTransaction(
     console.log(`Including ${transaction.instructions.length - 1} token account creation instructions`);
   }
   
-  return transaction;
+  return { 
+    transaction, 
+    missingAccounts 
+  };
 }
 
 /**
@@ -473,12 +494,23 @@ export async function swapSolToYot(
     
     // Now create the actual swap transaction
     console.log("Creating swap transaction...");
-    const transaction = await createSwapSolToYotTransaction(
+    const { transaction, missingAccounts } = await createSwapSolToYotTransaction(
       wallet.publicKey,
       solAmount,
       minYotAmount,
       connection
     );
+    
+    // Check if any required accounts are missing (controlled by admin)
+    if (missingAccounts.length > 0) {
+      const missingAccountsStr = missingAccounts.join(', ');
+      console.warn(`Missing required accounts: ${missingAccountsStr}`);
+      console.warn('These accounts must be created by the admin wallet.');
+      console.warn('Attempting transaction anyway, but it may fail...');
+      
+      // You might want to throw an error here instead, but we'll try the transaction
+      // to see if it works anyway with skipPreflight=true
+    }
     
     // Sign and send the transaction
     console.log('Sending transaction to wallet for approval...');
