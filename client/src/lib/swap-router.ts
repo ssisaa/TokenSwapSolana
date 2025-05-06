@@ -8,8 +8,7 @@ import { Connection, PublicKey, Transaction, TransactionInstruction } from '@sol
 import { 
   SOL_TOKEN_ADDRESS, 
   YOT_TOKEN_ADDRESS, 
-  SOLANA_RPC_URL, 
-  DEFAULT_EXCHANGE_RATES
+  SOLANA_RPC_URL
 } from './config';
 import { buyAndDistribute } from './multi-hub-swap-contract';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
@@ -18,19 +17,15 @@ import { getAssociatedTokenAddress } from '@solana/spl-token';
 const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
 
 /**
- * Simulates getting exchange rates from an oracle or price feed
- * In production, this would fetch from a reliable price source
+ * Gets exchange rates from blockchain AMM pools
+ * This function should NOT be used directly - use getExchangeRate from solana.ts instead
+ * 
+ * @deprecated Use getExchangeRate from solana.ts which connects to the actual AMM pool
  */
 export async function getExchangeRate(fromToken: string, toToken: string): Promise<number> {
-  // For SOL-YOT and YOT-SOL, use predefined rates
-  if (fromToken === SOL_TOKEN_ADDRESS && toToken === YOT_TOKEN_ADDRESS) {
-    return DEFAULT_EXCHANGE_RATES.SOL_YOT;
-  } else if (fromToken === YOT_TOKEN_ADDRESS && toToken === SOL_TOKEN_ADDRESS) {
-    return DEFAULT_EXCHANGE_RATES.YOT_SOL;
-  }
-  
-  // Default fallback - should implement proper price feed in production
-  return 1;
+  // This function is deprecated and should not be used
+  // Instead use the getExchangeRate function from solana.ts that gets real AMM rates
+  throw new Error("This function is deprecated. Use getExchangeRate from solana.ts for real blockchain rates.");
 }
 
 /**

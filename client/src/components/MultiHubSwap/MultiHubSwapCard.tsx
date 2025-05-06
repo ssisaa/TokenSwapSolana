@@ -171,23 +171,34 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
   useEffect(() => {
     const fetchRealExchangeRates = async () => {
       try {
-        // Get real exchange rates from pool balances
+        // Get real exchange rates directly from AMM pool balances
         const rates = await getExchangeRate();
+        
+        // Set the rates based on blockchain data only
         setExchangeRates({
           solToYot: rates.solToYot,
           yotToSol: rates.yotToSol,
-          usdcToYot: rates.usdcToYot || 0, // Get from blockchain or set to 0 to force error display
-          yotToUsdc: rates.yotToUsdc || 0  // Get from blockchain or set to 0 to force error display
+          // For now, we don't have USDC pools implemented, so set to 0
+          // These will show as errors to the user rather than using fallbacks
+          usdcToYot: 0,
+          yotToUsdc: 0
         });
-        console.log("Fetched real exchange rates from blockchain:", rates);
+        
+        console.log(`Fetched real exchange rates from blockchain: 1 SOL = ${rates.solToYot} YOT, 1 YOT = ${rates.yotToSol} SOL`);
       } catch (error) {
         console.error("Failed to fetch exchange rates from blockchain:", error);
-        // Don't set fallbacks, let the error handler display the error
+        // Don't set fallbacks, force error display
+        setExchangeRates({
+          solToYot: 0,
+          yotToSol: 0,
+          usdcToYot: 0,
+          yotToUsdc: 0
+        });
       }
     };
     
     fetchRealExchangeRates();
-    const intervalId = setInterval(fetchRealExchangeRates, 30000); // Refresh every 30 seconds
+    const intervalId = setInterval(fetchRealExchangeRates, 15000); // Refresh every 15 seconds
     
     return () => clearInterval(intervalId);
   }, []);
@@ -224,36 +235,58 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
         console.log("Fetching exchange rate with wallet:", wallet.publicKey.toString());
         console.log(`Getting rate for ${fromToken.symbol} to ${toToken.symbol}`);
         
-        // Get the exchange rate directly from blockchain AMM data
-        const rate = await getExchangeRate(fromToken.address, toToken.address);
-        
-        console.log(`Real AMM exchange rate from blockchain: 1 ${fromToken.symbol} = ${rate} ${toToken.symbol}`);
-        
-        // Update display text for the rate - use the exact AMM rate from blockchain, no rounding
-        let rateDisplay = `1 ${fromToken.symbol} = ${rate} ${toToken.symbol} (AMM)`;
-        setExchangeRateDisplay(rateDisplay);
-        
-        // Update the to amount based on real exchange rate
-        if (fromAmount && parseFloat(fromAmount) > 0) {
-          const calculated = parseFloat(fromAmount) * rate;
-          console.log(`Calculated output: ${parseFloat(fromAmount)} ${fromToken.symbol} * ${rate} = ${calculated} ${toToken.symbol}`);
-          setToAmount(calculated.toFixed(calculated < 0.1 ? 6 : 2));
+        // Currently our AMM only supports SOL-YOT pairs directly
+        // So we need to check if we're dealing with that pair
+        if ((fromToken.symbol === "SOL" && toToken.symbol === "YOT") || 
+            (fromToken.symbol === "YOT" && toToken.symbol === "SOL")) {
+          
+          // Get the exchange rates directly from blockchain AMM data
+          const rates = await getExchangeRate();
+          
+          // Calculate the specific rate for this token pair
+          let rate = 0;
+          if (fromToken.symbol === "SOL" && toToken.symbol === "YOT") {
+            rate = rates.solToYot;
+          } else if (fromToken.symbol === "YOT" && toToken.symbol === "SOL") {
+            rate = rates.yotToSol;
+          }
+          
+          // Check for zero rate which would indicate an error
+          if (rate <= 0) {
+            throw new Error("Invalid exchange rate: Rate must be greater than zero");
+          }
+          
+          console.log(`Real AMM exchange rate from blockchain: 1 ${fromToken.symbol} = ${rate} ${toToken.symbol}`);
+          
+          // Update display text for the rate - use the exact AMM rate from blockchain, no rounding
+          let rateDisplay = `1 ${fromToken.symbol} = ${rate} ${toToken.symbol} (AMM)`;
+          setExchangeRateDisplay(rateDisplay);
+          
+          // Update the to amount based on real exchange rate
+          if (fromAmount && parseFloat(fromAmount) > 0) {
+            const calculated = parseFloat(fromAmount) * rate;
+            console.log(`Calculated output: ${parseFloat(fromAmount)} ${fromToken.symbol} * ${rate} = ${calculated} ${toToken.symbol}`);
+            setToAmount(calculated.toFixed(calculated < 0.1 ? 6 : 2));
+          } else {
+            setToAmount("");
+          }
         } else {
-          setToAmount("");
+          // For unsupported pairs, throw an error - no fallbacks
+          throw new Error(`Swap pair not supported: ${fromToken.symbol} to ${toToken.symbol}`);
         }
       } catch (error) {
         console.error("Error fetching exchange rate:", error);
-        // Fallback to estimated rate if blockchain data fetch fails
-        if (fromAmount && parseFloat(fromAmount) > 0) {
-          const rate = estimateExchangeRate();
-          console.log(`Using fallback exchange rate: 1 ${fromToken.symbol} = ${rate} ${toToken.symbol}`);
-          setExchangeRateDisplay(`1 ${fromToken.symbol} ≈ ${rate} ${toToken.symbol} (estimated)`);
-          
-          const calculated = parseFloat(fromAmount) * rate;
-          setToAmount(calculated.toFixed(calculated < 0.1 ? 6 : 2));
-        } else {
-          setToAmount("");
-        }
+        // No fallbacks - show error to user
+        setExchangeRateDisplay(`Error: Cannot get rate from blockchain`);
+        setToAmount("");
+        
+        // Display toast alert about the issue
+        toast({
+          title: "Exchange Rate Error",
+          description: error instanceof Error ? error.message : "Failed to fetch exchange rates from blockchain",
+          variant: "destructive",
+          duration: 5000
+        });
       }
     } else {
       console.warn("Cannot fetch exchange rate: wallet not connected or tokens not selected", 

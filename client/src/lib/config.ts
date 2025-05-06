@@ -186,10 +186,6 @@ export const CLAIM_REWARD_DISCRIMINATOR = Buffer.from([5]);      // Match with C
 export const WITHDRAW_CONTRIBUTION_DISCRIMINATOR = Buffer.from([6]); // Match with WITHDRAW_CONTRIBUTION_IX = 6
 export const UPDATE_PARAMETERS_DISCRIMINATOR = Buffer.from([3]); // Match with UPDATE_PARAMETERS_IX = 3
 
-// Default exchange rate fallbacks (only used if AMM data unavailable)
-export const DEFAULT_EXCHANGE_RATES = {
-  SOL_YOT: 15650,     // 1 SOL = 15,650 YOT
-  YOT_SOL: 0.000064,  // 1 YOT = 0.000064 SOL
-  USDC_YOT: 105.5,    // 1 USDC = 105.5 YOT
-  YOT_USDC: 0.0095,   // 1 YOT = 0.0095 USDC
-};
+// NO DEFAULT EXCHANGE RATES
+// All exchange rates MUST be fetched from blockchain - no hardcoded values allowed
+// This prevents confusion and financial errors from outdated rates
