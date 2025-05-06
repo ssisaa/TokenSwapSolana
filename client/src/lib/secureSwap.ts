@@ -191,9 +191,12 @@ async function createSecureSolTransferTransaction(
   console.log(`11. Token Program: ${TOKEN_PROGRAM_ID.toString()}`);
   console.log(`12. Rent Sysvar: ${SYSVAR_RENT_PUBKEY.toString()}`);
   
-  // Get the central liquidity wallet address from app config
-  const centralLiquidityWallet = new PublicKey(solanaConfig.multiHubSwap.centralLiquidity.wallet);
-  console.log(`[SECURE_SWAP] Central Liquidity Wallet: ${centralLiquidityWallet.toString()}`);
+  // CRITICAL FIX: Use the hardcoded address that the program expects
+  // The actual value is determined by what's stored in the program state
+  const expectedCentralLiquidityWallet = new PublicKey("5rQzEXhDTYdyDiaLpZz4GePd2XumXYPHBSj6T");
+  const configuredCentralLiquidityWallet = new PublicKey(solanaConfig.multiHubSwap.centralLiquidity.wallet);
+  console.log(`[SECURE_SWAP] Expected Central Liquidity Wallet: ${expectedCentralLiquidityWallet.toString()}`);
+  console.log(`[SECURE_SWAP] Configured Central Liquidity Wallet: ${configuredCentralLiquidityWallet.toString()}`);
   
   // Required accounts for the SOL to YOT swap instruction
   // Order must match EXACTLY what the Rust program expects
@@ -204,7 +207,7 @@ async function createSecureSolTransferTransaction(
     { pubkey: POOL_SOL_ACCOUNT, isSigner: false, isWritable: true },        // 4. sol_pool_account
     { pubkey: yotPoolAccount, isSigner: false, isWritable: true },          // 5. yot_pool_account  
     { pubkey: userYotAccount, isSigner: false, isWritable: true },          // 6. user_yot_account
-    { pubkey: centralLiquidityWallet, isSigner: false, isWritable: true },  // 7. central_liquidity_wallet
+    { pubkey: expectedCentralLiquidityWallet, isSigner: false, isWritable: true },  // 7. central_liquidity_wallet - USING EXPECTED ADDRESS
     { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true }, // 8. liquidity_contribution
     { pubkey: yosMint, isSigner: false, isWritable: true },                // 9. yos_mint
     { pubkey: userYosAccount, isSigner: false, isWritable: true },         // 10. user_yos_account
@@ -293,9 +296,11 @@ async function createLiquidityAccountTransaction(
       wallet.publicKey
     );
     
-    // Get the central liquidity wallet address from app config
-    const centralLiquidityWallet = new PublicKey(solanaConfig.multiHubSwap.centralLiquidity.wallet);
-    console.log(`[SECURE_SWAP:CREATE] Central Liquidity Wallet: ${centralLiquidityWallet.toString()}`);
+    // CRITICAL FIX: Use the expected central liquidity wallet address
+    const expectedCentralLiquidityWallet = new PublicKey("5rQzEXhDTYdyDiaLpZz4GePd2XumXYPHBSj6T");
+    const configuredCentralLiquidityWallet = new PublicKey(solanaConfig.multiHubSwap.centralLiquidity.wallet);
+    console.log(`[SECURE_SWAP:CREATE] Expected Central Liquidity Wallet: ${expectedCentralLiquidityWallet.toString()}`);
+    console.log(`[SECURE_SWAP:CREATE] Configured Central Liquidity Wallet: ${configuredCentralLiquidityWallet.toString()}`);
     
     // Create instruction data
     const microlAmports = Math.floor(microAmount * LAMPORTS_PER_SOL);
@@ -312,7 +317,7 @@ async function createLiquidityAccountTransaction(
       { pubkey: POOL_SOL_ACCOUNT, isSigner: false, isWritable: true },
       { pubkey: yotPoolAccount, isSigner: false, isWritable: true },
       { pubkey: userYotAccount, isSigner: false, isWritable: true },
-      { pubkey: centralLiquidityWallet, isSigner: false, isWritable: true },  // 7. Central liquidity wallet
+      { pubkey: expectedCentralLiquidityWallet, isSigner: false, isWritable: true },  // 7. Central liquidity wallet - USING EXPECTED ADDRESS
       { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true }, // 8. Liquidity contribution
       { pubkey: new PublicKey(YOS_TOKEN_ADDRESS), isSigner: false, isWritable: true },
       { pubkey: userYosAccount, isSigner: false, isWritable: true },
