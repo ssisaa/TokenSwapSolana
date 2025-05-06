@@ -27,6 +27,11 @@ export const DEFAULT_SLIPPAGE_PERCENTAGE = 5; // 5% slippage by default
 export const MIN_SOL_AMOUNT = 0.001; // Minimum SOL amount for swaps
 export const AUTO_LIQUIDITY_THRESHOLD = 0.1; // 0.1 SOL threshold for auto liquidity contribution
 
+// Distribution ratios
+export const SOL_DISTRIBUTION_RATIO = 80; // 80% of SOL goes to pool, 20% to common wallet
+export const YOT_DISTRIBUTION_RATIO = 80; // 80% of YOT goes to user, 20% to common wallet
+export const YOS_CASHBACK_PERCENTAGE = 5; // 5% YOS cashback on the total YOT amount
+
 // Token display settings
 export const TOKEN_DECIMALS = {
   SOL: 9,
@@ -35,22 +40,21 @@ export const TOKEN_DECIMALS = {
 };
 
 // Network settings
-export const SOLANA_NETWORK = 'devnet'; // 'mainnet-beta', 'testnet', 'devnet', 'localnet'
+export type SolanaNetwork = 'devnet' | 'mainnet-beta' | 'testnet' | 'localnet';
+export const SOLANA_NETWORK: SolanaNetwork = 'devnet';
 export const RPC_ENDPOINT = 'https://api.devnet.solana.com';
 
 /**
  * Get Solana RPC endpoint URL based on the configured network
  */
 export function getRpcEndpoint(): string {
-  switch (SOLANA_NETWORK) {
-    case 'mainnet-beta':
-      return 'https://api.mainnet-beta.solana.com';
-    case 'testnet':
-      return 'https://api.testnet.solana.com';
-    case 'localnet':
-      return 'http://localhost:8899';
-    case 'devnet':
-    default:
-      return 'https://api.devnet.solana.com';
-  }
+  // Using an object lookup with the SolanaNetwork type for type safety
+  const endpoints: Record<SolanaNetwork, string> = {
+    'mainnet-beta': 'https://api.mainnet-beta.solana.com',
+    'testnet': 'https://api.testnet.solana.com',
+    'devnet': 'https://api.devnet.solana.com',
+    'localnet': 'http://localhost:8899'
+  };
+  
+  return endpoints[SOLANA_NETWORK];
 }

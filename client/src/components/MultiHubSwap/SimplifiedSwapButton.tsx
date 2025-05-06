@@ -11,6 +11,7 @@ interface SimplifiedSwapButtonProps {
   solAmount: number;
   estimatedYotAmount: number;
   slippagePercentage?: number;
+  disabled?: boolean;
   onSuccess?: (signature: string) => void;
   onError?: (error: any) => void;
 }
@@ -19,6 +20,7 @@ const SimplifiedSwapButton = ({
   solAmount,
   estimatedYotAmount,
   slippagePercentage = DEFAULT_SLIPPAGE_PERCENTAGE,
+  disabled = false,
   onSuccess,
   onError,
 }: SimplifiedSwapButtonProps) => {
@@ -93,11 +95,12 @@ const SimplifiedSwapButton = ({
       setTimeout(() => {
         setSwapComplete(false);
       }, 3000);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Swap error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast({
         title: 'Swap failed',
-        description: `Error: ${error.message || 'Unknown error'}`,
+        description: `Error: ${errorMessage}`,
         variant: 'destructive',
       });
       if (onError) onError(error);
@@ -124,7 +127,7 @@ const SimplifiedSwapButton = ({
     <Button
       className="w-full bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700"
       onClick={handleSwap}
-      disabled={loading || swapComplete || !connected || connecting || solAmount <= 0}
+      disabled={disabled || loading || swapComplete || !connected || connecting || solAmount <= 0}
     >
       {buttonIcon}
       {buttonText}
