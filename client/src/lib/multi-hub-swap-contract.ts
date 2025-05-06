@@ -59,7 +59,7 @@ export enum MultiHubSwapInstructionType {
   SolToYotSwapImmediate = 8,
   YotToSolSwapImmediate = 9,
   SolToYotSwapOriginal = 10,
-  AddLiquidityFromCentralWallet = 11
+  AddLiquidityFromCommonWallet = 11
 }
 
 // Connection to Solana network
@@ -1194,24 +1194,12 @@ export async function getLiquidityContributionInfo(walletAddressStr: string): Pr
 }
 
 /**
- * Add liquidity from central wallet to the SOL-YOT pool
- * This implements the add_liquidity_from_central_wallet instruction
- * 
- * Key features:
- * 1. Transfers 50% SOL and 50% YOT from central wallet to liquidity pool
- * 2. Only usable when central wallet balance reaches threshold
- * 3. Admin only functionality
- * 
- * @param wallet - Admin wallet
- * @returns The transaction signature
- */
-/**
  * Add liquidity from common wallet to the SOL-YOT pool
- * This implements the add_liquidity_from_central_wallet instruction
+ * This implements the add_liquidity_from_common_wallet instruction
  * 
  * Key features:
  * 1. Transfers 50% SOL and 50% YOT from common wallet to liquidity pool
- * 2. Only usable when common wallet balance reaches threshold
+ * 2. Only usable when common wallet balance reaches threshold (0.1 SOL)
  * 3. Admin only functionality
  * 
  * @param wallet - Admin wallet

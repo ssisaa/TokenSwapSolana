@@ -887,7 +887,7 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
             <div className="space-y-1">
               <h3 className="font-medium text-base">Liquidity Management</h3>
               <p className="text-sm text-muted-foreground">
-                Configure automatic liquidity addition from the central wallet
+                Configure automatic liquidity addition from the common wallet
               </p>
             </div>
             
@@ -945,7 +945,7 @@ const MultiHubSwapSettings: React.FC<MultiHubSwapSettingsProps> = ({
               <div className="bg-secondary/30 p-4 rounded-lg space-y-3">
                 <h4 className="font-medium text-sm">Liquidity Threshold Setting</h4>
                 <p className="text-xs text-muted-foreground mt-1">
-                  When this amount of value accumulates in the central wallet, it will 
+                  When this amount of value accumulates in the common wallet, it will 
                   automatically be added to the liquidity pool (split 50/50 between SOL and YOT).
                 </p>
                 
