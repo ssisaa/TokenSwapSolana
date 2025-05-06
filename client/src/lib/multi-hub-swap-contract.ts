@@ -1396,7 +1396,12 @@ interface ProgramState {
 
 /**
  * Executes a token swap
- * For SOL-YOT swaps, uses the buyAndDistribute function
+ * For SOL-YOT swaps, uses the specialized solToYotSwap function
+ * 
+ * @returns An object containing either:
+ * - Regular swap result: {signature, outputAmount, distributionDetails}
+ * - Partial swap result: {solSignature, error, message} (when only SOL was sent but YOT couldn't be transferred)
+ * - Token account creation required: {solSignature, needsTokenAccount, tokenAccountTransaction}
  */
 export async function executeSwap(
   wallet: any,
@@ -1404,7 +1409,16 @@ export async function executeSwap(
   toTokenAddress: string,
   inputAmount: number,
   slippageTolerance: number = 1.0
-): Promise<{ signature: string, outputAmount: number, distributionDetails?: any }> {
+): Promise<{ 
+  signature?: string, 
+  outputAmount?: number, 
+  distributionDetails?: any,
+  solSignature?: string,
+  error?: boolean,
+  message?: string,
+  needsTokenAccount?: boolean,
+  tokenAccountTransaction?: Transaction
+}> {
   if (!wallet || !wallet.publicKey) {
     throw new Error("Wallet not connected");
   }
@@ -1434,14 +1448,56 @@ export async function executeSwap(
       
       // Execute the swap with our specialized function
       console.log("[SWAP_DEBUG] Executing solToYotSwap...");
-      const signature = await solToYotSwap(wallet, inputAmount);
+      const result = await solToYotSwap(wallet, inputAmount);
+      
+      // Check if we got an object with error information
+      if (typeof result === 'object') {
+        console.log("[SWAP_DEBUG] Got structured result from solToYotSwap:", result);
+        
+        // If we have an error or need token account, just pass it through
+        if (result.error || result.needsTokenAccount) {
+          return result;
+        }
+        
+        // If we have a regular success with solSignature
+        if (result.solSignature && result.completed) {
+          console.log("[SWAP_DEBUG] Transaction successful! Signature:", result.solSignature);
+          
+          // In this case, the contract handles the distribution automatically
+          // using rates from the config:
+          // - Usually 75% to user 
+          // - Usually 20% to liquidity pool
+          // - Usually 5% as YOS cashback
+          const userDistribution = 100 - (solanaConfig.multiHubSwap.rates.lpContributionRate / 100) - (solanaConfig.multiHubSwap.rates.yosCashbackRate / 100);
+          const lpContribution = solanaConfig.multiHubSwap.rates.lpContributionRate / 100;
+          const yosCashback = solanaConfig.multiHubSwap.rates.yosCashbackRate / 100;
+          
+          console.log("[SWAP_DEBUG] Distribution details:", {
+            userReceived: outputAmount * userDistribution/100,
+            liquidityContribution: outputAmount * lpContribution/100,
+            yosCashback: outputAmount * yosCashback/100
+          });
+          
+          return {
+            signature: result.solSignature,
+            outputAmount,
+            distributionDetails: {
+              userReceived: outputAmount * userDistribution/100,
+              liquidityContribution: outputAmount * lpContribution/100,
+              yosCashback: outputAmount * yosCashback/100
+            }
+          };
+        }
+        
+        // Return the raw result - this will be handled by the UI
+        return result;
+      }
+      
+      // Handle the case where we got a string (old API)
+      const signature = result as string;
       console.log("[SWAP_DEBUG] Transaction successful! Signature:", signature);
       
-      // In this case, the contract handles the distribution automatically
-      // using rates from the config:
-      // - Usually 75% to user 
-      // - Usually 20% to liquidity pool
-      // - Usually 5% as YOS cashback
+      // Calculate distribution details
       const userDistribution = 100 - (solanaConfig.multiHubSwap.rates.lpContributionRate / 100) - (solanaConfig.multiHubSwap.rates.yosCashbackRate / 100);
       const lpContribution = solanaConfig.multiHubSwap.rates.lpContributionRate / 100;
       const yosCashback = solanaConfig.multiHubSwap.rates.yosCashbackRate / 100;

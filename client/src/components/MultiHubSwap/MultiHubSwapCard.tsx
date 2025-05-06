@@ -416,7 +416,7 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
           description: (
             <div className="flex flex-col gap-1">
               <p className="font-medium text-yellow-500">SOL was successfully sent to the pool:</p>
-              <p>Transaction ID: {result.solSignature.slice(0, 8)}...{result.solSignature.slice(-8)}</p>
+              <p>Transaction ID: {result.solSignature ? `${result.solSignature.slice(0, 8)}...${result.solSignature.slice(-8)}` : 'Unknown'}</p>
               <p className="text-red-500 mt-2">{result.message}</p>
               <a 
                 href={`https://explorer.solana.com/tx/${result.solSignature}?cluster=devnet`}
@@ -445,12 +445,14 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
           description: (
             <div className="flex flex-col gap-1">
               <p>SOL was sent to the pool successfully:</p>
-              <p>Transaction ID: {result.solSignature.slice(0, 8)}...{result.solSignature.slice(-8)}</p>
+              <p>Transaction ID: {result.solSignature ? `${result.solSignature.slice(0, 8)}...${result.solSignature.slice(-8)}` : 'Unknown'}</p>
               <p className="mt-2 font-medium">You need to create a YOT token account to receive your tokens.</p>
               <button 
                 className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded mt-2"
                 onClick={async () => {
                   try {
+                    // Import the connection from solana.ts
+                    const { connection } = await import('@/lib/solana');
                     // Ask the user to sign this transaction
                     const txSignature = await wallet.sendTransaction(result.tokenAccountTransaction, connection);
                     toast({
@@ -486,7 +488,7 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
           title: "Swap successful!",
           description: (
             <div className="flex flex-col gap-1">
-              <p>Transaction ID: {result.signature.slice(0, 8)}...{result.signature.slice(-8)}</p>
+              <p>Transaction ID: {result.signature ? `${result.signature.slice(0, 8)}...${result.signature.slice(-8)}` : 'Unknown'}</p>
               <p>
                 Received: {result.distributionDetails.userReceived.toFixed(2)} {toToken.symbol} ({DEFAULT_DISTRIBUTION_RATES.userDistribution}%)
               </p>
@@ -521,12 +523,12 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
           title: "Swap successful!",
           description: (
             <div className="flex flex-col gap-1">
-              <p>Transaction ID: {result.signature.slice(0, 8)}...{result.signature.slice(-8)}</p>
+              <p>Transaction ID: {result.signature ? `${result.signature.slice(0, 8)}...${result.signature.slice(-8)}` : 'Unknown'}</p>
               <p>
-                Received: {result.outputAmount.toFixed(4)} {toToken.symbol}
+                Received: {result.outputAmount?.toFixed(4) || 0} {toToken.symbol}
               </p>
               <a 
-                href={`https://explorer.solana.com/tx/${result.signature}?cluster=devnet`}
+                href={`https://explorer.solana.com/tx/${result.signature || ''}?cluster=devnet`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-500 hover:underline"
