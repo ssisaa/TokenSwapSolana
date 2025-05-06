@@ -12,9 +12,9 @@ import {
   TransactionInstruction,
   SystemProgram,
   LAMPORTS_PER_SOL,
-  ComputeBudgetProgram,
-  SYSVAR_RENT_PUBKEY
+  ComputeBudgetProgram
 } from '@solana/web3.js';
+import { SYSVAR_RENT_PUBKEY } from '@solana/web3.js/src/sysvar';
 import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { solanaConfig } from './config';
 import { connection, calculateSolToYot } from './solana';

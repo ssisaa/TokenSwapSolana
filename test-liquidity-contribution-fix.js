@@ -1,10 +1,11 @@
+// @ts-check\n// ESModule\n
 /**
  * Test script for the enhanced SOL to YOT swap with liquidity contribution fix
  * This tests the new two-step process in solToYotSwapV3.ts
  */
 
-const { Connection, Keypair, PublicKey, LAMPORTS_PER_SOL } = require('@solana/web3.js');
-const fs = require('fs');
+import { Connection, Keypair, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import fs from 'fs';
 
 // Load configuration from app.config.json
 const appConfig = JSON.parse(fs.readFileSync('./app.config.json', 'utf8'));
@@ -62,7 +63,7 @@ async function checkBalances(wallet) {
   
   try {
     console.log('Checking YOT token balance...');
-    const { TokenAccountNotFoundError, getAssociatedTokenAddress } = require('@solana/spl-token');
+    const { TokenAccountNotFoundError, getAssociatedTokenAddress } = await import('@solana/spl-token');
     
     const yotTokenMint = new PublicKey(solanaConfig.tokens.yot.address);
     const userTokenAddress = await getAssociatedTokenAddress(
@@ -86,7 +87,7 @@ async function checkBalances(wallet) {
   
   try {
     console.log('Checking YOS token balance...');
-    const { getAssociatedTokenAddress } = require('@solana/spl-token');
+    const { getAssociatedTokenAddress } = await import('@solana/spl-token');
     
     const yosTokenMint = new PublicKey(solanaConfig.tokens.yos.address);
     const userYosAddress = await getAssociatedTokenAddress(
@@ -152,7 +153,7 @@ async function testLiquidityContributionFix() {
     }
     
     // Import the two-step swap implementation
-    const swapModule = require('./client/lib/solToYotSwapV3');
+    const swapModule = await import('./client/src/lib/solToYotSwapV3.js');
     
     // Create a wrapper around the Node.js wallet for compatibility with web wallet
     const walletAdapter = {
