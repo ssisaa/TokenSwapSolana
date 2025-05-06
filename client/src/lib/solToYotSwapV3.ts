@@ -102,9 +102,10 @@ export async function ensureTokenAccount(
 
 /**
  * Check if the liquidity contribution account exists for a user
+ * Updated to use simplified approach that doesn't attempt account creation
  * @param wallet The user's wallet
  * @param connection Solana connection
- * @returns Object with status and transaction to create the account if needed
+ * @returns Object with status and the account address
  */
 export async function checkLiquidityContributionAccount(
   wallet: any,
@@ -112,19 +113,17 @@ export async function checkLiquidityContributionAccount(
 ): Promise<{
   exists: boolean;
   liquidityContributionAccount: PublicKey;
-  signature?: string;
 }> {
   try {
-    console.log('[SOL-YOT SWAP V3] Checking/creating liquidity contribution account using dedicated module');
+    console.log('[SOL-YOT SWAP V3] Checking liquidity contribution account using dedicated module');
     
-    // Use our dedicated function to handle all aspects of liquidity contribution account
+    // Use our dedicated function to check account existence
     const result = await ensureLiquidityContributionAccount(wallet, connection);
     
     // Return the information in a format compatible with our existing code
     return {
       exists: result.exists,
-      liquidityContributionAccount: result.accountAddress,
-      signature: result.signature
+      liquidityContributionAccount: result.accountAddress
     };
   } catch (error) {
     console.error('[SOL-YOT SWAP V3] Error checking liquidity contribution account:', error);
@@ -188,7 +187,6 @@ export async function solToYotSwapV3(
   error?: string;
   message?: string;
   accountCreated?: boolean;
-  accountCreationSignature?: string;
 }> {
   try {
     console.log(`[SOL-YOT SWAP V3] Starting swap of ${solAmount} SOL with ${slippagePercent}% slippage`);
@@ -253,14 +251,11 @@ export async function solToYotSwapV3(
     const liquidityResult = await checkLiquidityContributionAccount(wallet, connection);
     const liquidityContributionAccount = liquidityResult.liquidityContributionAccount;
     
-    // If account was just created by our external function, get the signature and flag it
-    if (!liquidityResult.exists && liquidityResult.signature) {
-      accountCreationSignature = liquidityResult.signature;
-      accountCreated = true;
-      console.log('[SOL-YOT SWAP V3] Liquidity contribution account created with signature:', accountCreationSignature);
-      
-      // Sleep briefly to ensure account propagation
-      await new Promise(resolve => setTimeout(resolve, 2000));
+    // With our updated approach, we don't try to create the account separately anymore
+    // Instead, we let the program's swap instruction handle account creation
+    if (!liquidityResult.exists) {
+      console.log('[SOL-YOT SWAP V3] Liquidity contribution account does not exist - the swap instruction will create it');
+      accountCreated = false;
     }
     
     // STEP 3: Perform the actual swap now that all accounts exist

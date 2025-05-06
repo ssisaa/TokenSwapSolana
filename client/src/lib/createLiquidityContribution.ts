@@ -1,14 +1,11 @@
 /**
- * Dedicated module for creating liquidity contribution accounts without
- * attempting to use any smart contract instructions (pure client-side).
+ * Dedicated module for checking liquidity contribution accounts
+ * Note: We've shifted our approach to not try to create the account directly
+ * but instead return the status to let the swap handle account creation
  */
 import {
-  SystemProgram,
   PublicKey,
-  Transaction,
   Connection,
-  sendAndConfirmTransaction,
-  SYSVAR_RENT_PUBKEY,
 } from '@solana/web3.js';
 import { solanaConfig } from './config';
 
@@ -30,9 +27,10 @@ export function findLiquidityContributionAddress(
 }
 
 /**
- * Check if liquidity contribution account exists and create it if needed
- * This is a pure client-side implementation that creates the account directly
- * without using any program instructions
+ * Check if liquidity contribution account exists
+ * We've updated our approach - instead of trying to create the account separately,
+ * we just check if it exists and let the swap transaction handle the creation
+ * if needed.
  */
 export async function ensureLiquidityContributionAccount(
   wallet: any,
@@ -40,7 +38,6 @@ export async function ensureLiquidityContributionAccount(
 ): Promise<{
   exists: boolean;
   accountAddress: PublicKey;
-  signature?: string;
 }> {
   try {
     if (!wallet.publicKey) {
@@ -51,69 +48,26 @@ export async function ensureLiquidityContributionAccount(
     const programId = new PublicKey(solanaConfig.multiHubSwap.programId);
     const [liquidityAccount] = findLiquidityContributionAddress(wallet.publicKey, programId);
 
-    console.log(`Checking liquidity contribution account: ${liquidityAccount.toString()}`);
+    console.log(`[Account Check] Checking liquidity contribution account: ${liquidityAccount.toString()}`);
 
     // Check if the account exists
     const accountInfo = await connection.getAccountInfo(liquidityAccount);
     
     if (accountInfo !== null) {
-      console.log('Liquidity contribution account already exists');
+      console.log('[Account Check] Liquidity contribution account already exists');
       return {
         exists: true,
         accountAddress: liquidityAccount
       };
     }
 
-    console.log('Liquidity contribution account does not exist, creating...');
-
-    // The account doesn't exist, create it directly using SystemProgram.createAccount
-    const space = 128; // Size for liquidity contribution account (adjust if needed)
-    const lamports = await connection.getMinimumBalanceForRentExemption(space);
-
-    // Create a transaction to allocate the account
-    const transaction = new Transaction();
+    console.log('[Account Check] Liquidity contribution account does not exist');
     
-    // Since this is a PDA, we need to use SystemProgram.createAccount with a signed instruction
-    const createAccountIx = SystemProgram.createAccount({
-      fromPubkey: wallet.publicKey,
-      newAccountPubkey: liquidityAccount, // This is a PDA so it won't work directly
-      lamports,
-      space,
-      programId
-    });
-
-    // This will fail because we can't sign as a PDA, but we'll try a different approach
-    transaction.add(createAccountIx);
-
-    // Set transaction properties
-    transaction.feePayer = wallet.publicKey;
-    const { blockhash } = await connection.getLatestBlockhash();
-    transaction.recentBlockhash = blockhash;
-
-    // This will likely fail because we can't sign as a PDA
-    // But we'll attempt it anyway in case the account can be created with a special mechanism
-    try {
-      // Prompt user to sign the transaction
-      const signed = await wallet.signTransaction(transaction);
-      const signature = await connection.sendRawTransaction(signed.serialize());
-      await connection.confirmTransaction(signature);
-      
-      console.log('Liquidity contribution account created successfully!');
-      
-      return {
-        exists: false,
-        accountAddress: liquidityAccount,
-        signature
-      };
-    } catch (err) {
-      console.error('Failed to create account directly:', err);
-      
-      // Return the account address anyway, the swap instruction can try to create it
-      return {
-        exists: false,
-        accountAddress: liquidityAccount
-      };
-    }
+    // We're no longer trying to create the account - the swap instruction will handle this
+    return {
+      exists: false,
+      accountAddress: liquidityAccount
+    };
   } catch (error) {
     console.error('Error in ensureLiquidityContributionAccount:', error);
     throw error;
