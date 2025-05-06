@@ -1881,7 +1881,7 @@ export async function getMultiHubSwapStats() {
         totalContributors: solanaConfig.multiHubSwap.stats.totalContributors,
         totalYosRewarded: solanaConfig.multiHubSwap.stats.totalYosRewarded,
         
-        // Rates (either from account data or fallback to config)
+        // Rates from blockchain state (no fallbacks)
         lpContributionRate,
         adminFeeRate,
         yosCashbackRate,
@@ -1912,28 +1912,12 @@ export async function getMultiHubSwapStats() {
   } catch (error: any) {
     console.error("Error getting multi-hub swap stats:", error);
     
-    // Fallback to default values from config if we can't read the program state
-    return {
-      totalLiquidityContributed: solanaConfig.multiHubSwap.stats.totalLiquidityContributed,
-      totalContributors: solanaConfig.multiHubSwap.stats.totalContributors,
-      totalYosRewarded: solanaConfig.multiHubSwap.stats.totalYosRewarded,
-      lpContributionRate: solanaConfig.multiHubSwap.rates.lpContributionRate / 100,
-      adminFeeRate: solanaConfig.multiHubSwap.rates.adminFeeRate / 100,
-      yosCashbackRate: solanaConfig.multiHubSwap.rates.yosCashbackRate / 100,
-      swapFeeRate: solanaConfig.multiHubSwap.rates.swapFeeRate / 100,
-      referralRate: solanaConfig.multiHubSwap.rates.referralRate / 100,
-      weeklyRewardRate: solanaConfig.multiHubSwap.rewards.weeklyRewardRate,
-      yearlyAPR: solanaConfig.multiHubSwap.rewards.yearlyAPR,
-      buyDistribution: {
-        userPercent: 100 - (solanaConfig.multiHubSwap.rates.lpContributionRate / 100) - (solanaConfig.multiHubSwap.rates.yosCashbackRate / 100),
-        liquidityPercent: solanaConfig.multiHubSwap.rates.lpContributionRate / 100,
-        cashbackPercent: solanaConfig.multiHubSwap.rates.yosCashbackRate / 100
-      },
-      sellDistribution: {
-        userPercent: 100 - (solanaConfig.multiHubSwap.rates.lpContributionRate / 100) - (solanaConfig.multiHubSwap.rates.yosCashbackRate / 100),
-        liquidityPercent: solanaConfig.multiHubSwap.rates.lpContributionRate / 100,
-        cashbackPercent: solanaConfig.multiHubSwap.rates.yosCashbackRate / 100
-      }
-    };
+    // No fallbacks - we must get data from blockchain or throw an error
+    // This prevents confusion from outdated rates and ensures data integrity
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : "Failed to fetch protocol data from blockchain";
+      
+    throw new Error(`Cannot get multi-hub swap stats from blockchain: ${errorMessage}`);
   }
 }

@@ -64,11 +64,8 @@
         "claimPeriodDays": 7,
         "secondsPerWeek": 604800
       },
-      "defaultExchangeRates": {
-        "solYot": 153846, 
-        "yotSol": 0.0000065,
-        "usdcYot": 1038.05,
-        "yotUsdc": 0.00096335
+      "exchangeRates": {
+        "comment": "All exchange rates MUST be fetched from blockchain - no hardcoded values"
       },
       "instructionDiscriminators": {
         "buyAndDistribute": [6, 240, 93, 246, 87, 224, 215, 175],
