@@ -156,32 +156,23 @@ export async function checkLiquidityContributionAccount(
     // We use instruction data format [7, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     // where the first byte (7) is the instruction index and the second byte (1) is a flag
     // indicating this is just for account creation
-    const data = Buffer.alloc(17);
-    data.writeUint8(7, 0); // SOL-YOT Swap instruction index
-    data.writeUint8(1, 1); // Flag for account creation only
-    data.writeBigUInt64LE(BigInt(0), 1); // Amount in (placeholder)
-    data.writeBigUInt64LE(BigInt(0), 9); // Min amount out (placeholder)
+    // Create special dedicated instruction data for ONLY creating the account (instruction #8)
+    // This is a new specialized instruction that ONLY creates the account and does nothing else
+    const data = Buffer.alloc(1);
+    data.writeUint8(8, 0); // Instruction #8 - Create Liquidity Account Only
     
     // Get necessary PDAs
     const [programStateAddress] = findProgramStateAddress(programId);
     const [programAuthority] = findProgramAuthority(programId);
     
-    // Create the transaction instruction
+    // Create a simplified instruction with only the accounts needed for account creation
     const instruction = new TransactionInstruction({
       programId,
       keys: [
-        { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
-        { pubkey: programStateAddress, isSigner: false, isWritable: false },
-        { pubkey: programAuthority, isSigner: false, isWritable: false },
-        { pubkey: new PublicKey(POOL_SOL_ACCOUNT), isSigner: false, isWritable: true },
-        { pubkey: await getAssociatedTokenAddress(new PublicKey(YOT_TOKEN_ADDRESS), new PublicKey(solanaConfig.pool.authority)), isSigner: false, isWritable: true },
-        { pubkey: wallet.publicKey, isSigner: false, isWritable: true }, // Placeholder for user's YOT account
-        { pubkey: liquidityContributionAccount, isSigner: false, isWritable: true },
-        { pubkey: new PublicKey(YOS_TOKEN_ADDRESS), isSigner: false, isWritable: false },
-        { pubkey: wallet.publicKey, isSigner: false, isWritable: true }, // Placeholder for user's YOS account
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+        { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // Payer for account creation
+        { pubkey: liquidityContributionAccount, isSigner: false, isWritable: true }, // The account to be created
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // For create account instruction
+        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, // For rent-exempt calculation
       ],
       data
     });
@@ -219,11 +210,12 @@ export function createSolToYotSwapInstruction(
   yosMint: PublicKey,
   userYosAccount: PublicKey,
 ): TransactionInstruction {
-  // Instruction data: [7 (SOL-YOT Swap), amountIn (8 bytes), minAmountOut (8 bytes)]
-  const data = Buffer.alloc(17);
+  // Instruction data: [7 (SOL-YOT Swap), 0 (NO account creation), amountIn (8 bytes), minAmountOut (8 bytes)]
+  const data = Buffer.alloc(18);
   data.writeUint8(7, 0); // SOL-YOT Swap instruction (index 7)
-  data.writeBigUInt64LE(BigInt(amountInLamports), 1);
-  data.writeBigUInt64LE(BigInt(minAmountOutTokens), 9);
+  data.writeUint8(0, 1); // Flag 0 = DO NOT create account, just swap (account should already exist)
+  data.writeBigUInt64LE(BigInt(amountInLamports), 2); // Note offset is now 2 because we added flag byte
+  data.writeBigUInt64LE(BigInt(minAmountOutTokens), 10); // Note offset is now 10
   
   // Required accounts for the SOL to YOT swap - must exactly match program expectation
   const accounts = [

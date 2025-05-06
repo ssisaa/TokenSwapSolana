@@ -1,0 +1,225 @@
+[SOL-YOT SWAP V3] Error during swap: SendTransactionError: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 2: instruction tries to borrow reference for an account which is already borrowed. 
+Logs: 
+[
+  "Program 11111111111111111111111111111111 invoke [2]",
+  "Program 11111111111111111111111111111111 success",
+  "Program log: Calculated YOT output: 0",
+  "Program log: Distribution: User: 0, Liquidity: 0, YOS Cashback: 0",
+  "Program log: Creating new liquidity contribution account",
+  "Program 11111111111111111111111111111111 invoke [2]",
+  "Program 11111111111111111111111111111111 success",
+  "Program log: Transferring 0 YOT tokens to user",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE consumed 29001 of 399700 compute units",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE failed: instruction tries to borrow reference for an account which is already borrowed"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at Connection.sendEncodedTransaction (chunk-5JHCWNWN.js?v=6c373433:11073:13)
+    at async Connection.sendRawTransaction (chunk-5JHCWNWN.js?v=6c373433:11040:20)
+    at async solToYotSwapV3 (solToYotSwapV3.ts:330:34)
+    at async solToYotSwap (solToYotSwapV3.ts:447:20)
+    at async executeSwap (multi-hub-swap-contract.ts:1453:22)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+solToYotSwapV3 @ solToYotSwapV3.ts:429
+await in solToYotSwapV3
+solToYotSwap @ solToYotSwapV3.ts:447
+executeSwap @ multi-hub-swap-contract.ts:1453
+await in executeSwap
+performSwap @ MultiHubSwapCard.tsx:403
+await in performSwap
+onClick @ MultiHubSwapCard.tsx:978
+callCallback2 @ chunk-276SZO74.js?v=6c373433:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=6c373433:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=6c373433:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=6c373433:3736
+executeDispatch @ chunk-276SZO74.js?v=6c373433:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=6c373433:7034
+processDispatchQueue @ chunk-276SZO74.js?v=6c373433:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=6c373433:7051
+(anonymous) @ chunk-276SZO74.js?v=6c373433:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=6c373433:18913
+batchedUpdates @ chunk-276SZO74.js?v=6c373433:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=6c373433:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=6c373433:5478
+dispatchEvent @ chunk-276SZO74.js?v=6c373433:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=6c373433:5449Understand this error
+solToYotSwapV3.ts:453 [SOL-YOT SWAP V3] Swap failed: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 2: instruction tries to borrow reference for an account which is already borrowed. 
+Logs: 
+[
+  "Program 11111111111111111111111111111111 invoke [2]",
+  "Program 11111111111111111111111111111111 success",
+  "Program log: Calculated YOT output: 0",
+  "Program log: Distribution: User: 0, Liquidity: 0, YOS Cashback: 0",
+  "Program log: Creating new liquidity contribution account",
+  "Program 11111111111111111111111111111111 invoke [2]",
+  "Program 11111111111111111111111111111111 success",
+  "Program log: Transferring 0 YOT tokens to user",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE consumed 29001 of 399700 compute units",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE failed: instruction tries to borrow reference for an account which is already borrowed"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+solToYotSwap @ solToYotSwapV3.ts:453
+await in solToYotSwap
+executeSwap @ multi-hub-swap-contract.ts:1453
+await in executeSwap
+performSwap @ MultiHubSwapCard.tsx:403
+await in performSwap
+onClick @ MultiHubSwapCard.tsx:978
+callCallback2 @ chunk-276SZO74.js?v=6c373433:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=6c373433:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=6c373433:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=6c373433:3736
+executeDispatch @ chunk-276SZO74.js?v=6c373433:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=6c373433:7034
+processDispatchQueue @ chunk-276SZO74.js?v=6c373433:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=6c373433:7051
+(anonymous) @ chunk-276SZO74.js?v=6c373433:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=6c373433:18913
+batchedUpdates @ chunk-276SZO74.js?v=6c373433:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=6c373433:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=6c373433:5478
+dispatchEvent @ chunk-276SZO74.js?v=6c373433:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=6c373433:5449Understand this error
+solToYotSwapV3.ts:457 [SOL-YOT SWAP V3] Error: Error: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 2: instruction tries to borrow reference for an account which is already borrowed. 
+Logs: 
+[
+  "Program 11111111111111111111111111111111 invoke [2]",
+  "Program 11111111111111111111111111111111 success",
+  "Program log: Calculated YOT output: 0",
+  "Program log: Distribution: User: 0, Liquidity: 0, YOS Cashback: 0",
+  "Program log: Creating new liquidity contribution account",
+  "Program 11111111111111111111111111111111 invoke [2]",
+  "Program 11111111111111111111111111111111 success",
+  "Program log: Transferring 0 YOT tokens to user",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE consumed 29001 of 399700 compute units",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE failed: instruction tries to borrow reference for an account which is already borrowed"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at solToYotSwap (solToYotSwapV3.ts:454:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1453:22)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+solToYotSwap @ solToYotSwapV3.ts:457
+await in solToYotSwap
+executeSwap @ multi-hub-swap-contract.ts:1453
+await in executeSwap
+performSwap @ MultiHubSwapCard.tsx:403
+await in performSwap
+onClick @ MultiHubSwapCard.tsx:978
+callCallback2 @ chunk-276SZO74.js?v=6c373433:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=6c373433:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=6c373433:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=6c373433:3736
+executeDispatch @ chunk-276SZO74.js?v=6c373433:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=6c373433:7034
+processDispatchQueue @ chunk-276SZO74.js?v=6c373433:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=6c373433:7051
+(anonymous) @ chunk-276SZO74.js?v=6c373433:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=6c373433:18913
+batchedUpdates @ chunk-276SZO74.js?v=6c373433:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=6c373433:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=6c373433:5478
+dispatchEvent @ chunk-276SZO74.js?v=6c373433:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=6c373433:5449Understand this error
+multi-hub-swap-contract.ts:1523 [SWAP_DEBUG] Critical transaction failure: Error: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 2: instruction tries to borrow reference for an account which is already borrowed. 
+Logs: 
+[
+  "Program 11111111111111111111111111111111 invoke [2]",
+  "Program 11111111111111111111111111111111 success",
+  "Program log: Calculated YOT output: 0",
+  "Program log: Distribution: User: 0, Liquidity: 0, YOS Cashback: 0",
+  "Program log: Creating new liquidity contribution account",
+  "Program 11111111111111111111111111111111 invoke [2]",
+  "Program 11111111111111111111111111111111 success",
+  "Program log: Transferring 0 YOT tokens to user",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE consumed 29001 of 399700 compute units",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE failed: instruction tries to borrow reference for an account which is already borrowed"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at solToYotSwap (solToYotSwapV3.ts:454:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1453:22)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+executeSwap @ multi-hub-swap-contract.ts:1523
+await in executeSwap
+performSwap @ MultiHubSwapCard.tsx:403
+await in performSwap
+onClick @ MultiHubSwapCard.tsx:978
+callCallback2 @ chunk-276SZO74.js?v=6c373433:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=6c373433:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=6c373433:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=6c373433:3736
+executeDispatch @ chunk-276SZO74.js?v=6c373433:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=6c373433:7034
+processDispatchQueue @ chunk-276SZO74.js?v=6c373433:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=6c373433:7051
+(anonymous) @ chunk-276SZO74.js?v=6c373433:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=6c373433:18913
+batchedUpdates @ chunk-276SZO74.js?v=6c373433:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=6c373433:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=6c373433:5478
+dispatchEvent @ chunk-276SZO74.js?v=6c373433:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=6c373433:5449Understand this error
+multi-hub-swap-contract.ts:1526 [SWAP_DEBUG] Error type: object
+multi-hub-swap-contract.ts:1527 [SWAP_DEBUG] Error name: Error
+multi-hub-swap-contract.ts:1528 [SWAP_DEBUG] Full error object: {}
+multi-hub-swap-contract.ts:1536 [SWAP_DEBUG] Will attempt transaction simulation for more details...
+multi-hub-swap-contract.ts:1540 [SWAP_DEBUG] Simulation also failed: Error: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 2: instruction tries to borrow reference for an account which is already borrowed. 
+Logs: 
+[
+  "Program 11111111111111111111111111111111 invoke [2]",
+  "Program 11111111111111111111111111111111 success",
+  "Program log: Calculated YOT output: 0",
+  "Program log: Distribution: User: 0, Liquidity: 0, YOS Cashback: 0",
+  "Program log: Creating new liquidity contribution account",
+  "Program 11111111111111111111111111111111 invoke [2]",
+  "Program 11111111111111111111111111111111 success",
+  "Program log: Transferring 0 YOT tokens to user",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE consumed 29001 of 399700 compute units",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE failed: instruction tries to borrow reference for an account which is already borrowed"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at solToYotSwap (solToYotSwapV3.ts:454:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1453:22)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+executeSwap @ multi-hub-swap-contract.ts:1540
+await in executeSwap
+performSwap @ MultiHubSwapCard.tsx:403
+await in performSwap
+onClick @ MultiHubSwapCard.tsx:978
+callCallback2 @ chunk-276SZO74.js?v=6c373433:3674
+invokeGuardedCallbackDev @ chunk-276SZO74.js?v=6c373433:3699
+invokeGuardedCallback @ chunk-276SZO74.js?v=6c373433:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-276SZO74.js?v=6c373433:3736
+executeDispatch @ chunk-276SZO74.js?v=6c373433:7014
+processDispatchQueueItemsInOrder @ chunk-276SZO74.js?v=6c373433:7034
+processDispatchQueue @ chunk-276SZO74.js?v=6c373433:7043
+dispatchEventsForPlugins @ chunk-276SZO74.js?v=6c373433:7051
+(anonymous) @ chunk-276SZO74.js?v=6c373433:7174
+batchedUpdates$1 @ chunk-276SZO74.js?v=6c373433:18913
+batchedUpdates @ chunk-276SZO74.js?v=6c373433:3579
+dispatchEventForPluginEventSystem @ chunk-276SZO74.js?v=6c373433:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-276SZO74.js?v=6c373433:5478
+dispatchEvent @ chunk-276SZO74.js?v=6c373433:5472
+dispatchDiscreteEvent @ chunk-276SZO74.js?v=6c373433:5449Understand this error
+MultiHubSwapCard.tsx:556 Swap error: Error: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 2: instruction tries to borrow reference for an account which is already borrowed. 
+Logs: 
+[
+  "Program 11111111111111111111111111111111 invoke [2]",
+  "Program 11111111111111111111111111111111 success",
+  "Program log: Calculated YOT output: 0",
+  "Program log: Distribution: User: 0, Liquidity: 0, YOS Cashback: 0",
+  "Program log: Creating new liquidity contribution account",
+  "Program 11111111111111111111111111111111 invoke [2]",
+  "Program 11111111111111111111111111111111 success",
+  "Program log: Transferring 0 YOT tokens to user",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE consumed 29001 of 399700 compute units",
+  "Program SMddVoXz2hF9jjecS5A1gZLG8TJHo34MJZuexZ8kVjE failed: instruction tries to borrow reference for an account which is already borrowed"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at solToYotSwap (solToYotSwapV3.ts:454:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1453:22)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
