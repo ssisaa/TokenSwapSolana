@@ -1205,7 +1205,19 @@ export async function getLiquidityContributionInfo(walletAddressStr: string): Pr
  * @param wallet - Admin wallet
  * @returns The transaction signature
  */
-export async function addLiquidityFromCentralWallet(wallet: any): Promise<string> {
+/**
+ * Add liquidity from common wallet to the SOL-YOT pool
+ * This implements the add_liquidity_from_central_wallet instruction
+ * 
+ * Key features:
+ * 1. Transfers 50% SOL and 50% YOT from common wallet to liquidity pool
+ * 2. Only usable when common wallet balance reaches threshold
+ * 3. Admin only functionality
+ * 
+ * @param wallet - Admin wallet
+ * @returns The transaction signature
+ */
+export async function addLiquidityFromCommonWallet(wallet: any): Promise<string> {
   if (!wallet || !wallet.publicKey) {
     throw new Error("Wallet not connected");
   }
@@ -1214,7 +1226,7 @@ export async function addLiquidityFromCentralWallet(wallet: any): Promise<string
   
   // Verify this is an admin wallet
   if (userPublicKey.toString() !== MULTI_HUB_SWAP_ADMIN) {
-    throw new Error("Only admin wallet can add liquidity from central wallet");
+    throw new Error("Only admin wallet can add liquidity from common wallet");
   }
   
   console.log("Creating add liquidity from central wallet transaction");
@@ -1243,8 +1255,8 @@ export async function addLiquidityFromCentralWallet(wallet: any): Promise<string
       { pubkey: userPublicKey, isSigner: true, isWritable: true }, // Admin wallet
       { pubkey: programStateAccount, isSigner: false, isWritable: true }, // Program state
       { pubkey: programAuthority, isSigner: false, isWritable: false }, // Program authority
-      { pubkey: centralLiquidityWallet, isSigner: false, isWritable: true }, // Central liquidity wallet (SOL)
-      { pubkey: centralLiquidityYotAccount, isSigner: false, isWritable: true }, // Central liquidity YOT account
+      { pubkey: commonWalletAddress, isSigner: false, isWritable: true }, // Common wallet (SOL)
+      { pubkey: commonWalletYotAccount, isSigner: false, isWritable: true }, // Common wallet YOT account
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // System program
       { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false } // Token program
     ],
@@ -1273,10 +1285,10 @@ export async function addLiquidityFromCentralWallet(wallet: any): Promise<string
     // Wait for confirmation
     await connection.confirmTransaction(signature, 'confirmed');
     
-    console.log(`Successfully added liquidity from central wallet: ${signature}`);
+    console.log(`Successfully added liquidity from common wallet: ${signature}`);
     return signature;
   } catch (error) {
-    console.error("Error adding liquidity from central wallet:", error);
+    console.error("Error adding liquidity from common wallet:", error);
     throw new Error(`Failed to add liquidity: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
