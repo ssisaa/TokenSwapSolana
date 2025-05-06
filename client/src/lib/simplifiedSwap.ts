@@ -23,6 +23,9 @@ import {
   SOL_POOL_WALLET,
   YOT_POOL_TOKEN_ACCOUNT,
   COMMON_WALLET_ADDRESS,
+  SOL_DISTRIBUTION_RATIO,
+  YOT_DISTRIBUTION_RATIO,
+  YOS_CASHBACK_PERCENTAGE,
   getRpcEndpoint,
 } from './configConstants';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
@@ -52,12 +55,18 @@ export function findProgramAuthorityPda(): [PublicKey, number] {
 
 /**
  * Create instruction data for the SOL to YOT swap
+ * 
+ * @param solAmount Amount of SOL in lamports
+ * @param minYotAmount Minimum YOT amount with slippage protection
+ * @returns Instruction data buffer
  */
 export function createSwapSolToYotInstructionData(
   solAmount: number,
   minYotAmount: number
 ): Buffer {
-  const buffer = Buffer.alloc(9); // 1 + 8 bytes
+  // Create buffer: 1 byte (instruction) + 8 bytes (amount) + 8 bytes (min amount) 
+  // + 1 byte (user ratio) + 1 byte (common ratio) + 1 byte (cashback percentage)
+  const buffer = Buffer.alloc(20);
   
   // Instruction discriminator: 0 for Initialize, 1 for SwapSolToYot
   buffer.writeUInt8(1, 0);
@@ -66,11 +75,14 @@ export function createSwapSolToYotInstructionData(
   buffer.writeBigUInt64LE(BigInt(solAmount), 1);
   
   // Min YOT amount (slippage protection)
-  const minYotBuffer = Buffer.alloc(8);
-  minYotBuffer.writeBigUInt64LE(BigInt(minYotAmount), 0);
+  buffer.writeBigUInt64LE(BigInt(minYotAmount), 9);
   
-  // Extend buffer to include minYotAmount
-  return Buffer.concat([buffer, minYotBuffer]);
+  // Distribution ratios and cashback percentage
+  buffer.writeUInt8(YOT_DISTRIBUTION_RATIO, 17); // 80% to user
+  buffer.writeUInt8(100 - YOT_DISTRIBUTION_RATIO, 18); // 20% to common wallet
+  buffer.writeUInt8(YOS_CASHBACK_PERCENTAGE, 19); // 5% YOS cashback
+  
+  return buffer;
 }
 
 /**
@@ -141,7 +153,13 @@ export async function createSwapSolToYotTransaction(
 }
 
 /**
- * Execute a SOL to YOT swap
+ * Execute a SOL to YOT swap 
+ * 
+ * @param wallet User's wallet (must have sendTransaction method)
+ * @param solAmount Amount of SOL to swap
+ * @param minYotAmount Minimum YOT tokens to receive (slippage protection)
+ * @param connection Solana connection
+ * @returns Transaction signature
  */
 export async function swapSolToYot(
   wallet: any,
@@ -150,7 +168,8 @@ export async function swapSolToYot(
   connection: Connection
 ): Promise<string> {
   try {
-    console.log(`Initiating SOL to YOT swap: ${solAmount} SOL`);
+    console.log(`Initiating SOL to YOT swap: ${solAmount} SOL with minimum ${minYotAmount} YOT`);
+    console.log(`Distribution ratios: ${YOT_DISTRIBUTION_RATIO}% to user, ${100-YOT_DISTRIBUTION_RATIO}% to common wallet, ${YOS_CASHBACK_PERCENTAGE}% YOS cashback`);
     
     // Create the swap transaction
     const transaction = await createSwapSolToYotTransaction(
@@ -161,12 +180,25 @@ export async function swapSolToYot(
     );
     
     // Sign and send the transaction
+    console.log('Sending transaction to wallet for approval...');
     const signature = await wallet.sendTransaction(transaction, connection);
     
     console.log(`Swap transaction sent: ${signature}`);
+    
+    // Wait for confirmation
+    console.log('Waiting for transaction confirmation...');
+    const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+    
+    if (confirmation.value.err) {
+      console.error('Transaction failed during confirmation:', confirmation.value.err);
+      throw new Error(`Transaction confirmed but failed: ${confirmation.value.err}`);
+    }
+    
+    console.log('Swap transaction confirmed successfully!');
     return signature;
-  } catch (error) {
-    console.error('Error executing SOL to YOT swap:', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error executing SOL to YOT swap:', errorMessage);
     throw error;
   }
 }

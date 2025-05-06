@@ -1066,17 +1066,30 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
                         estimatedYotAmount={parseFloat(toAmount) || 0}
                         slippagePercentage={parseFloat(slippage)}
                         disabled={!fromAmount || parseFloat(fromAmount) < MIN_SOL_AMOUNT || !wallet?.publicKey}
-                        onSuccess={() => {
+                        onSuccess={(signature) => {
                           // Refresh balances after successful swap
                           setTimeout(refreshBalances, 2000);
                           toast({
                             title: "Swap Successful",
-                            description: `Successfully swapped ${parseFloat(fromAmount).toFixed(4)} SOL to YOT with cashback`,
+                            description: (
+                              <div className="flex flex-col">
+                                <span>Successfully swapped {parseFloat(fromAmount).toFixed(4)} SOL to YOT with YOS cashback</span>
+                                <a 
+                                  href={`https://explorer.solana.com/tx/${signature}?cluster=${SOLANA_NETWORK}`} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-blue-500 underline text-sm mt-1"
+                                >
+                                  View on Solana Explorer
+                                </a>
+                              </div>
+                            ),
                             variant: "default",
                           });
                         }}
                         onError={(error) => {
                           console.error("Simplified swap error:", error);
+                          const errorMessage = error instanceof Error ? error.message : String(error);
                           toast({
                             title: "Swap Failed",
                             description: error instanceof Error ? error.message : "An unknown error occurred",
