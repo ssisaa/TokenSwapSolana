@@ -7,15 +7,17 @@ import {
   LAMPORTS_PER_SOL,
 } from '@solana/web3.js';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
-import {
-  POOL_SOL_ACCOUNT,
-  YOT_TOKEN_ADDRESS,
-  YOT_TOKEN_ACCOUNT,
-  YOS_TOKEN_ADDRESS,
-  YOS_TOKEN_ACCOUNT,
-  MULTI_HUB_SWAP_PROGRAM_ID
-} from './constants';
-import { getConnection, calculateSolToYot } from './solana';
+import { solanaConfig } from './config';
+import { connection, calculateSolToYot } from './solana';
+
+// Extract necessary constants from solanaConfig
+const POOL_SOL_ACCOUNT = solanaConfig.pool.solAccount;
+const YOT_TOKEN_ADDRESS = solanaConfig.tokens.yot.address;
+const YOS_TOKEN_ADDRESS = solanaConfig.tokens.yos.address;
+const MULTI_HUB_SWAP_PROGRAM_ID = solanaConfig.multiHubSwap.programId;
+
+// Get token accounts from the config
+// For YOT and YOS token accounts, we'll use getAssociatedTokenAddress at runtime
 
 // Helper functions
 export function findProgramStateAddress(programId: PublicKey): [PublicKey, number] {
@@ -149,7 +151,7 @@ export async function swapSolToYotV2(
   try {
     console.log(`Swapping ${solAmount} SOL to YOT with ${slippagePercent}% slippage...`);
     
-    const connection = getConnection();
+    // Use the imported connection instead of getConnection
     if (!wallet.publicKey) {
       throw new Error('Wallet not connected');
     }
@@ -157,11 +159,18 @@ export async function swapSolToYotV2(
     // Convert SOL to lamports
     const amountInLamports = Math.floor(solAmount * LAMPORTS_PER_SOL);
     
-    // Get pool balances to calculate expected output
+    // Get pool balances and accounts
     const solPoolAccount = new PublicKey(POOL_SOL_ACCOUNT);
-    const yotPoolAccount = new PublicKey(YOT_TOKEN_ACCOUNT);
+    const poolAuthority = new PublicKey(solanaConfig.pool.authority);
+    const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
     const yosMint = new PublicKey(YOS_TOKEN_ADDRESS);
     const programId = new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID);
+    
+    // Get the pool's YOT token account (ATA owned by pool authority)
+    const yotPoolAccount = await getAssociatedTokenAddress(
+      yotMint,
+      poolAuthority
+    );
     
     // Calculate expected YOT output using the AMM rate
     const expectedOutput = await calculateSolToYot(solAmount);
@@ -181,12 +190,11 @@ export async function swapSolToYotV2(
       new PublicKey(YOT_TOKEN_ADDRESS)
     );
     
-    if (userYotResult.needsTokenAccount) {
+    if (userYotResult.needsTokenAccount && userYotResult.transaction) {
       console.log('Creating YOT token account first...');
       await wallet.signTransaction(userYotResult.transaction);
-      const createTokenAcctSignature = await connection.sendTransaction(
-        userYotResult.transaction, 
-        [wallet.payer]
+      const createTokenAcctSignature = await connection.sendRawTransaction(
+        userYotResult.transaction.serialize()
       );
       await connection.confirmTransaction(createTokenAcctSignature);
       console.log('YOT token account created:', userYotResult.userTokenAccount);
@@ -199,12 +207,11 @@ export async function swapSolToYotV2(
       yosMint
     );
     
-    if (userYosResult.needsTokenAccount) {
+    if (userYosResult.needsTokenAccount && userYosResult.transaction) {
       console.log('Creating YOS token account first...');
       await wallet.signTransaction(userYosResult.transaction);
-      const createTokenAcctSignature = await connection.sendTransaction(
-        userYosResult.transaction, 
-        [wallet.payer]
+      const createTokenAcctSignature = await connection.sendRawTransaction(
+        userYosResult.transaction.serialize()
       );
       await connection.confirmTransaction(createTokenAcctSignature);
       console.log('YOS token account created:', userYosResult.userTokenAccount);

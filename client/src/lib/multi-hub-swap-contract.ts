@@ -1440,14 +1440,14 @@ export async function executeSwap(
     try {
       // CRITICAL FIX: We can't use buyAndDistribute for SOL to YOT swaps
       // because the user doesn't have YOT tokens to approve
-      // We need to use the special solToYotSwap function instead
-      console.log("[SWAP_DEBUG] Using solToYotSwap instead of buyAndDistribute");
+      // We need to use the special solToYotSwapV2 function instead which uses our on-chain solution
+      console.log("[SWAP_DEBUG] Using solToYotSwapV2 (on-chain solution) instead of buyAndDistribute");
       
-      // Import the solana.ts function for SOL to YOT swaps
-      const { solToYotSwap } = await import('./solana');
+      // Import the improved solToYotSwapV2 function that uses the on-chain swap implementation
+      const { solToYotSwap } = await import('./solToYotSwapV2');
       
-      // Execute the swap with our specialized function
-      console.log("[SWAP_DEBUG] Executing solToYotSwap...");
+      // Execute the swap with our specialized on-chain implementation
+      console.log("[SWAP_DEBUG] Executing on-chain SOL to YOT swap...");
       const result = await solToYotSwap(wallet, inputAmount);
       
       // Check if we got an object with error information
