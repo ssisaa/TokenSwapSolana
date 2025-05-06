@@ -108,11 +108,36 @@ ${SOL_DISTRIBUTION_RATIO}% of SOL goes to pool, ${YOT_DISTRIBUTION_RATIO}% of YO
     } catch (error: unknown) {
       console.error('Swap error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      // Prepare a more user-friendly error message
+      let userFriendlyMessage = errorMessage;
+      let errorTitle = 'Swap failed';
+      
+      // Check for specific error types we know about and provide friendly messages
+      if (errorMessage.includes('invalid account data')) {
+        userFriendlyMessage = 'There was a problem with one of the token accounts needed for the swap. The system will try to create these accounts automatically.';
+        errorTitle = 'Account error';
+      } else if (errorMessage.includes('insufficient funds')) {
+        userFriendlyMessage = 'You don\'t have enough SOL to complete this transaction. Make sure you have enough SOL for both the swap amount and transaction fees.';
+        errorTitle = 'Insufficient funds';
+      } else if (errorMessage.includes('User rejected')) {
+        userFriendlyMessage = 'You cancelled the transaction in your wallet.';
+        errorTitle = 'Transaction cancelled';
+      } else if (errorMessage.includes('Transaction simulation failed')) {
+        // Clean up simulation errors for better display
+        userFriendlyMessage = 'The transaction couldn\'t be processed. This might be because of network congestion or an issue with the Solana program.';
+        if (errorMessage.includes('Account validation error')) {
+          userFriendlyMessage = 'One of the required token accounts may not exist. The system will try to create these accounts for you automatically.';
+        }
+        errorTitle = 'Transaction error';
+      }
+      
       toast({
-        title: 'Swap failed',
-        description: `Error: ${errorMessage}`,
+        title: errorTitle,
+        description: userFriendlyMessage,
         variant: 'destructive',
       });
+      
       if (onError) onError(error);
     } finally {
       setLoading(false);
