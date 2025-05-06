@@ -191,11 +191,12 @@ async function createSecureSolTransferTransaction(
   console.log(`11. Token Program: ${TOKEN_PROGRAM_ID.toString()}`);
   console.log(`12. Rent Sysvar: ${SYSVAR_RENT_PUBKEY.toString()}`);
   
-  // IMPORTANT: Always use the values from app.config.json consistently
-  // We must use the common wallet address from config.ts
-  const commonWallet = new PublicKey(solanaConfig.multiHubSwap.commonWallet.wallet);
+  // IMPORTANT: Program expects program authority as the central liquidity wallet
+  // Use the program authority PDA as the central liquidity wallet - not the common wallet from config
+  const centralLiquidityWallet = programAuthority; // Critical fix - use programAuthority as central liquidity
   console.log(`[SECURE_SWAP] SOL Pool Account: ${POOL_SOL_ACCOUNT.toString()}`);
-  console.log(`[SECURE_SWAP] Common Wallet: ${commonWallet.toString()}`);
+  console.log(`[SECURE_SWAP] Central Liquidity Wallet (Program Authority): ${centralLiquidityWallet.toString()}`);
+  console.log(`[SECURE_SWAP] Note: Program expects Program Authority as central liquidity wallet, not Common Wallet!`);
   
   // Note: In the current configuration, these are the same address, but we should
   // keep getting them from their respective config fields for future-proofing
@@ -209,7 +210,7 @@ async function createSecureSolTransferTransaction(
     { pubkey: POOL_SOL_ACCOUNT, isSigner: false, isWritable: true },        // 4. sol_pool_account - This is the actual SOL pool for liquidity
     { pubkey: yotPoolAccount, isSigner: false, isWritable: true },          // 5. yot_pool_account  
     { pubkey: userYotAccount, isSigner: false, isWritable: true },          // 6. user_yot_account
-    { pubkey: commonWallet, isSigner: false, isWritable: true },  // 7. common_wallet - Using common wallet from config
+    { pubkey: centralLiquidityWallet, isSigner: false, isWritable: true },  // 7. central_liquidity_wallet - Using programAuthority as expected by the program
     { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true }, // 8. liquidity_contribution
     { pubkey: yosMint, isSigner: false, isWritable: true },                // 9. yos_mint
     { pubkey: userYosAccount, isSigner: false, isWritable: true },         // 10. user_yos_account
