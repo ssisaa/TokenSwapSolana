@@ -192,11 +192,10 @@ async function createSecureSolTransferTransaction(
   console.log(`12. Rent Sysvar: ${SYSVAR_RENT_PUBKEY.toString()}`);
   
   // IMPORTANT: Always use the values from app.config.json consistently
-  // The centralLiquidity.wallet is set in app.config.json, and we must use that value
-  // even though it's the same as the SOL pool account
-  const centralLiquidityWallet = new PublicKey(solanaConfig.multiHubSwap.centralLiquidity.wallet);
+  // We now use the USER_ADMIN_WALLET from config.ts for the central liquidity wallet
+  const centralLiquidityWallet = new PublicKey(USER_ADMIN_WALLET);
   console.log(`[SECURE_SWAP] SOL Pool Account: ${POOL_SOL_ACCOUNT.toString()}`);
-  console.log(`[SECURE_SWAP] Central Liquidity Wallet: ${centralLiquidityWallet.toString()}`);
+  console.log(`[SECURE_SWAP] Central Liquidity Wallet (user admin): ${centralLiquidityWallet.toString()}`);
   
   // Note: In the current configuration, these are the same address, but we should
   // keep getting them from their respective config fields for future-proofing
