@@ -98,30 +98,80 @@ export function createSwapSolToYotInstructionData(
  * @param owner Token account owner
  * @returns Token account address and a create instruction (if needed)
  */
-async function checkAndGetTokenAccount(
+/**
+ * Create a separate transaction to create token accounts for the user
+ * @param connection Solana connection
+ * @param wallet User's wallet
+ * @param requiredMints List of token mints to check accounts for
+ * @returns Transaction to create token accounts, or null if none needed
+ */
+export async function createRequiredTokenAccounts(
+  connection: Connection,
+  wallet: PublicKey,
+  requiredMints: PublicKey[]
+): Promise<Transaction | null> {
+  // Array to hold create instructions
+  const createInstructions: TransactionInstruction[] = [];
+  
+  // Check each token account and add create instructions if needed
+  for (const mint of requiredMints) {
+    const tokenAccount = await getAssociatedTokenAddress(mint, wallet);
+    
+    try {
+      // Check if account exists
+      await getAccount(connection, tokenAccount);
+      console.log(`Token account ${tokenAccount.toBase58()} already exists for mint ${mint.toBase58()}`);
+    } catch (error: any) {
+      // Account doesn't exist, add create instruction
+      console.log(`Creating token account ${tokenAccount.toBase58()} for mint ${mint.toBase58()}`);
+      
+      const createInstruction = createAssociatedTokenAccountInstruction(
+        wallet, // payer (using the user's wallet as the payer)
+        tokenAccount, // associated token account address
+        wallet, // owner
+        mint // mint
+      );
+      
+      createInstructions.push(createInstruction);
+    }
+  }
+  
+  // If no instructions needed, return null
+  if (createInstructions.length === 0) {
+    console.log('No token accounts need to be created');
+    return null;
+  }
+  
+  // Create and return transaction with all create instructions
+  const transaction = new Transaction();
+  for (const instruction of createInstructions) {
+    transaction.add(instruction);
+  }
+  
+  const { blockhash } = await connection.getLatestBlockhash();
+  transaction.recentBlockhash = blockhash;
+  transaction.feePayer = wallet;
+  
+  console.log(`Created transaction to create ${createInstructions.length} token accounts`);
+  return transaction;
+}
+
+/**
+ * Check if a token account exists and get its address
+ * @param connection Solana connection
+ * @param tokenMint Token mint address
+ * @param owner Token account owner
+ * @returns Token account address
+ */
+async function getTokenAccount(
   connection: Connection,
   tokenMint: PublicKey,
   owner: PublicKey
-): Promise<{address: PublicKey, createInstruction: TransactionInstruction | null}> {
+): Promise<PublicKey> {
   // Get associated token account address
   const address = await getAssociatedTokenAddress(tokenMint, owner);
-  
-  try {
-    // Check if account exists
-    await getAccount(connection, address);
-    console.log(`Token account ${address.toBase58()} already exists`);
-    return { address, createInstruction: null };
-  } catch (error: any) {
-    // If account doesn't exist, return create instruction
-    console.log(`Token account ${address.toBase58()} needs to be created`);
-    const createInstruction = createAssociatedTokenAccountInstruction(
-      owner, // payer
-      address, // associated token account
-      owner, // owner
-      tokenMint // mint
-    );
-    return { address, createInstruction };
-  }
+  console.log(`Token account for mint ${tokenMint.toBase58()} is ${address.toBase58()}`);
+  return address;
 }
 
 /**
@@ -140,21 +190,18 @@ export async function createSwapSolToYotTransaction(
   const [programStatePda] = findProgramStatePda();
   const [programAuthorityPda] = findProgramAuthorityPda();
   
-  // Get token accounts for the user and check if they exist
+  // Get token accounts for the user
   const yotMintPubkey = new PublicKey(YOT_MINT);
   const yosMintPubkey = new PublicKey(YOS_MINT);
   
-  // Check and maybe create token accounts
-  const { address: userYotAccount, createInstruction: createYotInstruction } = 
-    await checkAndGetTokenAccount(connection, yotMintPubkey, wallet);
-  
-  const { address: userYosAccount, createInstruction: createYosInstruction } = 
-    await checkAndGetTokenAccount(connection, yosMintPubkey, wallet);
+  // Get the token accounts (they should already exist after our previous account creation step)
+  console.log('Getting token account addresses...');
+  const userYotAccount = await getTokenAccount(connection, yotMintPubkey, wallet);
+  const userYosAccount = await getTokenAccount(connection, yosMintPubkey, wallet);
   
   // Get the common wallet's YOT token account
   const commonWalletPubkey = new PublicKey(COMMON_WALLET_ADDRESS);
-  const { address: commonWalletYotAccount, createInstruction: createCommonWalletYotInstruction } = 
-    await checkAndGetTokenAccount(connection, yotMintPubkey, commonWalletPubkey);
+  const commonWalletYotAccount = await getTokenAccount(connection, yotMintPubkey, commonWalletPubkey);
   
   // Create the swap instruction
   const instructionData = createSwapSolToYotInstructionData(lamports, minYotAmount);
@@ -178,24 +225,8 @@ export async function createSwapSolToYotTransaction(
     data: instructionData,
   });
   
-  // Create transaction and add account creation instructions if needed
+  // Create transaction for the swap
   const transaction = new Transaction();
-  
-  // Add token account creation instructions if needed
-  if (createYotInstruction) {
-    console.log('Adding instruction to create YOT token account');
-    transaction.add(createYotInstruction);
-  }
-  
-  if (createYosInstruction) {
-    console.log('Adding instruction to create YOS token account');
-    transaction.add(createYosInstruction);
-  }
-  
-  if (createCommonWalletYotInstruction) {
-    console.log('Adding instruction to create common wallet YOT token account');
-    transaction.add(createCommonWalletYotInstruction);
-  }
   
   // Add the swap instruction
   transaction.add(swapInstruction);
@@ -227,7 +258,85 @@ export async function swapSolToYot(
     console.log(`Initiating SOL to YOT swap: ${solAmount} SOL with minimum ${minYotAmount} YOT`);
     console.log(`Distribution ratios: ${YOT_DISTRIBUTION_RATIO}% to user, ${100-YOT_DISTRIBUTION_RATIO}% to common wallet, ${YOS_CASHBACK_PERCENTAGE}% YOS cashback`);
     
-    // Create the swap transaction
+    // First, check and create any missing token accounts
+    console.log("Checking for required token accounts...");
+    const yotMintPubkey = new PublicKey(YOT_MINT);
+    const yosMintPubkey = new PublicKey(YOS_MINT);
+    
+    // Check if we need to create user token accounts
+    console.log("Checking user token accounts...");
+    const userAccountCreationTx = await createRequiredTokenAccounts(
+      connection,
+      wallet.publicKey,
+      [yotMintPubkey, yosMintPubkey]
+    );
+    
+    // Also check if common wallet needs token accounts (without direct signing)
+    // This will fail during swap if missing, so we need to create it with the admin
+    // For now we'll just check if it exists and log a warning
+    console.log("Checking common wallet token accounts...");
+    const commonWalletPubkey = new PublicKey(COMMON_WALLET_ADDRESS);
+    try {
+      const commonWalletYotAccount = await getAssociatedTokenAddress(yotMintPubkey, commonWalletPubkey);
+      try {
+        await getAccount(connection, commonWalletYotAccount);
+        console.log(`Common wallet YOT account ${commonWalletYotAccount.toBase58()} exists`);
+      } catch (error) {
+        console.warn(`Common wallet YOT account ${commonWalletYotAccount.toBase58()} does not exist. ` +
+                    `This will need to be created by the admin wallet.`);
+      }
+    } catch (error) {
+      console.error("Error checking common wallet token account:", error);
+    }
+    
+    // Create any missing token accounts with a separate transaction
+    const accountCreationTx = userAccountCreationTx;
+    
+    // If we need to create accounts, do that first
+    if (accountCreationTx) {
+      console.log("Creating missing token accounts before swap...");
+      try {
+        // Handle account creation with the same sign/send approach as main swap
+        if (wallet.signTransaction) {
+          console.log('Using sign + send approach for account creation...');
+          const signedTransaction = await wallet.signTransaction(accountCreationTx);
+          const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+          console.log(`Account creation transaction sent: ${signature}`);
+          
+          // Wait for confirmation
+          console.log('Waiting for account creation confirmation...');
+          const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+          
+          if (confirmation.value.err) {
+            console.error('Account creation failed during confirmation:', confirmation.value.err);
+            throw new Error(`Account creation confirmed but failed: ${confirmation.value.err}`);
+          }
+          
+          console.log('Token accounts created successfully');
+        } else {
+          console.log('Using standard wallet.sendTransaction approach for account creation');
+          const signature = await wallet.sendTransaction(accountCreationTx, connection);
+          console.log(`Account creation transaction sent: ${signature}`);
+          
+          // Wait for confirmation
+          console.log('Waiting for account creation confirmation...');
+          const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+          
+          if (confirmation.value.err) {
+            console.error('Account creation failed during confirmation:', confirmation.value.err);
+            throw new Error(`Account creation confirmed but failed: ${confirmation.value.err}`);
+          }
+          
+          console.log('Token accounts created successfully');
+        }
+      } catch (error) {
+        console.error('Error creating token accounts:', error);
+        throw new Error('Failed to create required token accounts for swap. Please try again.');
+      }
+    }
+    
+    // Now create the actual swap transaction
+    console.log("Proceeding with swap transaction...");
     const transaction = await createSwapSolToYotTransaction(
       wallet.publicKey,
       solAmount,
