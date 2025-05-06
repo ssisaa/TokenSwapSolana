@@ -8,11 +8,11 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { COMMON_WALLET_THRESHOLD_SOL, FORMATTED_RATES } from '@/lib/config';
 import { checkCommonWalletThreshold, addLiquidityFromCommonWallet } from '@/lib/commonWalletSwap';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useMultiWallet } from '@/context/MultiWalletContext';
 
 export default function CommonWalletManager() {
   const { toast } = useToast();
-  const wallet = useWallet();
+  const { wallet, connected } = useMultiWallet();
   const [isLoading, setIsLoading] = useState(false);
   const [walletStatus, setWalletStatus] = useState<{
     readyToAddLiquidity: boolean;
@@ -74,7 +74,7 @@ export default function CommonWalletManager() {
   });
 
   const handleAddLiquidity = async () => {
-    if (!wallet.connected) {
+    if (!connected) {
       toast({
         title: 'Wallet Not Connected',
         description: 'Please connect your admin wallet to add liquidity.',
@@ -133,7 +133,7 @@ export default function CommonWalletManager() {
       <CardFooter>
         <Button 
           className="w-full" 
-          disabled={!walletStatus.readyToAddLiquidity || isLoading || !wallet.connected}
+          disabled={!walletStatus.readyToAddLiquidity || isLoading || !connected}
           onClick={handleAddLiquidity}
         >
           {isLoading ? 'Processing...' : 'Add Liquidity to Pool'}

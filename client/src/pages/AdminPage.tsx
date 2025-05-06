@@ -101,6 +101,9 @@ export default function AdminPage() {
               {/* Multi-Hub Swap Settings */}
               <MultiHubSwapSettings wallet={wallet} isAdmin={!!admin?.isFounder} />
               
+              {/* Common Wallet Manager Component */}
+              <CommonWalletManager />
+              
               {/* Token Authorization Component */}
               <AuthorizeTokens />
             </div>
