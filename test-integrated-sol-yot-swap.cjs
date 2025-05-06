@@ -283,8 +283,9 @@ async function solToYotSwap(wallet, solAmount) {
     
     // Create the swap instruction
     // Instruction data: [1 (Swap), amountIn (8 bytes), minAmountOut (8 bytes)]
+    // Deployed contract only has instruction 1, but we'll use account order from SOL-to-YOT swap function
     const data = Buffer.alloc(17);
-    data.writeUint8(1, 0); // Swap instruction (index 1)
+    data.writeUint8(1, 0); // Basic Swap instruction (index 1)
     data.writeBigUInt64LE(BigInt(amountInLamports), 1);
     data.writeBigUInt64LE(BigInt(minAmountOut), 9);
     
