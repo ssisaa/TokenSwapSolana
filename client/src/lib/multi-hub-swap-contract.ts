@@ -37,7 +37,9 @@ import {
   BUY_AND_DISTRIBUTE_DISCRIMINATOR,
   CLAIM_REWARD_DISCRIMINATOR,
   WITHDRAW_CONTRIBUTION_DISCRIMINATOR,
-  UPDATE_PARAMETERS_DISCRIMINATOR
+  UPDATE_PARAMETERS_DISCRIMINATOR,
+  ADD_LIQUIDITY_FROM_CENTRAL_DISCRIMINATOR,
+  CENTRAL_LIQUIDITY_CONFIG
 } from './config';
 
 // Export program IDs for backward compatibility
@@ -51,7 +53,12 @@ export enum MultiHubSwapInstructionType {
   Contribute = 2,
   ClaimRewards = 3,
   WithdrawLiquidity = 4,
-  UpdateParameters = 5
+  UpdateParameters = 5,
+  CreateLiquidityAccount = 7,
+  SolToYotSwapImmediate = 8,
+  YotToSolSwapImmediate = 9,
+  SolToYotSwapOriginal = 10,
+  AddLiquidityFromCentralWallet = 11
 }
 
 // Connection to Solana network
@@ -1182,6 +1189,94 @@ export async function getLiquidityContributionInfo(walletAddressStr: string): Pr
   } catch (error) {
     console.error("Error in getLiquidityContributionInfo:", error);
     throw error;
+  }
+}
+
+/**
+ * Add liquidity from central wallet to the SOL-YOT pool
+ * This implements the add_liquidity_from_central_wallet instruction
+ * 
+ * Key features:
+ * 1. Transfers 50% SOL and 50% YOT from central wallet to liquidity pool
+ * 2. Only usable when central wallet balance reaches threshold
+ * 3. Admin only functionality
+ * 
+ * @param wallet - Admin wallet
+ * @returns The transaction signature
+ */
+export async function addLiquidityFromCentralWallet(wallet: any): Promise<string> {
+  if (!wallet || !wallet.publicKey) {
+    throw new Error("Wallet not connected");
+  }
+
+  const userPublicKey = wallet.publicKey;
+  
+  // Verify this is an admin wallet
+  if (userPublicKey.toString() !== MULTI_HUB_SWAP_ADMIN) {
+    throw new Error("Only admin wallet can add liquidity from central wallet");
+  }
+  
+  console.log("Creating add liquidity from central wallet transaction");
+  
+  // Get the program state account
+  const [programStateAccount] = findProgramStateAddress();
+  
+  // Get the YOT mint address
+  const yotMintAddress = new PublicKey(YOT_TOKEN_ADDRESS);
+  
+  // Get the central liquidity wallet and YOT account
+  const centralLiquidityWallet = new PublicKey(CENTRAL_LIQUIDITY_CONFIG.wallet);
+  const centralLiquidityYotAccount = new PublicKey(CENTRAL_LIQUIDITY_CONFIG.yotAccount);
+  
+  // Get the program authority (PDA)
+  const programAuthority = new PublicKey(MULTI_HUB_SWAP_PROGRAM_AUTHORITY);
+  
+  // Create instruction data
+  const data = Buffer.concat([
+    ADD_LIQUIDITY_FROM_CENTRAL_DISCRIMINATOR
+  ]);
+  
+  // Create the instruction
+  const instruction = new TransactionInstruction({
+    keys: [
+      { pubkey: userPublicKey, isSigner: true, isWritable: true }, // Admin wallet
+      { pubkey: programStateAccount, isSigner: false, isWritable: true }, // Program state
+      { pubkey: programAuthority, isSigner: false, isWritable: false }, // Program authority
+      { pubkey: centralLiquidityWallet, isSigner: false, isWritable: true }, // Central liquidity wallet (SOL)
+      { pubkey: centralLiquidityYotAccount, isSigner: false, isWritable: true }, // Central liquidity YOT account
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // System program
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false } // Token program
+    ],
+    programId: new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID),
+    data
+  });
+  
+  try {
+    // Create transaction with compute budget for complex operations
+    const transaction = await createAndSignTransaction(wallet, instruction, connection);
+    
+    // Simulate before sending
+    const willSucceed = await safelySimulateTransaction(connection, transaction);
+    if (!willSucceed) {
+      console.error("Transaction simulation failed - not proceeding with actual transaction");
+      throw new Error("Transaction simulation failed - check logs for details");
+    }
+    
+    // Sign and send transaction
+    const signedTransaction = await wallet.signTransaction(transaction);
+    const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+    
+    console.log(`Add liquidity transaction sent: ${signature}`);
+    console.log(`Verifying transaction...`);
+    
+    // Wait for confirmation
+    await connection.confirmTransaction(signature, 'confirmed');
+    
+    console.log(`Successfully added liquidity from central wallet: ${signature}`);
+    return signature;
+  } catch (error) {
+    console.error("Error adding liquidity from central wallet:", error);
+    throw new Error(`Failed to add liquidity: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 

@@ -45,6 +45,11 @@ export interface SolanaConfig {
     programState: string;
     programAuthority?: string;
     admin: string;
+    centralLiquidity: {
+      wallet: string;
+      threshold: number;
+      yotAccount: string;
+    };
     rates: {
       lpContributionRate: number;
       adminFeeRate: number;
@@ -130,6 +135,13 @@ export const SOL_YOT_POOL_INFO = {
   solAccount: solanaConfig.pool.solAccount,
 };
 
+// Central liquidity configuration
+export const CENTRAL_LIQUIDITY_CONFIG = {
+  wallet: solanaConfig.multiHubSwap.centralLiquidity.wallet,
+  yotAccount: solanaConfig.multiHubSwap.centralLiquidity.yotAccount,
+  threshold: solanaConfig.multiHubSwap.centralLiquidity.threshold
+};
+
 // Distribution rates (converted from basis points to percentages)
 export const DEFAULT_DISTRIBUTION_RATES = {
   userDistribution: 100 - (solanaConfig.multiHubSwap.rates.lpContributionRate / 100) - (solanaConfig.multiHubSwap.rates.yosCashbackRate / 100), 
@@ -185,6 +197,7 @@ export const BUY_AND_DISTRIBUTE_DISCRIMINATOR = Buffer.from([4]); // Match with 
 export const CLAIM_REWARD_DISCRIMINATOR = Buffer.from([5]);      // Match with CLAIM_WEEKLY_REWARD_IX = 5
 export const WITHDRAW_CONTRIBUTION_DISCRIMINATOR = Buffer.from([6]); // Match with WITHDRAW_CONTRIBUTION_IX = 6
 export const UPDATE_PARAMETERS_DISCRIMINATOR = Buffer.from([3]); // Match with UPDATE_PARAMETERS_IX = 3
+export const ADD_LIQUIDITY_FROM_CENTRAL_DISCRIMINATOR = Buffer.from([11]); // Match with ADD_LIQUIDITY_FROM_CENTRAL_IX = 11
 
 // NO DEFAULT EXCHANGE RATES
 // All exchange rates MUST be fetched from blockchain - no hardcoded values allowed
