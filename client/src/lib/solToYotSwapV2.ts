@@ -114,20 +114,21 @@ export function createSolToYotSwapInstruction(
   data.writeBigUInt64LE(BigInt(amountInLamports), 1);
   data.writeBigUInt64LE(BigInt(minAmountOutTokens), 9);
   
-  // Required accounts for the SOL to YOT swap
+  // Required accounts for the SOL to YOT swap - must exactly match program expectation
   const accounts = [
-    { pubkey: userWallet, isSigner: true, isWritable: true },
-    { pubkey: programStateAddress, isSigner: false, isWritable: false },
-    { pubkey: programAuthority, isSigner: false, isWritable: false },
-    { pubkey: solPoolAccount, isSigner: false, isWritable: true },
-    { pubkey: yotPoolAccount, isSigner: false, isWritable: true },
-    { pubkey: userYotAccount, isSigner: false, isWritable: true },
-    { pubkey: liquidityContributionAccount, isSigner: false, isWritable: true },
-    { pubkey: yosMint, isSigner: false, isWritable: true },
-    { pubkey: userYosAccount, isSigner: false, isWritable: true },
+    { pubkey: userWallet, isSigner: true, isWritable: true },                 // user wallet
+    { pubkey: programStateAddress, isSigner: false, isWritable: false },      // program state
+    { pubkey: new PublicKey(YOT_TOKEN_ADDRESS), isSigner: false, isWritable: false }, // YOT mint
+    { pubkey: userYotAccount, isSigner: false, isWritable: true },            // user's YOT token account
+    { pubkey: solPoolAccount, isSigner: false, isWritable: true },            // SOL pool account
+    { pubkey: yotPoolAccount, isSigner: false, isWritable: true },            // YOT pool account
+    { pubkey: liquidityContributionAccount, isSigner: false, isWritable: true }, // user's liquidity contribution account
+    { pubkey: yosMint, isSigner: false, isWritable: true },                   // YOS mint
+    { pubkey: userYosAccount, isSigner: false, isWritable: true },            // user's YOS token account
+    { pubkey: programAuthority, isSigner: false, isWritable: false },         // program authority (PDA)
     { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-    { pubkey: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), isSigner: false, isWritable: false },
-    { pubkey: new PublicKey('SysvarRent111111111111111111111111111111111'), isSigner: false, isWritable: false },
+    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
   ];
 
   return new TransactionInstruction({
