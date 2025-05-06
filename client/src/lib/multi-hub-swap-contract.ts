@@ -1443,8 +1443,10 @@ export async function executeSwap(
       // We need to use the special solToYotSwapV2 function instead which uses our on-chain solution
       console.log("[SWAP_DEBUG] Using solToYotSwapV2 (on-chain solution) instead of buyAndDistribute");
       
-      // Import the improved solToYotSwapV2 function that uses the on-chain swap implementation
-      const { solToYotSwap } = await import('./solToYotSwapV2');
+      // Import the enhanced solToYotSwapV3 function that properly handles liquidity contribution creation
+      // This version fixes the "account already borrowed" error by using a two-step process
+      console.log("[SWAP_DEBUG] Using enhanced solToYotSwapV3 implementation with liquidity contribution fix");
+      const { solToYotSwap } = await import('./solToYotSwapV3');
       
       // Execute the swap with our specialized on-chain implementation
       console.log("[SWAP_DEBUG] Executing on-chain SOL to YOT swap...");
