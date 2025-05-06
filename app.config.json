@@ -41,10 +41,14 @@
       "programAuthority": "56N7ArB1mZCYXihVrcGGLDtNBPzVnqyx3xECEvCkPnB",
       "admin": "2MaN8ZRdxVCqQ8NWCcPxdqKY6K3BWGZdtBvTEBF7MyZ3",
       "userAdmin": "AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ",
+      "centralLiquidity": {
+        "wallet": "56N7ArB1mZCYXihVrcGGLDtNBPzVnqyx3xECEvCkPnB", 
+        "comments": "This MUST be the program authority PDA for the swap to work"
+      },
       "commonWallet": {
         "wallet": "5rQzEXhDTYdyDftPmu4DiaLpZz4GePd2XumXYPHBSj6T",
         "threshold": 0.1,
-        "yotAccount": "EieVwYpDMdKr94iQygkyCeEBMhRWA4XsXyGumXztza74"
+        "comments": "This wallet receives common funds but is NOT used as central liquidity in transactions"
       },
       "rates": {
         "lpContributionRate": 2000,

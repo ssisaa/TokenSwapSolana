@@ -17,6 +17,7 @@ import {
   TokenAccountNotFoundError,
   TOKEN_PROGRAM_ID
 } from '@solana/spl-token';
+import { MULTI_HUB_SWAP_PROGRAM_ID } from './config';
 import { 
   ENDPOINT, 
   POOL_AUTHORITY, 
@@ -182,6 +183,36 @@ export async function getPoolBalances() {
 }
 
 // Calculate the exchange rate between SOL and YOT using AMM formula
+/**
+ * CRITICAL FUNCTION: Get the program authority PDA for the Multi-Hub Swap Program
+ * This is the account that the program expects to be used as the central liquidity wallet
+ * This function derives it directly from the program ID, ensuring it's always correct
+ * regardless of what's in the config
+ * 
+ * @returns Public key of the program authority PDA
+ */
+export function getProgramAuthorityPda(): PublicKey {
+  // Find the PDA for the program authority
+  // This must use 'authority' as the seed - must match the Rust program implementation
+  const [programAuthority] = PublicKey.findProgramAddressSync(
+    [Buffer.from('authority')],
+    new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
+  );
+  
+  return programAuthority;
+}
+
+/**
+ * Get the central liquidity wallet that the program expects for transaction processing
+ * This ensures we always use the correct wallet address regardless of configuration
+ * 
+ * @returns The Public Key of the central liquidity wallet (which is the program authority PDA)
+ */
+export function getCentralLiquidityWallet(): PublicKey {
+  // The program specifically expects the program authority PDA as the central liquidity wallet
+  return getProgramAuthorityPda();
+}
+
 export async function getExchangeRate() {
   try {
     const { solBalance, yotBalance } = await getPoolBalances();

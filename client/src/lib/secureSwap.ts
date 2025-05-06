@@ -25,7 +25,7 @@ import {
 } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress, getAccount } from '@solana/spl-token';
 import { solanaConfig } from './config';
-import { connection } from './solana';
+import { connection, getCentralLiquidityWallet, getProgramAuthorityPda } from './solana';
 
 // Constants from config
 const MULTI_HUB_SWAP_PROGRAM_ID = new PublicKey(solanaConfig.multiHubSwap.programId);
@@ -136,16 +136,14 @@ async function createSecureSolTransferTransaction(
     throw new Error('Amount conversion resulted in unsafe integer');
   }
   
-  // Find program-related PDAs
+  // Find program-related PDAs using utility functions
   const [programStateAddress] = PublicKey.findProgramAddressSync(
     [Buffer.from('state')],
     MULTI_HUB_SWAP_PROGRAM_ID
   );
   
-  const [programAuthority] = PublicKey.findProgramAddressSync(
-    [Buffer.from('authority')],
-    MULTI_HUB_SWAP_PROGRAM_ID
-  );
+  // Use utility function to get programAuthority - this ensures we're consistent across codebase
+  const programAuthority = getProgramAuthorityPda();
   
   const [liquidityContributionAddress] = PublicKey.findProgramAddressSync(
     [Buffer.from('liq'), wallet.publicKey.toBuffer()],
