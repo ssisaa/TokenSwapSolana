@@ -39,15 +39,11 @@ export interface SolanaConfig {
   pool: {
     authority: string;
     solAccount: string;
-    fallbackBalances: {
-      sol: number;
-      yot: number;
-      yos: number;
-    };
   };
   multiHubSwap: {
     programId: string;
     programState: string;
+    programAuthority?: string;
     admin: string;
     rates: {
       lpContributionRate: number;
@@ -55,8 +51,8 @@ export interface SolanaConfig {
       yosCashbackRate: number;
       swapFeeRate: number;
       referralRate: number;
-      weeklyRewardRate: number;
-      yearlyAPR: number;
+      weeklyRewardRate?: number;
+      yearlyAPR?: number;
     };
     amm: {
       raydium: {
@@ -105,7 +101,7 @@ export interface FeatureConfig {
 }
 
 // Export config sections with type assertions to match expected interfaces
-export const solanaConfig: SolanaConfig = appConfig.solana as SolanaConfig;
+export const solanaConfig: SolanaConfig = appConfig.solana as unknown as SolanaConfig;
 // Add programScalingFactor with proper type handling
 export const adminConfig: AdminConfig = {
   ...appConfig.admin,
