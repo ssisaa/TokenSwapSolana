@@ -301,11 +301,11 @@ async function createLiquidityAccountTransaction(
       wallet.publicKey
     );
     
-    // CRITICAL FIX: Use the expected central liquidity wallet address
-    const expectedCentralLiquidityWallet = new PublicKey("5rQzEXhDTYdyDiaLpZz4GePd2XumXYPHBSj6T");
-    const configuredCentralLiquidityWallet = new PublicKey(solanaConfig.multiHubSwap.centralLiquidity.wallet);
-    console.log(`[SECURE_SWAP:CREATE] Expected Central Liquidity Wallet: ${expectedCentralLiquidityWallet.toString()}`);
-    console.log(`[SECURE_SWAP:CREATE] Configured Central Liquidity Wallet: ${configuredCentralLiquidityWallet.toString()}`);
+    // CRITICAL FIX: Use the SOL pool account as the central liquidity wallet
+    // This matches our approach in the main swap function and should work with the deployed program
+    const centralLiquidityWallet = POOL_SOL_ACCOUNT; // Use the SOL pool account for both roles
+    console.log(`[SECURE_SWAP:CREATE] SOL Pool Account: ${POOL_SOL_ACCOUNT.toString()}`);
+    console.log(`[SECURE_SWAP:CREATE] Using as both pool account and central liquidity wallet`);
     
     // Create instruction data
     const microlAmports = Math.floor(microAmount * LAMPORTS_PER_SOL);
@@ -322,7 +322,7 @@ async function createLiquidityAccountTransaction(
       { pubkey: POOL_SOL_ACCOUNT, isSigner: false, isWritable: true },
       { pubkey: yotPoolAccount, isSigner: false, isWritable: true },
       { pubkey: userYotAccount, isSigner: false, isWritable: true },
-      { pubkey: expectedCentralLiquidityWallet, isSigner: false, isWritable: true },  // 7. Central liquidity wallet - USING EXPECTED ADDRESS
+      { pubkey: centralLiquidityWallet, isSigner: false, isWritable: true },  // 7. Central liquidity wallet - Using SOL pool account
       { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true }, // 8. Liquidity contribution
       { pubkey: new PublicKey(YOS_TOKEN_ADDRESS), isSigner: false, isWritable: true },
       { pubkey: userYosAccount, isSigner: false, isWritable: true },
