@@ -408,7 +408,79 @@ const MultiHubSwapCard: React.FC<MultiHubSwapCardProps> = ({ wallet }) => {
         parseFloat(slippage)
       );
 
-      // Display success message with distribution details
+      // Special case for token transfer failures from SOL to YOT swaps
+      if (result.solSignature && result.error) {
+        // SOL was sent but YOT transfer failed
+        toast({
+          title: "SOL sent, but YOT transfer failed",
+          description: (
+            <div className="flex flex-col gap-1">
+              <p className="font-medium text-yellow-500">SOL was successfully sent to the pool:</p>
+              <p>Transaction ID: {result.solSignature.slice(0, 8)}...{result.solSignature.slice(-8)}</p>
+              <p className="text-red-500 mt-2">{result.message}</p>
+              <a 
+                href={`https://explorer.solana.com/tx/${result.solSignature}?cluster=devnet`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:underline mt-1"
+              >
+                View Transaction on Explorer
+              </a>
+            </div>
+          ),
+          variant: "destructive",
+          duration: 10000, // Show for longer period
+        });
+        
+        // Refresh balances even though the swap was only partially successful
+        await refreshBalances();
+        return;
+      }
+      
+      // Handle token account creation if needed
+      if (result.needsTokenAccount && result.tokenAccountTransaction) {
+        // User needs to create a token account first
+        toast({
+          title: "Token Account Creation Required",
+          description: (
+            <div className="flex flex-col gap-1">
+              <p>SOL was sent to the pool successfully:</p>
+              <p>Transaction ID: {result.solSignature.slice(0, 8)}...{result.solSignature.slice(-8)}</p>
+              <p className="mt-2 font-medium">You need to create a YOT token account to receive your tokens.</p>
+              <button 
+                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded mt-2"
+                onClick={async () => {
+                  try {
+                    // Ask the user to sign this transaction
+                    const txSignature = await wallet.sendTransaction(result.tokenAccountTransaction, connection);
+                    toast({
+                      title: "Token Account Created!",
+                      description: "Please try the swap again to receive your YOT tokens.",
+                      variant: "default",
+                    });
+                  } catch (err) {
+                    console.error("Error creating token account:", err);
+                    toast({
+                      title: "Token Account Creation Failed",
+                      description: "Failed to create YOT token account. Please try again.",
+                      variant: "destructive",
+                    });
+                  }
+                }}
+              >
+                Create Token Account
+              </button>
+            </div>
+          ),
+          duration: 15000, // Show for longer period
+        });
+        
+        // Refresh balances
+        await refreshBalances();
+        return;
+      }
+
+      // Standard success case with distribution details
       if (result.distributionDetails) {
         toast({
           title: "Swap successful!",

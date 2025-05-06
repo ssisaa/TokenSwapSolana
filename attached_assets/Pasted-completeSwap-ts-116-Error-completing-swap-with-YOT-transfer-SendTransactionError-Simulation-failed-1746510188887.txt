@@ -1,0 +1,124 @@
+completeSwap.ts:116 Error completing swap with YOT transfer: SendTransactionError: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 0: custom program error: 0x4. 
+Logs: 
+[
+  "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [1]",
+  "Program log: Instruction: Transfer",
+  "Program log: Error: owner does not match",
+  "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 4470 of 200000 compute units",
+  "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA failed: custom program error: 0x4"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at async completeSwapWithYotTransfer (completeSwap.ts:102:23)
+    at async solToYotSwap (solana.ts:785:35)
+    at async executeSwap (multi-hub-swap-contract.ts:1437:25)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+completeSwapWithYotTransfer	@	completeSwap.ts:116
+await in completeSwapWithYotTransfer		
+solToYotSwap	@	solana.ts:785
+await in solToYotSwap		
+executeSwap	@	multi-hub-swap-contract.ts:1437
+await in executeSwap		
+performSwap	@	MultiHubSwapCard.tsx:403
+await in performSwap		
+onClick	@	MultiHubSwapCard.tsx:904
+
+solana.ts:792 [SOL-YOT SWAP] Error sending YOT tokens from pool: SendTransactionError: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 0: custom program error: 0x4. 
+Logs: 
+[
+  "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [1]",
+  "Program log: Instruction: Transfer",
+  "Program log: Error: owner does not match",
+  "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 4470 of 200000 compute units",
+  "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA failed: custom program error: 0x4"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at async completeSwapWithYotTransfer (completeSwap.ts:102:23)
+    at async solToYotSwap (solana.ts:785:35)
+    at async executeSwap (multi-hub-swap-contract.ts:1437:25)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+solToYotSwap	@	solana.ts:792
+await in solToYotSwap		
+executeSwap	@	multi-hub-swap-contract.ts:1437
+await in executeSwap		
+performSwap	@	MultiHubSwapCard.tsx:403
+await in performSwap		
+onClick	@	MultiHubSwapCard.tsx:904
+solana.ts:798 [SOL-YOT SWAP] Error: Error: SOL sent to pool successfully (sig: 4HSGSGAcuhBcbU3ZaMrw3hfYVPfJHQdVLyAdrf11ycanJo1XqZ77NELqcnM3msLyRpXTHGAgQD3SQZAeZyQYvp8z), but there was an error sending YOT tokens back: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 0: custom program error: 0x4. 
+Logs: 
+[
+  "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [1]",
+  "Program log: Instruction: Transfer",
+  "Program log: Error: owner does not match",
+  "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 4470 of 200000 compute units",
+  "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA failed: custom program error: 0x4"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at solToYotSwap (solana.ts:793:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1437:25)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+solToYotSwap	@	solana.ts:798
+await in solToYotSwap		
+executeSwap	@	multi-hub-swap-contract.ts:1437
+await in executeSwap		
+performSwap	@	MultiHubSwapCard.tsx:403
+await in performSwap		
+onClick	@	MultiHubSwapCard.tsx:904
+multi-hub-swap-contract.ts:1465 [SWAP_DEBUG] Critical transaction failure: Error: SOL sent to pool successfully (sig: 4HSGSGAcuhBcbU3ZaMrw3hfYVPfJHQdVLyAdrf11ycanJo1XqZ77NELqcnM3msLyRpXTHGAgQD3SQZAeZyQYvp8z), but there was an error sending YOT tokens back: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 0: custom program error: 0x4. 
+Logs: 
+[
+  "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [1]",
+  "Program log: Instruction: Transfer",
+  "Program log: Error: owner does not match",
+  "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 4470 of 200000 compute units",
+  "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA failed: custom program error: 0x4"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at solToYotSwap (solana.ts:793:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1437:25)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+executeSwap	@	multi-hub-swap-contract.ts:1465
+await in executeSwap		
+performSwap	@	MultiHubSwapCard.tsx:403
+await in performSwap		
+onClick	@	MultiHubSwapCard.tsx:904
+multi-hub-swap-contract.ts:1468 [SWAP_DEBUG] Error type: object
+multi-hub-swap-contract.ts:1469 [SWAP_DEBUG] Error name: Error
+multi-hub-swap-contract.ts:1470 [SWAP_DEBUG] Full error object: {}
+multi-hub-swap-contract.ts:1478 [SWAP_DEBUG] Will attempt transaction simulation for more details...
+multi-hub-swap-contract.ts:1482 [SWAP_DEBUG] Simulation also failed: Error: SOL sent to pool successfully (sig: 4HSGSGAcuhBcbU3ZaMrw3hfYVPfJHQdVLyAdrf11ycanJo1XqZ77NELqcnM3msLyRpXTHGAgQD3SQZAeZyQYvp8z), but there was an error sending YOT tokens back: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 0: custom program error: 0x4. 
+Logs: 
+[
+  "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [1]",
+  "Program log: Instruction: Transfer",
+  "Program log: Error: owner does not match",
+  "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 4470 of 200000 compute units",
+  "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA failed: custom program error: 0x4"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at solToYotSwap (solana.ts:793:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1437:25)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+executeSwap	@	multi-hub-swap-contract.ts:1482
+await in executeSwap		
+performSwap	@	MultiHubSwapCard.tsx:403
+await in performSwap		
+onClick	@	MultiHubSwapCard.tsx:904
+MultiHubSwapCard.tsx:482 Swap error: Error: SOL sent to pool successfully (sig: 4HSGSGAcuhBcbU3ZaMrw3hfYVPfJHQdVLyAdrf11ycanJo1XqZ77NELqcnM3msLyRpXTHGAgQD3SQZAeZyQYvp8z), but there was an error sending YOT tokens back: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 0: custom program error: 0x4. 
+Logs: 
+[
+  "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [1]",
+  "Program log: Instruction: Transfer",
+  "Program log: Error: owner does not match",
+  "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 4470 of 200000 compute units",
+  "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA failed: custom program error: 0x4"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at solToYotSwap (solana.ts:793:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1437:25)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)

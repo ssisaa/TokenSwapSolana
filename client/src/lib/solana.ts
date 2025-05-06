@@ -782,18 +782,55 @@ export async function solToYotSwap(
       // Execute the second part of the swap - transferring YOT tokens from pool to user
       console.log(`[SOL-YOT SWAP] Now sending ${userYotAmount} YOT tokens (75%) to ${userPublicKey.toString()}`);
       
+      // Attempt to complete the token transfer part, but we know this will fail client-side
+      // We need to inform the user about this limitation
       const tokenTransferResult = await completeSwapWithYotTransfer(
         userPublicKey,  // User's public key to receive tokens
         userYotAmount   // Amount of YOT tokens to send (75% of total)
       );
       
-      console.log(`[SOL-YOT SWAP] YOT tokens sent successfully! Signature: ${tokenTransferResult.signature}`);
+      // Check if we need to create a token account first
+      if (tokenTransferResult.needsTokenAccount) {
+        console.log(`[SOL-YOT SWAP] User needs to create YOT token account first`);
+        // We should return this info to the UI
+        return {
+          solSignature: signature,
+          needsTokenAccount: true,
+          tokenAccountTransaction: tokenTransferResult.transaction,
+          message: "SOL sent successfully. You need to create a YOT token account to receive tokens."
+        };
+      }
+      
+      // If we get here, we're returning the error from completeSwapWithYotTransfer
+      if (tokenTransferResult.error) {
+        console.error("[SOL-YOT SWAP] Error from token transfer:", tokenTransferResult.message);
+        
+        // Return structured info about the partial success
+        return {
+          solSignature: signature,
+          completed: false,
+          error: true,
+          message: tokenTransferResult.message || "SOL sent to pool successfully, but YOT tokens couldn't be transferred back due to security limitations."
+        };
+      }
+      
+      // This code won't execute with current implementation, but keeping for future upgrades
+      console.log(`[SOL-YOT SWAP] YOT tokens sent successfully!`);
+      return {
+        solSignature: signature,
+        completed: true
+      };
     } catch (error) {
       console.error("[SOL-YOT SWAP] Error sending YOT tokens from pool:", error);
-      throw new Error(`SOL sent to pool successfully (sig: ${signature}), but there was an error sending YOT tokens back: ${error instanceof Error ? error.message : String(error)}`);
+      
+      // Return a structured result that the UI can use to display to the user
+      return {
+        solSignature: signature,
+        completed: false,
+        error: true,
+        message: `SOL sent to pool successfully (sig: ${signature}), but there was an error with the YOT token transfer: ${error instanceof Error ? error.message : String(error)}`
+      };
     }
-    
-    return signature;
   } catch (error) {
     console.error("[SOL-YOT SWAP] Error:", error);
     throw error;
