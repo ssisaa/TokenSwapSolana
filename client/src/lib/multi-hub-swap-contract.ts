@@ -572,34 +572,64 @@ export async function buyAndDistribute(
       console.warn("Warning: Custom percentages provided, but contract uses fixed values: 75/20/5");
     }
 
-    // Check if user YOS account exists and create it if needed
+    // Check if user YOT and YOS accounts exist and create them if needed
+    console.log("Checking if user has required token accounts...");
+    
+    // Create transaction for token accounts if needed
+    const setupTransaction = new Transaction();
+    setupTransaction.feePayer = userPublicKey;
+    
+    // Check and create YOT token account if needed
+    const userYotAccountInfo = await connection.getAccountInfo(userYotAccount);
+    if (!userYotAccountInfo) {
+      console.log("User needs YOT token account - will create it");
+      setupTransaction.add(
+        createAssociatedTokenAccountInstruction(
+          userPublicKey,  // payer
+          userYotAccount, // ata address
+          userPublicKey,  // owner
+          yotMint         // mint
+        )
+      );
+    } else {
+      console.log("User YOT token account exists:", userYotAccount.toString());
+    }
+    
+    // Check and create YOS token account if needed
     const userYosAccountInfo = await connection.getAccountInfo(userYosAccount);
     if (!userYosAccountInfo) {
-      console.log("Creating user YOS token account...");
-      
+      console.log("User needs YOS token account - will create it");
+      setupTransaction.add(
+        createAssociatedTokenAccountInstruction(
+          userPublicKey,  // payer
+          userYosAccount, // ata address
+          userPublicKey,  // owner
+          yosMint         // mint
+        )
+      );
+    } else {
+      console.log("User YOS token account exists:", userYosAccount.toString());
+    }
+    
+    // Execute the setup transaction only if we need to create accounts
+    if (setupTransaction.instructions.length > 0) {
       try {
-        const transaction = new Transaction();
-        transaction.add(
-          createAssociatedTokenAccountInstruction(
-            userPublicKey,  // payer
-            userYosAccount, // ata address
-            userPublicKey,  // owner
-            yosMint         // mint
-          )
-        );
+        console.log("Sending transaction to create token accounts...");
         
         const recentBlockhash = await connection.getLatestBlockhash('confirmed');
-        transaction.recentBlockhash = recentBlockhash.blockhash;
-        transaction.feePayer = userPublicKey;
+        setupTransaction.recentBlockhash = recentBlockhash.blockhash;
         
-        const signedTransaction = await wallet.signTransaction(transaction);
-        const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+        const signedSetupTransaction = await wallet.signTransaction(setupTransaction);
+        const setupSignature = await connection.sendRawTransaction(signedSetupTransaction.serialize());
         
-        await connection.confirmTransaction(signature, 'confirmed');
-        console.log("✅ User YOS token account created:", signature);
+        await connection.confirmTransaction(setupSignature, 'confirmed');
+        console.log("✅ Successfully created token accounts:", setupSignature);
       } catch (error) {
-        console.warn("Failed to create user YOS account:", error);
+        console.warn("Failed to create token accounts:", error);
+        throw new Error("Failed to create required token accounts. Please try again.");
       }
+    } else {
+      console.log("All required token accounts already exist.");
     }
     
     // Create instruction data buffer for the buy_and_distribute instruction

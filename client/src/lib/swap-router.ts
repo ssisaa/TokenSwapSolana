@@ -114,11 +114,18 @@ export async function executeSwap(
     console.log("[SOL-YOT SWAP] Input SOL amount:", inputAmount);
     console.log("[SOL-YOT SWAP] Expected YOT output amount:", outputAmount);
     
-    // CRITICAL FIX: We need to pass outputAmount (YOT) to buyAndDistribute
-    // The contract expects the YOT amount, not the SOL amount
-    const signature = await buyAndDistribute(wallet, outputAmount);
+    // CRITICAL ISSUE: We cannot use buyAndDistribute directly for SOL→YOT
+    // The contract expects to approve YOT tokens from the user, but user is sending SOL!
+    // We need a different approach that sends SOL to buy YOT
+
+    // Import the solana.ts approach which uses a direct SOL transfer to buy YOT
+    const { solToYotSwap } = await import('./solana');
     
-    // In this case, the contract handles the distribution automatically:
+    // Execute the SOL to YOT swap
+    const signature = await solToYotSwap(wallet, inputAmount);
+    console.log("[SOL-YOT SWAP] Transaction signature:", signature);
+    
+    // The contract handles the distribution automatically:
     // - 75% to user
     // - 20% to liquidity pool
     // - 5% as YOS cashback

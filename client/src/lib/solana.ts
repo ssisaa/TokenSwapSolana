@@ -5,7 +5,8 @@ import {
   SystemProgram, 
   LAMPORTS_PER_SOL,
   sendAndConfirmTransaction,
-  Keypair
+  Keypair,
+  ComputeBudgetProgram
 } from '@solana/web3.js';
 import { 
   createTransferInstruction, 
