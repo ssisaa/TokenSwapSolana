@@ -1419,21 +1419,22 @@ export async function executeSwap(
 
   // Case 1: SOL to YOT swap (main focus of Multi-Hub implementation)
   if (fromTokenAddress === SOL_TOKEN_ADDRESS && toTokenAddress === YOT_TOKEN_ADDRESS) {
-    console.log("[SWAP_DEBUG] Starting SOL to YOT swap with buyAndDistribute");
+    console.log("[SWAP_DEBUG] Starting SOL to YOT swap");
     console.log("[SWAP_DEBUG] Input amount (SOL):", inputAmount);
     console.log("[SWAP_DEBUG] Expected output (YOT):", outputAmount);
     
     try {
-      // IMPORTANT FIX: We need to convert the SOL amount to YOT before buying
-      // The blockchain contract doesn't buy SOL → YOT directly
-      // Instead, we use the exchange rate to calculate the equivalent YOT 
-      // and the contract handles distributions from there
-      const yotEquivalent = outputAmount;
-      console.log("[SWAP_DEBUG] Calculated YOT equivalent:", yotEquivalent);
+      // CRITICAL FIX: We can't use buyAndDistribute for SOL to YOT swaps
+      // because the user doesn't have YOT tokens to approve
+      // We need to use the special solToYotSwap function instead
+      console.log("[SWAP_DEBUG] Using solToYotSwap instead of buyAndDistribute");
       
-      // Execute SOL-YOT swap using buyAndDistribute with additional debugging
-      console.log("[SWAP_DEBUG] Attempting buyAndDistribute call...");
-      const signature = await buyAndDistribute(wallet, yotEquivalent);
+      // Import the solana.ts function for SOL to YOT swaps
+      const { solToYotSwap } = await import('./solana');
+      
+      // Execute the swap with our specialized function
+      console.log("[SWAP_DEBUG] Executing solToYotSwap...");
+      const signature = await solToYotSwap(wallet, inputAmount);
       console.log("[SWAP_DEBUG] Transaction successful! Signature:", signature);
       
       // In this case, the contract handles the distribution automatically

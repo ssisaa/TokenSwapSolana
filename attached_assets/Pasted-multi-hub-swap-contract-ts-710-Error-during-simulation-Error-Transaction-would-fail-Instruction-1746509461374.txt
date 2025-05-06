@@ -1,0 +1,44 @@
+multi-hub-swap-contract.ts:710 Error during simulation: Error: Transaction would fail: {"InstructionError":[3,{"Custom":1}]}
+    at buyAndDistribute (multi-hub-swap-contract.ts:706:15)
+    at async executeSwap (multi-hub-swap-contract.ts:1436:25)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+buyAndDistribute	@	multi-hub-swap-contract.ts:710
+await in buyAndDistribute		
+executeSwap	@	multi-hub-swap-contract.ts:1436
+await in executeSwap		
+performSwap	@	MultiHubSwapCard.tsx:403
+await in performSwap		
+onClick	@	MultiHubSwapCard.tsx:904
+multi-hub-swap-contract.ts:738 Error in buyAndDistribute: Error: Simulation error: Transaction would fail: {"InstructionError":[3,{"Custom":1}]}
+    at buyAndDistribute (multi-hub-swap-contract.ts:711:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1436:25)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+buyAndDistribute	@	multi-hub-swap-contract.ts:738
+await in buyAndDistribute		
+executeSwap	@	multi-hub-swap-contract.ts:1436
+await in executeSwap		
+performSwap	@	MultiHubSwapCard.tsx:403
+await in performSwap		
+onClick	@	MultiHubSwapCard.tsx:904
+multi-hub-swap-contract.ts:1464 [SWAP_DEBUG] Critical transaction failure: Error: Simulation error: Transaction would fail: {"InstructionError":[3,{"Custom":1}]}
+    at buyAndDistribute (multi-hub-swap-contract.ts:711:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1436:25)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+executeSwap	@	multi-hub-swap-contract.ts:1464
+await in executeSwap		
+performSwap	@	MultiHubSwapCard.tsx:403
+await in performSwap		
+onClick	@	MultiHubSwapCard.tsx:904
+
+multi-hub-swap-contract.ts:1467 [SWAP_DEBUG] Error type: object
+multi-hub-swap-contract.ts:1468 [SWAP_DEBUG] Error name: Error
+multi-hub-swap-contract.ts:1469 [SWAP_DEBUG] Full error object: {}
+multi-hub-swap-contract.ts:1477 [SWAP_DEBUG] Will attempt transaction simulation for more details...
+multi-hub-swap-contract.ts:1481 [SWAP_DEBUG] Simulation also failed: Error: Simulation error: Transaction would fail: {"InstructionError":[3,{"Custom":1}]}
+    at buyAndDistribute (multi-hub-swap-contract.ts:711:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1436:25)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
+MultiHubSwapCard.tsx:482 Swap error: Error: Simulation error: Transaction would fail: {"InstructionError":[3,{"Custom":1}]}
+    at buyAndDistribute (multi-hub-swap-contract.ts:711:13)
+    at async executeSwap (multi-hub-swap-contract.ts:1436:25)
+    at async performSwap (MultiHubSwapCard.tsx:403:22)
