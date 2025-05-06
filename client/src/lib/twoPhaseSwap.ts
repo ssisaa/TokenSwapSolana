@@ -158,17 +158,27 @@ async function createLiquidityAccountIfNeeded(wallet: any) {
     // Create the transaction
     const transaction = new Transaction();
     
-    // Add compute budget instruction
+    // Add compute budget instruction with higher limit for creating account
     transaction.add(
-      ComputeBudgetProgram.setComputeUnitLimit({ units: 300000 })
+      ComputeBudgetProgram.setComputeUnitLimit({ units: 500000 })
     );
     
-    // Encode instruction data for create liquidity account (instruction 7 not 5)
-    // Based on the Rust code, instruction 7 is specifically for creating liquidity accounts
+    // Add higher priority fee to increase chances of success
+    transaction.add(
+      ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 2_000_000 })
+    );
+    
+    // Encode instruction data for create liquidity account (instruction 7)
     const createLiqAccountData = Buffer.from([7]); 
     
+    // Get program state and authority PDAs for reference
+    const [programStatePda] = findProgramStatePda();
+    const [programAuthority] = findProgramAuthorityPda();
+    
     // Add the instruction with EXACTLY the accounts the program expects for CREATE_LIQUIDITY_ACCOUNT
-    // Based on the Rust implementation of process_create_liquidity_account, we need only 3 accounts:
+    // From Rust code: The account needs to be created with proper space (LiquidityContribution::LEN)
+    console.log(`[TWO-PHASE-SWAP] Creating liquidity account with program state: ${programStatePda}`);
+    
     transaction.add(
       new TransactionInstruction({
         programId: new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID),
@@ -176,11 +186,17 @@ async function createLiquidityAccountIfNeeded(wallet: any) {
           // User (payer and signer)
           { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
           
+          // Program State (required for reference)
+          { pubkey: programStatePda, isSigner: false, isWritable: false },
+          
           // Liquidity contribution account (will be created)
           { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true },
           
-          // Required system program 
+          // System program (required for account creation)
           { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+          
+          // Rent sysvar (required for account initialization)
+          { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
         ],
         data: createLiqAccountData,
       })
