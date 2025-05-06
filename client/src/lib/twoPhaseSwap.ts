@@ -163,22 +163,37 @@ async function createLiquidityAccountIfNeeded(wallet: any) {
       ComputeBudgetProgram.setComputeUnitLimit({ units: 300000 })
     );
     
-    // Encode instruction data for create liquidity account (instruction 5)
-    const createLiqAccountData = Buffer.from([5]); 
-    
-    // Get program accounts
+    // Get necessary PDAs and accounts
     const [programStatePda] = findProgramStatePda();
     const [programAuthority] = findProgramAuthorityPda();
     
-    // Add the instruction with EXACTLY the accounts the program expects
-    // Based on the Rust code in process_create_liquidity_account
+    // Get token addresses
+    const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
+    const yosMint = new PublicKey(YOS_TOKEN_ADDRESS);
+    
+    // Encode instruction data for create liquidity account (instruction 5)
+    const createLiqAccountData = Buffer.from([5]); 
+    
+    // Add the instruction with EXACTLY the accounts the program expects for CREATE_LIQUIDITY_ACCOUNT
     transaction.add(
       new TransactionInstruction({
         programId: new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID),
         keys: [
+          // User (payer and signer)
           { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
+          
+          // Liquidity contribution account (will be created)
           { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true },
+          
+          // Program state and authority
+          { pubkey: programStatePda, isSigner: false, isWritable: false },
+          { pubkey: programAuthority, isSigner: false, isWritable: false },
+          
+          // Required system program 
           { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+          
+          // Rent sysvar
+          { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
         ],
         data: createLiqAccountData,
       })
