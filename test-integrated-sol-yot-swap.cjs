@@ -282,18 +282,19 @@ async function solToYotSwap(wallet, solAmount) {
     console.log(`Min YOT output with slippage: ${minAmountOut / Math.pow(10, 9)}`);
     
     // Create the swap instruction
-    // Instruction data: [1 (Swap), amountIn (8 bytes), minAmountOut (8 bytes)]
-    // Deployed contract only has instruction 1, but we'll use account order from SOL-to-YOT swap function
+    // Instruction data: [7 (SOL-to-YOT Swap), amountIn (8 bytes), minAmountOut (8 bytes)]
+    // We are trying with instruction index 7 which matches the Rust code for sol-to-yot swap
     const data = Buffer.alloc(17);
-    data.writeUint8(1, 0); // Basic Swap instruction (index 1)
+    data.writeUint8(7, 0); // SOL-to-YOT Swap instruction (index 7)
     data.writeBigUInt64LE(BigInt(amountInLamports), 1);
     data.writeBigUInt64LE(BigInt(minAmountOut), 9);
     
     // Required accounts for the SOL to YOT swap
     // This uses the SOL-to-YOT swap specific account order from process_sol_to_yot_swap
+    // Adjust isWritable flags based on the program's expectations
     const accounts = [
       { pubkey: wallet.publicKey, isSigner: true, isWritable: true },                            // user wallet
-      { pubkey: programStateAddress, isSigner: false, isWritable: false },                       // program state
+      { pubkey: programStateAddress, isSigner: false, isWritable: true },                        // program state (writable)
       { pubkey: programAuthority, isSigner: false, isWritable: false },                          // program authority (PDA)
       { pubkey: solPoolAccount, isSigner: false, isWritable: true },                             // SOL pool account
       { pubkey: yotPoolAccount, isSigner: false, isWritable: true },                             // YOT pool account
