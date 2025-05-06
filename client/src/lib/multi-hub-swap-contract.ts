@@ -27,9 +27,6 @@ import {
   YOT_TOKEN_ADDRESS,
   YOS_TOKEN_ADDRESS,
   MULTI_HUB_SWAP_PROGRAM_ID,
-  MULTI_HUB_SWAP_STATE,
-  MULTI_HUB_SWAP_ADMIN,
-  MULTI_HUB_SWAP_PROGRAM_AUTHORITY,
   SOLANA_RPC_URL,
   DEFAULT_DISTRIBUTION_RATES,
   DEFAULT_FEE_RATES,
@@ -40,6 +37,19 @@ import {
   ADD_LIQUIDITY_FROM_COMMON_DISCRIMINATOR,
   COMMON_WALLET_CONFIG
 } from './config';
+
+// Import PDA utility functions
+import {
+  getProgramStatePda,
+  getProgramAuthorityPda,
+  getLiquidityContributionPda,
+  getCentralLiquidityWallet
+} from './solana';
+
+// Use PDAs instead of config values for program state and authority
+const MULTI_HUB_SWAP_STATE = getProgramStatePda();
+const MULTI_HUB_SWAP_PROGRAM_AUTHORITY = getProgramAuthorityPda();
+const MULTI_HUB_SWAP_ADMIN = new PublicKey('AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ');
 
 // Export program IDs for backward compatibility
 export const MULTI_HUB_SWAP_PROGRAM_STATE = MULTI_HUB_SWAP_STATE;
