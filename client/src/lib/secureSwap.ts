@@ -109,15 +109,15 @@ async function ensureTokenAccount(wallet: any, mint: PublicKey): Promise<PublicK
 }
 
 /**
- * Phase 1: Create transaction to transfer SOL to the pool
- * With added security measures
+ * Phase 1: Create transaction to perform the SOL to YOT swap via the program
+ * With added security measures to ensure tokens are received
  */
 async function createSecureSolTransferTransaction(
   wallet: any,
   solAmount: number,
   minOutputAmount: number = 0
 ): Promise<Transaction> {
-  console.log(`[SECURE_SWAP] Creating secure SOL transfer transaction for ${solAmount} SOL`);
+  console.log(`[SECURE_SWAP] Creating secure SOL to YOT swap transaction for ${solAmount} SOL`);
   
   // Verify sol amount is positive and reasonable
   if (solAmount <= 0 || solAmount > 1000) {
@@ -136,25 +136,102 @@ async function createSecureSolTransferTransaction(
     throw new Error('Amount conversion resulted in unsafe integer');
   }
   
-  // Create a transaction to transfer SOL to the pool
+  // Find program-related PDAs
+  const [programStateAddress] = PublicKey.findProgramAddressSync(
+    [Buffer.from('state')],
+    MULTI_HUB_SWAP_PROGRAM_ID
+  );
+  
+  const [programAuthority] = PublicKey.findProgramAddressSync(
+    [Buffer.from('authority')],
+    MULTI_HUB_SWAP_PROGRAM_ID
+  );
+  
+  const [liquidityContributionAddress] = PublicKey.findProgramAddressSync(
+    [Buffer.from('liq'), wallet.publicKey.toBuffer()],
+    MULTI_HUB_SWAP_PROGRAM_ID
+  );
+  
+  // Get token accounts
+  const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
+  const yosMint = new PublicKey(YOS_TOKEN_ADDRESS);
+  const yotPoolAccount = await getAssociatedTokenAddress(yotMint, POOL_AUTHORITY);
+  const userYotAccount = await getAssociatedTokenAddress(yotMint, wallet.publicKey);
+  const userYosAccount = await getAssociatedTokenAddress(yosMint, wallet.publicKey);
+  
+  // Calculate min output amount with 1% slippage if not specified
+  const minAmountOut = minOutputAmount > 0 
+    ? Math.floor(minOutputAmount * Math.pow(10, 9)) // 9 decimals for YOT
+    : 0;
+  
+  // Create the SOL to YOT swap instruction
+  console.log(`[SECURE_SWAP] Creating SolToYotSwapImmediate instruction with index 8`);
+  console.log(`[SECURE_SWAP] Amount: ${amountInLamports} lamports`);
+  console.log(`[SECURE_SWAP] Min Out: ${minAmountOut}`);
+  
+  // Create instruction data for SOL to YOT swap (index 8)
+  // SOL to YOT swap immediate has ix_discriminator = 8
+  const data = Buffer.alloc(17);
+  data.writeUint8(8, 0); // Index 8 = SolToYotSwapImmediate
+  data.writeBigUInt64LE(BigInt(amountInLamports), 1); // SOL amount
+  data.writeBigUInt64LE(BigInt(minAmountOut), 9); // Min YOT out
+  
+  // Log all accounts for debugging
+  console.log(`[SECURE_SWAP] Transaction accounts:`);
+  console.log(`1. User: ${wallet.publicKey.toString()} (signer)`);
+  console.log(`2. Program State: ${programStateAddress.toString()}`);
+  console.log(`3. Program Authority: ${programAuthority.toString()}`);
+  console.log(`4. SOL Pool Account: ${POOL_SOL_ACCOUNT.toString()}`);
+  console.log(`5. YOT Pool Account: ${yotPoolAccount.toString()}`);
+  console.log(`6. User YOT Account: ${userYotAccount.toString()}`);
+  console.log(`7. Liquidity Contribution: ${liquidityContributionAddress.toString()}`);
+  console.log(`8. YOS Mint: ${yosMint.toString()}`);
+  console.log(`9. User YOS Account: ${userYosAccount.toString()}`);
+  console.log(`10. System Program: ${SystemProgram.programId.toString()}`);
+  console.log(`11. Token Program: ${TOKEN_PROGRAM_ID.toString()}`);
+  console.log(`12. Rent Sysvar: ${SYSVAR_RENT_PUBKEY.toString()}`);
+  
+  // Required accounts for the SOL to YOT swap instruction
+  // Order must match EXACTLY what the Rust program expects
+  const accountMetas = [
+    { pubkey: wallet.publicKey, isSigner: true, isWritable: true },         // 1. user (signer)
+    { pubkey: programStateAddress, isSigner: false, isWritable: false },    // 2. program_state
+    { pubkey: programAuthority, isSigner: false, isWritable: false },       // 3. program_authority
+    { pubkey: POOL_SOL_ACCOUNT, isSigner: false, isWritable: true },        // 4. sol_pool_account
+    { pubkey: yotPoolAccount, isSigner: false, isWritable: true },          // 5. yot_pool_account  
+    { pubkey: userYotAccount, isSigner: false, isWritable: true },          // 6. user_yot_account
+    { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true }, // 7. liquidity_contribution
+    { pubkey: yosMint, isSigner: false, isWritable: true },                // 8. yos_mint
+    { pubkey: userYosAccount, isSigner: false, isWritable: true },         // 9. user_yos_account
+    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },// 10. system_program
+    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },      // 11. token_program
+    { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },    // 12. rent_sysvar
+  ];
+  
+  // Create the instruction to call the program
+  const swapInstruction = new TransactionInstruction({
+    programId: MULTI_HUB_SWAP_PROGRAM_ID,
+    keys: accountMetas,
+    data,
+  });
+  
+  // Build the transaction with compute budget for better success rate
   const transaction = new Transaction();
   
-  // Add compute budget for better transaction success rate
+  // Add compute budget instructions to ensure enough compute units
+  const computeUnits = ComputeBudgetProgram.setComputeUnitLimit({
+    units: 400000 // High value for complex operation
+  });
+  
   const priorityFee = ComputeBudgetProgram.setComputeUnitPrice({
-    microLamports: 1_000_000
+    microLamports: 1_000_000 // High priority fee for faster processing
   });
+  
+  transaction.add(computeUnits);
   transaction.add(priorityFee);
+  transaction.add(swapInstruction);
   
-  // Add instruction to transfer SOL to pool
-  const transferSolIx = SystemProgram.transfer({
-    fromPubkey: wallet.publicKey,
-    toPubkey: POOL_SOL_ACCOUNT,
-    lamports: amountInLamports
-  });
-  
-  transaction.add(transferSolIx);
-  
-  // Set transaction properties with recent blockhash
+  // Set transaction properties
   transaction.feePayer = wallet.publicKey;
   const { blockhash } = await connection.getLatestBlockhash();
   transaction.recentBlockhash = blockhash;
