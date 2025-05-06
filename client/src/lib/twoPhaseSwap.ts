@@ -135,7 +135,7 @@ export async function twoPhaseSwap(wallet: any, solAmount: number) {
 
 /**
  * Phase 1: Create the liquidity contribution account if it doesn't exist
- * This matches exactly what the Rust program expects for instruction #5
+ * This matches exactly what the Rust program expects for instruction #7
  */
 async function createLiquidityAccountIfNeeded(wallet: any) {
   if (!wallet.publicKey) {
@@ -163,18 +163,12 @@ async function createLiquidityAccountIfNeeded(wallet: any) {
       ComputeBudgetProgram.setComputeUnitLimit({ units: 300000 })
     );
     
-    // Get necessary PDAs and accounts
-    const [programStatePda] = findProgramStatePda();
-    const [programAuthority] = findProgramAuthorityPda();
-    
-    // Get token addresses
-    const yotMint = new PublicKey(YOT_TOKEN_ADDRESS);
-    const yosMint = new PublicKey(YOS_TOKEN_ADDRESS);
-    
-    // Encode instruction data for create liquidity account (instruction 5)
-    const createLiqAccountData = Buffer.from([5]); 
+    // Encode instruction data for create liquidity account (instruction 7 not 5)
+    // Based on the Rust code, instruction 7 is specifically for creating liquidity accounts
+    const createLiqAccountData = Buffer.from([7]); 
     
     // Add the instruction with EXACTLY the accounts the program expects for CREATE_LIQUIDITY_ACCOUNT
+    // Based on the Rust implementation of process_create_liquidity_account, we need only 3 accounts:
     transaction.add(
       new TransactionInstruction({
         programId: new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID),
@@ -185,15 +179,8 @@ async function createLiquidityAccountIfNeeded(wallet: any) {
           // Liquidity contribution account (will be created)
           { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true },
           
-          // Program state and authority
-          { pubkey: programStatePda, isSigner: false, isWritable: false },
-          { pubkey: programAuthority, isSigner: false, isWritable: false },
-          
           // Required system program 
           { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-          
-          // Rent sysvar
-          { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
         ],
         data: createLiqAccountData,
       })
@@ -267,10 +254,16 @@ async function executeSwapTransaction(wallet: any, solAmount: number) {
     );
     console.log(`[TWO-PHASE-SWAP] User YOS account: ${userYosAccount.toString()}`);
     
-    // Encode instruction data for BUY_AND_DISTRIBUTE
-    const data = Buffer.alloc(9);
-    data.writeUInt8(7, 0); // Instruction 7: BUY_AND_DISTRIBUTE
-    data.writeBigUInt64LE(BigInt(amountInLamports), 1);
+    // Encode instruction data for SOL_TO_YOT_SWAP_IMMEDIATE
+    // According to Rust code, this is instruction 8 with two parameters
+    const data = Buffer.alloc(17);
+    data.writeUInt8(8, 0); // Instruction 8: SOL_TO_YOT_SWAP_IMMEDIATE
+    data.writeBigUInt64LE(BigInt(amountInLamports), 1); // SOL amount in
+    
+    // Calculate minimum amount out (apply 0.5% slippage protection)
+    const expectedYotAmount = amountInLamports * 134102185.86562961 / LAMPORTS_PER_SOL;
+    const minAmountOut = Math.floor(expectedYotAmount * 0.995); // 0.5% slippage protection
+    data.writeBigUInt64LE(BigInt(minAmountOut), 9); // Min YOT amount out
     
     // Get addresses
     const [programStatePda] = findProgramStatePda();
@@ -293,35 +286,66 @@ async function executeSwapTransaction(wallet: any, solAmount: number) {
     console.log(`Pool YOS Account: ${poolYosAccount.toString()}`);
     
     // Add the swap instruction with the exact accounts the program expects
-    // IMPORTANT: The order must match what the program expects in process_buy_and_distribute
+    // IMPORTANT: The order must match what the program expects in process_sol_to_yot_swap_immediate
+    // Based on the Rust code:
+    // let user_account = next_account_info(accounts_iter)?;                 // User's wallet
+    // let program_state_account = next_account_info(accounts_iter)?;        // Program state
+    // let program_authority = next_account_info(accounts_iter)?;            // Program authority PDA
+    // let sol_pool_account = next_account_info(accounts_iter)?;             // SOL pool account
+    // let yot_pool_account = next_account_info(accounts_iter)?;             // YOT token pool account
+    // let user_yot_account = next_account_info(accounts_iter)?;             // User's YOT token account
+    // let central_liquidity_wallet = next_account_info(accounts_iter)?;     // Central liquidity wallet
+    // let liquidity_contribution_account = next_account_info(accounts_iter)?; // Liquidity contribution account (for tracking)
+    // let yos_mint = next_account_info(accounts_iter)?;                     // YOS mint
+    // let user_yos_account = next_account_info(accounts_iter)?;             // User's YOS token account
+    // let system_program = next_account_info(accounts_iter)?;               // System program
+    // let token_program = next_account_info(accounts_iter)?;                // Token program
+    // let _rent = next_account_info(accounts_iter)?;                        // Rent sysvar
+    
+    const centralLiquidityWallet = programAuthority; // The program authority acts as the central liquidity wallet
+    
     transaction.add(
       new TransactionInstruction({
         programId: new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID),
         keys: [
-          // User accounts
+          // 1. User's wallet
           { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
-          { pubkey: userYotAccount, isSigner: false, isWritable: true },
-          { pubkey: userYosAccount, isSigner: false, isWritable: true },
           
-          // Program state
+          // 2. Program state
           { pubkey: programStatePda, isSigner: false, isWritable: true },
           
-          // Program authority/wallet
+          // 3. Program authority PDA
           { pubkey: programAuthority, isSigner: false, isWritable: true },
           
-          // Pool accounts
+          // 4. SOL pool account
           { pubkey: new PublicKey(POOL_SOL_ACCOUNT), isSigner: false, isWritable: true },
-          { pubkey: poolYotAccount, isSigner: false, isWritable: true },
-          { pubkey: poolYosAccount, isSigner: false, isWritable: true },
           
-          // Liquidity contribution account
+          // 5. YOT token pool account 
+          { pubkey: poolYotAccount, isSigner: false, isWritable: true },
+          
+          // 6. User's YOT token account
+          { pubkey: userYotAccount, isSigner: false, isWritable: true },
+          
+          // 7. Central liquidity wallet (same as program authority)
+          { pubkey: centralLiquidityWallet, isSigner: false, isWritable: true },
+          
+          // 8. Liquidity contribution account
           { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true },
           
-          // System program
+          // 9. YOS mint
+          { pubkey: yosMint, isSigner: false, isWritable: true },
+          
+          // 10. User's YOS token account
+          { pubkey: userYosAccount, isSigner: false, isWritable: true },
+          
+          // 11. System program
           { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
           
-          // Token program
+          // 12. Token program
           { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+          
+          // 13. Rent sysvar
+          { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
         ],
         data,
       })
