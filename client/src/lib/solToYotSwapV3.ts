@@ -244,9 +244,8 @@ export async function solToYotSwapV3(
     const userYotAccount = new PublicKey(userYotResult.userTokenAccount);
     const userYosAccount = new PublicKey(userYosResult.userTokenAccount);
     
-    // STEP 2: Check and create liquidity contribution account if needed
+    // STEP 2: Check liquidity contribution account existence
     let accountCreated = false;
-    let accountCreationSignature = '';
     
     const liquidityResult = await checkLiquidityContributionAccount(wallet, connection);
     const liquidityContributionAccount = liquidityResult.liquidityContributionAccount;
@@ -255,7 +254,7 @@ export async function solToYotSwapV3(
     // Instead, we let the program's swap instruction handle account creation
     if (!liquidityResult.exists) {
       console.log('[SOL-YOT SWAP V3] Liquidity contribution account does not exist - the swap instruction will create it');
-      accountCreated = false;
+      accountCreated = true; // Mark that the account will be created by the swap instruction
     }
     
     // STEP 3: Perform the actual swap now that all accounts exist
@@ -329,8 +328,7 @@ export async function solToYotSwapV3(
         success: false,
         error: 'Transaction failed on-chain',
         message: JSON.stringify(confirmation.value.err),
-        accountCreated,
-        accountCreationSignature
+        accountCreated
       };
     }
     
@@ -339,8 +337,7 @@ export async function solToYotSwapV3(
       success: true,
       signature,
       message: `Successfully swapped ${solAmount} SOL for YOT tokens`,
-      accountCreated,
-      accountCreationSignature
+      accountCreated
     };
   } catch (error) {
     console.error('[SOL-YOT SWAP V3] Error during swap:', error);
