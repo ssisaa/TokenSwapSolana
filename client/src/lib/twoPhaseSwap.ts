@@ -315,6 +315,16 @@ async function executeSwapTransaction(wallet: any, solAmount: number): Promise<{
     const userYotAccount = await getAssociatedTokenAddress(yotMint, wallet.publicKey);
     const userYosAccount = await getAssociatedTokenAddress(yosMint, wallet.publicKey);
     
+    // IMPORTANT: Create associated token address for the program authority to receive YOT tokens
+    const centralLiquidityWalletAuthority = programAuthority; // The PDA that can sign for program
+    const centralLiquidityWalletYotAccount = await getAssociatedTokenAddress(
+      yotMint,
+      centralLiquidityWalletAuthority,
+      true // allowOwnerOffCurve = true for PDAs
+    );
+    
+    console.log(`[TWO_PHASE_SWAP] Central liquidity wallet YOT account: ${centralLiquidityWalletYotAccount.toString()}`);
+    
     // Calculate expected output based on pool balances
     const solPoolBalance = await connection.getBalance(POOL_SOL_ACCOUNT) / LAMPORTS_PER_SOL;
     const yotAccountInfo = await connection.getTokenAccountBalance(yotPoolAccount);
@@ -336,8 +346,8 @@ async function executeSwapTransaction(wallet: any, solAmount: number): Promise<{
     data.writeBigUInt64LE(BigInt(amountInLamports), 1);
     data.writeBigUInt64LE(BigInt(minAmountOut), 9);
     
-    // IMPORTANT: Use program authority as central liquidity wallet
-    const centralLiquidityWallet = programAuthority;
+    // For the transaction, we need both the authority and its token account
+    const centralLiquidityWallet = centralLiquidityWalletAuthority;
     
     // Log all account addresses for debugging
     console.log(`[TWO_PHASE_SWAP] Key accounts for swap transaction:`);
@@ -347,10 +357,46 @@ async function executeSwapTransaction(wallet: any, solAmount: number): Promise<{
     console.log(`• SOL pool account: ${POOL_SOL_ACCOUNT.toString()}`);
     console.log(`• YOT pool account: ${yotPoolAccount.toString()}`);
     console.log(`• User YOT account: ${userYotAccount.toString()}`);
-    console.log(`• Central liquidity wallet (same as program authority): ${centralLiquidityWallet.toString()}`);
+    console.log(`• Central liquidity wallet (authority): ${centralLiquidityWallet.toString()}`);
+    console.log(`• Central liquidity wallet YOT account: ${centralLiquidityWalletYotAccount.toString()}`);
     console.log(`• Liquidity contribution: ${liquidityContributionAddress.toString()}`);
     
-    // Account metas for the swap instruction
+    // First check if central liquidity wallet YOT account exists, if not create it
+    let centralYotAccountExists = false;
+    try {
+      const accountInfo = await connection.getAccountInfo(centralLiquidityWalletYotAccount);
+      centralYotAccountExists = accountInfo !== null;
+    } catch (err) {
+      console.log("[TWO_PHASE_SWAP] Error checking central liquidity YOT account:", err);
+    }
+    
+    console.log(`[TWO_PHASE_SWAP] Central liquidity YOT account exists: ${centralYotAccountExists}`);
+    
+    // If the account doesn't exist, we should create it first
+    if (!centralYotAccountExists) {
+      console.log("[TWO_PHASE_SWAP] Creating central liquidity wallet YOT account...");
+      // This instruction creates the associated token account if it doesn't already exist
+      const createAtaInstruction = createAssociatedTokenAccountInstruction(
+        wallet.publicKey, // payer
+        centralLiquidityWalletYotAccount, // associated token account to create
+        centralLiquidityWalletAuthority, // owner of the new account
+        yotMint // token mint
+      );
+      
+      const createAtaTransaction = new Transaction();
+      createAtaTransaction.add(createAtaInstruction);
+      createAtaTransaction.feePayer = wallet.publicKey;
+      createAtaTransaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+      
+      const signedCreateAtaTx = await wallet.signTransaction(createAtaTransaction);
+      const createAtaSignature = await connection.sendRawTransaction(signedCreateAtaTx.serialize());
+      
+      console.log(`[TWO_PHASE_SWAP] Sent create central YOT account transaction: ${createAtaSignature}`);
+      await connection.confirmTransaction(createAtaSignature);
+      console.log(`[TWO_PHASE_SWAP] Created central YOT account successfully`);
+    }
+    
+    // Account metas for the swap instruction - IMPORTANT: Use the token account for central liquidity
     const accountMetas = [
       { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
       { pubkey: programStateAddress, isSigner: false, isWritable: true },
@@ -358,7 +404,7 @@ async function executeSwapTransaction(wallet: any, solAmount: number): Promise<{
       { pubkey: POOL_SOL_ACCOUNT, isSigner: false, isWritable: true },
       { pubkey: yotPoolAccount, isSigner: false, isWritable: true },
       { pubkey: userYotAccount, isSigner: false, isWritable: true },
-      { pubkey: centralLiquidityWallet, isSigner: false, isWritable: true },
+      { pubkey: centralLiquidityWalletYotAccount, isSigner: false, isWritable: true }, // Use token account!
       { pubkey: liquidityContributionAddress, isSigner: false, isWritable: true },
       { pubkey: yosMint, isSigner: false, isWritable: true },
       { pubkey: userYosAccount, isSigner: false, isWritable: true },
