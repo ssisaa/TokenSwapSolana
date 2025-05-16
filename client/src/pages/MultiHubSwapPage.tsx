@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useMultiWallet } from "@/context/MultiWalletContext";
 
 export default function MultiHubSwapPage() {
-  const { connected, wallet } = useMultiWallet();
+  const { connected } = useMultiWallet();
   
   return (
     <DashboardLayout>
@@ -18,7 +18,7 @@ export default function MultiHubSwapPage() {
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="md:col-span-1">
-            <MultiHubSwapCard wallet={wallet} />
+            <MultiHubSwapCard />
           </div>
           
           <div className="md:col-span-1">

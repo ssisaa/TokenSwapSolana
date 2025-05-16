@@ -11,14 +11,9 @@ import StakingSettings from "@/components/admin/StakingSettings";
 import AdminStatistics from "@/components/admin/AdminStatistics";
 import AdminTransactions from "@/components/admin/AdminTransactions";
 import FundProgramAccounts from "@/components/admin/FundProgramAccounts";
-import MultiHubSwapSettings from "@/components/admin/MultiHubSwapSettings";
-import AuthorizeTokens from "@/components/admin/AuthorizeTokens";
-import CommonWalletManager from "@/components/admin/CommonWalletManager";
-import { useMultiWallet } from "@/context/MultiWalletContext";
 
 export default function AdminPage() {
   const { admin, isLoading, logoutMutation } = useAdminAuth();
-  const { wallet, connected } = useMultiWallet();
   const [activeTab, setActiveTab] = useState("settings");
   
   const handleLogout = () => {
@@ -97,15 +92,6 @@ export default function AdminPage() {
 
               {/* Added Program Funding Component */}
               <FundProgramAccounts />
-              
-              {/* Multi-Hub Swap Settings */}
-              <MultiHubSwapSettings wallet={wallet} isAdmin={!!admin?.isFounder} />
-              
-              {/* Common Wallet Manager Component */}
-              <CommonWalletManager />
-              
-              {/* Token Authorization Component */}
-              <AuthorizeTokens />
             </div>
             
             {/* Statistics panel next to Blockchain settings */}

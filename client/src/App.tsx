@@ -17,7 +17,6 @@ import AdminPage from "@/pages/AdminPage";
 import TestPage from "@/pages/TestPage";
 import MultiHubSwapPage from "@/pages/MultiHubSwapPage";
 import Home from "@/pages/Home"; // Keep for compatibility with existing routes
-import AdminTools from "@/pages/AdminTools"; // Admin tools page
 
 function Router() {
   return (
@@ -32,9 +31,8 @@ function Router() {
         <Route path="/liquidity" component={Liquidity} />
         <Route path="/memes" component={Memes} />
         
-        {/* Admin routes */}
+        {/* Admin route */}
         <Route path="/admin" component={AdminPage} />
-        <Route path="/admin/tools" component={AdminTools} />
         
         {/* Test route for token display */}
         <Route path="/test" component={TestPage} />
@@ -43,7 +41,7 @@ function Router() {
         <Route path="/home" component={Home} />
         <Route path="/integration" component={Integration} />
         
-        <Route path="/:rest*" component={NotFound} />
+        <Route component={NotFound} />
       </Switch>
     </div>
   );

@@ -1,6 +1,5 @@
 // Multi-Hub Swap Integration
 // Integrates with Raydium (devnet) and Jupiter (SDK devnet)
-// All configuration is pulled from app.config.json through config.ts
 
 import { 
   Connection, 
@@ -9,26 +8,20 @@ import {
   SystemProgram, 
   LAMPORTS_PER_SOL,
   TransactionInstruction,
-  Keypair,
-  Commitment
+  Keypair
 } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
-import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, YOT_DECIMALS, YOS_DECIMALS, SOLANA_RPC_URL } from './constants';
+import { YOT_TOKEN_ADDRESS, YOS_TOKEN_ADDRESS, YOT_DECIMALS, YOS_DECIMALS, ENDPOINT } from './constants';
 import { sendTransaction } from './transaction-helper';
-// Import configuration from centralized configuration
-import {
-  solanaConfig,
-  MULTI_HUB_SWAP_PROGRAM_ID,
-  USDC_DEVNET_ADDRESS,
-  RAYDIUM_ROUTER_CONFIG
-} from './config';
+// Using buffer-based seed approach for PDAs instead of anchor's findProgramAddressSync
 
-// Raydium Devnet Constants from centralized config
-export const RAYDIUM_USDC_MINT = new PublicKey(solanaConfig.multiHubSwap.amm.raydium.usdc);
-export const RAYDIUM_ROUTER_ADDRESS = new PublicKey(solanaConfig.multiHubSwap.amm.raydium.routerAddress);
+// Raydium Devnet Constants
+export const RAYDIUM_USDC_MINT = new PublicKey('9T7uw5dqaEmEC4McqyefzYsEg5hoC4e2oV8it1Uc4f1U');
+export const RAYDIUM_ROUTER_ADDRESS = new PublicKey('BVChZ3XFEwTMUk1o9i3HAf91H6mFxSwa5X2wFAWhYPhU');
+export const MULTI_HUB_SWAP_PROGRAM_ID = 'Fg6PaFpoGXkYsidMpWxqSWib32jBzv4U5mpdKqHR3rXY';
 
-// Connection instance with proper commitment
-export const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
+// Connection instance
+export const connection = new Connection(ENDPOINT, 'confirmed');
 
 // Utility function to convert amount to raw format
 export function uiToRawAmount(amount: number, decimals: number): bigint {
@@ -44,10 +37,9 @@ export function rawToUiAmount(rawAmount: bigint | number, decimals: number): num
 }
 
 // Find PDA addresses
-// CRITICAL: Seed must match the Rust program's "state" seed
 export function findProgramStateAddress(): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
-    [Buffer.from("state")],
+    [Buffer.from("program-state")],
     new PublicKey(MULTI_HUB_SWAP_PROGRAM_ID)
   );
 }
