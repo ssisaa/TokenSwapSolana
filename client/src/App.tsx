@@ -15,7 +15,6 @@ import Memes from "@/pages/Memes";
 import Integration from "@/pages/Integration";
 import AdminPage from "@/pages/AdminPage";
 import TestPage from "@/pages/TestPage";
-import MultiHubSwapPage from "@/pages/MultiHubSwapPage";
 import Home from "@/pages/Home"; // Keep for compatibility with existing routes
 
 function Router() {
@@ -25,8 +24,6 @@ function Router() {
         {/* New Dashboard Routes */}
         <Route path="/" component={Dashboard} />
         <Route path="/swap" component={Swap} />
-        <Route path="/multi-hub-swap" component={MultiHubSwapPage} />
-        <Route path="/dashboard/multi-hub-swap" component={MultiHubSwapPage} />
         <Route path="/stake" component={Stake} />
         <Route path="/liquidity" component={Liquidity} />
         <Route path="/memes" component={Memes} />
