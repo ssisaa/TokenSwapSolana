@@ -943,12 +943,34 @@ export async function swapYotToSol(
         // Import the pool authority keypair from completeSwap
         const { poolAuthorityKeypair } = await import('./completeSwap');
         
+        // Check if pool authority actually has SOL balance
+        const poolAuthorityBalance = await connection.getBalance(poolAuthorityKeypair.publicKey);
+        console.log(`Pool authority SOL balance: ${poolAuthorityBalance / LAMPORTS_PER_SOL} SOL`);
+        
+        // Ensure pool authority has enough SOL for the transfer + fees
+        const requiredSolAmount = expectedSolAmount + 0.01; // Add extra for fees
+        if (poolAuthorityBalance < requiredSolAmount * LAMPORTS_PER_SOL) {
+          console.log(`Pool authority needs more SOL. Required: ${requiredSolAmount}, Has: ${poolAuthorityBalance / LAMPORTS_PER_SOL}`);
+          
+          // Request airdrop for pool authority if balance is insufficient
+          try {
+            const { fundPoolAuthorityWithAirdrop } = await import('./helpers/fund-pool-authority');
+            const airdropAmount = Math.ceil(requiredSolAmount - (poolAuthorityBalance / LAMPORTS_PER_SOL));
+            console.log(`Requesting ${airdropAmount} SOL airdrop for pool authority...`);
+            await fundPoolAuthorityWithAirdrop(airdropAmount);
+          } catch (airdropError) {
+            console.error('Failed to fund pool authority:', airdropError);
+            throw new Error(`Pool authority has insufficient SOL for the swap. Required: ${requiredSolAmount} SOL`);
+          }
+        }
+        
         // Get recent blockhash for the second transaction
         const solTransferBlockhash = await connection.getLatestBlockhash();
         
         // Create a second transaction to transfer SOL from pool to user
+        // Use pool authority as fee payer (they should control the pool SOL account)
         const solTransferTransaction = new Transaction({
-          feePayer: poolAuthorityKeypair.publicKey,
+          feePayer: poolAuthorityKeypair.publicKey, // Pool authority pays fees
           blockhash: solTransferBlockhash.blockhash,
           lastValidBlockHeight: solTransferBlockhash.lastValidBlockHeight
         });
@@ -960,10 +982,11 @@ export async function swapYotToSol(
           
           console.log(`Converting ${expectedSolAmount} SOL to ${lamports} lamports`);
           
-          // Add instruction to transfer SOL from pool to user
+          // Add instruction to transfer SOL from pool authority to user
+          // The pool authority should have the SOL since it received it in the first part
           solTransferTransaction.add(
             SystemProgram.transfer({
-              fromPubkey: poolAuthorityKeypair.publicKey, 
+              fromPubkey: poolAuthorityKeypair.publicKey, // Transfer from pool authority account
               toPubkey: wallet.publicKey,
               lamports
             })
