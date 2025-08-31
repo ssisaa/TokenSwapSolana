@@ -947,20 +947,46 @@ export async function swapYotToSol(
         const poolAuthorityBalance = await connection.getBalance(poolAuthorityKeypair.publicKey);
         console.log(`Pool authority SOL balance: ${poolAuthorityBalance / LAMPORTS_PER_SOL} SOL`);
         
-        // Ensure pool authority has enough SOL for the transfer + fees
-        const requiredSolAmount = expectedSolAmount + 0.01; // Add extra for fees
-        if (poolAuthorityBalance < requiredSolAmount * LAMPORTS_PER_SOL) {
-          console.log(`Pool authority needs more SOL. Required: ${requiredSolAmount}, Has: ${poolAuthorityBalance / LAMPORTS_PER_SOL}`);
+        // Check if we should use pool authority SOL account or create a dedicated SOL transfer account
+        const { POOL_SOL_ACCOUNT } = await import('./constants');
+        let solSourceAccount = poolAuthorityKeypair.publicKey;
+        
+        // Check if pool SOL account exists and has balance
+        try {
+          const poolSolAccountPubkey = new PublicKey(POOL_SOL_ACCOUNT);
+          const poolSolBalance = await connection.getBalance(poolSolAccountPubkey);
+          console.log(`Pool SOL account balance: ${poolSolBalance / LAMPORTS_PER_SOL} SOL`);
           
-          // Request airdrop for pool authority if balance is insufficient
-          try {
-            const { fundPoolAuthorityWithAirdrop } = await import('./helpers/fund-pool-authority');
-            const airdropAmount = Math.ceil(requiredSolAmount - (poolAuthorityBalance / LAMPORTS_PER_SOL));
-            console.log(`Requesting ${airdropAmount} SOL airdrop for pool authority...`);
-            await fundPoolAuthorityWithAirdrop(airdropAmount);
-          } catch (airdropError) {
-            console.error('Failed to fund pool authority:', airdropError);
-            throw new Error(`Pool authority has insufficient SOL for the swap. Required: ${requiredSolAmount} SOL`);
+          if (poolSolBalance >= expectedSolAmount * LAMPORTS_PER_SOL) {
+            solSourceAccount = poolSolAccountPubkey;
+            console.log(`Using dedicated pool SOL account for transfer`);
+          } else {
+            console.log(`Pool SOL account has insufficient balance, using pool authority`);
+          }
+        } catch (error) {
+          console.log(`Pool SOL account not accessible, using pool authority: ${error}`);
+        }
+        
+        // Ensure the source account has enough SOL for the transfer
+        const sourceBalance = await connection.getBalance(solSourceAccount);
+        const requiredSolAmount = expectedSolAmount + 0.01; // Add extra for fees
+        
+        if (sourceBalance < requiredSolAmount * LAMPORTS_PER_SOL) {
+          console.log(`Source account needs more SOL. Required: ${requiredSolAmount}, Has: ${sourceBalance / LAMPORTS_PER_SOL}`);
+          
+          // Request airdrop if balance is insufficient and we're using pool authority
+          if (solSourceAccount.equals(poolAuthorityKeypair.publicKey)) {
+            try {
+              const { fundPoolAuthorityWithAirdrop } = await import('./helpers/fund-pool-authority');
+              const airdropAmount = Math.ceil(requiredSolAmount - (sourceBalance / LAMPORTS_PER_SOL));
+              console.log(`Requesting ${airdropAmount} SOL airdrop for pool authority...`);
+              await fundPoolAuthorityWithAirdrop(airdropAmount);
+            } catch (airdropError) {
+              console.error('Failed to fund pool authority:', airdropError);
+              throw new Error(`Pool authority has insufficient SOL for the swap. Required: ${requiredSolAmount} SOL`);
+            }
+          } else {
+            throw new Error(`Pool SOL account has insufficient funds for the swap. Required: ${requiredSolAmount} SOL`);
           }
         }
         
@@ -968,9 +994,9 @@ export async function swapYotToSol(
         const solTransferBlockhash = await connection.getLatestBlockhash();
         
         // Create a second transaction to transfer SOL from pool to user
-        // Use pool authority as fee payer (they should control the pool SOL account)
+        // Use the user's wallet to pay fees to avoid the "carry data" issue
         const solTransferTransaction = new Transaction({
-          feePayer: poolAuthorityKeypair.publicKey, // Pool authority pays fees
+          feePayer: wallet.publicKey, // User pays fees to avoid pool authority account issues
           blockhash: solTransferBlockhash.blockhash,
           lastValidBlockHeight: solTransferBlockhash.lastValidBlockHeight
         });
@@ -982,22 +1008,34 @@ export async function swapYotToSol(
           
           console.log(`Converting ${expectedSolAmount} SOL to ${lamports} lamports`);
           
-          // Add instruction to transfer SOL from pool authority to user
-          // The pool authority should have the SOL since it received it in the first part
+          // Add instruction to transfer SOL from the source account to user
           solTransferTransaction.add(
             SystemProgram.transfer({
-              fromPubkey: poolAuthorityKeypair.publicKey, // Transfer from pool authority account
+              fromPubkey: solSourceAccount, // Transfer from the determined source account
               toPubkey: wallet.publicKey,
               lamports
             })
           );
           
-          // Sign and send transaction with pool authority
-          const solTransferSignature = await sendAndConfirmTransaction(
-            connection,
-            solTransferTransaction,
-            [poolAuthorityKeypair]
-          );
+          // Determine which keypairs need to sign the transaction
+          const signers = [];
+          
+          // Pool authority always signs if it's involved in the transfer
+          signers.push(poolAuthorityKeypair);
+          
+          // Sign the transaction with pool authority first
+          solTransferTransaction.partialSign(poolAuthorityKeypair);
+          
+          // Then have the user sign and send the transaction
+          const signedTransaction = await wallet.signTransaction(solTransferTransaction);
+          const solTransferSignature = await connection.sendRawTransaction(signedTransaction.serialize());
+          
+          // Wait for confirmation
+          await connection.confirmTransaction({
+            signature: solTransferSignature,
+            blockhash: solTransferBlockhash.blockhash,
+            lastValidBlockHeight: solTransferBlockhash.lastValidBlockHeight
+          }, 'confirmed');
           
           console.log(`SOL transfer complete! Signature: ${solTransferSignature}`);
           

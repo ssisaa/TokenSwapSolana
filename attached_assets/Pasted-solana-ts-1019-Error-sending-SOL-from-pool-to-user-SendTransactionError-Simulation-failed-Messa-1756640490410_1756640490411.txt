@@ -1,0 +1,63 @@
+solana.ts:1019 Error sending SOL from pool to user: SendTransactionError: Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 0: invalid program argument. 
+Logs: 
+[
+  "Program 11111111111111111111111111111111 invoke [1]",
+  "Transfer: `from` must not carry data",
+  "Program 11111111111111111111111111111111 failed: invalid program argument"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at async swapYotToSol (solana.ts:996:40)
+    at async useSwap.ts:252:18
+    at async handleExecuteSwap (SwapSection.tsx:181:22)
+solana.ts:1033 Transaction error: Error: First part of swap completed (YOT deposit), but error in second part (SOL transfer): Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 0: invalid program argument. 
+Logs: 
+[
+  "Program 11111111111111111111111111111111 invoke [1]",
+  "Transfer: `from` must not carry data",
+  "Program 11111111111111111111111111111111 failed: invalid program argument"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at swapYotToSol (solana.ts:1020:17)
+    at async useSwap.ts:252:18
+    at async handleExecuteSwap (SwapSection.tsx:181:22)
+solana.ts:1044 Error swapping YOT to SOL: Error: Failed to send transaction: First part of swap completed (YOT deposit), but error in second part (SOL transfer): Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 0: invalid program argument. 
+Logs: 
+[
+  "Program 11111111111111111111111111111111 invoke [1]",
+  "Transfer: `from` must not carry data",
+  "Program 11111111111111111111111111111111 failed: invalid program argument"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at swapYotToSol (solana.ts:1034:15)
+    at async useSwap.ts:252:18
+    at async handleExecuteSwap (SwapSection.tsx:181:22)
+
+useSwap.ts:317 Swap execution error: Error: Failed to send transaction: First part of swap completed (YOT deposit), but error in second part (SOL transfer): Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 0: invalid program argument. 
+Logs: 
+[
+  "Program 11111111111111111111111111111111 invoke [1]",
+  "Transfer: `from` must not carry data",
+  "Program 11111111111111111111111111111111 failed: invalid program argument"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at swapYotToSol (solana.ts:1034:15)
+    at async useSwap.ts:252:18
+    at async handleExecuteSwap (SwapSection.tsx:181:22)
+SwapSection.tsx:184 Swap error: Error: Failed to send transaction: First part of swap completed (YOT deposit), but error in second part (SOL transfer): Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 0: invalid program argument. 
+Logs: 
+[
+  "Program 11111111111111111111111111111111 invoke [1]",
+  "Transfer: `from` must not carry data",
+  "Program 11111111111111111111111111111111 failed: invalid program argument"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+    at swapYotToSol (solana.ts:1034:15)
+    at async useSwap.ts:252:18
+    at async handleExecuteSwap (SwapSection.tsx:181:22)
+solana.ts:159 Pool balances fetched - SOL: 44.957196998, YOT: 774716540.627377, YOS: 0
+﻿
