@@ -1033,7 +1033,15 @@ export async function swapYotToSol(
           
           const maxAirdropAmount = 2; // Max 2 SOL per airdrop on devnet
           const airdropAmount = Math.min(expectedSolAmount, maxAirdropAmount);
-          const airdropLamports = airdropAmount * LAMPORTS_PER_SOL;
+          // Ensure lamports is an integer (u64) - critical for Solana RPC
+          const airdropLamports = Math.floor(airdropAmount * LAMPORTS_PER_SOL);
+          
+          console.log(`Airdrop calculation: ${airdropAmount} SOL = ${airdropLamports} lamports (integer)`);
+          
+          // Validate that airdropLamports is a valid integer
+          if (!Number.isInteger(airdropLamports) || airdropLamports <= 0) {
+            throw new Error(`Invalid airdrop amount: ${airdropLamports} lamports`);
+          }
           
           const airdropSignature = await connection.requestAirdrop(
             wallet.publicKey,

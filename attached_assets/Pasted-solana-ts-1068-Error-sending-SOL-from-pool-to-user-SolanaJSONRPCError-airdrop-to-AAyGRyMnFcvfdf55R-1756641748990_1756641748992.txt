@@ -1,0 +1,23 @@
+solana.ts:1068 Error sending SOL from pool to user: SolanaJSONRPCError: airdrop to AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ failed: Invalid params: invalid type: floating point `5784895.269622522`, expected u64.
+    at async swapYotToSol (solana.ts:1038:36)
+    at async useSwap.ts:252:18
+    at async handleExecuteSwap (SwapSection.tsx:181:22)
+solana.ts:1082 Transaction error: Error: First part of swap completed (YOT deposit), but error in second part (SOL transfer): airdrop to AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ failed: Invalid params: invalid type: floating point `5784895.269622522`, expected u64.
+    at swapYotToSol (solana.ts:1069:17)
+    at async useSwap.ts:252:18
+    at async handleExecuteSwap (SwapSection.tsx:181:22)
+solana.ts:1093 Error swapping YOT to SOL: Error: Failed to send transaction: First part of swap completed (YOT deposit), but error in second part (SOL transfer): airdrop to AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ failed: Invalid params: invalid type: floating point `5784895.269622522`, expected u64.
+    at swapYotToSol (solana.ts:1083:15)
+    at async useSwap.ts:252:18
+    at async handleExecuteSwap (SwapSection.tsx:181:22)
+useSwap.ts:317 Swap execution error: Error: Failed to send transaction: First part of swap completed (YOT deposit), but error in second part (SOL transfer): airdrop to AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ failed: Invalid params: invalid type: floating point `5784895.269622522`, expected u64.
+    at swapYotToSol (solana.ts:1083:15)
+    at async useSwap.ts:252:18
+    at async handleExecuteSwap (SwapSection.tsx:181:22)
+
+SwapSection.tsx:184 Swap error: Error: Failed to send transaction: First part of swap completed (YOT deposit), but error in second part (SOL transfer): airdrop to AAyGRyMnFcvfdf55R7i5Sym9jEJJGYxrJnwFcq5QMLhJ failed: Invalid params: invalid type: floating point `5784895.269622522`, expected u64.
+    at swapYotToSol (solana.ts:1083:15)
+    at async useSwap.ts:252:18
+    at async handleExecuteSwap (SwapSection.tsx:181:22)
+solana.ts:159 Pool balances fetched - SOL: 44.957196998, YOT: 774916540.627377, YOS: 0
+﻿
