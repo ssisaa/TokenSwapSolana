@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useMultiWallet } from '@/context/MultiWalletContext';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { fundProgramYosAccount, checkProgramYosBalance } from '@/lib/helpers/fund-program';
+import { checkPoolAuthorityBalance, fundPoolAuthorityWithAirdrop, fundPoolAuthorityFromAccount } from "@/lib/helpers/fund-pool-authority";
 import { Loader2 } from 'lucide-react';
 
 export default function FundProgramAccounts() {

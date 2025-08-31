@@ -601,8 +601,9 @@ export async function swapSolToYot(
     
     console.log("Preparing to execute YOT token transfer from pool to user...");
     
-    // Import the function that will handle the token transfer
+    // Import the function that will handle the token transfer and pool funding
     const { completeSwapWithYotTransfer } = await import('./completeSwap');
+    const { checkPoolAuthorityBalance, fundPoolAuthorityWithAirdrop } = await import('./helpers/fund-pool-authority');
     
     try {
       // Execute the second part of the swap - transferring YOT tokens from pool to user
@@ -611,6 +612,18 @@ export async function swapSolToYot(
       // Wait a moment for the first transaction to be fully confirmed
       console.log("Waiting for SOL deposit to fully settle before YOT transfer...");
       await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Check if pool authority has enough SOL for transaction fees
+      try {
+        const poolBalance = await checkPoolAuthorityBalance();
+        if (poolBalance < 0.01) { // Less than 0.01 SOL
+          console.log(`Pool authority has insufficient SOL (${poolBalance}). Requesting airdrop...`);
+          await fundPoolAuthorityWithAirdrop(0.1); // Add 0.1 SOL
+        }
+      } catch (fundError) {
+        console.warn("Could not fund pool authority automatically:", fundError);
+        // Continue anyway - the user wallet will pay fees
+      }
       
       // This will create a second transaction signed by the pool authority, with user paying fees
       const tokenTransferResult = await completeSwapWithYotTransfer(
