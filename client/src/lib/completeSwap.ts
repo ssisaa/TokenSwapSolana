@@ -88,6 +88,30 @@ export async function completeSwapWithYotTransfer(
     const mintInfo = await getMint(connection, yotTokenMint);
     const yotTokenAmount = BigInt(Math.floor(yotAmount * Math.pow(10, mintInfo.decimals)));
     
+    console.log(`YOT Transfer Details:`);
+    console.log(`- Amount to send: ${yotAmount} YOT`);
+    console.log(`- Token decimals: ${mintInfo.decimals}`);
+    console.log(`- Raw token amount: ${yotTokenAmount.toString()}`);
+    console.log(`- Pool YOT account: ${poolYotAccount.toString()}`);
+    console.log(`- User YOT account: ${userYotAccount.toString()}`);
+    console.log(`- Pool authority: ${poolAuthorityKeypair.publicKey.toString()}`);
+    
+    // Check pool YOT account balance before transfer
+    try {
+      const poolAccount = await getAccount(connection, poolYotAccount);
+      console.log(`- Pool YOT balance: ${poolAccount.amount.toString()} raw (${Number(poolAccount.amount) / Math.pow(10, mintInfo.decimals)} YOT)`);
+      
+      if (poolAccount.amount < yotTokenAmount) {
+        throw new Error(`Pool has insufficient YOT tokens. Pool has ${Number(poolAccount.amount) / Math.pow(10, mintInfo.decimals)} YOT but needs ${yotAmount} YOT`);
+      }
+    } catch (error) {
+      if (error instanceof TokenAccountNotFoundError) {
+        throw new Error('Pool YOT token account not found - configuration error');
+      } else {
+        throw error;
+      }
+    }
+    
     // Add instruction to transfer YOT tokens from pool to user
     transaction.add(
       createTransferInstruction(
@@ -98,12 +122,45 @@ export async function completeSwapWithYotTransfer(
       )
     );
     
-    // Sign and send the transaction
-    const signature = await sendAndConfirmTransaction(
-      connection,
-      transaction,
-      [poolAuthorityKeypair] // signers
-    );
+    // Sign and send the transaction with better error handling
+    let signature;
+    try {
+      // First simulate the transaction to catch errors early
+      const simulation = await connection.simulateTransaction(transaction);
+      if (simulation.value.err) {
+        console.error('Transaction simulation failed:', simulation.value.err);
+        throw new Error(`Transaction simulation failed: ${JSON.stringify(simulation.value.err)}`);
+      }
+      
+      console.log('Transaction simulation successful, proceeding with actual transaction...');
+      
+      signature = await sendAndConfirmTransaction(
+        connection,
+        transaction,
+        [poolAuthorityKeypair], // signers
+        {
+          commitment: 'confirmed',
+          maxRetries: 3,
+          skipPreflight: false
+        }
+      );
+    } catch (error) {
+      console.error('Error in YOT transfer transaction:', error);
+      
+      if (error instanceof Error) {
+        if (error.message.includes('insufficient funds')) {
+          throw new Error('Pool has insufficient YOT tokens for this swap');
+        } else if (error.message.includes('AccountNotFound')) {
+          throw new Error('Token account not found - this may be a configuration issue');
+        } else if (error.message.includes('InvalidAccountOwner')) {
+          throw new Error('Invalid token account ownership - configuration issue');
+        } else {
+          throw new Error(`YOT transfer failed: ${error.message}`);
+        }
+      } else {
+        throw new Error(`YOT transfer failed: ${String(error)}`);
+      }
+    }
     
     console.log(`YOT tokens sent to user. Transaction signature: ${signature}`);
     

@@ -456,9 +456,14 @@ export async function swapSolToYot(
     const expectedYotAmount = await calculateSolToYot(solAmount);
     const minYotAmount = expectedYotAmount * (1 - slippage);
     
-    // Check if the pool has enough YOT
+    // Check if the pool has enough YOT with detailed error message
     if (yotBalance < minYotAmount) {
-      throw new Error('Insufficient liquidity in the pool');
+      throw new Error(`Insufficient liquidity in the pool. Pool has ${yotBalance.toFixed(4)} YOT but you need ${minYotAmount.toFixed(4)} YOT for this swap. Please try a smaller amount.`);
+    }
+    
+    // Additional safety check - ensure pool has reasonable buffer
+    if (yotBalance < expectedYotAmount * 1.1) {
+      console.warn(`Pool YOT balance is low (${yotBalance.toFixed(4)} YOT) for swap of ${expectedYotAmount.toFixed(4)} YOT`);
     }
     
     // Get blockhash for transaction
@@ -603,6 +608,10 @@ export async function swapSolToYot(
       // Execute the second part of the swap - transferring YOT tokens from pool to user
       console.log(`Now sending ${expectedYotAmount} YOT tokens to ${wallet.publicKey.toString()}`);
       
+      // Wait a moment for the first transaction to be fully confirmed
+      console.log("Waiting for SOL deposit to fully settle before YOT transfer...");
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       // This will create a second transaction signed by the pool authority
       const tokenTransferResult = await completeSwapWithYotTransfer(
         wallet.publicKey,     // User's public key to receive tokens
@@ -613,7 +622,21 @@ export async function swapSolToYot(
       console.log(`YOT sent to user's account: ${tokenTransferResult.userTokenAccount}`);
     } catch (error) {
       console.error("Error sending YOT tokens from pool:", error);
-      throw new Error(`First part of swap completed (SOL deposit), but error in second part (YOT transfer): ${error instanceof Error ? error.message : String(error)}`);
+      
+      // Provide more detailed error information
+      if (error instanceof Error) {
+        if (error.message.includes('Simulation failed')) {
+          throw new Error(`First part of swap completed (SOL deposit), but error in second part (YOT transfer): Simulation failed. This might be due to insufficient pool balance or network congestion. Please try again in a few moments.`);
+        } else if (error.message.includes('Insufficient funds')) {
+          throw new Error(`First part of swap completed (SOL deposit), but error in second part (YOT transfer): Pool has insufficient YOT tokens. Please contact support.`);
+        } else if (error.message.includes('blockhash not found')) {
+          throw new Error(`First part of swap completed (SOL deposit), but error in second part (YOT transfer): Transaction expired. Please try again.`);
+        } else {
+          throw new Error(`First part of swap completed (SOL deposit), but error in second part (YOT transfer): ${error.message}. Please contact support if this persists.`);
+        }
+      } else {
+        throw new Error(`First part of swap completed (SOL deposit), but error in second part (YOT transfer): ${String(error)}. Please contact support if this persists.`);
+      }
     }
     
     // For the demo, we'll return the SOL transaction signature
