@@ -1,0 +1,55 @@
+completeSwap.ts:131 Transaction simulation failed: InsufficientFundsForFee
+completeSwapWithYotTransfer	@	completeSwap.ts:131
+await in completeSwapWithYotTransfer		
+swapSolToYot	@	solana.ts:616
+await in swapSolToYot		
+(anonymous)	@	useSwap.ts:237
+handleExecuteSwap	@	SwapSection.tsx:181
+
+completeSwap.ts:148 Error in YOT transfer transaction: Error: Transaction simulation failed: "InsufficientFundsForFee"
+    at completeSwapWithYotTransfer (completeSwap.ts:132:15)
+    at async swapSolToYot (solana.ts:616:35)
+    at async useSwap.ts:237:18
+    at async handleExecuteSwap (SwapSection.tsx:181:22)
+completeSwapWithYotTransfer	@	completeSwap.ts:148
+await in completeSwapWithYotTransfer		
+swapSolToYot	@	solana.ts:616
+await in swapSolToYot		
+(anonymous)	@	useSwap.ts:237
+handleExecuteSwap	@	SwapSection.tsx:181
+completeSwap.ts:173 Error completing swap with YOT transfer: Error: YOT transfer failed: Transaction simulation failed: "InsufficientFundsForFee"
+    at completeSwapWithYotTransfer (completeSwap.ts:158:17)
+    at async swapSolToYot (solana.ts:616:35)
+    at async useSwap.ts:237:18
+    at async handleExecuteSwap (SwapSection.tsx:181:22)
+completeSwapWithYotTransfer	@	completeSwap.ts:173
+await in completeSwapWithYotTransfer		
+swapSolToYot	@	solana.ts:616
+await in swapSolToYot		
+(anonymous)	@	useSwap.ts:237
+handleExecuteSwap	@	SwapSection.tsx:181
+solana.ts:624 Error sending YOT tokens from pool: Error: YOT transfer failed: Transaction simulation failed: "InsufficientFundsForFee"
+    at completeSwapWithYotTransfer (completeSwap.ts:158:17)
+    at async swapSolToYot (solana.ts:616:35)
+    at async useSwap.ts:237:18
+    at async handleExecuteSwap (SwapSection.tsx:181:22)
+solana.ts:655 Error swapping SOL to YOT: Error: First part of swap completed (SOL deposit), but error in second part (YOT transfer): YOT transfer failed: Transaction simulation failed: "InsufficientFundsForFee". Please contact support if this persists.
+    at swapSolToYot (solana.ts:635:17)
+    at async useSwap.ts:237:18
+    at async handleExecuteSwap (SwapSection.tsx:181:22)
+swapSolToYot	@	solana.ts:655
+await in swapSolToYot		
+(anonymous)	@	useSwap.ts:237
+handleExecuteSwap	@	SwapSection.tsx:181
+useSwap.ts:317 Swap execution error: Error: First part of swap completed (SOL deposit), but error in second part (YOT transfer): YOT transfer failed: Transaction simulation failed: "InsufficientFundsForFee". Please contact support if this persists.
+    at swapSolToYot (solana.ts:635:17)
+    at async useSwap.ts:237:18
+    at async handleExecuteSwap (SwapSection.tsx:181:22)
+(anonymous)	@	useSwap.ts:317
+await in (anonymous)		
+handleExecuteSwap	@	SwapSection.tsx:181
+SwapSection.tsx:184 Swap error: Error: First part of swap completed (SOL deposit), but error in second part (YOT transfer): YOT transfer failed: Transaction simulation failed: "InsufficientFundsForFee". Please contact support if this persists.
+    at swapSolToYot (solana.ts:635:17)
+    at async useSwap.ts:237:18
+    at async handleExecuteSwap (SwapSection.tsx:181:22)
+handleExecuteSwap	@	SwapSection.tsx:184

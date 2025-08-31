@@ -612,10 +612,11 @@ export async function swapSolToYot(
       console.log("Waiting for SOL deposit to fully settle before YOT transfer...");
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // This will create a second transaction signed by the pool authority
+      // This will create a second transaction signed by the pool authority, with user paying fees
       const tokenTransferResult = await completeSwapWithYotTransfer(
         wallet.publicKey,     // User's public key to receive tokens
-        expectedYotAmount     // Amount of YOT tokens to send
+        expectedYotAmount,    // Amount of YOT tokens to send
+        wallet               // User wallet to pay transaction fees
       );
       
       console.log(`YOT tokens sent successfully! Transaction signature: ${tokenTransferResult.signature}`);

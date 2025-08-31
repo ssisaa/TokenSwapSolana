@@ -38,10 +38,17 @@ if (!poolAuthorityKeypair.publicKey.equals(expectedPoolAuthority)) {
 // Function to complete a swap by sending YOT tokens from the pool to the user
 export async function completeSwapWithYotTransfer(
   userPublicKey: PublicKey,
-  yotAmount: number
+  yotAmount: number,
+  userWallet?: any // Optional: user wallet to pay fees
 ) {
   try {
     console.log(`Completing swap by sending ${yotAmount} YOT tokens to ${userPublicKey.toString()}`);
+    
+    if (userWallet && userWallet.publicKey) {
+      console.log(`User wallet will pay transaction fees: ${userWallet.publicKey.toString()}`);
+    } else {
+      console.log(`Pool authority will pay transaction fees (fallback)`);
+    }
     
     // Get the YOT token mint
     const yotTokenMint = new PublicKey(YOT_TOKEN_ADDRESS);
@@ -56,9 +63,9 @@ export async function completeSwapWithYotTransfer(
     // Get latest blockhash
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
     
-    // Create transaction
+    // Create transaction - user pays fees to avoid pool authority needing SOL
     const transaction = new Transaction({
-      feePayer: poolAuthorityKeypair.publicKey,
+      feePayer: userWallet && userWallet.publicKey ? userWallet.publicKey : userPublicKey,
       blockhash,
       lastValidBlockHeight
     });
@@ -73,7 +80,7 @@ export async function completeSwapWithYotTransfer(
         needsTokenAccount = true;
         transaction.add(
           createAssociatedTokenAccountInstruction(
-            poolAuthorityKeypair.publicKey, // payer
+            userWallet && userWallet.publicKey ? userWallet.publicKey : userPublicKey, // payer (user pays)
             userYotAccount, // associated token account
             userPublicKey, // owner
             yotTokenMint // mint
@@ -134,16 +141,39 @@ export async function completeSwapWithYotTransfer(
       
       console.log('Transaction simulation successful, proceeding with actual transaction...');
       
-      signature = await sendAndConfirmTransaction(
-        connection,
-        transaction,
-        [poolAuthorityKeypair], // signers
-        {
-          commitment: 'confirmed',
-          maxRetries: 3,
-          skipPreflight: false
-        }
-      );
+      // If we have a user wallet, get them to sign the transaction too (for fees)
+      const signers = [poolAuthorityKeypair];
+      
+      if (userWallet && userWallet.signTransaction) {
+        // User wallet needs to sign for fees
+        const signedTransaction = await userWallet.signTransaction(transaction);
+        // Add pool authority signature
+        signedTransaction.partialSign(poolAuthorityKeypair);
+        
+        signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
+          skipPreflight: false,
+          maxRetries: 3
+        });
+        
+        // Wait for confirmation
+        await connection.confirmTransaction({
+          signature,
+          blockhash,
+          lastValidBlockHeight
+        }, 'confirmed');
+      } else {
+        // Fallback: pool authority pays fees (may fail if no SOL)
+        signature = await sendAndConfirmTransaction(
+          connection,
+          transaction,
+          signers,
+          {
+            commitment: 'confirmed',
+            maxRetries: 3,
+            skipPreflight: false
+          }
+        );
+      }
     } catch (error) {
       console.error('Error in YOT transfer transaction:', error);
       
