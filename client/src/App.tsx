@@ -28,8 +28,9 @@ function Router() {
         <Route path="/liquidity" component={Liquidity} />
         <Route path="/memes" component={Memes} />
         
-        {/* Admin route */}
+        {/* Admin routes */}
         <Route path="/admin" component={AdminPage} />
+        <Route path="/admin/:tab" component={AdminPage} />
         
         {/* Test route for token display */}
         <Route path="/test" component={TestPage} />

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
-import { Redirect } from "wouter";
+import { Redirect, useParams } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,18 @@ import FundProgramAccounts from "@/components/admin/FundProgramAccounts";
 
 export default function AdminPage() {
   const { admin, isLoading, logoutMutation } = useAdminAuth();
+  const params = useParams();
   const [activeTab, setActiveTab] = useState("settings");
+  
+  // Handle URL tab parameter
+  useEffect(() => {
+    if (params.tab) {
+      const validTabs = ["settings", "blockchain", "statistics", "transactions"];
+      if (validTabs.includes(params.tab)) {
+        setActiveTab(params.tab);
+      }
+    }
+  }, [params.tab]);
   
   const handleLogout = () => {
     logoutMutation.mutate();
