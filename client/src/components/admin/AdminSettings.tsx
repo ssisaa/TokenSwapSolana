@@ -68,11 +68,17 @@ export default function AdminSettings() {
     stakeRateDaily: "",
     stakeRateHourly: "",
     stakeRatePerSecond: "",
+    burnPercentageBuy: "",
+    burnPercentageSell: "",
   });
   
   // New state for selecting rate type and value
   const [buyLiquidityRate, setBuyLiquidityRate] = useState("33");
   const [sellLiquidityRate, setSellLiquidityRate] = useState("33");
+  
+  // Token burn percentages
+  const [burnPercentageBuy, setBurnPercentageBuy] = useState("10.0");
+  const [burnPercentageSell, setBurnPercentageSell] = useState("6.5");
   const [selectedLiquidityRateType, setSelectedLiquidityRateType] = useState("daily");
   
   const [stakingRate, setStakingRate] = useState("0.00125");
@@ -92,6 +98,8 @@ export default function AdminSettings() {
         stakeRateDaily: settings.stakeRateDaily.toString(),
         stakeRateHourly: settings.stakeRateHourly.toString(),
         stakeRatePerSecond: settings.stakeRatePerSecond.toString(),
+        burnPercentageBuy: settings.burnPercentageBuy?.toString() || "10.0",
+        burnPercentageSell: settings.burnPercentageSell?.toString() || "6.5",
       });
       
       // Initialize the new state values
@@ -102,6 +110,14 @@ export default function AdminSettings() {
       // Initialize harvest threshold
       if (settings.harvestThreshold) {
         setHarvestThreshold(settings.harvestThreshold.toString());
+      }
+      
+      // Initialize burn percentages
+      if (settings.burnPercentageBuy) {
+        setBurnPercentageBuy(settings.burnPercentageBuy.toString());
+      }
+      if (settings.burnPercentageSell) {
+        setBurnPercentageSell(settings.burnPercentageSell.toString());
       }
     }
   }, [settings]);
@@ -159,7 +175,9 @@ export default function AdminSettings() {
       stakeRateDaily: stakingRates.daily,
       stakeRateHourly: stakingRates.hourly,
       stakeRatePerSecond: stakingRates.second,
-      harvestThreshold: harvestThreshold
+      harvestThreshold: harvestThreshold,
+      burnPercentageBuy: burnPercentageBuy,
+      burnPercentageSell: burnPercentageSell
     };
     
     // Update if there are changes
@@ -421,6 +439,93 @@ export default function AdminSettings() {
                     </div>
                     <p className="text-sm text-muted-foreground mt-1">
                       Users must earn at least {harvestThreshold} YOS tokens before they can harvest rewards
+                    </p>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+            
+            <AccordionItem value="burning">
+              <AccordionTrigger className="text-lg font-semibold">
+                Token Burning Settings
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-6 mt-2">
+                  <div className="grid gap-4">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="burnPercentageBuy">
+                        Burn Percentage (Buy YOT)
+                      </Label>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <InfoIcon className="h-4 w-4 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="max-w-xs">Percentage of YOT tokens permanently burned when users buy YOT tokens</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="burnPercentageBuy"
+                        type="number"
+                        step="0.1"
+                        placeholder="Enter burn percentage"
+                        value={burnPercentageBuy}
+                        onChange={(e) => setBurnPercentageBuy(e.target.value)}
+                        className="flex-1"
+                      />
+                      <span className="ml-2">%</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {burnPercentageBuy}% of YOT tokens will be permanently removed from circulation on each buy transaction
+                    </p>
+                  </div>
+                  
+                  <div className="grid gap-4">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="burnPercentageSell">
+                        Burn Percentage (Sell YOT)
+                      </Label>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <InfoIcon className="h-4 w-4 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="max-w-xs">Percentage of YOT tokens permanently burned when users sell YOT tokens</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="burnPercentageSell"
+                        type="number"
+                        step="0.1"
+                        placeholder="Enter burn percentage"
+                        value={burnPercentageSell}
+                        onChange={(e) => setBurnPercentageSell(e.target.value)}
+                        className="flex-1"
+                      />
+                      <span className="ml-2">%</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {burnPercentageSell}% of YOT tokens will be permanently removed from circulation on each sell transaction
+                    </p>
+                  </div>
+                  
+                  {/* Burn Impact Preview */}
+                  <div className="mt-4 text-sm bg-red-50 dark:bg-red-900/20 p-3 rounded-md border border-red-200 dark:border-red-800">
+                    <p className="font-semibold text-red-600 dark:text-red-400">Token Burning Impact:</p>
+                    <div className="mt-2 space-y-1">
+                      <p><span className="font-medium">Buy Operations:</span> {burnPercentageBuy}% of transferred tokens burned</p>
+                      <p><span className="font-medium">Sell Operations:</span> {burnPercentageSell}% of transferred tokens burned</p>
+                    </div>
+                    <p className="text-xs text-red-500 dark:text-red-400 mt-2">
+                      ⚠️ Burned tokens are permanently removed from the total supply and cannot be recovered
                     </p>
                   </div>
                 </div>

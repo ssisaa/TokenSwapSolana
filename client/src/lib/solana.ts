@@ -604,6 +604,7 @@ export async function swapSolToYot(
     // Import the function that will handle the token transfer and pool funding
     const { completeSwapWithYotTransfer } = await import('./completeSwap');
     const { checkPoolAuthorityBalance, fundPoolAuthorityWithAirdrop } = await import('./helpers/fund-pool-authority');
+    const { executeTokenBurn } = await import('./token-burning');
     
     try {
       // Execute the second part of the swap - transferring YOT tokens from pool to user
@@ -634,6 +635,20 @@ export async function swapSolToYot(
       
       console.log(`YOT tokens sent successfully! Transaction signature: ${tokenTransferResult.signature}`);
       console.log(`YOT sent to user's account: ${tokenTransferResult.userTokenAccount}`);
+      
+      // Execute token burning (10% by default, configurable in admin settings)
+      try {
+        console.log("Executing token burn for buy operation...");
+        const burnSignature = await executeTokenBurn(wallet, 'buy', expectedYotAmount);
+        if (burnSignature) {
+          console.log(`Token burn successful: ${burnSignature}`);
+        } else {
+          console.log("Token burn skipped (amount too small or disabled)");
+        }
+      } catch (burnError) {
+        console.error("Token burn failed, but continuing with swap:", burnError);
+        // Don't fail the entire swap if burning fails
+      }
     } catch (error) {
       console.error("Error sending YOT tokens from pool:", error);
       
@@ -962,6 +977,21 @@ export async function swapYotToSol(
           );
           
           console.log(`SOL transfer complete! Signature: ${solTransferSignature}`);
+          
+          // Execute token burning for sell operation (6.5% by default, configurable in admin settings)
+          try {
+            console.log("Executing token burn for sell operation...");
+            const { executeTokenBurn } = await import('./token-burning');
+            const burnSignature = await executeTokenBurn(wallet, 'sell', yotAmount);
+            if (burnSignature) {
+              console.log(`Token burn successful: ${burnSignature}`);
+            } else {
+              console.log("Token burn skipped (amount too small or disabled)");
+            }
+          } catch (burnError) {
+            console.error("Token burn failed, but continuing with swap:", burnError);
+            // Don't fail the entire swap if burning fails
+          }
         } catch (error) {
           console.error('Error sending SOL from pool to user:', error);
           throw new Error(`First part of swap completed (YOT deposit), but error in second part (SOL transfer): ${error instanceof Error ? error.message : String(error)}`);

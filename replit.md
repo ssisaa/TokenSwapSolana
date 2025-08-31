@@ -1,6 +1,6 @@
 # Overview
 
-This is a Solana-based decentralized staking platform that allows users to stake YOT tokens and earn YOS rewards. The platform features a React frontend with TypeScript, Express.js backend, and integrates with Solana blockchain through various wallet adapters. The system includes an admin panel for managing staking parameters and a comprehensive user interface for staking, unstaking, harvesting rewards, and token swapping.
+This is a Solana-based decentralized staking platform that allows users to stake YOT tokens and earn YOS rewards. The platform features a React frontend with TypeScript, Express.js backend, and integrates with Solana blockchain through various wallet adapters. The system includes an admin panel for managing staking parameters and a comprehensive user interface for staking, unstaking, harvesting rewards, and token swapping. The platform now includes a configurable token burning mechanism that permanently removes YOT tokens from circulation during swap operations.
 
 # User Preferences
 
@@ -39,6 +39,8 @@ Preferred communication style: Simple, everyday language.
 - **Reward Calculation**: Uses linear interest instead of compound interest to prevent calculation discrepancies
 - **Error Handling**: Comprehensive error handling for wallet operations and blockchain interactions
 - **Real-time Updates**: Query invalidation and optimistic updates for responsive user experience
+- **Token Burning**: Configurable burning mechanism (10% on buy, 6.5% on sell by default) reduces token supply during swaps
+- **Transaction Fee Management**: User wallets pay transaction fees instead of pool authority to prevent insufficient fund errors
 
 # External Dependencies
 

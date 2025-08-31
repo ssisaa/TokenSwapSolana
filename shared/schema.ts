@@ -26,6 +26,9 @@ export const adminSettings = pgTable("admin_settings", {
   // Adding these new fields to store threshold values that aren't supported by the Solana program
   stakeThreshold: decimal("stake_threshold").notNull().default("10.0"),
   unstakeThreshold: decimal("unstake_threshold").notNull().default("10.0"),
+  // Token burning percentages for buy and sell operations
+  burnPercentageBuy: decimal("burn_percentage_buy").notNull().default("10.0"),
+  burnPercentageSell: decimal("burn_percentage_sell").notNull().default("6.5"),
   updatedAt: timestamp("updated_at").defaultNow(),
   updatedBy: integer("updated_by").references(() => adminUsers.id)
 });
@@ -98,6 +101,8 @@ export const insertAdminSettingsSchema = createInsertSchema(adminSettings).pick(
   harvestThreshold: true,
   stakeThreshold: true,  // Added new field
   unstakeThreshold: true, // Added new field
+  burnPercentageBuy: true, // Token burn percentage for buy operations
+  burnPercentageSell: true, // Token burn percentage for sell operations
   updatedBy: true
 });
 
